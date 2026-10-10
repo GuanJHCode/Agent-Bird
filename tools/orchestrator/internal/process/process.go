@@ -80,6 +80,7 @@ type Handle struct {
 	stdout            io.Writer
 	outputObserver    OutputObserver
 	peerAnchor        *peerAnchor
+	peerOwner         *Handle
 	peerRevoked       bool
 }
 type captureWriter struct {
@@ -250,6 +251,7 @@ func startCommandUsingWithPeerAnchor(ctx context.Context, spec Command, duplex b
 		if anchor, anchorErr := anchorCapture(ctx, cmd.Process.Pid); anchorErr == nil && anchor.pid == cmd.Process.Pid && anchor.pgid == h.pgid {
 			h.mu.Lock()
 			h.peerAnchor = &anchor
+			h.peerOwner = h
 			h.mu.Unlock()
 		}
 	}

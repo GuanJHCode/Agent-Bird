@@ -1,6 +1,9 @@
 package process
 
-import "context"
+import (
+	"context"
+	"os"
+)
 
 // These are deliberately private kernel observations. Identity is a public,
 // serializable status view and must never become authority for a peer process.
@@ -31,12 +34,20 @@ func (p *LiveDescendant) Verify(ctx context.Context) error {
 	return p.verifyWith(ctx, observePeerRecord)
 }
 
-func (*Handle) bindLiveDescendantWith(context.Context, int, func(context.Context, int) (peerRecord, error)) (*LiveDescendant, error) {
-	return nil, ErrProcessTreeUnknown
+func (h *Handle) bindLiveDescendantWith(ctx context.Context, peerPID int, observe func(context.Context, int) (peerRecord, error)) (*LiveDescendant, error) {
+	peer, err := h.verifyLiveDescendantRecordWith(ctx, peerPID, nil, observe)
+	if err != nil {
+		return nil, ErrProcessTreeUnknown
+	}
+	return &LiveDescendant{handle: h, peer: peer}, nil
 }
 
-func (*LiveDescendant) verifyWith(context.Context, func(context.Context, int) (peerRecord, error)) error {
-	return ErrProcessTreeUnknown
+func (p *LiveDescendant) verifyWith(ctx context.Context, observe func(context.Context, int) (peerRecord, error)) error {
+	if p == nil || p.handle == nil || !validPeerRecord(p.peer) {
+		return ErrProcessTreeUnknown
+	}
+	_, err := p.handle.verifyLiveDescendantRecordWith(ctx, p.peer.pid, &p.peer, observe)
+	return err
 }
 
 func (h *Handle) VerifyLiveDescendant(ctx context.Context, peerPID int) error {
@@ -46,18 +57,23 @@ func (h *Handle) VerifyLiveDescendant(ctx context.Context, peerPID int) error {
 // verifyLiveDescendantWith exists to exercise the bounded kernel-observation
 // protocol without allowing callers to supply an authority observation.
 func (h *Handle) verifyLiveDescendantWith(ctx context.Context, peerPID int, observe func(context.Context, int) (peerRecord, error)) error {
+	_, err := h.verifyLiveDescendantRecordWith(ctx, peerPID, nil, observe)
+	return err
+}
+
+func (h *Handle) verifyLiveDescendantRecordWith(ctx context.Context, peerPID int, expected *peerRecord, observe func(context.Context, int) (peerRecord, error)) (peerRecord, error) {
 	if h == nil || peerPID <= 0 || observe == nil || ctx == nil || ctx.Err() != nil {
-		return ErrProcessTreeUnknown
+		return peerRecord{}, ErrProcessTreeUnknown
 	}
 	h.mu.Lock()
-	if h.waited || h.peerRevoked || h.peerAnchor == nil {
+	if h.peerOwner != h || h.waited || h.peerRevoked || h.peerAnchor == nil {
 		h.mu.Unlock()
-		return ErrProcessTreeUnknown
+		return peerRecord{}, ErrProcessTreeUnknown
 	}
 	anchor := *h.peerAnchor
 	h.mu.Unlock()
 	if !validPeerAnchor(anchor) {
-		return ErrProcessTreeUnknown
+		return peerRecord{}, ErrProcessTreeUnknown
 	}
 
 	chain := make([]peerRecord, 0, 8)
@@ -65,49 +81,52 @@ func (h *Handle) verifyLiveDescendantWith(ctx context.Context, peerPID int, obse
 	pid := peerPID
 	for len(chain) < 64 {
 		if ctx.Err() != nil {
-			return ErrProcessTreeUnknown
+			return peerRecord{}, ErrProcessTreeUnknown
 		}
 		if _, exists := seen[pid]; exists {
-			return ErrProcessTreeUnknown
+			return peerRecord{}, ErrProcessTreeUnknown
 		}
 		seen[pid] = struct{}{}
 		record, err := observe(ctx, pid)
 		if err != nil || !validPeerRecord(record) || record.pid != pid || record.euid != anchor.euid || record.pgid != anchor.pgid {
-			return ErrProcessTreeUnknown
+			return peerRecord{}, ErrProcessTreeUnknown
+		}
+		if len(chain) == 0 && expected != nil && record != *expected {
+			return peerRecord{}, ErrProcessTreeUnknown
 		}
 		chain = append(chain, record)
 		if matchesPeerAnchor(record, anchor) {
 			break
 		}
 		if record.ppid <= 1 {
-			return ErrProcessTreeUnknown
+			return peerRecord{}, ErrProcessTreeUnknown
 		}
 		pid = record.ppid
 	}
 	if len(chain) == 64 && !matchesPeerAnchor(chain[len(chain)-1], anchor) {
-		return ErrProcessTreeUnknown
+		return peerRecord{}, ErrProcessTreeUnknown
 	}
 	if !matchesPeerAnchor(chain[len(chain)-1], anchor) {
-		return ErrProcessTreeUnknown
+		return peerRecord{}, ErrProcessTreeUnknown
 	}
 	// Recheck the complete path in reverse. Reading only its endpoints would
 	// miss a parent that exited or was reparented during the first walk.
 	for i := len(chain) - 1; i >= 0; i-- {
 		current, err := observe(ctx, chain[i].pid)
 		if err != nil || current != chain[i] {
-			return ErrProcessTreeUnknown
+			return peerRecord{}, ErrProcessTreeUnknown
 		}
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if h.waited || h.peerRevoked || h.peerAnchor == nil || *h.peerAnchor != anchor || ctx.Err() != nil {
-		return ErrProcessTreeUnknown
+	if h.peerOwner != h || h.waited || h.peerRevoked || h.peerAnchor == nil || *h.peerAnchor != anchor || ctx.Err() != nil {
+		return peerRecord{}, ErrProcessTreeUnknown
 	}
-	return nil
+	return chain[0], nil
 }
 
 func validPeerAnchor(a peerAnchor) bool {
-	return a.pid > 0 && a.birth != "" && a.euid >= 0 && a.pgid > 0
+	return a.pid > 0 && a.birth != "" && a.euid == os.Geteuid() && a.pgid > 0
 }
 func validPeerRecord(r peerRecord) bool {
 	return r.pid > 0 && r.ppid >= 0 && r.birth != "" && r.euid >= 0 && r.pgid > 0

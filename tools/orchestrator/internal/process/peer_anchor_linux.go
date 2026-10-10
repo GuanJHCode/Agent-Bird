@@ -19,9 +19,34 @@ func observePeerRecord(ctx context.Context, pid int) (peerRecord, error) {
 	if err != nil {
 		return peerRecord{}, ErrProcessTreeUnknown
 	}
-	stat, uid, err := linuxObserveAncestor(ctx, pid)
+	before, uidBefore, err := linuxPeerObservation(ctx, pid)
 	if err != nil {
 		return peerRecord{}, ErrProcessTreeUnknown
 	}
-	return peerRecord{pid: pid, ppid: stat.ppid, birth: "linux:" + boot + ":" + stat.start, euid: uid, pgid: stat.pgid}, nil
+	after, uidAfter, err := linuxPeerObservation(ctx, pid)
+	if err != nil || before != after || uidBefore != uidAfter || !linuxLivePeerState(before.state) {
+		return peerRecord{}, ErrProcessTreeUnknown
+	}
+	return peerRecord{pid: pid, ppid: before.ppid, birth: "linux:" + boot + ":" + before.start, euid: uidBefore, pgid: before.pgid}, nil
+}
+
+func linuxPeerObservation(ctx context.Context, pid int) (linuxStat, int, error) {
+	stat, err := linuxStatFor(ctx, pid)
+	if err != nil || !linuxLivePeerState(stat.state) {
+		return linuxStat{}, 0, ErrProcessTreeUnknown
+	}
+	uid, err := linuxUID(ctx, pid)
+	if err != nil {
+		return linuxStat{}, 0, ErrProcessTreeUnknown
+	}
+	return stat, uid, nil
+}
+
+func linuxLivePeerState(state byte) bool {
+	switch state {
+	case 'R', 'S', 'D', 'I', 'T', 't', 'W':
+		return true
+	default:
+		return false
+	}
 }

@@ -29,8 +29,10 @@ func observePeerRecord(ctx context.Context, pid int) (peerRecord, error) {
 
 func darwinPeerRecord(ctx context.Context, pid int) (peerRecord, error) {
 	k, err := darwinProcessRecord(ctx, pid)
-	if err != nil || k.Eproc.Ppid < 0 || k.Eproc.Pgid <= 0 {
+	if err != nil || !darwinLivePeerState(k.Proc.P_stat) || k.Eproc.Ppid < 0 || k.Eproc.Pgid <= 0 {
 		return peerRecord{}, ErrProcessTreeUnknown
 	}
 	return peerRecord{pid: int(k.Proc.P_pid), ppid: int(k.Eproc.Ppid), birth: fmt.Sprintf("darwin:%d:%d", k.Proc.P_starttime.Sec, k.Proc.P_starttime.Usec), euid: int(k.Eproc.Ucred.Uid), pgid: int(k.Eproc.Pgid)}, nil
 }
+
+func darwinLivePeerState(state uint8) bool { return state == 2 || state == 3 || state == 4 }

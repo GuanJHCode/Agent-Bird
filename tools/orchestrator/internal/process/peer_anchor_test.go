@@ -26,6 +26,7 @@ func stablePeerObserver(records map[int]peerRecord, reads map[int]int) func(cont
 
 func TestVerifyLiveDescendantAcceptsStableChain(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
+	h.peerOwner = h
 	reads := map[int]int{}
 	err := h.verifyLiveDescendantWith(context.Background(), 11, stablePeerObserver(map[int]peerRecord{
 		10: {pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1},
@@ -38,6 +39,7 @@ func TestVerifyLiveDescendantAcceptsStableChain(t *testing.T) {
 
 func TestVerifyLiveDescendantRejectsExactLeaderBirthDrift(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
+	h.peerOwner = h
 	reads, drifted := map[int]int{}, false
 	err := h.verifyLiveDescendantWith(context.Background(), 11, func(_ context.Context, pid int) (peerRecord, error) {
 		reads[pid]++
@@ -54,6 +56,7 @@ func TestVerifyLiveDescendantRejectsExactLeaderBirthDrift(t *testing.T) {
 
 func TestVerifyLiveDescendantRejectsIntermediateReparent(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
+	h.peerOwner = h
 	reads, reparented := map[int]int{}, false
 	err := h.verifyLiveDescendantWith(context.Background(), 12, func(_ context.Context, pid int) (peerRecord, error) {
 		reads[pid]++
@@ -70,6 +73,7 @@ func TestVerifyLiveDescendantRejectsIntermediateReparent(t *testing.T) {
 
 func TestStopRevokesPeerAnchorBeforeStopFailure(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}, pgid: 10, identity: Identity{PID: 10, Birth: "public", BirthKnown: true}}
+	h.peerOwner = h
 	err := h.stopWith(context.Background(), stopOperations{
 		birth:         func(int) (string, error) { return "public", nil },
 		signal:        func(int, syscall.Signal) error { return errors.New("signal failure") },
@@ -121,9 +125,15 @@ func TestVerifyLiveDescendantNativeLifecycle(t *testing.T) {
 		_ = os.WriteFile(release, []byte("release"), 0600)
 		cleanup, stop := context.WithTimeout(context.Background(), time.Second)
 		defer stop()
-		_ = h.Stop(cleanup)
-		_ = h.Wait(cleanup)
-		_ = h.ConfirmTreeExited()
+		if err := h.Stop(cleanup); err != nil {
+			t.Errorf("cleanup Stop: %v", err)
+		}
+		if err := h.Wait(cleanup); err != nil {
+			t.Errorf("cleanup Wait: %v", err)
+		}
+		if err := h.ConfirmTreeExited(); err != nil {
+			t.Errorf("cleanup tree: %v", err)
+		}
 	})
 	var peer int
 	for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); time.Sleep(5 * time.Millisecond) {
@@ -161,6 +171,7 @@ func TestVerifyLiveDescendantNativeLifecycle(t *testing.T) {
 
 func TestLiveDescendantRejectsPIDReuseWithNewBirth(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
+	h.peerOwner = h
 	bound, err := h.bindLiveDescendantWith(context.Background(), 11, func(_ context.Context, pid int) (peerRecord, error) {
 		if pid == 10 {
 			return peerRecord{pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, nil
@@ -177,5 +188,19 @@ func TestLiveDescendantRejectsPIDReuseWithNewBirth(t *testing.T) {
 		return peerRecord{pid: 11, birth: "boot:999", euid: 501, pgid: 10, ppid: 10}, nil
 	}); err == nil {
 		t.Fatal("reused PID with new birth retained bound authority")
+	}
+}
+
+func TestVerifyLiveDescendantRejectsHandleCopy(t *testing.T) {
+	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
+	h.peerOwner = h
+	copy := *h // test fixture is unlocked; copied values must not retain authority.
+	calls := 0
+	err := copy.verifyLiveDescendantWith(context.Background(), 10, func(context.Context, int) (peerRecord, error) {
+		calls++
+		return peerRecord{pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, nil
+	})
+	if err == nil || calls != 0 {
+		t.Fatalf("copied Handle err=%v observation_calls=%d", err, calls)
 	}
 }
