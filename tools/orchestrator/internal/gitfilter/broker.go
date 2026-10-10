@@ -25,6 +25,15 @@ type BrokerState struct {
 	EverStarted, Unknown  bool      `json:"-"`
 }
 
+// BrokerObservation identifies only this original live object, even after a
+// known failure revokes Binding(). It grants no execution or cleanup rights
+// and cannot restore an owner from serialized data.
+type BrokerObservation struct {
+	OriginalBinding                StreamBinding `json:"-"`
+	State                          BrokerState   `json:"-"`
+	Ready, Failed, Closed, Removed bool          `json:"-"`
+}
+
 // StreamLoadResult is live-only slot evidence, never durable wire data.
 type StreamLoadResult struct {
 	SHA256 string `json:"-"`
@@ -45,6 +54,7 @@ type StreamBinding struct {
 // broker from its journal, and Close never removes its retained resources.
 type ResourceBroker interface {
 	Binding() StreamBinding
+	Observation() BrokerObservation
 	Load(context.Context, int, *os.File) error
 	LoadStream(context.Context, int, func(io.Writer) error) (StreamLoadResult, error)
 	Transform(context.Context, string, int, int) (Result, error)

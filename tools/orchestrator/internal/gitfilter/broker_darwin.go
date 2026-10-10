@@ -787,6 +787,15 @@ func (b *Broker) Binding() StreamBinding {
 
 func (b *Broker) State() BrokerState { b.mu.Lock(); defer b.mu.Unlock(); return b.state }
 
+func (b *Broker) Observation() BrokerObservation {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return BrokerObservation{
+		OriginalBinding: StreamBinding{ManifestSHA256: b.req.Grant.ManifestSHA256, ScopeSHA256: b.req.Grant.ScopeSHA256, ReservationID: b.req.Grant.ReservationID, AttemptID: b.req.Launch.AttemptID, PlanRevision: b.req.Launch.PlanRevision},
+		State:           b.state, Ready: b.ready, Failed: b.failed, Closed: b.closed, Removed: b.removed,
+	}
+}
+
 // Cleanup proves only this broker's filters. The Host must separately prove its
 // provider tree terminal before emitting any segment cleanup/release event.
 func (b *Broker) Cleanup(ctx context.Context) (*contract.GitFilterCleanup, error) {
