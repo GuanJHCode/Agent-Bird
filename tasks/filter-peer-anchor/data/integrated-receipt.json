@@ -1,0 +1,16 @@
+{
+  "integration_merge": "545e63cf6711ce0a754b7117ae83112ab1cc9652",
+  "go_tree": "7ccaa325011b95fae0e2670a7a56066b820de1b5",
+  "peer_qualified_source": "1625a0db4e523d13e1835ad1ae04088e273ac4f4",
+  "codec_qualified_source": "d5f8326965127757dd2b8b37a1705c66a9351992",
+  "exact_union_verified": true,
+  "only_diff_from_peer_source": [
+    "tools/orchestrator/internal/gitfilter/filter_process_boundaries_test.go",
+    "tools/orchestrator/internal/gitfilter/filter_process_cancel_test.go",
+    "tools/orchestrator/internal/gitfilter/filter_process_protocol.go",
+    "tools/orchestrator/internal/gitfilter/filter_process_protocol_test.go",
+    "tools/orchestrator/internal/gitfilter/filter_process_vectors_test.go"
+  ],
+  "review": "both private leaves independently PASS",
+  "scope": "original peer binding plus private codec; public carrier/integrate remain closed"
+}
