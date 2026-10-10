@@ -38,6 +38,11 @@ func commandProofHash(s Command) string {
 	return hex.EncodeToString(sum[:])
 }
 func neverStartedError(ctx context.Context, spec Command, cmd *exec.Cmd, err error) error {
+	// A transferred blob buffer is not a retryable validation invocation. Do
+	// not serialize/copy its potentially large stdin into a command proof.
+	if spec.OwnedStdin != nil {
+		return err
+	}
 	if cmd.Process != nil || cmd.ProcessState != nil || ctx.Err() != nil {
 		return err
 	}
@@ -54,7 +59,7 @@ func neverStartedError(ctx context.Context, spec Command, cmd *exec.Cmd, err err
 }
 func NeverStartedCode(ctx context.Context, err error, spec Command) string {
 	var proof *neverStartedProof
-	if ctx == nil || ctx.Err() != nil || !errors.As(err, &proof) || !reflect.ValueOf(ctx).Comparable() || !reflect.ValueOf(proof.ctx).Comparable() || proof.ctx != ctx || proof.digest != commandProofHash(spec) {
+	if spec.OwnedStdin != nil || ctx == nil || ctx.Err() != nil || !errors.As(err, &proof) || !reflect.ValueOf(ctx).Comparable() || !reflect.ValueOf(proof.ctx).Comparable() || proof.ctx != ctx || proof.digest != commandProofHash(spec) {
 		return ""
 	}
 	return proof.code

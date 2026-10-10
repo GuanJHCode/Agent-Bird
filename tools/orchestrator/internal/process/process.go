@@ -38,16 +38,20 @@ const (
 type OutputObserver func(OutputStream, []byte)
 
 type Command struct {
-	SealedPath    string
-	SealedSHA256  string
-	PinnedPath    string
-	PinnedSHA256  string
-	Path          string
-	Args          []string
-	Dir           string
-	Env           []string
-	ExactEnv      bool
-	Stdin         []byte
+	SealedPath   string
+	SealedSHA256 string
+	PinnedPath   string
+	PinnedSHA256 string
+	Path         string
+	Args         []string
+	Dir          string
+	Env          []string
+	ExactEnv     bool
+	Stdin        []byte
+	// OwnedStdin transfers exclusive read ownership through the original Wait.
+	// The caller must never mutate/reuse its backing array after Start, including
+	// uncertain returns. Unlike Stdin, this Go-only input is not copied.
+	OwnedStdin    []byte `json:"-"`
 	Stdout        io.Writer
 	ObserveOutput OutputObserver `json:"-"`
 }
@@ -131,7 +135,10 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 	return startCommandUsing(ctx, spec, duplex, birthLookup, func(cmd *exec.Cmd) error { return cmd.Start() })
 }
 func startCommandUsing(ctx context.Context, spec Command, duplex bool, birthLookup func(int) (string, error), starter func(*exec.Cmd) error) (*Handle, *duplexStream, error) {
-	if duplex && (spec.Stdin != nil || spec.Stdout != nil) {
+	if spec.Stdin != nil && spec.OwnedStdin != nil {
+		return nil, nil, CodeError("stdin_ownership_conflict")
+	}
+	if duplex && (spec.Stdin != nil || spec.OwnedStdin != nil || spec.Stdout != nil) {
 		return nil, nil, CodeError("duplex_stdio_conflict")
 	}
 	if spec.Path == "" {
@@ -163,6 +170,8 @@ func startCommandUsing(ctx context.Context, spec Command, duplex bool, birthLook
 	}
 	if spec.Stdin != nil {
 		cmd.Stdin = bytes.NewReader(append([]byte(nil), spec.Stdin...))
+	} else if spec.OwnedStdin != nil {
+		cmd.Stdin = bytes.NewReader(spec.OwnedStdin)
 	}
 	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024, stdout: spec.Stdout, outputObserver: spec.ObserveOutput}
 	var pipes *duplexPipes

@@ -1,0 +1,121 @@
+{
+  "final_source": "a4a4d4c9b134009e4aebf46b98ae65135273d396",
+  "go_tree": "14d842f9641028650bd4efcb0d34b77daa7b63e5",
+  "checks": [
+    {
+      "label": "freeze-build",
+      "source": "2b0e20e30c96b5230dd76aeaec211b9e46ab0ced",
+      "dirty": "",
+      "exit": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 203
+    },
+    {
+      "label": "native-race",
+      "source": "73ef112fe9c5cbe2dcf1c9690023d2be980ad01f",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "0d10c55a8b8515e13d0f442e2e4a070bd79cefea0b0d4d5c81f58517fc4db554",
+      "stderr_bytes": 0,
+      "top": 3,
+      "named": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "label": "validator-delta-race",
+      "source": "efc2b80d778e08f1a1747576da6e9746abe0f149",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "b74e2638691b0a8a3d11867abf2556839d639b3f44885400c0129ee8134759b2",
+      "stderr_bytes": 0,
+      "top": 1,
+      "named": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "label": "change-shape-race",
+      "source": "da6a33846e63af84f127c45e8a4cc4ab8ecb97de",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "37cb730f298c55c6ddcb3d731719197cd380c0c9ad5900715bbe0d66ae67c9dd",
+      "stderr_bytes": 0,
+      "top": 1,
+      "named": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "label": "final-build",
+      "source": "da6a33846e63af84f127c45e8a4cc4ab8ecb97de",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "final-linux-build",
+      "source": "da6a33846e63af84f127c45e8a4cc4ab8ecb97de",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "final-vet",
+      "source": "da6a33846e63af84f127c45e8a4cc4ab8ecb97de",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "final-change-shape-race",
+      "source": "a4a4d4c9b134009e4aebf46b98ae65135273d396",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e7226e4909af91cc7ac3bee575ff5a78ec0741fb8b681883afbfd6caa18118c8",
+      "stderr_bytes": 0,
+      "top": 1,
+      "named": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "label": "qualified-build",
+      "source": "a4a4d4c9b134009e4aebf46b98ae65135273d396",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "qualified-linux-build",
+      "source": "a4a4d4c9b134009e4aebf46b98ae65135273d396",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "qualified-vet",
+      "source": "a4a4d4c9b134009e4aebf46b98ae65135273d396",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    }
+  ],
+  "rechecked_absent": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-freeze-workspace/tasks/filter-raw-fixture/tmp/raw-4148600100",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-freeze-workspace/tasks/filter-raw-fixture/tmp/raw-2714559707",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-freeze-workspace/tasks/filter-raw-fixture/tmp/raw-3433397554",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-freeze-workspace/tasks/filter-raw-fixture/tmp/raw-12799887",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-freeze-workspace/tasks/filter-raw-fixture/tmp/raw-2348785204"
+  ]
+}
