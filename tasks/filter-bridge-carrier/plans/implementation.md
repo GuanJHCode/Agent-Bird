@@ -1,6 +1,7 @@
 # Original Git filter carrier: staged implementation
 
-Status: design draft only. Base integration 4a75edf. Public filtered integrate,
+Status: Milestone A design reviewed PASS at 0ab8f1c, conditional on qualified
+peer binding leaf. Implementation not started. Base integration 2e3cbb7. Public filtered integrate,
 compose and retry remain closed. No provider/account/native TUI claim.
 
 ## Inputs already available
@@ -8,8 +9,8 @@ compose and retry remain closed. No provider/account/native TUI claim.
 - Original live Broker and exact permit session: qualified 9faf017, integrated
   4a75edf. Session journal observations alone cannot release resources; callers
   must combine Exchange result, session State, and the outer original Git terminal.
-- Private v2 codec: ROOT a5261a8 focused race/build passed, independent review
-  pending. Synchronous body producer, 16 MiB/65536 packets/1024 requests, no
+- Private v2 codec: qualified ROOT d5f8326, integrated 2e3cbb7; final
+  focused race/build and independent review passed. Synchronous body producer, 16 MiB/65536 packets/1024 requests, no
   response before body flush, no helper-local permission reset.
 - Handle-bound kernel peer leaf is isolated in filter-peer-anchor. Full raw
   Darwin sec/usec or Linux starttick, UID, PGID; Start capture only; Stop revokes;
