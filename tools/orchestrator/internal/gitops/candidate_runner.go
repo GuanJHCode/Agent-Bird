@@ -171,6 +171,14 @@ func freezeGit(ctx context.Context, dir string, stdin io.Reader, args ...string)
 // process retains its existing bounded diagnostic capture while the supplied
 // writer consumes data incrementally under the same process/journal contract.
 func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...string) error {
+	return candidateGitInputStream(ctx, dir, nil, out, args...)
+}
+
+// Input stays bounded while stdout is consumed incrementally by the caller.
+func candidateGitInputStream(ctx context.Context, dir string, input []byte, out io.Writer, args ...string) error {
+	if len(input) > 256<<10 {
+		return fail(CodeInvalidInput, "candidate stream input", nil)
+	}
 	filter := filterGitFromContext(ctx)
 	if filter != nil {
 		if err := filter.verifyDirectory(dir); err != nil {
@@ -179,13 +187,17 @@ func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...
 		if err := filter.Verify(ctx); err != nil {
 			return err
 		}
-		err := candidateGitStreamWithStart(ctx, dir, out, process.Start, args...)
+		err := candidateGitInputStreamWithStart(ctx, dir, input, out, process.Start, args...)
 		return filter.verifyAfter(err)
 	}
-	return candidateGitStreamWithStart(ctx, dir, out, process.Start, args...)
+	return candidateGitInputStreamWithStart(ctx, dir, input, out, process.Start, args...)
 }
 
 func candidateGitStreamWithStart(ctx context.Context, dir string, out io.Writer, start func(context.Context, process.Command) (*process.Handle, error), args ...string) error {
+	return candidateGitInputStreamWithStart(ctx, dir, nil, out, start, args...)
+}
+
+func candidateGitInputStreamWithStart(ctx context.Context, dir string, input []byte, out io.Writer, start func(context.Context, process.Command) (*process.Handle, error), args ...string) error {
 	env := []string{}
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
@@ -214,7 +226,7 @@ func candidateGitStreamWithStart(ctx context.Context, dir string, out io.Writer,
 	if err := record("intent", nil, -1); err != nil {
 		return err
 	}
-	p, err := start(ctx, process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdout: out})
+	p, err := start(ctx, process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
 	if err != nil {
 		if p != nil {
 			identity := p.Identity()

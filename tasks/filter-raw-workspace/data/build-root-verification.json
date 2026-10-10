@@ -1,0 +1,9 @@
+{
+  "source": "fe31b66290314cbb3735a4d2ee0aa9c388de81b7",
+  "dirty_at_start": "",
+  "exit": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "go_tree": "763ab9d685acefc5dce8f461ac9bab7b931c9be3",
+  "scope": "Compile only; behavior and fixed-source review pending; public filter admission closed."
+}

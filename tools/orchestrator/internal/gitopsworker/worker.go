@@ -362,6 +362,10 @@ func (j *durableJournal) RecordCandidateAction(_ context.Context, phase string, 
 	return j.append("candidate_action_"+phase, value)
 }
 
+func (j *durableJournal) RecordFilterMaterialized(_ context.Context, receipt gitops.MaterializeReceipt) error {
+	return j.append("filter_materialized", receipt)
+}
+
 func (j *durableJournal) RecordWorkspacePrepared(_ context.Context, workspace gitops.PreparedWorkspace) error {
 	return j.append("workspace_prepared", workspace)
 }
