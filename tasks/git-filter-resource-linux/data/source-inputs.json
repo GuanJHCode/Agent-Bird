@@ -1,0 +1,18 @@
+{
+  "resource_final_race": {
+    "path": "tasks/git-filter-reservations/data/resource-final-race.stdout.jsonl",
+    "sha256": "85898e35cfef36f6941d4136a7d96a31b1b040376dc594f74276c3b9cb10750b",
+    "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+    "pass_named": 20
+  },
+  "migration_fixture_green": {
+    "path": "tasks/git-filter-reservations/data/migration-fixture-green.stdout.jsonl",
+    "sha256": "e0b8a1fea1cc8b6f3d9cbd0374c7b20bf00fa7eb44f8aa0426212fa7f51f145d",
+    "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+    "pass_named": 8
+  },
+  "union": {
+    "top": 8,
+    "named": 28
+  }
+}
