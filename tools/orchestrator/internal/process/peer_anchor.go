@@ -23,11 +23,21 @@ type LiveDescendant struct {
 	peer   peerRecord
 }
 
-func (h *Handle) BindLiveDescendant(context.Context, int) (*LiveDescendant, error) {
+func (h *Handle) BindLiveDescendant(ctx context.Context, peerPID int) (*LiveDescendant, error) {
+	return h.bindLiveDescendantWith(ctx, peerPID, observePeerRecord)
+}
+
+func (p *LiveDescendant) Verify(ctx context.Context) error {
+	return p.verifyWith(ctx, observePeerRecord)
+}
+
+func (*Handle) bindLiveDescendantWith(context.Context, int, func(context.Context, int) (peerRecord, error)) (*LiveDescendant, error) {
 	return nil, ErrProcessTreeUnknown
 }
 
-func (*LiveDescendant) Verify(context.Context) error { return ErrProcessTreeUnknown }
+func (*LiveDescendant) verifyWith(context.Context, func(context.Context, int) (peerRecord, error)) error {
+	return ErrProcessTreeUnknown
+}
 
 func (h *Handle) VerifyLiveDescendant(ctx context.Context, peerPID int) error {
 	return h.verifyLiveDescendantWith(ctx, peerPID, observePeerRecord)
