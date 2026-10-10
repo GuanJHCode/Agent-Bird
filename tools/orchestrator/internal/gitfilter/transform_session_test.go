@@ -150,7 +150,7 @@ func TestExactTransformSession(t *testing.T) {
 	t.Run("shallow_copy_cannot_split_live_authority", func(t *testing.T) {
 		b, m, p, j, ctx := exactTestFixture(t)
 		original := openExactTest(t, b, m, p, j)
-		copy := reflect.New(reflect.TypeOf(*original)).Interface().(*ExactTransformSession)
+		copy := reflect.New(reflect.TypeOf(original).Elem()).Interface().(*ExactTransformSession)
 		reflect.ValueOf(copy).Elem().Set(reflect.ValueOf(original).Elem())
 		if err := copy.Close(); err == nil {
 			t.Fatal("copy Close accepted")

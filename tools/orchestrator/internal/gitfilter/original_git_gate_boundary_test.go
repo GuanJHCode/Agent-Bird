@@ -363,7 +363,7 @@ func TestOriginalGitGateBoundaries(t *testing.T) {
 	})
 	t.Run("nil_zero_copy_and_typed_nil", func(t *testing.T) {
 		g, s, _, ctx := gateNew(t)
-		copy := reflect.New(reflect.TypeOf(*g)).Interface().(*OriginalGitGate)
+		copy := reflect.New(reflect.TypeOf(g).Elem()).Interface().(*OriginalGitGate)
 		reflect.ValueOf(copy).Elem().Set(reflect.ValueOf(g).Elem())
 		for _, bad := range []*OriginalGitGate{nil, new(OriginalGitGate), copy} {
 			if e := bad.activateWith(ctx, gateTestOwner{peer: gateTestPeer{}}, g.digest); e == nil {
@@ -410,7 +410,7 @@ func TestOriginalGitGateConstructorOwner(t *testing.T) {
 			case "unknown":
 				b.state.Unknown = true
 			case "session_copy":
-				cp := reflect.New(reflect.TypeOf(*s)).Interface().(*ExactTransformSession)
+				cp := reflect.New(reflect.TypeOf(s).Elem()).Interface().(*ExactTransformSession)
 				reflect.ValueOf(cp).Elem().Set(reflect.ValueOf(s).Elem())
 				s = cp
 			}
@@ -465,7 +465,7 @@ func TestExactSessionOriginalOwnership(t *testing.T) {
 		t.Run(map[bool]string{false: "live", true: "closed"}[closed], func(t *testing.T) {
 			b, m, p, j, ctx := exactTestFixture(t)
 			s := openExactTest(t, b, m, p, j)
-			copy := reflect.New(reflect.TypeOf(*s)).Interface().(*ExactTransformSession)
+			copy := reflect.New(reflect.TypeOf(s).Elem()).Interface().(*ExactTransformSession)
 			reflect.ValueOf(copy).Elem().Set(reflect.ValueOf(s).Elem())
 			if closed {
 				if e := s.Close(); e != nil {
