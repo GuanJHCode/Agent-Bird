@@ -56,9 +56,9 @@ func TestVerifyLiveDescendantRejectsIntermediateReparent(t *testing.T) {
 func TestStopRevokesPeerAnchorBeforeStopFailure(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}, pgid: 10, identity: Identity{PID: 10, Birth: "public", BirthKnown: true}}
 	err := h.stopWith(context.Background(), stopOperations{
-		birth: func(int) (string, error) { return "public", nil },
-		signal: func(int, syscall.Signal) error { return errors.New("signal failure") },
-		groupAlive: func(int) (bool, error) { return true, nil },
+		birth:         func(int) (string, error) { return "public", nil },
+		signal:        func(int, syscall.Signal) error { return errors.New("signal failure") },
+		groupAlive:    func(int) (bool, error) { return true, nil },
 		waitGroupGone: func(context.Context, int) bool { return false },
 	})
 	if err == nil {
