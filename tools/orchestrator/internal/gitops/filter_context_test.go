@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -39,13 +40,18 @@ func TestOpenFilterGitRoutesPinnedContextAndDetectsDrift(t *testing.T) {
 		t.Fatal("configuration drift accepted")
 	}
 	git(t, repository, "config", "core.filemode", "true")
-	if err := contextGit.Verify(context.Background()); err != nil {
-		t.Fatal("config was not restored before the independent attr check", err)
+	if err := contextGit.Verify(context.Background()); err == nil {
+		t.Fatal("replacement config inode was adopted by the original context")
 	}
+	attributeContext, err := OpenFilterGit(context.Background(), repository, manifest)
+	if err != nil {
+		t.Fatal("fresh context after config restoration", err)
+	}
+	defer attributeContext.Close()
 	if err := os.WriteFile(filepath.Join(repository, ".gitattributes"), []byte("a.txt filter=other\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := contextGit.Verify(context.Background()); err == nil {
+	if err := attributeContext.Verify(context.Background()); err == nil {
 		t.Fatal("attribute drift accepted")
 	}
 }
@@ -185,6 +191,13 @@ func TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty(t *testing.T) {
 func filterGitPath(t *testing.T) string {
 	t.Helper()
 	p, err := exec.LookPath("git")
+	if runtime.GOOS == "darwin" {
+		// Pin the selected developer tool itself. The system Git entry point
+		// may be a shared developer-tool dispatcher rather than that binary.
+		var selected []byte
+		selected, err = exec.Command("/usr/bin/xcrun", "--find", "git").Output()
+		p = strings.TrimSpace(string(selected))
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
