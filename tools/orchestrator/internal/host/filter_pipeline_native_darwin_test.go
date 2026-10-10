@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -29,7 +30,7 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	defer cancel()
 	filterActor := filterPipelineBuildActor(t, ctx, root, guard)
 	validatorActor, validatorPin := validationNativeActor(t, root, guard)
-	gitPath := filterPipelineGitPath(t, ctx)
+	gitPath := filterPipelineGitPath(t, ctx, guard)
 	repo := filepath.Join(root, "repo")
 	if err := os.Mkdir(repo, 0700); err != nil {
 		t.Fatal(err)
@@ -132,6 +133,7 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	if !filterPipelineExited(validatorEvents, validatorGrant) {
 		t.Fatal("validator original Host Exited proof missing")
 	}
+	filterPipelineReleasedReservations(t, filepath.Join(root, "state.db"), sourceGrant, filterPipelineExitedEvent(t, sourceEvents, sourceGrant), validatorGrant, filterPipelineExitedEvent(t, validatorEvents, validatorGrant))
 	guard.pending--
 	validationAccept(t, ctx, db, validatorGrant)
 	t.Logf("controlled_filtered_host_validator original_wait_tree=true distinct_filter_grants=true root=%s", root)
@@ -205,17 +207,23 @@ func filterPipelineRoot(t *testing.T) (string, *validationNativeCleanup) {
 	return root, guard
 }
 
-func filterPipelineGitPath(t *testing.T, ctx context.Context) string {
+func filterPipelineGitPath(t *testing.T, ctx context.Context, guard *validationNativeCleanup) string {
 	t.Helper()
 	p := "/usr/bin/git"
 	if runtime.GOOS == "darwin" {
+		guard.pending++
 		h, err := process.Start(ctx, process.Command{Path: "/usr/bin/xcrun", Args: []string{"--find", "git"}, ExactEnv: true, Env: []string{"PATH=/usr/bin:/bin", "TMPDIR=/private/tmp"}})
 		if err != nil || h == nil {
+			if h != nil {
+				validationNativeStop(h, guard)
+			}
 			t.Fatal(err)
 		}
 		if err = h.Wait(ctx); err != nil || h.ConfirmTreeExited() != nil || h.ExitCode() != 0 {
+			validationNativeStop(h, guard)
 			t.Fatal(err)
 		}
+		guard.pending--
 		p = strings.TrimSpace(h.Output())
 	}
 	got, err := filepath.EvalSymlinks(p)
@@ -296,4 +304,38 @@ func filterPipelineExited(events []contract.Event, grant contract.LaunchCommand)
 		}
 	}
 	return false
+}
+
+func filterPipelineExitedEvent(t *testing.T, events []contract.Event, grant contract.LaunchCommand) string {
+	t.Helper()
+	for _, event := range events {
+		if event.Kind == contract.EventExited && event.EventID != "" && event.RunID == grant.RunID && event.TaskID == grant.TaskID && event.AttemptID == grant.AttemptID && event.SegmentID == grant.SegmentID && event.CommandID == grant.CommandID {
+			return event.EventID
+		}
+	}
+	t.Fatal("missing exited event")
+	return ""
+}
+
+func filterPipelineReleasedReservations(t *testing.T, path string, source contract.LaunchCommand, sourceEvent string, validator contract.LaunchCommand, validatorEvent string) {
+	t.Helper()
+	readonly, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer readonly.Close()
+	checkFilter := func(grant contract.LaunchCommand, eventID string) {
+		var state, release, cleanup string
+		err := readonly.QueryRow(`SELECT state,release_event_id,cleanup_json FROM git_filter_resource_reservations WHERE id=?`, grant.GitFilter.ReservationID).Scan(&state, &release, &cleanup)
+		if err != nil || state != "released" || release != eventID || cleanup == "" {
+			t.Fatalf("filter reservation=%s state=%s release=%s cleanup=%q err=%v", grant.GitFilter.ReservationID, state, release, cleanup, err)
+		}
+	}
+	checkFilter(source, sourceEvent)
+	checkFilter(validator, validatorEvent)
+	var state, release, cleanup string
+	err = readonly.QueryRow(`SELECT state,release_event_id,cleanup_json FROM validation_tool_reservations WHERE id=?`, validator.ValidationTool.ReservationID).Scan(&state, &release, &cleanup)
+	if err != nil || state != "released" || release != validatorEvent || cleanup == "" {
+		t.Fatalf("validation reservation=%s state=%s release=%s cleanup=%q err=%v", validator.ValidationTool.ReservationID, state, release, cleanup, err)
+	}
 }
