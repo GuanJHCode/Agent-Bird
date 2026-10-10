@@ -1,0 +1,10 @@
+{
+  "integration_merge": "dabcbc35f75b11e8568a118e3d307d91df047f2c",
+  "module_tree": "09988866eb0bbe35b13e151559605fbbebbce150",
+  "owner_grant_source": "df558ee",
+  "owner_grant_objects_equal": true,
+  "filter_source": "1ec0cb5",
+  "filter_objects_equal": true,
+  "production_test_review": "Both scoped PASS",
+  "final_build": "pending"
+}
