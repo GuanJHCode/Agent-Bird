@@ -1,15 +1,19 @@
 package gitops
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 func TestOpenFilterGitRoutesPinnedContextAndDetectsDrift(t *testing.T) {
@@ -34,7 +38,10 @@ func TestOpenFilterGitRoutesPinnedContextAndDetectsDrift(t *testing.T) {
 	if err := contextGit.Verify(context.Background()); err == nil {
 		t.Fatal("configuration drift accepted")
 	}
-	git(t, repository, "config", "--unset", "core.filemode")
+	git(t, repository, "config", "core.filemode", "true")
+	if err := contextGit.Verify(context.Background()); err != nil {
+		t.Fatal("config was not restored before the independent attr check", err)
+	}
 	if err := os.WriteFile(filepath.Join(repository, ".gitattributes"), []byte("a.txt filter=other\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +68,7 @@ func TestOpenFilterGitRejectsUnlistedFilterWithoutExecutingIt(t *testing.T) {
 }
 
 func TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts(t *testing.T) {
-	repository, _ := repo(t)
+	repository, head := repo(t)
 	manifest := configureFilter(t, repository, filterManifestFor(t, filterGitPath(t), filterTool(t, "clean"), filterTool(t, "smudge")))
 	g, err := OpenFilterGit(context.Background(), repository, manifest)
 	if err != nil {
@@ -71,12 +78,16 @@ func TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts(t *
 	foreign, _ := repo(t)
 	path := t.TempDir()
 	sentinel := filepath.Join(path, "bare-git")
-	if err := os.WriteFile(filepath.Join(path, "git"), []byte("#!/bin/sh\ntouch "+sentinel+"\nexit 90\n"), 0700); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "git"), []byte("#!/bin/sh\n/usr/bin/touch "+sentinel+"\nexit 90\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", path)
 	if _, err := gitRecords(ctx, repository, "rev-parse", "--git-dir"); err != nil {
 		t.Fatalf("records bypassed pinned git: %v", err)
+	}
+	var streamed bytes.Buffer
+	if err := candidateGitStream(ctx, repository, &streamed, "rev-parse", "HEAD"); err != nil || strings.TrimSpace(streamed.String()) != head {
+		t.Fatalf("stream bypassed pinned Git: %q %v", streamed.String(), err)
 	}
 	if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
 		t.Fatalf("bare git executed: %v", err)
@@ -84,14 +95,90 @@ func TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts(t *
 	if _, err := run(context.WithValue(ctx, trackedIntegrationRunnerKey{}, true), repository, "rev-parse", "HEAD"); err == nil {
 		t.Fatal("tracked filter context accepted")
 	}
+	if err := candidateGitStream(context.WithValue(ctx, trackedIntegrationRunnerKey{}, true), repository, &streamed, "rev-parse", "HEAD"); err == nil {
+		t.Fatal("tracked stream accepted")
+	}
 	if _, err := run(ctx, foreign, "rev-parse", "HEAD"); err == nil {
 		t.Fatal("foreign repository accepted")
+	}
+	if err := candidateGitStream(ctx, foreign, &streamed, "rev-parse", "HEAD"); err == nil {
+		t.Fatal("foreign stream accepted")
 	}
 	if err := g.Close(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := run(ctx, repository, "rev-parse", "HEAD"); err == nil {
 		t.Fatal("closed context reused")
+	}
+	if err := candidateGitStream(ctx, repository, &streamed, "rev-parse", "HEAD"); err == nil {
+		t.Fatal("closed stream accepted")
+	}
+}
+
+func TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty(t *testing.T) {
+	for _, mode := range []string{"script", "replaced_open_source", "info_attributes", "ignored_attributes", "post_error"} {
+		t.Run(mode, func(t *testing.T) {
+			if mode == "script" {
+				p := filepath.Join(t.TempDir(), "script")
+				if err := os.WriteFile(p, []byte("#!/bin/sh\nexit 0\n"), 0500); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := pinFilterFile(p, filterFileSHA256(t, p), 32<<20); err == nil {
+					t.Fatal("non-native tool accepted")
+				}
+				return
+			}
+			if mode == "replaced_open_source" {
+				p := filterTool(t, "native")
+				b, err := os.ReadFile(p)
+				if err != nil {
+					t.Fatal(err)
+				}
+				replacement := p + ".new"
+				if err = os.WriteFile(replacement, b, 0500); err != nil {
+					t.Fatal(err)
+				}
+				if _, err = pinFilterFileWithOpenHook(p, filterFileSHA256(t, p), 32<<20, func() error { return os.Rename(replacement, p) }); err == nil {
+					t.Fatal("replacement inode adopted after pin open")
+				}
+				return
+			}
+			repository, _ := repo(t)
+			m := configureFilter(t, repository, filterManifestFor(t, filterGitPath(t), filterTool(t, "clean"), filterTool(t, "smudge")))
+			if mode == "post_error" {
+				g, err := OpenFilterGit(context.Background(), repository, m)
+				if err != nil {
+					t.Fatal(err)
+				}
+				g.Close()
+				if err = g.verifyAfter(process.ErrProcessTreeUnknown); !errors.Is(err, process.ErrProcessTreeUnknown) {
+					t.Fatalf("post verification erased original process uncertainty: %v", err)
+				}
+				return
+			}
+			if mode == "info_attributes" {
+				if err := os.WriteFile(filepath.Join(repository, ".git", "info", "attributes"), []byte("a.txt filter=sealed\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if err := os.WriteFile(filepath.Join(repository, ".gitignore"), []byte("hidden/\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Mkdir(filepath.Join(repository, "hidden"), 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(repository, "hidden", ".gitattributes"), []byte("* filter=sealed\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			g, err := OpenFilterGit(context.Background(), repository, m)
+			if g != nil {
+				g.Close()
+			}
+			if err == nil {
+				t.Fatal("unbound attributes source accepted")
+			}
+		})
 	}
 }
 
@@ -111,7 +198,11 @@ func filterGitPath(t *testing.T) string {
 func filterTool(t *testing.T, name string) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(p, []byte("#!/bin/sh\ncat\n"), 0500); err != nil {
+	b, err := os.ReadFile("/bin/cat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, b, 0500); err != nil {
 		t.Fatal(err)
 	}
 	return p

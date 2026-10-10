@@ -132,6 +132,13 @@ func (g *FilterGitContext) Close() error {
 }
 func (g *FilterGitContext) SHA256() string { g.mu.Lock(); defer g.mu.Unlock(); return g.digest }
 
+func (g *FilterGitContext) verifyAfter(runErr error) error {
+	if err := g.Verify(context.Background()); err != nil {
+		return err
+	}
+	return runErr
+}
+
 func (g *FilterGitContext) Verify(ctx context.Context) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -338,6 +345,10 @@ func (g *FilterGitContext) privateOutput(ctx context.Context, dir string, in []b
 // pinFilterFile accepts only a single regular, non-writable native file owned
 // by the current user or root. The read/hash and identity are checked together.
 func pinFilterFile(path, want string, limit int64) (filterPinnedFile, error) {
+	return pinFilterFileWithOpenHook(path, want, limit, nil)
+}
+
+func pinFilterFileWithOpenHook(path, want string, limit int64, afterOpen func() error) (filterPinnedFile, error) {
 	st, err := os.Lstat(path)
 	if err != nil {
 		return filterPinnedFile{}, err
@@ -345,6 +356,11 @@ func pinFilterFile(path, want string, limit int64) (filterPinnedFile, error) {
 	sys, ok := st.Sys().(*syscall.Stat_t)
 	if !ok || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || st.Size() < 0 || st.Size() > limit || (int64(sys.Uid) == int64(os.Getuid()) && sys.Nlink != 1) || (int64(sys.Uid) != int64(os.Getuid()) && sys.Uid != 0) || st.Mode().Perm()&022 != 0 {
 		return filterPinnedFile{}, fail(CodeInvalidInput, "filter pin", fmt.Errorf("untrusted native file"))
+	}
+	if afterOpen != nil {
+		if err = afterOpen(); err != nil {
+			return filterPinnedFile{}, err
+		}
 	}
 	b, err := os.ReadFile(path)
 	if err != nil || int64(len(b)) != st.Size() {

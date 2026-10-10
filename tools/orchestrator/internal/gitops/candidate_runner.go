@@ -60,10 +60,7 @@ func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...stri
 			return CommandResult{}, err
 		}
 		result, err := candidateGitWithStart(ctx, dir, stdin, process.Start, args...)
-		if verifyErr := filter.Verify(context.Background()); verifyErr != nil {
-			return result, verifyErr
-		}
-		return result, err
+		return result, filter.verifyAfter(err)
 	}
 	return candidateGitWithStart(ctx, dir, stdin, process.Start, args...)
 }
@@ -183,10 +180,7 @@ func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...
 			return err
 		}
 		err := candidateGitStreamWithStart(ctx, dir, out, process.Start, args...)
-		if verifyErr := filter.Verify(context.Background()); verifyErr != nil {
-			return verifyErr
-		}
-		return err
+		return filter.verifyAfter(err)
 	}
 	return candidateGitStreamWithStart(ctx, dir, out, process.Start, args...)
 }
