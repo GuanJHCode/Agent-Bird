@@ -1,7 +1,7 @@
 {
   "production": "18fd6b2",
   "final_test_source": "e533b70",
-  "review": "PASS production18fd6b2; fixture delta pending review",
+  "review": "PASS production18fd6b2 and fixed final065235a fixture/report by independent filter_resource_linux",
   "batches": {
     "view-red": {
       "source": "ad2aa1f07de8d47b1fcd5d7d82aac8617c81869e",
