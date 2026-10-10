@@ -147,6 +147,11 @@ func TestExactTransformSession(t *testing.T) {
 		if _, e := OpenExactTransformSession(b, wrong, m, p, j); e == nil {
 			t.Fatal("foreign binding")
 		}
+		foreign := m.Clone()
+		foreign.Paths = []string{"foreign"}
+		if _, e := OpenExactTransformSession(b, b.binding, foreign, p, j); e == nil {
+			t.Fatal("foreign manifest")
+		}
 		p = append(p, p[0])
 		if _, e := OpenExactTransformSession(b, b.binding, m, p, j); e == nil {
 			t.Fatal("duplicate input selector")
@@ -155,7 +160,7 @@ func TestExactTransformSession(t *testing.T) {
 			t.Fatal("constructor performed IO")
 		}
 	})
-	for _, kind := range []string{"path", "operation", "sequence", "input", "output", "scope", "wait", "tree", "timestamps", "unknown", "load_binding", "read_binding", "intent_failure", "terminal_failure", "terminal_drift", "cancelled", "missing_deadline", "exhausted", "replay"} {
+	for _, kind := range []string{"path", "operation", "sequence", "input", "output", "scope", "wait", "tree", "timestamps", "unknown", "load_binding", "read_binding", "intent_failure", "terminal_failure", "terminal_drift", "terminal_close", "intent_error_state_drift", "terminal_state_drift", "read_bytes", "cancelled", "missing_deadline", "exhausted", "replay"} {
 		t.Run(kind, func(t *testing.T) {
 			b, m, p, j, ctx := exactTestFixture(t)
 			s := openExactTest(t, b, m, p, j)
@@ -202,6 +207,27 @@ func TestExactTransformSession(t *testing.T) {
 					}
 					return nil
 				}
+			case "terminal_close":
+				j.hook = func(r ExactTransformRecord) error {
+					if r.Phase == "terminal" {
+						return s.Close()
+					}
+					return nil
+				}
+			case "intent_error_state_drift":
+				j.hook = func(r ExactTransformRecord) error {
+					b.state.EverStarted = true
+					return errors.New("journal failed after mutation")
+				}
+			case "terminal_state_drift":
+				j.hook = func(r ExactTransformRecord) error {
+					if r.Phase == "terminal" {
+						b.state.TerminalAt = b.state.TerminalAt.Add(time.Second)
+					}
+					return nil
+				}
+			case "read_bytes":
+				b.alterResult = func(r *Result) { b.slots[1][0] ^= 1 }
 			case "cancelled":
 				c, stop := context.WithCancel(ctx)
 				stop()
@@ -217,7 +243,7 @@ func TestExactTransformSession(t *testing.T) {
 					seq = 1
 				}
 			}
-			before := b.transforms
+			before, beforeLoads := b.transforms, b.loads
 			out, e := s.Exchange(ctx, seq, path, op, exactProduce(input))
 			if e == nil || out != nil || !s.State().Failed {
 				t.Fatalf("accepted %s: out=%x err=%v state=%+v", kind, out, e, s.State())
@@ -227,12 +253,12 @@ func TestExactTransformSession(t *testing.T) {
 			}
 			switch kind {
 			case "path", "operation", "sequence", "intent_failure", "cancelled", "missing_deadline", "exhausted", "replay":
-				if b.transforms != before {
+				if b.transforms != before || b.loads != beforeLoads {
 					t.Fatal("preflight failure started tool")
 				}
 			}
 			switch kind {
-			case "wait", "tree", "timestamps", "unknown", "terminal_failure":
+			case "wait", "tree", "timestamps", "unknown", "terminal_failure", "intent_error_state_drift", "terminal_state_drift":
 				if !s.State().Unknown {
 					t.Fatal("missing uncertainty")
 				}

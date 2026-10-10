@@ -158,10 +158,9 @@ func (s *ExactTransformSession) Exchange(ctx context.Context, sequence uint64, p
 	if retErr = s.activeGuard(ctx); retErr != nil {
 		return nil, retErr
 	}
-	if retErr = s.journal.RecordExactTransform(ctx, record); retErr != nil {
-		return nil, retErr
-	}
-	if retErr = s.activeGuard(ctx); retErr != nil {
+	retErr = s.journal.RecordExactTransform(ctx, record)
+	retErr = errors.Join(retErr, s.activeGuard(ctx))
+	if retErr != nil {
 		return nil, retErr
 	}
 	mutated = true
