@@ -56,9 +56,11 @@ func newFilterRuntime(g contract.LaunchCommand) (*filterRuntime, error) {
 	// JSON, but resource/input hashes are bound to the original byte sequence.
 	original := g
 	raw, err := json.Marshal(g)
-	if err != nil || json.Unmarshal(raw, &g) != nil {
+	var frozen contract.LaunchCommand
+	if err != nil || json.Unmarshal(raw, &frozen) != nil {
 		return nil, contract.ErrGitFilterContract
 	}
+	g = frozen
 	g.AdapterPayload = append([]byte(nil), original.AdapterPayload...)
 	if g.Input != nil {
 		g.Input.AdapterPayload = append([]byte(nil), original.Input.AdapterPayload...)

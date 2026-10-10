@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"io"
 	"os"
@@ -42,7 +41,7 @@ func (j *durableJournal) readBoundedRecord(ctx context.Context, kind string, val
 		if err == io.EOF {
 			break
 		}
-		if err != nil || contract.DecodeBridgeStrict(raw, &r) != nil || r.Version != 1 {
+		if err != nil || decodeJournalStrict(raw, &r) != nil || r.Version != 1 {
 			return false, errors.New("gitops_journal_invalid")
 		}
 		if r.Kind != kind {
@@ -59,7 +58,7 @@ func (j *durableJournal) readBoundedRecord(ctx context.Context, kind string, val
 	if body == nil {
 		return false, nil
 	}
-	if err = contract.DecodeBridgeStrict(body, value); err != nil {
+	if err = decodeJournalStrict(body, value); err != nil {
 		return false, err
 	}
 	return true, nil
