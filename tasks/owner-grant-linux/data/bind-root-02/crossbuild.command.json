@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-c",
+    "-o",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-linux/tasks/owner-grant-linux/tmp/bind-root-02/coordinator.test",
+    "./internal/coordinator"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-linux",
+  "head": "cbfff3be52ac3cc4f8c8d88fbfc7ac57ecada037",
+  "dirty": "",
+  "environment": {
+    "TMPDIR": "/private/tmp",
+    "GOOS": "linux",
+    "GOARCH": "arm64",
+    "CGO_ENABLED": "0",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOTOOLCHAIN": "local"
+  }
+}
