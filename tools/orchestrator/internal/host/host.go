@@ -269,6 +269,9 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		}
 		meta.prepareAction = func(ctx context.Context) (process.Command, actionFinalizer, func(), error) {
 			if filtered != nil {
+				if filterPayload.CandidateAction.Operation == "review" {
+					return h.prepareFilteredReview(ctx, filtered, inv, filterPayload)
+				}
 				return h.prepareFilteredValidation(ctx, filtered, inv, filterPayload)
 			}
 			return h.prepareCandidateAction(ctx, grant, inv, action, profile)

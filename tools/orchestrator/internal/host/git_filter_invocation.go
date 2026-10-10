@@ -51,8 +51,17 @@ func admitFilterLaunch(g contract.LaunchCommand) (adapter.InvocationPayload, err
 		if g.Input != nil || g.DependencyInputs != nil || g.ValidationTool != nil {
 			return p, bad
 		}
-	} else if g.Input == nil || g.Input.Event.Artifact == nil || g.Input.Event.Artifact.HostArtifact == nil || g.DependencyInputs == nil || g.DependencyInputs.Version != 1 || len(g.DependencyInputs.Inputs) != 1 || g.Input.Event.TaskID != p.CandidateAction.SourceTask || contract.RequireValidationTool(g, p.CandidateAction.CommandSHA256) != nil {
+	} else if g.Input == nil || g.Input.Event.Artifact == nil || g.Input.Event.Artifact.HostArtifact == nil || g.DependencyInputs == nil || g.DependencyInputs.Version != 1 || len(g.DependencyInputs.Inputs) != 1 || g.Input.Event.TaskID != p.CandidateAction.SourceTask {
 		return p, bad
+	}
+	if p.Kind != "provider" {
+		if p.CandidateAction.Operation == "validate" {
+			if contract.RequireValidationTool(g, p.CandidateAction.CommandSHA256) != nil {
+				return p, bad
+			}
+		} else if g.ValidationTool != nil {
+			return p, bad
+		}
 	}
 	return p, contract.ValidateDependencyInputs(g)
 }
@@ -99,8 +108,11 @@ func freezeFilterInvocation(inv contract.InvocationView, p adapter.InvocationPay
 	}); ok {
 		out.completion = v.TaskCompletionMode()
 	}
-	if p.Kind == "provider" {
+	if p.Kind == "provider" || p.Kind == "" {
 		if out.argv[0] != p.ProviderLock.Binary.Path || out.pinPath != p.ProviderLock.Binary.Path || out.pinSHA != p.ProviderLock.Binary.SHA256 || out.output != "" && out.output != p.Provider {
+			return out, bad
+		}
+		if p.Kind == "" && (out.output != p.Provider || out.output == "" || out.completion != adapter.TaskCompletionNone) {
 			return out, bad
 		}
 	} else if out.output != "" || out.completion != adapter.TaskCompletionNone {

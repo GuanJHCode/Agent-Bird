@@ -8,7 +8,7 @@ import (
 )
 
 // This is admission, not decoding or retry permission. The initial filter
-// shape ends at standalone validation and carries no target authority.
+// shapes end at content-only review and carries no target authority.
 func ValidateGitFilterPipelinePayload(p InvocationPayload) error {
 	bad := errors.New("git_filter_pipeline_unsupported")
 	if p.GitFilter == nil || p.GitFilter.Validate() != nil || !filterAbsolutePath(p.Directory) || p.SessionID != "" || p.SessionKind != "" || p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" || len(p.Args) != 0 || len(p.ExtraArgs) != 0 || len(p.Allow) != 0 || len(p.Deny) != 0 {
@@ -38,6 +38,13 @@ func ValidateGitFilterPipelinePayload(p InvocationPayload) error {
 		return nil
 	}
 	a := p.CandidateAction
+	if p.Kind == "" && a != nil && a.Operation == "review" {
+		l, profile := p.ProviderLock, p.Profile
+		if p.CandidateWorkspace != nil || p.PermissionMode != "" || a.Version != 1 || a.DependencyInputVersion != 1 || !a.AutoDirectory || a.SourceTask == "" || len(a.OrderedSourceTasks) != 0 || a.ReviewIndex != nil || a.Target != (CandidateTarget{}) || len(a.Command) != 0 || a.CommandSHA256 != "" || l == nil || l.Version != 1 || (l.Provider != ProviderClaude && l.Provider != ProviderAGY) || p.Provider != string(l.Provider) || l.Protocol != ProtocolID(l.Provider) || !filterAbsolutePath(l.Binary.Path) || l.Binary.Version == "" || !ValidCommandSHA256(l.Binary.SHA256) || profile == nil || profile.Version != 1 || profile.Role != Reviewer || profile.Permission != ReadOnly || profile.GrokSessionWrite || profile.TimeoutMS < 1 || profile.TimeoutMS > 3600000 {
+			return bad
+		}
+		return nil
+	}
 	if p.Kind != "candidate" || p.Provider != "" || p.Profile != nil || p.ProviderLock != nil || p.CandidateWorkspace != nil || p.Prompt != "" || p.PermissionMode != "" || a == nil || a.Version != 1 || a.Operation != "validate" || a.DependencyInputVersion != 1 || !a.AutoDirectory || a.SourceTask == "" || len(a.OrderedSourceTasks) != 0 || a.ReviewIndex != nil || a.Target != (CandidateTarget{}) || len(a.Command) < 1 || len(a.Command) > 64 || !filterAbsolutePath(a.Command[0]) || !ValidCommandSHA256(a.CommandSHA256) {
 		return bad
 	}
