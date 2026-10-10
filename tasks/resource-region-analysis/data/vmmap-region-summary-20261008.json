@@ -1,0 +1,413 @@
+{
+  "categories": {
+    "data_segments": "region labels beginning __DATA",
+    "library_code": "selected __TEXT/__LINKEDIT/__AUTH/__OBJC_RO labels",
+    "malloc": "vmmap region labels beginning MALLOC",
+    "mapped_file": "exact vmmap mapped file label",
+    "other": "all remaining vmmap region labels",
+    "sqlite_named": "region labels containing sqlite",
+    "vm_allocate": "exact vmmap VM_ALLOCATE label; not a Go-runtime attribution"
+  },
+  "input_root": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system",
+  "root_analysis": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/root-analysis.json",
+  "root_analysis_sha256": "1c2cc5b8f389bdaa7429035cda876ad0c3ca0abe246a50d7ef0496ccc7fdfe4f",
+  "snapshots": [
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 12478464,
+          "swapped_bytes": 490496
+        },
+        "library_code": {
+          "resident_bytes": 210965708,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2457600
+        },
+        "mapped_file": {
+          "resident_bytes": 32768,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 2956712,
+          "swapped_bytes": 225280
+        },
+        "vm_allocate": {
+          "resident_bytes": 16882073,
+          "swapped_bytes": 9895936
+        }
+      },
+      "pid": 24571,
+      "role": "coordinator",
+      "sha256": "17072843965b45c313033bbc9376af9d2de966b14b45d61d82a9146e8078c770",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0000-vmmap-0.stdout",
+      "time_seconds": 0
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 12449792,
+          "swapped_bytes": 502784
+        },
+        "library_code": {
+          "resident_bytes": 208134552,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 917504,
+          "swapped_bytes": 1802240
+        },
+        "mapped_file": {
+          "resident_bytes": 0,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 3100072,
+          "swapped_bytes": 164864
+        },
+        "vm_allocate": {
+          "resident_bytes": 17720934,
+          "swapped_bytes": 1425408
+        }
+      },
+      "pid": 24586,
+      "role": "owner",
+      "sha256": "f12e671257bc08c295cf8b60f0d07acc1557f106c0dc955803cce346006bc691",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0000-vmmap-1.stdout",
+      "time_seconds": 0
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 12252160,
+          "swapped_bytes": 667648
+        },
+        "library_code": {
+          "resident_bytes": 206771404,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 458752,
+          "swapped_bytes": 1884160
+        },
+        "mapped_file": {
+          "resident_bytes": 4096,
+          "swapped_bytes": 0
+        },
+        "other": {
+          "resident_bytes": 2901416,
+          "swapped_bytes": 216064
+        },
+        "vm_allocate": {
+          "resident_bytes": 2555904,
+          "swapped_bytes": 6438912
+        }
+      },
+      "pid": 24585,
+      "role": "host",
+      "sha256": "7330e13e8de10085753c9e3fc22bdd3076bb78baa136b57549e72d962b0431b0",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0000-vmmap-2.stdout",
+      "time_seconds": 0
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 13348864,
+          "swapped_bytes": 1014784
+        },
+        "library_code": {
+          "resident_bytes": 199780964,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2457600
+        },
+        "mapped_file": {
+          "resident_bytes": 32768,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 2923944,
+          "swapped_bytes": 241664
+        },
+        "vm_allocate": {
+          "resident_bytes": 6930432,
+          "swapped_bytes": 20447232
+        }
+      },
+      "pid": 24571,
+      "role": "coordinator",
+      "sha256": "22ac8dbe13a8a1dbd44071309dab8d2087aeddd13af26a5edb3a72ec8dff4683",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0300-vmmap-0.stdout",
+      "time_seconds": 300
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 12794880,
+          "swapped_bytes": 1571840
+        },
+        "library_code": {
+          "resident_bytes": 197578955,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2719744
+        },
+        "mapped_file": {
+          "resident_bytes": 0,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 3038632,
+          "swapped_bytes": 225280
+        },
+        "vm_allocate": {
+          "resident_bytes": 3588096,
+          "swapped_bytes": 13631488
+        }
+      },
+      "pid": 24586,
+      "role": "owner",
+      "sha256": "f640ec26a0273cbc230eaaa8c25c85c04ffdb8dc744cafb8bd21f30ce892efde",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0300-vmmap-1.stdout",
+      "time_seconds": 300
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 12532736,
+          "swapped_bytes": 1801216
+        },
+        "library_code": {
+          "resident_bytes": 196844952,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2342912
+        },
+        "mapped_file": {
+          "resident_bytes": 0,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 2842024,
+          "swapped_bytes": 323584
+        },
+        "vm_allocate": {
+          "resident_bytes": 1556480,
+          "swapped_bytes": 7684096
+        }
+      },
+      "pid": 24585,
+      "role": "host",
+      "sha256": "e522b078d6ae135ff3bb2579fb8d467ad4e6f42aee068110db0d17eb49e12c9b",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0300-vmmap-2.stdout",
+      "time_seconds": 300
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 7217152,
+          "swapped_bytes": 2338816
+        },
+        "library_code": {
+          "resident_bytes": 150266470,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2457600
+        },
+        "mapped_file": {
+          "resident_bytes": 32768,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 1364072,
+          "swapped_bytes": 277504
+        },
+        "vm_allocate": {
+          "resident_bytes": 1261568,
+          "swapped_bytes": 26424115
+        }
+      },
+      "pid": 24571,
+      "role": "coordinator",
+      "sha256": "6a5b96d7907be4a5625f899b762edfc826d8b7703ea455f665bf3a895568cd18",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0600-vmmap-0.stdout",
+      "time_seconds": 600
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 7796736,
+          "swapped_bytes": 1620992
+        },
+        "library_code": {
+          "resident_bytes": 149430271,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2719744
+        },
+        "mapped_file": {
+          "resident_bytes": 0,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 1449064,
+          "swapped_bytes": 307200
+        },
+        "vm_allocate": {
+          "resident_bytes": 1851392,
+          "swapped_bytes": 15414067
+        }
+      },
+      "pid": 24586,
+      "role": "owner",
+      "sha256": "0a1a593bd7e878bcb383c9d1697e62e027f0fba975efda6b3cab993ea27ea5af",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0600-vmmap-1.stdout",
+      "time_seconds": 600
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 7583744,
+          "swapped_bytes": 1801216
+        },
+        "library_code": {
+          "resident_bytes": 148398079,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2342912
+        },
+        "mapped_file": {
+          "resident_bytes": 0,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 1416296,
+          "swapped_bytes": 241664
+        },
+        "vm_allocate": {
+          "resident_bytes": 1474560,
+          "swapped_bytes": 7913472
+        }
+      },
+      "pid": 24585,
+      "role": "host",
+      "sha256": "afb93c64889c69ce47634a7a48a56f2e4b4e78dd9064b2e94d25be05f36eb7db",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/0600-vmmap-2.stdout",
+      "time_seconds": 600
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 7443456,
+          "swapped_bytes": 834560
+        },
+        "library_code": {
+          "resident_bytes": 119292928,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2457600
+        },
+        "mapped_file": {
+          "resident_bytes": 32768,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 1203304,
+          "swapped_bytes": 241664
+        },
+        "vm_allocate": {
+          "resident_bytes": 13421772,
+          "swapped_bytes": 14784921
+        }
+      },
+      "pid": 24571,
+      "role": "coordinator",
+      "sha256": "41c794904aba10ffde3fb9991f9cb7b3dedfec663e5d55ed1850765a1e4b9d13",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/1100-vmmap-0.stdout",
+      "time_seconds": 1100
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 7195648,
+          "swapped_bytes": 1326080
+        },
+        "library_code": {
+          "resident_bytes": 125096960,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2719744
+        },
+        "mapped_file": {
+          "resident_bytes": 0,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 1465448,
+          "swapped_bytes": 225280
+        },
+        "vm_allocate": {
+          "resident_bytes": 7847936,
+          "swapped_bytes": 9601024
+        }
+      },
+      "pid": 24586,
+      "role": "owner",
+      "sha256": "33013ac8ce7c4accfd26174c40e99f6828cf432949320b838520f55d27a8d783",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/1100-vmmap-1.stdout",
+      "time_seconds": 1100
+    },
+    {
+      "groups": {
+        "data_segments": {
+          "resident_bytes": 6687744,
+          "swapped_bytes": 1801216
+        },
+        "library_code": {
+          "resident_bytes": 124572672,
+          "swapped_bytes": 1104
+        },
+        "malloc": {
+          "resident_bytes": 0,
+          "swapped_bytes": 2342912
+        },
+        "mapped_file": {
+          "resident_bytes": 0,
+          "swapped_bytes": 4096
+        },
+        "other": {
+          "resident_bytes": 1350760,
+          "swapped_bytes": 241664
+        },
+        "vm_allocate": {
+          "resident_bytes": 1851392,
+          "swapped_bytes": 7651328
+        }
+      },
+      "pid": 24585,
+      "role": "host",
+      "sha256": "2eb482785444df8fdd844cf7103107eee39cfea40dc543289af15fef9bf0eb9e",
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-memory-diagnostic/tasks/resource-memory-diagnostic/data/diagnostic-20261008/system/1100-vmmap-2.stdout",
+      "time_seconds": 1100
+    }
+  ],
+  "units": "bytes"
+}
