@@ -1,0 +1,1104 @@
+[
+  {
+    "label": "resource-red",
+    "top": 5,
+    "named": 29,
+    "pass": 17,
+    "fail": 12,
+    "skip": 0,
+    "raw_sha256": "c318f71845dce7699430e2a71d71584e9c2e97682adaeb9a268f96599912f986",
+    "stderr_bytes": 0,
+    "exit": 1,
+    "metadata": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/contract",
+        "./internal/store",
+        "-run",
+        "^TestGitFilter(Attachment|Admission|Reservation|Lifecycle|Migration)"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-reservations",
+      "head": "81069e7978729837a7588a85ecf1cd2425ed0e0f",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "results": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/legacy",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/missing",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/foreign",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/caps",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/slot",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/scope",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/manifest",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/extra",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/parallel_validation_tool",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/new_field_wire",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterAdmissionRemainsClosed",
+        "Action": "pass",
+        "Elapsed": 0.38
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/raw_exact",
+        "Action": "fail",
+        "Elapsed": 0.37
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/raw_short",
+        "Action": "pass",
+        "Elapsed": 0.4
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/control_exact",
+        "Action": "fail",
+        "Elapsed": 0.65
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/control_short",
+        "Action": "fail",
+        "Elapsed": 0.7
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/commit_failure",
+        "Action": "pass",
+        "Elapsed": 0.41
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/replay_physical",
+        "Action": "fail",
+        "Elapsed": 0.37
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit",
+        "Action": "fail",
+        "Elapsed": 2.91
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/known",
+        "Action": "fail",
+        "Elapsed": 0.32
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/unknown",
+        "Action": "fail",
+        "Elapsed": 0.39
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/missing_cleanup",
+        "Action": "fail",
+        "Elapsed": 0.39
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/wrong_cleanup",
+        "Action": "fail",
+        "Elapsed": 0.47
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/rebound",
+        "Action": "fail",
+        "Elapsed": 0.5
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/foreign_command",
+        "Action": "fail",
+        "Elapsed": 0.61
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease",
+        "Action": "fail",
+        "Elapsed": 2.68
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack/fault_false",
+        "Action": "pass",
+        "Elapsed": 0.33
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack/fault_true",
+        "Action": "pass",
+        "Elapsed": 0.45
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack",
+        "Action": "pass",
+        "Elapsed": 0.79
+      }
+    ]
+  },
+  {
+    "label": "resource-functional-01",
+    "top": 5,
+    "named": 31,
+    "pass": 31,
+    "fail": 0,
+    "skip": 0,
+    "raw_sha256": "5e4fc83a279233559ae16a9669b62a83d14d363878ca70a6649531fe120809cb",
+    "stderr_bytes": 0,
+    "exit": 0,
+    "metadata": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/contract",
+        "./internal/store",
+        "-run",
+        "^TestGitFilter(Attachment|Admission|Reservation|Lifecycle|Migration)"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-reservations",
+      "head": "20424369c2b11f88622f3775a358affee7819ced",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "results": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/legacy",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/missing",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/foreign",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/caps",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/slot",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/scope",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/manifest",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/extra",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/parallel_validation_tool",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/new_field_wire",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterAdmissionRemainsClosed",
+        "Action": "pass",
+        "Elapsed": 0.34
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/raw_exact",
+        "Action": "pass",
+        "Elapsed": 0.41
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/raw_short",
+        "Action": "pass",
+        "Elapsed": 0.52
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/control_exact",
+        "Action": "pass",
+        "Elapsed": 0.73
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/control_short",
+        "Action": "pass",
+        "Elapsed": 0.99
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/commit_failure",
+        "Action": "pass",
+        "Elapsed": 0.39
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/replay_physical",
+        "Action": "pass",
+        "Elapsed": 0.33
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit",
+        "Action": "pass",
+        "Elapsed": 3.37
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/known",
+        "Action": "pass",
+        "Elapsed": 0.39
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/launch_rejected",
+        "Action": "pass",
+        "Elapsed": 0.45
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/unknown",
+        "Action": "pass",
+        "Elapsed": 0.32
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/unknown_cleanup",
+        "Action": "pass",
+        "Elapsed": 0.36
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/missing_cleanup",
+        "Action": "pass",
+        "Elapsed": 0.4
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/wrong_cleanup",
+        "Action": "pass",
+        "Elapsed": 0.39
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/rebound",
+        "Action": "pass",
+        "Elapsed": 0.32
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/foreign_command",
+        "Action": "pass",
+        "Elapsed": 0.35
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease",
+        "Action": "pass",
+        "Elapsed": 2.98
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack/fault_false",
+        "Action": "pass",
+        "Elapsed": 0.5
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack/fault_true",
+        "Action": "pass",
+        "Elapsed": 0.55
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack",
+        "Action": "pass",
+        "Elapsed": 1.05
+      }
+    ]
+  },
+  {
+    "label": "resource-final-race",
+    "top": 12,
+    "named": 85,
+    "pass": 85,
+    "fail": 0,
+    "skip": 0,
+    "raw_sha256": "85898e35cfef36f6941d4136a7d96a31b1b040376dc594f74276c3b9cb10750b",
+    "stderr_bytes": 0,
+    "exit": 0,
+    "metadata": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-race",
+        "-count=1",
+        "./internal/contract",
+        "./internal/store",
+        "-run",
+        "^Test(GitFilter.*|CandidateIntentBindsHostArtifactAuthority|ValidationToolIntentBindsIndependentAuthority)$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-reservations",
+      "head": "0bd3bea73f6fc872cdf3c2855d619230d06e226b",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "results": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/legacy",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/missing",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/foreign",
+        "Action": "pass",
+        "Elapsed": 0.01
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/caps",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/slot",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/scope",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/manifest",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/extra",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/parallel_validation_tool",
+        "Action": "pass",
+        "Elapsed": 0.01
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes/new_field_wire",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterAttachmentIntentAndLegacyBytes",
+        "Action": "pass",
+        "Elapsed": 0.05
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/valid",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/independent_limits",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/version",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/driver",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/driver_chars",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/empty_paths",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/paths_limit",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/order",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/duplicate",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/case_alias",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/path_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/git_component",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/traversal",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/backslash",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/not_clean",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/control",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/invalid_utf8",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/git_path",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/tool_path",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/tool_path_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/git_version",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/digest",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/nil_args",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/args_count",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/args_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/args_expansion",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/args_control",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/nil_attributes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/attributes_name",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/attributes_order",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation/attributes_overlap",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterManifestValidation",
+        "Action": "pass",
+        "Elapsed": 0.01
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterStrictWire/manifest",
+        "Action": "pass",
+        "Elapsed": 0.04
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterStrictWire/git",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterStrictWire/tool",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterStrictWire/attribute",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterStrictWire/grant",
+        "Action": "pass",
+        "Elapsed": 0.02
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterStrictWire/cleanup",
+        "Action": "pass",
+        "Elapsed": 0.01
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterStrictWire/nested_null_arg",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterStrictWire",
+        "Action": "pass",
+        "Elapsed": 0.08
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterResourceValidation/valid_grant",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterResourceValidation/grant_boundaries",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterResourceValidation/cleanup_boundaries",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterResourceValidation",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterDigestCloneScope",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestGitFilterCanonicalSizeBoundary",
+        "Action": "pass",
+        "Elapsed": 0.01
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestCandidateIntentBindsHostArtifactAuthority",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestValidationToolIntentBindsIndependentAuthority/replace_id",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestValidationToolIntentBindsIndependentAuthority/missing",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestValidationToolIntentBindsIndependentAuthority/terminal_reuse",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestValidationToolIntentBindsIndependentAuthority/other_tool",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestValidationToolIntentBindsIndependentAuthority/scope",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestValidationToolIntentBindsIndependentAuthority/maximum",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+        "Test": "TestValidationToolIntentBindsIndependentAuthority",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterAdmissionRemainsClosed",
+        "Action": "pass",
+        "Elapsed": 12.81
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/raw_exact",
+        "Action": "pass",
+        "Elapsed": 14.27
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/raw_short",
+        "Action": "pass",
+        "Elapsed": 13.65
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/control_exact",
+        "Action": "pass",
+        "Elapsed": 24.41
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/control_short",
+        "Action": "pass",
+        "Elapsed": 25.4
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/commit_failure",
+        "Action": "pass",
+        "Elapsed": 16.48
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit/replay_physical",
+        "Action": "pass",
+        "Elapsed": 13.07
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterReservationQuotaReplayAndCommit",
+        "Action": "pass",
+        "Elapsed": 107.27
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/known",
+        "Action": "pass",
+        "Elapsed": 12.36
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/launch_rejected",
+        "Action": "pass",
+        "Elapsed": 12.37
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/unknown",
+        "Action": "pass",
+        "Elapsed": 12.66
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/unknown_cleanup",
+        "Action": "pass",
+        "Elapsed": 15.78
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/missing_cleanup",
+        "Action": "pass",
+        "Elapsed": 15.06
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/wrong_cleanup",
+        "Action": "pass",
+        "Elapsed": 14.08
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/rebound",
+        "Action": "pass",
+        "Elapsed": 14.78
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease/foreign_command",
+        "Action": "pass",
+        "Elapsed": 14.72
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterLifecycleAuthenticatedRelease",
+        "Action": "pass",
+        "Elapsed": 111.82
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack/fault_false",
+        "Action": "pass",
+        "Elapsed": 15.22
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack/fault_true",
+        "Action": "pass",
+        "Elapsed": 15.62
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigration35PreservesAndRollsBack",
+        "Action": "pass",
+        "Elapsed": 30.84
+      }
+    ]
+  },
+  {
+    "label": "migration-fixture-red",
+    "top": 3,
+    "named": 5,
+    "pass": 0,
+    "fail": 5,
+    "skip": 0,
+    "raw_sha256": "1eecdf10912d6e6b31ed63ce0ddad48bf42f24c5b20a4ac76a99529b61468086",
+    "stderr_bytes": 0,
+    "exit": 1,
+    "metadata": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/store",
+        "-run",
+        "^Test(OwnerLaunchMigrationPreservesLegacyAndRefusesProofErasure|PendingAuthorizationRebindMigrationFailedCommitDiscardsLease|ValidationToolMigrationPreservesAndRollsBack)$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-reservations",
+      "head": "0bd3bea73f6fc872cdf3c2855d619230d06e226b",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "results": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestPendingAuthorizationRebindMigrationFailedCommitDiscardsLease",
+        "Action": "fail",
+        "Elapsed": 0.63
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestOwnerLaunchMigrationPreservesLegacyAndRefusesProofErasure",
+        "Action": "fail",
+        "Elapsed": 0.39
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestValidationToolMigrationPreservesAndRollsBack/false",
+        "Action": "fail",
+        "Elapsed": 0.44
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestValidationToolMigrationPreservesAndRollsBack/true",
+        "Action": "fail",
+        "Elapsed": 0.47
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestValidationToolMigrationPreservesAndRollsBack",
+        "Action": "fail",
+        "Elapsed": 0.91
+      }
+    ]
+  },
+  {
+    "label": "migration-fixture-green",
+    "top": 4,
+    "named": 8,
+    "pass": 8,
+    "fail": 0,
+    "skip": 0,
+    "raw_sha256": "e0b8a1fea1cc8b6f3d9cbd0374c7b20bf00fa7eb44f8aa0426212fa7f51f145d",
+    "stderr_bytes": 0,
+    "exit": 0,
+    "metadata": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/store",
+        "-run",
+        "^Test(OwnerLaunchMigrationPreservesLegacyAndRefusesProofErasure|PendingAuthorizationRebindMigrationFailedCommitDiscardsLease|ValidationToolMigrationPreservesAndRollsBack|GitFilterMigrationFixtureRefusesHistory)$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-reservations",
+      "head": "092410af990fa1bd868ae89275e40faf639366f0",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "results": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigrationFixtureRefusesHistory/reservation",
+        "Action": "pass",
+        "Elapsed": 0.34
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigrationFixtureRefusesHistory/publication",
+        "Action": "pass",
+        "Elapsed": 0.37
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestGitFilterMigrationFixtureRefusesHistory",
+        "Action": "pass",
+        "Elapsed": 0.71
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestPendingAuthorizationRebindMigrationFailedCommitDiscardsLease",
+        "Action": "pass",
+        "Elapsed": 0.51
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestOwnerLaunchMigrationPreservesLegacyAndRefusesProofErasure",
+        "Action": "pass",
+        "Elapsed": 0.67
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestValidationToolMigrationPreservesAndRollsBack/false",
+        "Action": "pass",
+        "Elapsed": 0.38
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestValidationToolMigrationPreservesAndRollsBack/true",
+        "Action": "pass",
+        "Elapsed": 0.44
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Test": "TestValidationToolMigrationPreservesAndRollsBack",
+        "Action": "pass",
+        "Elapsed": 0.82
+      }
+    ]
+  }
+]
