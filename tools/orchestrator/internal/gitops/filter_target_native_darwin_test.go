@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,17 @@ type filterTargetNativeJournal struct {
 	*rawFixtureJournal
 	observations []FilteredTargetObservationV1
 	after        func(FilteredTargetObservationV1)
+	afterGit     func(GitProcessRecord)
+}
+
+func (j *filterTargetNativeJournal) RecordGitProcess(ctx context.Context, in GitProcessRecord) error {
+	if err := j.rawFixtureJournal.RecordGitProcess(ctx, in); err != nil {
+		return err
+	}
+	if j.afterGit != nil {
+		j.afterGit(in)
+	}
+	return nil
 }
 
 func (j *filterTargetNativeJournal) RecordFilteredTargetObservation(_ context.Context, in FilteredTargetObservationV1) error {
@@ -130,9 +142,16 @@ func filterTargetNativeRejectBeforeGit(t *testing.T, ctx context.Context, source
 	}
 }
 
+func filterTargetNativeGitDigest(source *FilterGitContext, args ...string) string {
+	argv := append([]string(nil), filterGitConfigArgs(source.manifest.DriverID)...)
+	argv = append(argv, "-C", source.repoRoot)
+	argv = append(argv, args...)
+	return DigestDetail(source.repoRoot + "\x00" + strings.Join(argv, "\x00"))
+}
+
 func TestInspectFilteredTargetNativeFixture(t *testing.T) {
 	t.Run("accepted_candidate_observes_rendered_target_without_mutation", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 		producerFixture, repo, source, producer, base, _, accepted, canonicalBase, prepared := filterTargetNativeAccepted(t, ctx)
 		defer source.Close()
@@ -213,6 +232,122 @@ func TestInspectFilteredTargetNativeFixture(t *testing.T) {
 			t.Fatalf("verify live target observation: %v", err)
 		}
 		filterTargetNativeAssertPreserved(t, repo, before)
+
+		// Capture the exact normal Verify record count. The next callback fires
+		// at its final exited record, so a successful final pin check must not
+		// start a follow-up Git process after the source config is changed.
+		healthyStart := len(journal.records)
+		if err = live.Verify(ctx); err != nil {
+			t.Fatalf("healthy target verification for callback cadence: %v", err)
+		}
+		healthyDelta := len(journal.records) - healthyStart
+		if healthyDelta < 1 || journal.records[len(journal.records)-1].Phase != "exited" {
+			t.Fatalf("healthy target verification records=%d final=%#v", healthyDelta, journal.records[len(journal.records)-1])
+		}
+		config := filepath.Join(source.commonDir, "config")
+		configBytes, err := os.ReadFile(config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		configInfo, err := os.Stat(config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		configIdentity, err := identityFromInfo(configInfo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mutatedConfig := append([]byte(nil), configBytes...)
+		at := bytes.Index(mutatedConfig, []byte("fixture"))
+		if at < 0 {
+			t.Fatal("fixture config lacks mutable fixture value")
+		}
+		mutatedConfig[at] = 'F'
+		configStart, configFired := len(journal.records), false
+		journal.afterGit = func(record GitProcessRecord) {
+			if len(journal.records)-configStart != healthyDelta {
+				return
+			}
+			if record.Phase != "exited" {
+				t.Fatalf("config callback record=%#v", record)
+			}
+			if err := os.WriteFile(config, mutatedConfig, configInfo.Mode().Perm()); err != nil {
+				t.Fatalf("late config callback: %v", err)
+			}
+			configFired = true
+			journal.afterGit = nil
+		}
+		if err = live.Verify(ctx); err == nil {
+			t.Fatal("live target observation accepted late source config mutation")
+		}
+		if !configFired || len(journal.records)-configStart != healthyDelta {
+			t.Fatalf("late config callback fired=%t records=%d want=%d", configFired, len(journal.records)-configStart, healthyDelta)
+		}
+		if err = os.WriteFile(config, configBytes, configInfo.Mode().Perm()); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.Chtimes(config, configInfo.ModTime(), configInfo.ModTime()); err != nil {
+			t.Fatalf("restore config mtime: %v", err)
+		}
+		restoredConfig, err := os.Stat(config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		restoredConfigIdentity, err := identityFromInfo(restoredConfig)
+		if err != nil || restoredConfigIdentity != configIdentity {
+			t.Fatalf("config identity restore identity=%#v want=%#v err=%v", restoredConfigIdentity, configIdentity, err)
+		}
+
+		privateRef := filepath.Join(source.commonDir, filepath.FromSlash(accepted.PrivateRef))
+		privateBytes, err := os.ReadFile(privateRef)
+		if err != nil {
+			t.Fatal(err)
+		}
+		privateInfo, err := os.Stat(privateRef)
+		if err != nil {
+			t.Fatal(err)
+		}
+		privateIdentity, err := identityFromInfo(privateInfo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		privateBackup := privateRef + ".fixture-backup"
+		privateDigest := filterTargetNativeGitDigest(source, "for-each-ref", "--format=%(refname)%00%(objectname)%00%(symref)", accepted.PrivateRef)
+		privateFired := false
+		journal.afterGit = func(record GitProcessRecord) {
+			if record.Phase != "exited" || record.CommandDigest != privateDigest || privateFired {
+				return
+			}
+			if err := os.Rename(privateRef, privateBackup); err != nil {
+				t.Fatalf("withdraw private ref after its Git query: %v", err)
+			}
+			privateFired = true
+			journal.afterGit = nil
+		}
+		if err = live.Verify(ctx); err == nil {
+			t.Fatal("live target observation accepted withdrawn private ref")
+		}
+		if !privateFired {
+			t.Fatal("private ref callback did not observe exact for-each-ref exit")
+		}
+		if err = os.Rename(privateBackup, privateRef); err != nil {
+			t.Fatalf("restore private ref identity: %v", err)
+		}
+		restoredPrivateBytes, err := os.ReadFile(privateRef)
+		if err != nil || !bytes.Equal(restoredPrivateBytes, privateBytes) {
+			t.Fatalf("private ref bytes restore bytes=%q want=%q err=%v", restoredPrivateBytes, privateBytes, err)
+		}
+		restoredPrivateInfo, err := os.Stat(privateRef)
+		if err != nil {
+			t.Fatal(err)
+		}
+		restoredPrivateIdentity, err := identityFromInfo(restoredPrivateInfo)
+		if err != nil || restoredPrivateIdentity != privateIdentity {
+			t.Fatalf("private ref identity restore identity=%#v want=%#v err=%v", restoredPrivateIdentity, privateIdentity, err)
+		}
+		if err = live.Verify(ctx); err != nil {
+			t.Fatalf("live target observation rejected exact private ref restoration: %v", err)
+		}
 
 		// Replace the directory entry, then restore its bytes through another
 		// replacement: the original observation must retain the old identity.
