@@ -2,9 +2,9 @@
 import json, os, pathlib, re, subprocess, sys
 
 root = pathlib.Path(__file__).resolve().parents[3]
-label, *argv = sys.argv[1:]
-if not re.fullmatch(r"[a-z0-9-]+", label):
-    raise SystemExit("invalid label")
+label, target, *argv = sys.argv[1:]
+if not re.fullmatch(r"[a-z0-9-]+", label) or target != "darwin":
+    raise SystemExit("invalid label/target")
 data = root / "tasks/filter-delivery-decode/data"
 paths = {suffix: data / (label + "." + suffix) for suffix in ("command.json", "stdout", "stderr", "exit")}
 if any(path.exists() for path in paths.values()):
