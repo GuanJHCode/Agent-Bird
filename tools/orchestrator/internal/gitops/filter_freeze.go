@@ -372,6 +372,9 @@ func FreezeFilteredWorkspace(ctx context.Context, p *FilterPreparedWorkspace, jo
 // The caller authenticates the accepted delivery. This boundary binds its
 // immutable objects/evidence to the original source, never adopts its process.
 func checkFilteredCandidateRef(ctx context.Context, source *FilterGitContext, c CandidateReceipt) error {
+	if err := validateFilteredChanges(c.Changes); err != nil {
+		return err
+	}
 	if c.Filter == nil || c.Filter.ValidateBinding(source.manifest, source.SHA256()) != nil || c.Binding == nil || c.Binding.RunID == "" || c.Binding.TaskID == "" || c.Binding.SegmentID == "" || c.Binding.WorkRevision < 1 || c.AttemptID == "" || c.Binding.RevisionSHA256 != "" || c.Binding.NewBaseSHA256 != "" || len(c.OrderedInputOIDs) != 1 || c.OrderedInputOIDs[0] != c.BaseOID || c.CandidateOID == c.BaseOID || len(c.Changes) < 1 || len(c.Changes) > 256 || c.Binding.AttemptID != c.AttemptID || c.PlanRevision < 1 || int64(c.Binding.PlanRevision) != c.PlanRevision || c.RepoRoot != source.repoRoot || c.CommonDir != source.commonDir || c.RepoRootIdentity != source.repoIdentity || c.CommonDirIdentity != source.commonIdentity || c.WorktreeIdentity != c.Worktree || !filepath.IsAbs(c.Worktree) || CanonicalPath(c.Worktree) != c.Worktree || c.RootIdentity == (DirectoryIdentity{}) || c.PrivateRefExpectedOID != c.CandidateOID {
 		return fail(CodeReviewMismatch, "filtered accepted candidate binding", nil)
 	}
@@ -419,6 +422,33 @@ func checkFilteredCandidateRef(ctx context.Context, source *FilterGitContext, c 
 		return err
 	}
 	return previous.Verify(ctx)
+}
+
+func validateFilteredChanges(changes []CandidateChange) error {
+	if len(changes) < 1 || len(changes) > 256 {
+		return fail(CodeReviewMismatch, "filtered candidate changes", nil)
+	}
+	seen := map[string]bool{}
+	for i, c := range changes {
+		if !filterSafePath(c.Path) || strings.EqualFold(path.Base(c.Path), ".gitattributes") || i > 0 && changes[i-1].Path >= c.Path || seen[strings.ToLower(c.Path)] {
+			return fail(CodeReviewMismatch, "filtered candidate change path", nil)
+		}
+		seen[strings.ToLower(c.Path)] = true
+		for _, prior := range changes[:i] {
+			a, b := strings.ToLower(c.Path), strings.ToLower(prior.Path)
+			if strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/") {
+				return fail(CodeReviewMismatch, "filtered candidate path transition", nil)
+			}
+		}
+		if c.Deleted {
+			if c.Mode != "" || c.BlobOID != "" {
+				return fail(CodeReviewMismatch, "filtered conflicting deletion", nil)
+			}
+		} else if c.Mode != "100644" && c.Mode != "100755" || requireOID(c.BlobOID) != nil || c.BlobOID != strings.ToLower(c.BlobOID) {
+			return fail(CodeReviewMismatch, "filtered candidate blob", nil)
+		}
+	}
+	return nil
 }
 func MaterializeFilteredCandidate(ctx context.Context, source *FilterGitContext, streams FilterStreams, req MaterializeRequest, accepted CandidateReceipt, journal Journal) (*FilterMaterialization, error) {
 	ctx, err := filterJournalContext(ctx, source, journal)
