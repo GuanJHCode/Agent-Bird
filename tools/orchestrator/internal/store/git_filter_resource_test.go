@@ -140,7 +140,7 @@ func TestGitFilterReservationQuotaReplayAndCommit(t *testing.T) {
 			if err = db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&charged); err != nil {
 				t.Fatal(err)
 			}
-			query := `SELECT ` + originalOwnerBytesSQL("", gitFilterTexts, int(gitFilterFixedControlBytes)) + ` FROM git_filter_resource_reservations`
+			query := `SELECT 7*8+131074+1024+128+length(CAST(id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(task_id AS BLOB))+length(CAST(attempt_id AS BLOB))+length(CAST(segment_id AS BLOB))+length(CAST(producer_id AS BLOB))+length(CAST(command_id AS BLOB))+length(CAST(scope_sha256 AS BLOB))+length(CAST(manifest_sha256 AS BLOB))+length(CAST(clean_tool_sha256 AS BLOB))+length(CAST(smudge_tool_sha256 AS BLOB))+length(CAST(created_at AS BLOB))+length(CAST(state AS BLOB))+length(CAST(host_identity_sha256 AS BLOB)) FROM git_filter_resource_reservations`
 			if err = db.sql.QueryRow(query).Scan(&oracle); err != nil || oracle <= contract.GitFilterMetadataBytes || charged < oracle {
 				t.Fatal("SQL quota oracle", oracle, charged, err)
 			}
@@ -209,6 +209,15 @@ func TestGitFilterLifecycleAuthenticatedRelease(t *testing.T) {
 				if err != nil || state != "reserved" {
 					t.Fatal("UNKNOWN lost obligation", state, err)
 				}
+				db.artifactLimit = contract.HostArtifactReservedBytes + contract.GitFilterResourceMaximumBytes
+				owned, e2 := db.beginOwnerTransaction(ctx)
+				if e2 != nil {
+					t.Fatal(e2)
+				}
+				defer owned.close()
+				if e2 = db.managedArtifactAdmission(ctx, owned.tx, 1, 0); !errors.Is(e2, CodeError("artifact_spool_full")) {
+					t.Fatal("UNKNOWN did not retain full raw", e2)
+				}
 				return
 			}
 			if mode != "known" && mode != "launch_rejected" {
@@ -262,7 +271,15 @@ func TestGitFilterLifecycleAuthenticatedRelease(t *testing.T) {
 func TestGitFilterMigration35PreservesAndRollsBack(t *testing.T) {
 	for _, fault := range []bool{false, true} {
 		t.Run(fmt.Sprint("fault_", fault), func(t *testing.T) {
-			db, _ := diagnosticsLaunchFixture(t, "omitted", 1)
+			db, h := diagnosticsLaunchFixture(t, "omitted", 1)
+			c, err := db.ClaimReady(context.Background(), h.LaunchID, 1, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			prior := contract.Event{Version: 1, ProducerID: c.HostID, EventID: "legacy-exited", RunID: c.RunID, TaskID: c.TaskID, AttemptID: c.AttemptID, SegmentID: c.SegmentID, CommandID: c.CommandID, WorkRevision: c.WorkRevision, ExecutionEpoch: 1, Sequence: 1, Kind: contract.EventExited, PayloadHash: runtimeHash("legacy"), ActiveMS: 1}
+			if _, err = db.CommitHostEvent(context.Background(), prior); err != nil {
+				t.Fatal(err)
+			}
 			before := diagnosticsBusinessSnapshot(t, db)
 			if _, err := db.sql.Exec(`DROP TRIGGER quota_git_filter_resource_INSERT;DROP TRIGGER git_filter_resource_identity_immutable;DROP TRIGGER git_filter_resource_retained;DROP TRIGGER git_filter_resource_initial;DROP TRIGGER git_filter_resource_release_proof;DROP TABLE git_filter_resource_reservations;UPDATE schema_meta SET version=35`); err != nil {
 				t.Fatal(err)
