@@ -106,6 +106,14 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	if h.producerID != grant.HostID {
 		return contract.Result{}, contract.ErrHostArtifactGrant
 	}
+	// Resource authority does not yet make the full Git dual-view pipeline
+	// available. Refuse before inspecting the invocation or touching any ledger.
+	if grant.GitFilter != nil {
+		if err := contract.RequireGitFilter(grant); err != nil {
+			return contract.Result{}, err
+		}
+		return contract.Result{}, errors.New("git_filter_pipeline_unsupported")
+	}
 	meta := metadataForLaunch(grant)
 	if err := contract.ValidateDependencyInputs(grant); err != nil {
 		return contract.Result{}, err
