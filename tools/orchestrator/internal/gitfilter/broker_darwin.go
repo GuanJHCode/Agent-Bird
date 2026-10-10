@@ -578,8 +578,14 @@ func (b *Broker) loadStream(ctx context.Context, i int, producer func(io.Writer)
 	if _, ok := ctx.Deadline(); !ok {
 		return result, errBroker
 	}
-	if err := b.checkAll(ctx); err != nil {
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	if err := b.streamInventory(-1); err != nil {
 		return result, b.uncertain(err)
+	}
+	if err := ctx.Err(); err != nil {
+		return result, err
 	}
 	if err := b.writeJournal("loading"); err != nil {
 		return result, b.uncertain(err)
@@ -594,8 +600,11 @@ func (b *Broker) loadStream(ctx context.Context, i int, producer func(io.Writer)
 	if err := b.slots[i].Sync(); err != nil {
 		return result, b.uncertain(err)
 	}
-	if err := b.refreshSlot(ctx, i); err != nil {
+	if err := b.streamInventory(i); err != nil {
 		return result, b.uncertain(err)
+	}
+	if err := ctx.Err(); err != nil {
+		return result, b.finishStreamFailure(err, i)
 	}
 	w := &streamSlotWriter{ctx: ctx, file: b.slots[i], writeAt: b.streamWriteAt}
 	defer func() {
@@ -618,18 +627,34 @@ func (b *Broker) loadStream(ctx context.Context, i int, producer func(io.Writer)
 	if err := b.slots[i].Sync(); err != nil {
 		return result, b.uncertain(err)
 	}
-	if err := b.refreshSlot(ctx, i); err != nil {
+	if err := b.streamInventory(i); err != nil {
 		return result, b.uncertain(err)
 	}
-	if err := b.checkAll(ctx); err != nil {
-		return result, b.uncertain(err)
+	if err := ctx.Err(); err != nil {
+		return result, b.finishStreamFailure(err, i)
 	}
 	if err := b.writeJournal("ready"); err != nil {
 		return result, b.uncertain(err)
 	}
+	if err := ctx.Err(); err != nil {
+		return result, b.finishStreamFailure(err, i)
+	}
 	b.initialized[i] = true
 	n := b.nodes[brokerSlot(i)]
 	return StreamLoadResult{SHA256: n.SHA256, Bytes: n.Identity.Size}, nil
+}
+
+// Integrity checks use a fresh bounded context so caller cancellation cannot be
+// confused with a damaged inventory. Actual I/O/identity failures stay UNKNOWN.
+func (b *Broker) streamInventory(slot int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if slot >= 0 {
+		if err := b.refreshSlot(ctx, slot); err != nil {
+			return err
+		}
+	}
+	return b.checkAll(ctx)
 }
 
 func (b *Broker) finishStreamFailure(original error, i int) error {
