@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "integration_merge": "14060be5eb655c8b022b71607c064f4ea0ee35c0",
+  "go_tree": "c45975cffb8187fe47ee84c33e56f76858b99e32",
+  "qualified_sources": [
+    "4438e55cb1781d9fac835573fdd3ac2f5229c63a",
+    "f92478c81953d70f661ab9398a25bae3aab46b8a"
+  ],
+  "qualified_union": "Gate tree plus exactly two Host expectation files identical to f92478c; no other Go differences",
+  "delivery": "71c2c7a",
+  "review": "PASS both independent leaves",
+  "whole_builds": [
+    {
+      "label": "integration-mac-build",
+      "source": "14060be5eb655c8b022b71607c064f4ea0ee35c0",
+      "go_tree": "c45975cffb8187fe47ee84c33e56f76858b99e32",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "integration-linux-build",
+      "source": "14060be5eb655c8b022b71607c064f4ea0ee35c0",
+      "go_tree": "c45975cffb8187fe47ee84c33e56f76858b99e32",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    }
+  ],
+  "original_root_exec_sessions_drained": [
+    55818,
+    73910
+  ],
+  "public_filtered_integrate": false,
+  "current_package_source": "4e1229c3ffbd61de1f7d65c097fa2148030e6eb2",
+  "package_covers_new_leaves": false
+}
