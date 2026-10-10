@@ -108,23 +108,15 @@ func candidateGitBytesWithStart(ctx context.Context, dir string, input []byte, o
 	commandDigest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
 	journal, _ := ctx.Value(candidateJournalKey{}).(GitProcessJournal)
 	record := func(phase string, identity *process.Identity, exit int) error {
-		if journal == nil {
-			return nil
+		if journal != nil {
+			if err := journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: commandDigest, Process: identity, ExitCode: exit}); err != nil {
+				return err
+			}
 		}
-		return journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: commandDigest, Process: identity, ExitCode: exit})
+		return verifyCandidateTargetIndex(ctx)
 	}
 	if err = record("intent", nil, -1); err != nil {
 		return CommandResult{}, err
-	}
-	if filter := filterGitFromContext(ctx); filter != nil {
-		private, _ := ctx.Value(filterGitPrivateKey{}).(bool)
-		verify := filter.verifyTargetIndexGuard
-		if private {
-			verify = filter.verifyTargetIndexGuardHeld
-		}
-		if err := verify(); err != nil {
-			return CommandResult{}, err
-		}
 	}
 	out := &candidateOutput{}
 	spec := process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out}
@@ -240,23 +232,15 @@ func candidateGitInputStreamWithStart(ctx context.Context, dir string, input []b
 	digest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
 	journal, _ := ctx.Value(candidateJournalKey{}).(GitProcessJournal)
 	record := func(phase string, identity *process.Identity, exit int) error {
-		if journal == nil {
-			return nil
+		if journal != nil {
+			if err := journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: digest, Process: identity, ExitCode: exit}); err != nil {
+				return err
+			}
 		}
-		return journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: digest, Process: identity, ExitCode: exit})
+		return verifyCandidateTargetIndex(ctx)
 	}
 	if err := record("intent", nil, -1); err != nil {
 		return err
-	}
-	if filter := filterGitFromContext(ctx); filter != nil {
-		private, _ := ctx.Value(filterGitPrivateKey{}).(bool)
-		verify := filter.verifyTargetIndexGuard
-		if private {
-			verify = filter.verifyTargetIndexGuardHeld
-		}
-		if err := verify(); err != nil {
-			return err
-		}
 	}
 	p, err := start(ctx, process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
 	if err != nil {
@@ -392,4 +376,17 @@ func candidateStartFailure(err error) error {
 		return err
 	}
 	return fmt.Errorf("%w: candidate start failed", process.ErrProcessTreeUnknown)
+}
+
+// Recheck after every journal callback, including the last exited record.
+// No Git command is issued by this original-source, held-FD guard.
+func verifyCandidateTargetIndex(ctx context.Context) error {
+	filter := filterGitFromContext(ctx)
+	if filter == nil {
+		return nil
+	}
+	if private, _ := ctx.Value(filterGitPrivateKey{}).(bool); private {
+		return filter.verifyTargetIndexGuardHeld()
+	}
+	return filter.verifyTargetIndexGuard()
 }
