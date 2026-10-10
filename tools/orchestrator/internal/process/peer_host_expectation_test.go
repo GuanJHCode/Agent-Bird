@@ -64,7 +64,7 @@ func TestVerifyHostPeerExpectationRejectsInputBeforeObservation(t *testing.T) {
 			t.Fatalf("invalid peer pid=%d err=%v calls=%d", pid, err, calls)
 		}
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel = context.WithCancel(context.Background())
 	cancel()
 	if err := verifyHostPeerExpectationWith(ctx, 44, valid, func(context.Context, int) (peerRecord, error) {
 		t.Fatal("cancelled ctx observed kernel")
