@@ -178,7 +178,7 @@ func filterTargetHostAssertPreserved(t *testing.T, repo string, want filterTarge
 	}
 }
 
-func filterTargetNativeAcceptedReview(t *testing.T, ctx context.Context, db *store.DB, h *Host, hostID, root, repo string, baseB []byte, guard *validationNativeCleanup, reviewGrant contract.LaunchCommand, reviewed CandidateDelivery, reviewEvents []contract.Event) {
+func filterTargetNativeAcceptedReview(t *testing.T, ctx context.Context, db *store.DB, h *Host, hostID, root, repo string, baseB []byte, guard *validationNativeCleanup, reviewGrant contract.LaunchCommand, reviewed CandidateDelivery, reviewEvents []contract.Event) (contract.LaunchCommand, FilteredTargetPreflightDeliveryV1, []contract.Event) {
 	t.Helper()
 	baseR := filterPipelineXOR(baseB)
 	if err := os.WriteFile(filepath.Join(repo, "file"), baseR, 0600); err != nil {
@@ -282,4 +282,5 @@ func filterTargetNativeAcceptedReview(t *testing.T, ctx context.Context, db *sto
 	if bytes.Equal(baseB, baseR) {
 		t.Fatal("target filter fixture did not distinguish canonical and rendered base")
 	}
+	return targetGrant, delivered, events
 }

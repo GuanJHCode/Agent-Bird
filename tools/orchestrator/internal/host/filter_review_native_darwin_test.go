@@ -29,14 +29,19 @@ func TestFilterReviewNativeHostAcceptedValidator(t *testing.T) {
 
 // filterReviewNativeChain keeps the producer, validator, and readonly review
 // acceptance chain identical for the optional target observation fixture.
-func filterReviewNativeChain(t *testing.T, includeTarget bool) {
+func filterReviewNativeChain(t *testing.T, includeTarget bool, targetReview ...bool) {
+	includeApproval := len(targetReview) == 1 && targetReview[0]
 	root, guard := filterPipelineRoot(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 	filterActor := filterPipelineBuildActor(t, ctx, root, guard)
 	validatorActor, validatorPin := validationNativeActor(t, root, guard)
 	reviewActor := filterReviewBuildActor(t, ctx, root, guard)
 	reviewPin := filterPipelineDigest(t, reviewActor)
+	approvalActor := ""
+	if includeApproval {
+		approvalActor = filterReviewBuildActor(t, ctx, root, guard, true)
+	}
 	gitPath := filterPipelineGitPath(t, ctx, guard)
 	repo := filepath.Join(root, "repo")
 	if err := os.Mkdir(repo, 0700); err != nil {
@@ -79,6 +84,18 @@ func filterReviewNativeChain(t *testing.T, includeTarget bool) {
 	tasks := []store.TaskSpec{{ID: "edit", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, AdapterPayload: sourceRaw}, {ID: "validate", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"edit"}, AdapterPayload: validateRaw}, {ID: "review", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"validate"}, AdapterPayload: reviewRaw}}
 	if includeTarget {
 		tasks = append(tasks, store.TaskSpec{ID: "preflight", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"review"}, AdapterPayload: targetRaw})
+	}
+	if includeApproval {
+		approval := reviewPayload
+		approval.Directory = filepath.Join(root, "target-review")
+		approval.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 900000}
+		approval.ProviderLock = &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: approvalActor, SHA256: filterPipelineDigest(t, approvalActor), Version: "controlled-target-review"}}
+		approval.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: "filter_target_review", SourceTask: "preflight", DependencyInputVersion: 1, AutoDirectory: true, Target: targetPayload.CandidateAction.Target}
+		raw, e := json.Marshal(approval)
+		if e != nil {
+			t.Fatal(e)
+		}
+		tasks = append(tasks, store.TaskSpec{ID: "target-review", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 900000, Dependencies: []string{"preflight"}, AdapterPayload: raw})
 	}
 	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "filter-native-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "fixture"}, Host: store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "fixture", Executable: "/private/controlled-host"}, Tasks: tasks})
 	if err != nil {
@@ -240,7 +257,10 @@ func filterReviewNativeChain(t *testing.T, includeTarget bool) {
 	guard.pending--
 	validationAccept(t, ctx, db, reviewGrant)
 	if includeTarget {
-		filterTargetNativeAcceptedReview(t, ctx, db, h, hostID, root, repo, baseB, guard, reviewGrant, reviewed, reviewEvents)
+		preflightGrant, preflight, preflightEvents := filterTargetNativeAcceptedReview(t, ctx, db, h, hostID, root, repo, baseB, guard, reviewGrant, reviewed, reviewEvents)
+		if includeApproval {
+			filterTargetReviewNativeAcceptedPreflight(t, ctx, db, h, hostID, root, repo, guard, preflightGrant, preflight, preflightEvents)
+		}
 	}
 	t.Logf("controlled_filtered_readonly_review original_wait_tree=true native_structured=true actual_rendered_read=true tracked_write_permission_denied=true distinct_filter_grants=true zero_target=true root=%s", root)
 
@@ -258,11 +278,15 @@ func filterReviewBinding(g contract.LaunchCommand) gitops.CandidateBinding {
 	return gitops.CandidateBinding{RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, PlanRevision: g.PlanRevision}
 }
 
-func filterReviewBuildActor(t *testing.T, ctx context.Context, root string, guard *validationNativeCleanup) string {
+func filterReviewBuildActor(t *testing.T, ctx context.Context, root string, guard *validationNativeCleanup, targetReview ...bool) string {
 	t.Helper()
 	goPath := "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go"
 	binary := filepath.Join(root, "native-review-actor")
 	source := filepath.Join(filterPipelineModuleRoot(t), "..", "..", "tasks", "filter-review-native", "scripts", "claude-review-actor.go")
+	if len(targetReview) == 1 && targetReview[0] {
+		binary = filepath.Join(root, "native-target-review-actor")
+		source = filepath.Join(filterPipelineModuleRoot(t), "..", "..", "tasks", "filter-target-review", "scripts", "claude-target-review-actor.go")
+	}
 	guard.pending++
 	original, err := process.Start(ctx, process.Command{Path: goPath, PinnedPath: goPath, PinnedSHA256: filterPipelineDigest(t, goPath), Args: []string{"build", "-trimpath", "-buildvcs=false", "-o", binary, source}, Dir: filterPipelineModuleRoot(t), ExactEnv: true, Env: []string{"PATH=" + filepath.Dir(goPath) + ":/usr/bin:/bin", "HOME=" + root, "GOCACHE=" + filepath.Join(root, "cache"), "GOPATH=" + filepath.Join(root, "gopath"), "GOENV=off", "GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "TMPDIR=/private/tmp"}})
 	if err != nil || original == nil {

@@ -1,0 +1,10 @@
+{
+  "source": "64acf86ece72c6ecfb3e4d94ef2ebd73a31aea76",
+  "intent_sha256": "85a263da129256db2d5a47aa87fa9c83258a5bff48d4322934b639f9ba6f476d",
+  "removed_files": 30,
+  "removed_directories": 13,
+  "removed_bytes": 67324236,
+  "removed_paths_absent": true,
+  "retained_package_verified": true,
+  "sentinel_preserved": true
+}

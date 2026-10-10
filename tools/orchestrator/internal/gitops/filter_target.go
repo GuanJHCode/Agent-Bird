@@ -302,16 +302,23 @@ func (m *FilterTargetObservation) Verify(ctx context.Context) error {
 	if err = checkFilteredCandidateRef(ctx, m.source, m.candidate); err != nil {
 		return err
 	}
-	// Git/journal callbacks can run during any query, so finish with the
-	// original held metadata and inventory once more, without new callbacks.
-	if err = m.checkMetadata(); err != nil {
+	return m.verifyFinalPure(ctx)
+}
+
+// verifyFinalPure checks held descriptors and pinned source state without Git
+// commands or journal callbacks. It is shared by the joint live verifier.
+func (m *FilterTargetObservation) verifyFinalPure(ctx context.Context) error {
+	if m == nil || m.source == nil || m.streams == nil || m.journal == nil || m.streams.Binding() != m.streamBinding || m.receipt.Version != 1 {
+		return fail(CodeIdentityChanged, "filter target live owner", nil)
+	}
+	if err := m.checkMetadata(); err != nil {
 		return err
 	}
-	raw, id, err = m.readIndex()
+	raw, id, err := m.readIndex()
 	if err != nil || id != m.indexIdentity || filterTargetHash(raw) != m.indexSHA {
 		return fail(CodeIdentityChanged, "filter target index changed", err)
 	}
-	got, err = m.snapshot(ctx)
+	got, err := m.snapshot(ctx)
 	if err != nil {
 		return err
 	}

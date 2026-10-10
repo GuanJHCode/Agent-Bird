@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
@@ -16,9 +17,15 @@ func relevantAttemptDecisions(ctx context.Context, tx *sql.Tx, task string) ([]a
 	if err != nil {
 		return nil, err
 	}
+	// Only the admitted target-review stage adds a fifth predecessor. Keep
+	// the existing bound for every legacy and non-filter action.
+	maximum := 4
+	if p, decodeErr := adapter.DecodeInvocationPayload([]byte(start.payload)); decodeErr == nil && adapter.IsFilterTargetReview(p) {
+		maximum = 5
+	}
 	root, seen := start, map[string]bool{}
 	for {
-		if seen[root.id] || len(seen) >= 4 || root.run != start.run {
+		if seen[root.id] || len(seen) >= maximum || root.run != start.run {
 			return nil, errLegacyDecisionAmbiguous
 		}
 		seen[root.id] = true

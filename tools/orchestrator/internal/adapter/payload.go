@@ -77,7 +77,7 @@ func DecodeInvocationPayload(data []byte) (InvocationPayload, error) {
 		}
 		producer := payload.Kind == "provider" && payload.CandidateWorkspace != nil && payload.CandidateWorkspace.Version == 1 && payload.Profile != nil && payload.Profile.Role == Implementer && payload.Profile.Permission == WorkspaceWrite && payload.CandidateAction == nil
 		validator := payload.Kind == "candidate" && payload.CandidateAction != nil && payload.CandidateAction.Version == 1 && payload.CandidateAction.Operation == "validate" && payload.CandidateWorkspace == nil && payload.Profile == nil
-		reviewer := payload.Kind == "" && payload.CandidateAction != nil && payload.CandidateAction.Version == 1 && payload.CandidateAction.Operation == "review" && payload.CandidateWorkspace == nil && payload.Profile != nil && payload.Profile.Role == Reviewer && payload.Profile.Permission == ReadOnly
+		reviewer := payload.Kind == "" && payload.CandidateAction != nil && payload.CandidateAction.Version == 1 && (payload.CandidateAction.Operation == "review" || payload.CandidateAction.Operation == "filter_target_review") && payload.CandidateWorkspace == nil && payload.Profile != nil && payload.Profile.Role == Reviewer && payload.Profile.Permission == ReadOnly
 		observer := payload.Kind == "candidate" && payload.CandidateAction != nil && payload.CandidateAction.Version == 1 && payload.CandidateAction.Operation == "filter_target_preflight" && payload.CandidateWorkspace == nil && payload.Profile == nil
 		if !producer && !validator && !reviewer && !observer {
 			return InvocationPayload{}, errors.New("git_filter_pipeline_unsupported")

@@ -273,12 +273,15 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 				}
 			}
 		}
-		meta.structuredReview = action.Operation == "review" && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY) || meta.outputProvider == string(adapter.ProviderGrok))
+		meta.structuredReview = (action.Operation == "review" || adapter.IsFilterTargetReview(filterPayload)) && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY) || meta.outputProvider == string(adapter.ProviderGrok))
 		if action.Operation == "review" && meta.outputProvider == string(adapter.ProviderGrok) {
 			meta.expectedSessionID = grokSessionID(grant)
 		}
 		meta.prepareAction = func(ctx context.Context) (process.Command, actionFinalizer, func(), error) {
 			if filtered != nil {
+				if adapter.IsFilterTargetReview(filterPayload) {
+					return h.prepareFilteredTargetReview(ctx, filtered, inv, filterPayload)
+				}
 				if filterPayload.CandidateAction.Operation == "review" {
 					return h.prepareFilteredReview(ctx, filtered, inv, filterPayload)
 				}

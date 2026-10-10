@@ -1176,14 +1176,23 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand, hostS
 			}
 			return localInvocation{args: []string{"/usr/bin/true"}, dir: payload.Directory, action: action}, nil
 		}
-		if action.Operation != "review" || payload.Profile == nil || payload.Profile.Role != adapter.Reviewer || payload.Profile.Permission != adapter.ReadOnly {
+		if (action.Operation != "review" && !adapter.IsFilterTargetReview(payload)) || payload.Profile == nil || payload.Profile.Role != adapter.Reviewer || payload.Profile.Permission != adapter.ReadOnly {
 			return nil, codeError("candidate_action_invalid")
 		}
-		brief, err := host.CandidateReviewPrompt(grant, hostSpoolParent...)
+		var brief string
+		if adapter.IsFilterTargetReview(payload) {
+			brief, err = host.FilteredTargetReviewPrompt(grant, hostSpoolParent...)
+		} else {
+			brief, err = host.CandidateReviewPrompt(grant, hostSpoolParent...)
+		}
 		if err != nil {
 			return nil, err
 		}
-		payload.Prompt += brief
+		if adapter.IsFilterTargetReview(payload) {
+			payload.Prompt = brief
+		} else {
+			payload.Prompt += brief
+		}
 	}
 	if payload.ProviderLock != nil {
 		lock := payload.ProviderLock

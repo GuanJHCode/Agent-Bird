@@ -18,7 +18,7 @@ func TestFilterTargetGrantAndNilExitSettlement(t *testing.T) {
 		t.Run(outcome, func(t *testing.T) { filterTargetGrantSettlement(t, outcome) })
 	}
 }
-func filterTargetGrantSettlement(t *testing.T, outcome string) {
+func filterTargetGrantSettlement(t *testing.T, outcome string, targetReview ...bool) {
 	ctx := context.Background()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
@@ -37,7 +37,14 @@ func filterTargetGrantSettlement(t *testing.T, outcome string) {
 	observer := adapter.InvocationPayload{Kind: "candidate", Directory: "/private/observe", GitFilter: producer.GitFilter, CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "filter_target_preflight", SourceTask: "review", DependencyInputVersion: 1, AutoDirectory: true, Target: adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: producer.CandidateWorkspace.BaseOID}}}
 	ids := []string{"edit", "validate", "review", "observe"}
 	payloads := []adapter.InvocationPayload{producer, validator, reviewer, observer}
-	tasks := make([]TaskSpec, 4)
+	if len(targetReview) == 1 && targetReview[0] {
+		approval := reviewer
+		approval.Directory = "/private/target-review"
+		approval.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: "filter_target_review", SourceTask: "observe", DependencyInputVersion: 1, AutoDirectory: true, Target: observer.CandidateAction.Target}
+		ids = append(ids, "target-review")
+		payloads = append(payloads, approval)
+	}
+	tasks := make([]TaskSpec, len(ids))
 	for i, p := range payloads {
 		raw, e := json.Marshal(p)
 		if e != nil {
@@ -71,6 +78,9 @@ func filterTargetGrantSettlement(t *testing.T, outcome string) {
 			if e != nil || len(pending) != 1 || pending[0].LaunchIntentHash != g.LaunchIntentHash || pending[0].Input.Event.EventID != g.Input.Event.EventID {
 				t.Fatalf("preflight replay=%v err=%v", pending, e)
 			}
+		}
+		if i == 4 && (g.Input == nil || g.Input.Event.TaskID != "observe" || g.DependencyInputs == nil || len(g.DependencyInputs.Inputs) != 1 || g.ValidationTool != nil || contract.ValidateDependencyInputs(g) != nil || contract.RequireGitFilter(g) != nil) {
+			t.Fatalf("unbound target-review grant=%+v", g)
 		}
 		body := []byte("opaque authenticated " + id)
 		sequence++
@@ -126,11 +136,18 @@ func filterTargetGrantSettlement(t *testing.T, outcome string) {
 				t.Fatalf("unproved exit changed state: %v", e)
 			}
 		}
+		missingProviderExit := i == 4 && outcome == "nil-provider-exit"
+		if missingProviderExit {
+			done.ExitCode = nil
+		}
 		if _, e = db.CommitHostEvent(ctx, done); e != nil {
 			t.Fatalf("exited %s: %v", id, e)
 		}
 		var status, state string
 		expectedStatus := "result_ready"
+		if missingProviderExit {
+			expectedStatus = "failed"
+		}
 		if stopped {
 			expectedStatus = "interrupted"
 		}
@@ -148,8 +165,22 @@ func filterTargetGrantSettlement(t *testing.T, outcome string) {
 			t.Fatalf("pending %s: %v", id, e)
 		}
 		accepted := page.Events[0]
+		if missingProviderExit {
+			before := diagnosticsBusinessSnapshot(t, db)
+			_, e = db.ReviewResult(ctx, ReviewSpec{TaskID: id, WorkRevision: 1, EventID: accepted.EventID, EventRevision: accepted.EventRevision, EventHash: accepted.PayloadHash, ActionSlot: accepted.ActionSlot, Decision: "accept", CommandID: "reject-unproved-approval"})
+			if e == nil || diagnosticsBusinessSnapshot(t, db) != before {
+				t.Fatalf("nil-provider-exit result gained approval: %v", e)
+			}
+			return
+		}
 		if _, e = db.ReviewResult(ctx, ReviewSpec{TaskID: id, WorkRevision: 1, EventID: accepted.EventID, EventRevision: accepted.EventRevision, EventHash: accepted.PayloadHash, ActionSlot: accepted.ActionSlot, Decision: "accept", CommandID: "accept-" + id}); e != nil {
 			t.Fatalf("accept %s: %v", id, e)
 		}
+	}
+}
+
+func TestFilterTargetReviewGrantAndProviderExit(t *testing.T) {
+	for _, outcome := range []string{"result", "nil-provider-exit"} {
+		t.Run(outcome, func(t *testing.T) { filterTargetGrantSettlement(t, outcome, true) })
 	}
 }

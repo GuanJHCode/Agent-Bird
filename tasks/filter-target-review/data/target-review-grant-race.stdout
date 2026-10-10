@@ -1,0 +1,9 @@
+{"Time":"2026-10-10T15:30:12.90816+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-10T15:30:13.689938+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestFilterTargetReviewGrantAndProviderExit"}
+{"Time":"2026-10-10T15:30:13.690044+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestFilterTargetReviewGrantAndProviderExit","Output":"=== RUN   TestFilterTargetReviewGrantAndProviderExit\n"}
+{"Time":"2026-10-10T15:30:25.131847+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestFilterTargetReviewGrantAndProviderExit","Output":"    filter_target_event_test.go:144: target review inherited nil-exit exception: \u003cnil\u003e\n"}
+{"Time":"2026-10-10T15:30:25.163955+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestFilterTargetReviewGrantAndProviderExit","Output":"--- FAIL: TestFilterTargetReviewGrantAndProviderExit (11.47s)\n"}
+{"Time":"2026-10-10T15:30:25.164004+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestFilterTargetReviewGrantAndProviderExit","Elapsed":11.47}
+{"Time":"2026-10-10T15:30:25.16453+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\n"}
+{"Time":"2026-10-10T15:30:25.166197+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t12.257s\n"}
+{"Time":"2026-10-10T15:30:25.166315+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":12.258}

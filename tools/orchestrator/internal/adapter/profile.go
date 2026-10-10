@@ -55,6 +55,9 @@ func ValidModelID(value string) bool { return value == "" || modelID.MatchString
 var modelID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
 
 func validateProfile(req Request) error {
+	if req.Action != nil && req.Action.Operation == "filter_target_review" && (req.Provider != ProviderClaude && req.Provider != ProviderAGY || req.Profile == nil || req.Profile.Role != Reviewer || req.Profile.Permission != ReadOnly) {
+		return errors.New("candidate_review_provider_unsupported")
+	}
 	if req.Action != nil && req.Action.Operation == "review" && req.Provider != ProviderClaude && req.Provider != ProviderAGY && req.Provider != ProviderGrok {
 		return errors.New("candidate_review_provider_unsupported")
 	}
