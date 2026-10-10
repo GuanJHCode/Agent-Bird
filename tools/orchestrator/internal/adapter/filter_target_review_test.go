@@ -51,3 +51,29 @@ func TestFilterTargetReviewAdmission(t *testing.T) {
 		})
 	}
 }
+
+func TestFilterTargetReviewRequiresNativeSchema(t *testing.T) {
+	for _, provider := range []Provider{ProviderClaude, ProviderAGY} {
+		t.Run(string(provider), func(t *testing.T) {
+			req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
+			req.Provider = provider
+			req.Lock.Provider = provider
+			req.Lock.Protocol = ProtocolID(provider)
+			req.Action = &CandidateAction{Version: 1, Operation: "filter_target_review", SourceTask: "preflight"}
+			inv, err := BuildInvocation(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if inv.TaskCompletionMode() != TaskCompletionNone || !strings.Contains(strings.Join(inv.Args(), " "), "--json-schema") {
+				t.Fatal("target approval lacks native review schema")
+			}
+			help := "--input-format --output-format --permission-mode --disallowed-tools --mode"
+			if err = CheckCapabilities(req, help); err == nil {
+				t.Fatal("missing native schema capability accepted")
+			}
+			if err = CheckCapabilities(req, help+" --json-schema"); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
