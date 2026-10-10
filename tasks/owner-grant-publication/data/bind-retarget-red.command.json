@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-json",
+    "-count=1",
+    "./internal/coordinator",
+    "-run",
+    "^TestOwnerGrantPublicationRetargetBeforeWrite$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-publication",
+  "head": "b33066a82d98c847411183fd7875b460d4c1ccd3",
+  "dirty": "",
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

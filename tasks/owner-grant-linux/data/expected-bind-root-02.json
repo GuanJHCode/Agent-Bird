@@ -1,0 +1,7 @@
+[
+  "TestOwnerGrantPublicationFailureDoesNotAuthorize",
+  "TestOwnerGrantPublicationFailureDoesNotAuthorize/file_publication",
+  "TestOwnerGrantPublicationFailureDoesNotAuthorize/deferred_commit",
+  "TestOwnerGrantPublicationCanonicalAncestorAlias",
+  "TestOwnerGrantPublicationRetargetBeforeWrite"
+]

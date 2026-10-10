@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"crypto/subtle"
+	"database/sql"
 	"time"
 )
 
@@ -18,26 +19,69 @@ type OwnerGrant struct {
 	HostGeneration   string `json:"host_generation"`
 }
 
+// CreateOwnerGrant is retained for legacy in-process users. Public owner_bind
+// must use PublishOwnerGrant so authority cannot precede the capability file.
 func (d *DB) CreateOwnerGrant(ctx context.Context, controller string, pid int, birth string) (OwnerGrant, error) {
+	g, _, err := d.createOwnerGrant(ctx, controller, pid, birth, nil)
+	return g, err
+}
+
+// PublishOwnerGrant invokes a trusted publisher while holding DB.mu and the
+// rooted transaction; publisher must not re-enter DB. rolledBack is live-only
+// evidence for exact caller-owned file cleanup, never serialized authority.
+// After any commit attempt it is false, including a failed/uncertain commit.
+func (d *DB) PublishOwnerGrant(ctx context.Context, controller string, pid int, birth string, publish func(OwnerGrant, StoreRootAuthority) error) (grant OwnerGrant, rolledBack bool, err error) {
+	if publish == nil {
+		return OwnerGrant{}, false, CodeError("owner_publication_required")
+	}
+	return d.createOwnerGrant(ctx, controller, pid, birth, publish)
+}
+
+func (d *DB) createOwnerGrant(ctx context.Context, controller string, pid int, birth string, publish func(OwnerGrant, StoreRootAuthority) error) (OwnerGrant, bool, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if controller == "" || len(controller) > 256 || pid <= 1 || birth == "" {
-		return OwnerGrant{}, CodeError("owner_registration_invalid")
+		return OwnerGrant{}, false, CodeError("owner_registration_invalid")
 	}
-	if err := d.validateOwnerRegistration(ctx); err != nil {
-		return OwnerGrant{}, err
+	var owned *ownerTransaction
+	var err error
+	if publish == nil {
+		owned, err = d.beginOwnerTransaction(ctx)
+	} else {
+		owned, err = d.beginRootedOwnerTransaction(ctx)
+	}
+	if err != nil {
+		return OwnerGrant{}, false, err
+	}
+	defer owned.close()
+	abort := func(err error) (OwnerGrant, bool, error) { return OwnerGrant{}, owned.rollback(), err }
+	if err = validateOwnerRegistrationWith(ctx, owned.tx); err != nil {
+		return abort(err)
 	}
 	id, err := newID("owner")
 	if err != nil {
-		return OwnerGrant{}, err
+		return abort(err)
 	}
 	token, err := newID("owner-token")
 	if err != nil {
-		return OwnerGrant{}, err
+		return abort(err)
 	}
 	grant := OwnerGrant{Version: 1, Kind: "local-owner", ID: id, Token: token, ControllerThread: controller, OriginPID: pid, OriginBirth: birth, OriginContextID: id, HostGeneration: id}
-	_, err = d.sql.ExecContext(ctx, `INSERT INTO owner_grants(id,token_hash,controller_thread,origin_pid,origin_birth,created_at) VALUES(?,?,?,?,?,?)`, id, runtimeHash(token), controller, pid, birth, time.Now().UTC().Format(time.RFC3339Nano))
-	return grant, err
+	if _, err = owned.tx.ExecContext(ctx, `INSERT INTO owner_grants(id,token_hash,controller_thread,origin_pid,origin_birth,created_at) VALUES(?,?,?,?,?,?)`, id, runtimeHash(token), controller, pid, birth, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return abort(err)
+	}
+	if publish != nil {
+		if err = publish(grant, *owned.rootAuthority); err != nil {
+			return abort(err)
+		}
+		if err = owned.rootAuthority.Validate(); err != nil {
+			return abort(err)
+		}
+	}
+	if err = owned.commit(); err != nil {
+		return OwnerGrant{}, false, err
+	}
+	return grant, false, nil
 }
 
 func (d *DB) ValidateOwnerGrant(ctx context.Context, g OwnerGrant) error {
@@ -109,12 +153,20 @@ func (d *DB) ValidateDispatchPeer(ctx context.Context, ancestors map[int]string)
 }
 
 func (d *DB) validateOwnerRegistration(ctx context.Context) error {
+	return validateOwnerRegistrationWith(ctx, d.sql)
+}
+
+type ownerRegistrationQuery interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func validateOwnerRegistrationWith(ctx context.Context, db ownerRegistrationQuery) error {
 	// A worker can outlive its Host before the spawned identity reaches SQLite.
 	// In that interval ancestry alone cannot distinguish it from a new master.
 	// Check each segment, under the same mutex as dispatch/event persistence;
 	// another command on this Host may already have a durable identity.
 	var unidentified bool
-	if err := d.sql.QueryRowContext(ctx, `SELECT EXISTS(
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS(
 	 SELECT 1 FROM segment_runtime s
 	 WHERE s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')
 	 AND NOT EXISTS(SELECT 1 FROM runtime_events e WHERE e.segment_id=s.segment_id

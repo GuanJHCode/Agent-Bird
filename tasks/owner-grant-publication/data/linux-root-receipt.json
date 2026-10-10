@@ -1,0 +1,50 @@
+{
+  "owner-grant": {
+    "named_pass": 4,
+    "top_pass": 2,
+    "fail": 0,
+    "skip": 0,
+    "raw_sha256": "c01558deaef29ce928dcf04aad81bc1664b31cf62499325945cdf2ea3b1090c2",
+    "cid": "6a8bef8ccee1ae004ff95504800fbb3a327c131963d1182c03849532743493b8",
+    "root_inspect": {
+      "exit": 1,
+      "stdout": "[]\n",
+      "stderr": "Error: No such object: 6a8bef8ccee1ae004ff95504800fbb3a327c131963d1182c03849532743493b8\n"
+    },
+    "binary_before": {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-linux/tasks/owner-grant-linux/tmp/linux-bin/coordinator.test",
+      "dev": 16777234,
+      "inode": 200397507,
+      "uid": 501,
+      "nlink": 1,
+      "mode": "0o555",
+      "size": 21347944,
+      "sha256": "ac9cec50df87515e5e009b8bad85511ca65ee859bdd6cdbd014afe121917a513"
+    },
+    "binary_absent": true
+  },
+  "bind-root-02": {
+    "named_pass": 5,
+    "top_pass": 3,
+    "fail": 0,
+    "skip": 0,
+    "raw_sha256": "dc6bd04d1374e92a9ec6cd95a16d5c1b020708d2389fa61b0247528caf59cb4c",
+    "cid": "a2bad41cf42198451ed9670d49d9cb3cbd81eb608ce55ab5c76bed0c5f5ee042",
+    "root_inspect": {
+      "exit": 1,
+      "stdout": "[]\n",
+      "stderr": "Error: No such object: a2bad41cf42198451ed9670d49d9cb3cbd81eb608ce55ab5c76bed0c5f5ee042\n"
+    },
+    "binary_before": {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-linux/tasks/owner-grant-linux/tmp/bind-root-02/coordinator.test",
+      "dev": 16777234,
+      "inode": 200431495,
+      "uid": 501,
+      "nlink": 1,
+      "mode": "0o555",
+      "size": 21350162,
+      "sha256": "e00323a5ebe2f836c131e562044fed29e9d016e55db0a15e446eb8af09af6855"
+    },
+    "binary_absent": true
+  }
+}

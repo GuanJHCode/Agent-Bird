@@ -1,0 +1,31 @@
+{
+  "original_attach_exit": 0,
+  "original_state": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-10-09T22:52:45.221768668Z",
+    "FinishedAt": "2026-10-09T22:52:47.839290044Z"
+  },
+  "exact_cid": "6a8bef8ccee1ae004ff95504800fbb3a327c131963d1182c03849532743493b8",
+  "runner_finally_absent": true,
+  "second_absent": true,
+  "binary_before": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-linux/tasks/owner-grant-linux/tmp/linux-bin/coordinator.test",
+    "dev": 16777234,
+    "inode": 200397507,
+    "uid": 501,
+    "nlink": 1,
+    "mode": "0o555",
+    "size": 21347944,
+    "sha256": "ac9cec50df87515e5e009b8bad85511ca65ee859bdd6cdbd014afe121917a513"
+  },
+  "binary_removed": true,
+  "binary_directory_retained": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-linux/tasks/owner-grant-linux/tmp/linux-bin"
+}

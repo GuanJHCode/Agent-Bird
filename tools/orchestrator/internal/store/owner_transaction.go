@@ -38,15 +38,23 @@ func (d *DB) beginOwnerTransaction(ctx context.Context) (*ownerTransaction, erro
 	return &ownerTransaction{conn: conn, tx: tx}, nil
 }
 
+// rollback reports only this live transaction's proven rollback. ErrTxDone may
+// hide database/sql cancellation cleanup and must not authorize file removal.
+func (t *ownerTransaction) rollback() bool {
+	if t.state != ownerTransactionActive {
+		return t.state == ownerTransactionRolledBack
+	}
+	if err := t.tx.Rollback(); err == nil {
+		t.state = ownerTransactionRolledBack
+		return true
+	}
+	t.discard()
+	return false
+}
+
 func (t *ownerTransaction) close() {
 	if t.state == ownerTransactionActive {
-		if err := t.tx.Rollback(); err == nil {
-			t.state = ownerTransactionRolledBack
-		} else {
-			// ErrTxDone can hide database/sql's asynchronous rollback after
-			// cancellation. Only our own successful outcome proves reuse safe.
-			t.discard()
-		}
+		t.rollback()
 	}
 	_ = t.conn.Close()
 }
