@@ -58,3 +58,5 @@ did not collect simultaneous region tables, and the diagnostic binary adds
 ReadMemStats, sync, and observers. This analysis cannot attribute the old
 13.015625/21.609375 MiB Formal60 ranges, cannot establish a resource PASS, and
 does not replace the frozen 128 MiB / 8 MiB contract or its FAILED verdict.
+
+ROOT independently checked all 12 raw hashes and every table row using a separate decimal column parser. Resident/swapped sums match the retained classification. Source K/M/G values are rounded vmmap displays: byte conversions and derived MiB totals express those printed values, not exact physical byte measurements. Shared library regions may appear in multiple processes; their sum is neither unique physical residency nor the product RSS contract.
