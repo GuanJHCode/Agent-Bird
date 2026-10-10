@@ -173,8 +173,19 @@ func (m *FilterTargetObservation) checkMetadata() error {
 			return err
 		}
 	}
+	info, err := filterOpenAt(m.gitDir, "info", unix.O_RDONLY|unix.O_DIRECTORY, 0)
+	if errors.Is(err, unix.ENOENT) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	defer info.Close()
+	if _, err = filterTargetDirectory(info); err != nil {
+		return err
+	}
 	var st unix.Stat_t
-	err := unix.Fstatat(int(m.gitDir.Fd()), "info/sparse-checkout", &st, unix.AT_SYMLINK_NOFOLLOW)
+	err = unix.Fstatat(int(info.Fd()), "sparse-checkout", &st, unix.AT_SYMLINK_NOFOLLOW)
 	if !errors.Is(err, unix.ENOENT) {
 		return fail(CodeInvalidInput, "filter target sparse metadata", err)
 	}
@@ -335,6 +346,9 @@ func (m *FilterTargetObservation) snapshot(ctx context.Context) (map[string]filt
 func (m *FilterTargetObservation) refFiles(capture bool) error {
 	paths := []string{filepath.Join(m.source.repository.gitDir, "HEAD"), filepath.Join(m.source.commonDir, filepath.FromSlash(m.request.Ref)), filepath.Join(m.source.commonDir, "packed-refs")}
 	for _, p := range paths {
+		if err := noSymlinkComponents(filepath.Dir(p)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
 		st, err := os.Lstat(p)
 		if errors.Is(err, os.ErrNotExist) {
 			if p == paths[0] || !capture && m.refs[p] != nil {

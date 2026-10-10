@@ -313,6 +313,11 @@ func filterTargetRef(ref string) bool {
 	if !strings.HasPrefix(ref, "refs/heads/") || !filterSafePath(ref) || strings.ContainsAny(ref, " ~^:?*[") || strings.Contains(ref, "..") || strings.Contains(ref, "@{") {
 		return false
 	}
+	for _, c := range ref {
+		if c < 32 || c == 127 {
+			return false
+		}
+	}
 	for _, part := range strings.Split(ref, "/") {
 		if strings.HasPrefix(part, ".") || strings.HasSuffix(part, ".") || strings.HasSuffix(strings.ToLower(part), ".lock") {
 			return false
