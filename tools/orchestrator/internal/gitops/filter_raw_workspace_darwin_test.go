@@ -7,8 +7,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -40,10 +42,12 @@ func (j *rawFixtureJournal) RecordGitProcess(_ context.Context, r GitProcessReco
 }
 
 type rawFixture struct {
-	t      *testing.T
-	root   string
-	retain bool
-	broker gitfilter.ResourceBroker
+	t        *testing.T
+	root     string
+	retain   bool
+	broker   gitfilter.ResourceBroker
+	gitWaits int
+	journal  *rawFixtureJournal
 }
 
 func newRawFixture(t *testing.T) *rawFixture {
@@ -53,24 +57,81 @@ func newRawFixture(t *testing.T) *rawFixture {
 	}
 	f := &rawFixture{t: t, root: root}
 	t.Cleanup(func() {
+		if f.journal != nil {
+			f.checkGitRecords(t)
+		}
 		if f.broker != nil {
-			if f.broker.State().Unknown {
+			state := f.broker.State()
+			if state.Unknown {
 				f.retain = true
-			} else {
-				_, e := f.broker.Cleanup(context.Background())
-				if e != nil {
+			}
+			t.Logf("broker_terminal ever_started=%t unknown=%t started=%v terminal=%v", state.EverStarted, state.Unknown, state.StartedAt, state.TerminalAt)
+			if !f.retain {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				receipt, e := f.broker.Cleanup(ctx)
+				cancel()
+				if e != nil || receipt == nil {
 					f.retain = true
+					t.Errorf("broker cleanup: %v", e)
 				}
-				_ = f.broker.Close()
+			}
+			if e := f.broker.Close(); e != nil {
+				f.retain = true
+				t.Errorf("broker close: %v", e)
 			}
 		}
+		t.Logf("fixture_git_original_wait_tree_success=%d root=%s", f.gitWaits, root)
 		if f.retain {
 			t.Logf("retained_unknown_fixture=%s", root)
+			return
+		}
+		if e := os.RemoveAll(root); e != nil {
+			t.Errorf("fixture cleanup: %v", e)
+			return
+		}
+		if _, e := os.Lstat(root); !os.IsNotExist(e) {
+			t.Errorf("fixture remains: %v", e)
 		} else {
-			_ = os.RemoveAll(root)
+			t.Logf("owned_fixture_absent=%s", root)
 		}
 	})
 	return f
+}
+func (f *rawFixture) checkGitRecords(t *testing.T) {
+	t.Helper()
+	records := f.journal.records
+	if len(records)%3 != 0 {
+		f.retain = true
+		t.Errorf("unfinished Git process record count=%d", len(records))
+		return
+	}
+	for i := 0; i < len(records); i += 3 {
+		a, b, c := records[i], records[i+1], records[i+2]
+		if a.Phase != "intent" || b.Phase != "spawned" || c.Phase != "exited" || a.CommandDigest != b.CommandDigest || a.CommandDigest != c.CommandDigest || b.Process == nil || c.Process == nil || *b.Process != *c.Process || c.ExitCode != 0 {
+			f.retain = true
+			t.Errorf("unproved Git lifecycle records %d: %s %s %s exit=%d", i, a.Phase, b.Phase, c.Phase, c.ExitCode)
+			return
+		}
+	}
+	t.Logf("materialize_original_git_wait_tree_success=%d", len(records)/3)
+}
+func rawFixtureWait(t *testing.T, f *rawFixture, ctx context.Context, h *process.Handle) {
+	t.Helper()
+	wait := h.Wait(ctx)
+	tree := h.ConfirmTreeExited()
+	if wait != nil || tree != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		stop := h.Stop(stopCtx)
+		cancel()
+		tree = h.ConfirmTreeExited()
+		if stop != nil || tree != nil {
+			f.retain = true
+		}
+		t.Fatalf("original process wait=%v stop=%v tree=%v", wait, stop, tree)
+	}
+	if h.ExitCode() != 0 {
+		t.Fatalf("original process exit=%d output=%s", h.ExitCode(), h.Output())
+	}
 }
 func moduleRoot(t *testing.T) string {
 	t.Helper()
@@ -99,13 +160,15 @@ func buildRawActor(t *testing.T, f *rawFixture) gitfilter.Tool {
 	if h == nil {
 		t.Fatal(e)
 	}
-	wait := h.Wait(ctx)
-	tree := h.ConfirmTreeExited()
-	t.Logf("actor_build_original_wait=%v exit=%d tree=%v", wait, h.ExitCode(), tree)
-	if e != nil || wait != nil || tree != nil || h.ExitCode() != 0 {
+	if e != nil {
 		f.retain = true
-		t.Fatalf("actor build: %v %s", e, h.Output())
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_ = h.Stop(stopCtx)
+		stopCancel()
+		t.Fatal(e)
 	}
+	rawFixtureWait(t, f, ctx, h)
+	t.Logf("actor_build_original_wait=0 exit=0 tree=0")
 	info, e := os.Stat(actor)
 	if e != nil {
 		t.Fatal(e)
@@ -129,12 +192,15 @@ func rawGit(t *testing.T, f *rawFixture, ctx context.Context, gitPath, dir strin
 	if h == nil {
 		t.Fatal(e)
 	}
-	w := h.Wait(ctx)
-	tree := h.ConfirmTreeExited()
-	if e != nil || w != nil || tree != nil || h.ExitCode() != 0 {
+	if e != nil {
 		f.retain = true
-		t.Fatalf("git %v: start=%v wait=%v tree=%v exit=%d out=%s", args, e, w, tree, h.ExitCode(), h.Output())
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_ = h.Stop(stopCtx)
+		stopCancel()
+		t.Fatal(e)
 	}
+	rawFixtureWait(t, f, ctx, h)
+	f.gitWaits++
 	return strings.TrimSpace(h.Output())
 }
 func rawSHA(b []byte) string { s := sha256.Sum256(b); return hex.EncodeToString(s[:]) }
@@ -195,6 +261,8 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 		drift, journalDrift bool
 	}{{"xor_roundtrip_receipt_and_controlled_file", "xor", false, false}, {"non_roundtrip_rejects_and_retains_workspace", "copy", false, false}, {"tree_attributes_drift_rejects_before_workspace", "xor", true, false}, {"journal_receipt_drift_rejected", "xor", false, true}} {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+			defer cancel()
 			f := newRawFixture(t)
 			if e := os.MkdirAll(filepath.Join(f.root, "repo"), 0700); e != nil {
 				t.Fatal(e)
@@ -238,14 +306,20 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			defer source.Close()
 			target := filepath.Join(f.root, "out-"+strings.ReplaceAll(tc.name, "_", "-"))
 			j := &rawFixtureJournal{}
+			f.journal = j
 			if tc.journalDrift {
 				j.after = func(r MaterializeReceipt) {
-					_ = os.WriteFile(filepath.Join(r.Worktree, "README"), []byte("changed\n"), 0600)
+					if err := os.WriteFile(filepath.Join(r.Worktree, "README"), []byte("changed\n"), 0600); err != nil {
+						t.Fatal(err)
+					}
 				}
 			}
 			if tc.drift {
 				broker, scope := rawBroker(t, f, ctx, m)
 				_, e = MaterializeFiltered(ctx, source, broker, MaterializeRequest{RepoRoot: repo, Worktree: target, AttemptID: "a", BaseOID: head, CandidateOID: head, OrderedInputOIDs: []string{head}, PlanRevision: 1, FilterScopeSHA256: scope, FilterReservationID: "filter"}, j)
+				if errors.Is(e, process.ErrProcessTreeUnknown) {
+					f.retain = true
+				}
 				if !IsCode(e, CodeIdentityChanged) {
 					t.Fatalf("attributes drift error=%v", e)
 				}
@@ -269,9 +343,16 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 				}
 			}
 			got, e := MaterializeFiltered(ctx, source, broker, MaterializeRequest{RepoRoot: repo, Worktree: target, AttemptID: "a", BaseOID: head, CandidateOID: head, OrderedInputOIDs: []string{head}, PlanRevision: 1, FilterScopeSHA256: filterScope, FilterReservationID: "filter"}, j)
+			if got != nil {
+				defer got.Close()
+			}
+			if errors.Is(e, process.ErrProcessTreeUnknown) {
+				f.retain = true
+			}
 			if tc.clean == "copy" {
-				if e == nil {
-					t.Fatal("non-roundtrip accepted")
+				state := broker.State()
+				if !IsCode(e, CodeInvalidInput) || !state.EverStarted || state.Unknown || state.TerminalAt.IsZero() || len(j.materialized) != 0 {
+					t.Fatalf("non-roundtrip outcome err=%v state=%+v", e, state)
 				}
 				if _, x := os.Lstat(target); x != nil {
 					t.Fatalf("workspace not retained: %v", x)
@@ -298,6 +379,9 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			if e != nil || string(readme) != "control\n" {
 				t.Fatalf("README=%q err=%v", readme, e)
 			}
+			if info, e := os.Stat(filepath.Join(target, "a.txt")); e != nil || info.Mode()&0111 != 0 {
+				t.Fatalf("a.txt mode=%v err=%v", info, e)
+			}
 			if info, e := os.Stat(filepath.Join(target, "script")); e != nil || info.Mode()&0111 == 0 {
 				t.Fatalf("script mode=%v err=%v", info, e)
 			}
@@ -305,14 +389,26 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			if r.CommitOID != head || r.Filter == nil || r.Filter.ValidateBinding(m, source.SHA256()) != nil {
 				t.Fatalf("invalid receipt: %#v", r)
 			}
-			if len(r.Files) == 0 || len(r.Filter.Views) != 1 || r.Filter.Views[0].Path != "a.txt" || r.Filter.Views[0].CanonicalSHA256 != rawSHA(canonical) || r.Filter.Views[0].RenderedSHA256 != rawSHA(xorRaw(canonical)) || len(j.materialized) != 1 || len(j.records) < 3 {
+			if len(r.Files) != 5 || len(r.Filter.Views) != 1 || r.Filter.Views[0].Path != "a.txt" || r.Filter.Views[0].CanonicalSHA256 != rawSHA(canonical) || r.Filter.Views[0].RenderedSHA256 != rawSHA(xorRaw(canonical)) || len(j.materialized) != 1 || len(j.records) < 3 {
 				t.Fatalf("receipt/journal incomplete: %#v records=%d", r, len(j.records))
 			}
+			for _, p := range []string{".git", ".gitattributes", "README", "a.txt", "script"} {
+				actual, e := fileIdentity(filepath.Join(target, p))
+				if e != nil || r.Files[p] != actual {
+					t.Fatalf("inventory %s err=%v", p, e)
+				}
+			}
+			if !reflect.DeepEqual(r, j.materialized[0]) {
+				t.Fatal("persisted receipt differs")
+			}
+			originalInputs := append([]string(nil), r.OrderedInputOIDs...)
+
 			clone := r
 			clone.Files["a.txt"] = FileIdentity{}
 			clone.Filter.Views[0].Path = "changed"
+			clone.OrderedInputOIDs[0] = "changed"
 			after := got.Receipt()
-			if after.Files["a.txt"] == (FileIdentity{}) || after.Filter.Views[0].Path != "a.txt" {
+			if after.Files["a.txt"] == (FileIdentity{}) || after.Filter.Views[0].Path != "a.txt" || !reflect.DeepEqual(after.OrderedInputOIDs, originalInputs) {
 				t.Fatal("receipt was not cloned")
 			}
 			if e := got.Close(); e != nil {
@@ -320,6 +416,10 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			}
 			if e := source.Verify(ctx); e != nil {
 				t.Fatal(e)
+			}
+			var slot bytes.Buffer
+			if e := broker.ReadSlot(ctx, 1, &slot); e != nil || !bytes.Equal(slot.Bytes(), xorRaw(canonical)) {
+				t.Fatalf("materialization Close changed broker: %v", e)
 			}
 			if broker.State().Unknown {
 				f.retain = true
