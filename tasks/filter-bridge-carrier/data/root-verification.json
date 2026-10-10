@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "qualified_source": "4438e55cb1781d9fac835573fdd3ac2f5229c63a",
+  "go_tree": "b84e7bdc47c6b50a711095ebab0fc741f64047f3",
+  "production_source": "5480591",
+  "review": {
+    "verdict": "PASS",
+    "source": "4438e55cb1781d9fac835573fdd3ac2f5229c63a",
+    "reviewer": "raw_workspace_review"
+  },
+  "commands": [
+    {
+      "label": "gate-boundaries-red",
+      "source": "aa1124fd4cafacfa4460e3ccbce446d21a54bfb7",
+      "go_tree": "6138a816f620a8403e18923ca59cf5f2417f9564",
+      "exit": 1,
+      "stdout_sha256": "5c524aa11e92216ac918ea45e9f0a6a94a6dfc0f3ccea07ead4ce0625c609f88",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 10,
+        "pass": 3
+      }
+    },
+    {
+      "label": "gate-copy-oracle-race",
+      "source": "4438e55cb1781d9fac835573fdd3ac2f5229c63a",
+      "go_tree": "b84e7bdc47c6b50a711095ebab0fc741f64047f3",
+      "exit": 0,
+      "stdout_sha256": "7007166f74a8e2b71c51ff37b83c12f86d77d25a9e0854da8f432f2dddcd43e0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {
+        "pass": 4
+      },
+      "named": {
+        "pass": 54
+      }
+    },
+    {
+      "label": "gate-final-vet",
+      "source": "4438e55cb1781d9fac835573fdd3ac2f5229c63a",
+      "go_tree": "b84e7bdc47c6b50a711095ebab0fc741f64047f3",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "gate-invalid-close-red",
+      "source": "cb6b158a162a4698ba563219a1b95916c5069458",
+      "go_tree": "a68acfe80ae847160a65936d4e2a27a3f874a28e",
+      "exit": 1,
+      "stdout_sha256": "32257e96cac1f5b9fa1dbac16502c37fd98af09358d56160de02d43c2ef79bb0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 3
+      }
+    },
+    {
+      "label": "gate-linux-build",
+      "source": "548059169de82e6d1b7459189eb90769ead4dd48",
+      "go_tree": "fbe231ed8444b7af0ece59c3fe26cb04b7f64404",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "gate-mac-build",
+      "source": "548059169de82e6d1b7459189eb90769ead4dd48",
+      "go_tree": "fbe231ed8444b7af0ece59c3fe26cb04b7f64404",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "gate-session-final-race",
+      "source": "3d1f1f1656ec85231dba049d3b8bb0145432f545",
+      "go_tree": "af4513b23d6e1101a28bf228737015234c9036c1",
+      "exit": 1,
+      "stdout_sha256": "fc187e89fdf7ee9991d7faacc6d438058c2df9fbfdbe33d3948b98ad0752664d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {
+        "fail": 2,
+        "pass": 7
+      },
+      "named": {
+        "pass": 58,
+        "fail": 3
+      }
+    },
+    {
+      "label": "gate-session-qualified-race",
+      "source": "548059169de82e6d1b7459189eb90769ead4dd48",
+      "go_tree": "fbe231ed8444b7af0ece59c3fe26cb04b7f64404",
+      "exit": 0,
+      "stdout_sha256": "3f220f5697661f3fbcfbb0f7ed63f5a8af1b27bf19812c79a61c080745e1d8f4",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {
+        "pass": 10
+      },
+      "named": {
+        "pass": 64
+      }
+    },
+    {
+      "label": "gate-vet",
+      "source": "548059169de82e6d1b7459189eb90769ead4dd48",
+      "go_tree": "fbe231ed8444b7af0ece59c3fe26cb04b7f64404",
+      "exit": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "531d4f23efefdb999ad953a0df98da8ef4b0bef42f100efac23dc172b12d8b44",
+      "stderr_bytes": 853,
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "session-copy-red",
+      "source": "38c45461b74ed3bac12919067803f932cf8c56e2",
+      "go_tree": "b9e58d5965e0641f39e5dbad4e7b32ce56cb9864",
+      "exit": 1,
+      "stdout_sha256": "6c8a9d3082088bd911fe85752f17b7ddcbe152095464bc1fe53f19921522b9db",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 3
+      }
+    }
+  ],
+  "root_original_exec_sessions_drained": [
+    36087,
+    53699,
+    26072,
+    35246,
+    82191,
+    87615,
+    83116,
+    89112
+  ],
+  "synchronous": [
+    "gate-vet",
+    "gate-final-vet"
+  ],
+  "native_process": {
+    "pid": 48447,
+    "executable": "/bin/cat",
+    "original_wait_exit": 0,
+    "original_tree_proved": true,
+    "socket_authentication": false
+  },
+  "prior_worker_qualification": false,
+  "reused": [
+    "9faf exact-session native Broker normal path",
+    "1625 original Handle copy/Stop and Darwin/Linux native peer proof"
+  ],
+  "scope": "private trusted-caller connected endpoint gate only; no network listener/helper/Host/CLI/Store/final merge"
+}

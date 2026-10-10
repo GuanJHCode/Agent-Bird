@@ -1,8 +1,9 @@
 # Original Git filter carrier: staged implementation
 
-Status: Milestone A design reviewed PASS at 0ab8f1c, conditional on qualified
-peer binding leaf. Implementation not started. Base integration 2e3cbb7. Public filtered integrate,
-compose and retry remain closed. No provider/account/native TUI claim.
+Status: Milestone A implemented and independently reviewed PASS at 4438e55;
+see ../docs/final-validation.md for fixed-source race/build/vet and limitations.
+A uses qualified peer/codec leaves; B/C/D below remain design only. Public
+filtered integrate, compose and retry remain closed. No model/native TUI claim.
 
 ## Inputs already available
 
@@ -68,7 +69,8 @@ held across blocking transport IO, process observation or session callbacks.
 
 Known terminal observations distinguish normal codec EOF, known rejection and
 UNKNOWN. State includes Activated, Serving, Drained, Revoked, Failed, Unknown,
-Calls and ResponsesCommitted (bounded scalar counters). Codec EOF only says
+Calls (admitted Exchange attempts, including known rejection) and
+ResponsesCommitted (publication ownership, not completed IO). Codec EOF only says
 this helper stream ended; it does not prove Git Wait/tree or final merge.
 Codec/protocol/session-known error or cancellation permanently rejects future
 requests. Peer/identity uncertainty, session.Unknown, endpoint-close failure,
