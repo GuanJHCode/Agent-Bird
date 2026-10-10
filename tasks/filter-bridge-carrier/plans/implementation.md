@@ -18,30 +18,72 @@ compose and retry remain closed. No provider/account/native TUI claim.
 ## Milestone A: private original-Git gate
 
 Implement only an in-memory private gate after the two leaves qualify. No new
-wire operation, public CLI or Store action. The gate owns one codec/helper
-lifetime and borrows the original exact session; it does not close the Broker.
+wire operation, listener/path, public CLI or Store action. The gate owns one
+codec/connected endpoint lifetime and borrows the original exact session; it
+never closes the session or Broker. Proposed API (Go-only, no JSON authority):
 
-1. Prepared gate contains immutable command digest, finite deadline, original
-   exact session and a closed activation channel. It may accept one pending
-   connection but cannot parse requests, transform data or publish a success.
-2. The trusted original final-Git runner activates once with its original
-   `*process.Handle` only after durable `GitProcessRecord{Phase: spawned}` and
-   its post-callback target guard succeed. Pointer ownership is required; no
-   Identity, PID, journal or routing token reconstructs activation authority.
-3. The eventual transport passes peer PID obtained from the connected Unix
-   socket's kernel credentials, never from request JSON. Before any codec IO,
-   before each Exchange and after Exchange before exposing output, the gate
-   verifies the original live descendant relation, original session state and
-   its own non-revoked generation. No callback may reset sequence or permits.
-4. Reject all subsequent helper lifetimes, concurrent clients and activation
-   reuse. Codec error, peer uncertainty, cancellation, terminal session or Close
-   permanently revokes this gate. Git restarting its helper cannot reset it.
-5. Context cancellation must close the owned connection so blocked reads/writes
-   terminate. Original owner drains the serving goroutine before release.
-   Terminal results distinguish known rejection from missing original proof;
-   neither permits cold replay or a second helper.
-6. Gate is an internal prerequisite only. A caller with a forged integer PID
-   is not transport-authenticated; direct gate tests are not IPC qualification.
+- `NewOriginalGitGate(ctx, exactSession, expectedCommandDigest)` requires a
+  finite live owner deadline, pristine session and valid immutable digest.
+- `Activate(ctx, originalHandle, commandDigest)` is one-shot, validates digest,
+  original live handle and gate state, then opens the activation gate.
+- `Serve(endpoint, peerPID)` transfers exclusive ownership of an already
+  connected `net.Conn` from the trusted caller; the caller must have obtained
+  peerPID from that very connection's kernel credentials. This integer is not
+  wire authentication. Serve is synchronous and reports its terminal error.
+- `Close(ctx)` requires a finite deadline, is idempotent, permanently revokes,
+  cancels gate IO, closes the endpoint once and waits boundedly for Serve and
+  endpoint closure to finish. `State()` returns a scalar observation only.
+
+`Activate` cannot itself prove durable spawned ordering. The future dedicated
+final-merge runner must call it only after durable Git spawned plus post-guard,
+using the original Handle returned by that same Start. Milestone A tests must
+not claim that this runner order or socket credentials are already qualified.
+
+Prepared state has a closed activation channel. The first Serve may attach one
+pending endpoint and wait; before activation there is no codec read/write or
+session Exchange. A second Serve, concurrent client or repeated Activate
+poisons the whole gate and closes both the owned and rejected incoming endpoint;
+no initial connection continues under an ambiguous lifetime. Gate deadline
+cancels/revokes even if Activate or Serve never occurs. Close before any Serve
+has nothing to drain and terminates as a known rejection. Serve after Close is
+rejected and its transferred endpoint closed, with no protocol IO.
+
+After activation, bind a private `*process.LiveDescendant` from the original
+Handle and kernel peer PID. This object captures the first full peer tuple
+(PID, raw birth, euid, PGID) and original Handle pointer. Before the first codec
+IO and before/after every Exchange, its Verify must preserve that exact tuple
+and recheck the bounded complete ancestry and original Handle terminal/revoke
+state. It never rebinds a reused PID. The new peer leaf provides this Go-only
+object; no observation from JSON or journal can construct a usable one.
+
+Response ownership has an explicit linearization point. After successful
+Exchange and peer/session post-guards, the gate locks its mutex and commits
+publication ownership for this sequence only if not revoked. If this commit
+wins before Close, later Close prevents all future requests but the codec may
+attempt that one committed response; cancellation/transport closure may still
+make the write fail. If Close/cancel wins first, the callback returns an error
+and no `status=success` is permitted. Tests cover both orderings. No mutex is
+held across blocking transport IO, process observation or session callbacks.
+
+Known terminal observations distinguish normal codec EOF, known rejection and
+UNKNOWN. State includes Activated, Serving, Drained, Revoked, Failed, Unknown,
+Calls and ResponsesCommitted (bounded scalar counters). Codec EOF only says
+this helper stream ended; it does not prove Git Wait/tree or final merge.
+Codec/protocol/session-known error or cancellation permanently rejects future
+requests. Peer/identity uncertainty, session.Unknown, endpoint-close failure,
+or a Close drain timeout makes Unknown sticky. A later helper/Activate cannot
+reset counters, sequence, permits or failed/unknown state. Close never reports
+a successful drain unless both serving and endpoint-close completions are
+observed; deadline expiry returns unknown and forbids borrowed-resource cleanup.
+
+The gate installs owner-context cancellation closure and endpoint deadline so
+blocked reads/writes are interrupted. Only one endpoint-close operation and one
+Serve lifetime may exist; Close can wait on their completion channels without
+holding the gate lock. The future endpoint must honor net.Conn closure; an
+uncertain close cannot be converted into proof by a timer or PID observation.
+The original owner may close the borrowed session and proceed to Broker cleanup
+only after gate drain, original Git Wait/tree, and all other required terminal
+proofs. In-memory gate tests alone are not IPC or final-integration acceptance.
 
 ## Milestone B: fresh authenticated local carrier
 
