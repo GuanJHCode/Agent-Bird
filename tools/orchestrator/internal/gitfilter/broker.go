@@ -25,10 +25,17 @@ type BrokerState struct {
 	EverStarted, Unknown  bool      `json:"-"`
 }
 
+// StreamLoadResult is live-only slot evidence, never durable wire data.
+type StreamLoadResult struct {
+	SHA256 string `json:"-"`
+	Bytes  int64  `json:"-"`
+}
+
 // ResourceBroker is a live, original-owner API. No operation recreates a
 // broker from its journal, and Close never removes its retained resources.
 type ResourceBroker interface {
 	Load(context.Context, int, *os.File) error
+	LoadStream(context.Context, int, func(io.Writer) error) (StreamLoadResult, error)
 	Transform(context.Context, string, int, int) (Result, error)
 	ReadSlot(context.Context, int, io.Writer) error
 	State() BrokerState
