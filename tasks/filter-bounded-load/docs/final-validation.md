@@ -1,0 +1,9 @@
+# Bounded Broker stream input
+
+Production0c7108c adds live-only LoadStream using exactly the original three slots. The synchronous producer receives a bounded revocable writer, no FD or path; retained writes, ignored overflow and panic cannot turn partial bytes into an initialized slot. Known producer/caller cancellation ends in a durable terminal/failed state with exact cleanup eligibility; original process uncertainty or actual slot I/O/inventory failure remains UNKNOWN. Integrity checks use fresh bounded contexts to distinguish them from caller cancellation. No change to legacy Load/Transform or112MiB resource accounting.
+
+ROOT final focused race: 1 top / 7 sub / 8 named PASS, no FAIL/SKIP, original runner exit0; related vet exit0 and empty streams. Fixed production/test independent review passed0c7108c. SHA and exact command/source are in data/root-verification.json. Whole combined build will run after integration with the other source/DTO primitives.
+
+Evidence limits: callbacks in these tests do not start a Git process. Process UNKNOWN and slot I/O are explicit injections; the native fixture builder has its original Wait0/tree proof in raw output. Injected UNKNOWN fixtures remain retained, with exact roots recorded. This does not establish real cat-file→Broker→Host integration, physical disk failure or a model qualification.
+
+The worker initial feature RED has no saved artifact. Its later430078a supposed delta RED replaced the existing implementation with a stub and failed compilation (0 named test results); it is not business regression evidence. ROOT retained that failed batch and instead added actual4091007 cancellation-before-producer RED: parent+sub2FAIL on the existing behavior, followed by the final fixed complete focused set. Earlier 94290fc5-sub PASS and0822cde delta PASS are historical scope-bound evidence, superseded here.

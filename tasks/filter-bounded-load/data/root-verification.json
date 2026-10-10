@@ -1,0 +1,196 @@
+{
+  "production": "0c7108c",
+  "review": "PASS fixed0c7108c source/tests by independent filter_resource_linux",
+  "batches": {
+    "stream-load-delta-red": {
+      "source": "430078acc1ac37376a6f73d8bde31fe72b3ad1d0",
+      "dirty": "",
+      "exit": 1,
+      "top": 0,
+      "named": 0,
+      "counts": {},
+      "sha256": "ba3bdc4fcedae35aa7e19e91052c0a0a93386e191bd805d6108dc295b8171875",
+      "stderr_bytes": 0,
+      "results": []
+    },
+    "stream-load-vet": {
+      "source": "94290fc4c7dc1ddbf65c12d80dec4288ff5c69bb",
+      "dirty": "",
+      "exit": 0,
+      "top": 0,
+      "named": 0,
+      "counts": {},
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "results": []
+    },
+    "root-cancellation-red": {
+      "source": "4091007dc4ab2b4a59f9b8d957747361c424973e",
+      "dirty": "",
+      "exit": 1,
+      "top": 1,
+      "named": 2,
+      "counts": {
+        "fail": 2
+      },
+      "sha256": "8faa63cc0a15b7ffcf39a4b4213a1c61ac4c6a8edc98b102f63791b73364444a",
+      "stderr_bytes": 0,
+      "results": [
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/cancellation_before_producer_does_not_invent_unknown",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries",
+          "Action": "fail"
+        }
+      ]
+    },
+    "stream-load-race": {
+      "source": "94290fc4c7dc1ddbf65c12d80dec4288ff5c69bb",
+      "dirty": "",
+      "exit": 0,
+      "top": 1,
+      "named": 6,
+      "counts": {
+        "pass": 6
+      },
+      "sha256": "191da7fd2a54e2beaa88ec1f48e5c523d52a76cfa695b3c14bd1c4c902fdcc56",
+      "stderr_bytes": 0,
+      "results": [
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/success_revokes_retained_writer",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/overflow_sticky_even_if_callback_ignores_it",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/partial_known_error_finalizes_terminal_and_cleans",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/partial_process_unknown_retains_resources",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/panic_marks_unknown_before_repanic",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries",
+          "Action": "pass"
+        }
+      ]
+    },
+    "stream-load-delta-race": {
+      "source": "0822cde115a8ef1bf625fc09540124a9e522d952",
+      "dirty": "",
+      "exit": 0,
+      "top": 1,
+      "named": 2,
+      "counts": {
+        "pass": 2
+      },
+      "sha256": "62ddcd9eb0baa3f2a37ae30cfbb18a5530e09ffd04c1649c80cda6b17bc66c74",
+      "stderr_bytes": 0,
+      "results": [
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/cancel_and_actual_slot_io_have_distinct_conservative_outcomes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries",
+          "Action": "pass"
+        }
+      ]
+    },
+    "stream-load-delta-vet": {
+      "source": "0822cde115a8ef1bf625fc09540124a9e522d952",
+      "dirty": "",
+      "exit": 0,
+      "top": 0,
+      "named": 0,
+      "counts": {},
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "results": []
+    },
+    "root-final-race": {
+      "source": "0c7108cbe13736ab23ec8f6af1d5601ab28a60e0",
+      "dirty": "",
+      "exit": 0,
+      "top": 1,
+      "named": 8,
+      "counts": {
+        "pass": 8
+      },
+      "sha256": "be4698e5f58aead8c11ead893ae6a62cbe3feb3117dc8b7e265648ef5d42858b",
+      "stderr_bytes": 0,
+      "results": [
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/success_revokes_retained_writer",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/overflow_sticky_even_if_callback_ignores_it",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/partial_known_error_finalizes_terminal_and_cleans",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/partial_process_unknown_retains_resources",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/panic_marks_unknown_before_repanic",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/cancel_and_actual_slot_io_have_distinct_conservative_outcomes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries/cancellation_before_producer_does_not_invent_unknown",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestBrokerStreamLoadBoundaries",
+          "Action": "pass"
+        }
+      ]
+    },
+    "root-final-vet": {
+      "source": "0c7108cbe13736ab23ec8f6af1d5601ab28a60e0",
+      "dirty": "",
+      "exit": 0,
+      "top": 0,
+      "named": 0,
+      "counts": {},
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "results": []
+    }
+  },
+  "original_builder_observations": [
+    "broker_stream_darwin_test.go:18: build_original_wait=<nil> exit=0 tree=<nil> root=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-bounded-load/tasks/filter-stream-broker/tmp/executor-3273226672"
+  ],
+  "retained_injected_unknown_fixtures": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-bounded-load/tasks/filter-stream-broker/tmp/executor-3273226672",
+      "uid": 501,
+      "device": 16777234,
+      "inode": 200949067,
+      "retained": true
+    }
+  ],
+  "limits": [
+    "LoadStream callbacks do not start Git here; process UNKNOWN and slot I/O are controlled injections, not actual runtime/disk failures.",
+    "First worker RED was not persisted.430078a removed existing implementation and failed compilation; it is not a business RED.",
+    "ROOT4091007 RED executes the existing implementation with a package-private per-call cancellation seam; both preflight and post-loading failures were observed.",
+    "Public B/R pipeline remains closed."
+  ]
+}

@@ -1,0 +1,106 @@
+{
+  "production": "f837426",
+  "batches": {
+    "anchor-vet": {
+      "source": "f837426ee08b27e1c525e408b25d0a9df31320f8",
+      "dirty": "",
+      "exit": 0,
+      "top": 0,
+      "named": 0,
+      "counts": {},
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "results": []
+    },
+    "anchor-race": {
+      "source": "f837426ee08b27e1c525e408b25d0a9df31320f8",
+      "dirty": "",
+      "exit": 0,
+      "top": 5,
+      "named": 12,
+      "counts": {
+        "pass": 12
+      },
+      "sha256": "1f91c2794c91759ef021fca7fa95c1bd8c4f53ea25cd66553a3aac9e071de50c",
+      "stderr_bytes": 0,
+      "results": [
+        {
+          "Test": "TestOpenFilterGitRoutesPinnedContextAndDetectsDrift",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnlistedFilterWithoutExecutingIt",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/script",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/replaced_open_source",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/info_attributes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/ignored_attributes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/post_error",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestFilterSourceRepositoryLinksCannotRedirectGit/gitdir",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestFilterSourceRepositoryLinksCannotRedirectGit/commondir",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestFilterSourceRepositoryLinksCannotRedirectGit",
+          "Action": "pass"
+        }
+      ]
+    },
+    "anchor-red": {
+      "source": "bf998ed41f042bf3e670776daca5dbdecd881796",
+      "dirty": "",
+      "exit": 1,
+      "top": 1,
+      "named": 3,
+      "counts": {
+        "fail": 3
+      },
+      "sha256": "e2c3b453716595430c4fb0833434f53a744dd59133b2cbb60471d26340e86264",
+      "stderr_bytes": 0,
+      "results": [
+        {
+          "Test": "TestFilterSourceRepositoryLinksCannotRedirectGit/gitdir",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestFilterSourceRepositoryLinksCannotRedirectGit/commondir",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestFilterSourceRepositoryLinksCannotRedirectGit",
+          "Action": "fail"
+        }
+      ]
+    }
+  },
+  "review": "PASS f837426 fixed source/test/raw by independent filter_resource_linux",
+  "limits": "Private source context; before/after observation only, no public B/R support."
+}
