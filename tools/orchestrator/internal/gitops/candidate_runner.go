@@ -51,6 +51,17 @@ func (out *candidateOutput) Write(p []byte) (int, error) {
 }
 
 func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...string) (CommandResult, error) {
+	filter := filterGitFromContext(ctx)
+	if filter != nil {
+		if err := filter.verifyDirectory(dir); err != nil {
+			return CommandResult{}, err
+		}
+		if err := filter.Verify(ctx); err != nil {
+			return CommandResult{}, err
+		}
+		result, err := candidateGitWithStart(ctx, dir, stdin, process.Start, args...)
+		return result, filter.verifyAfter(err)
+	}
 	return candidateGitWithStart(ctx, dir, stdin, process.Start, args...)
 }
 
@@ -71,7 +82,15 @@ func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, sta
 		}
 	}
 	env = append(env, "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
+	gitPath := "/usr/bin/git"
+	pinnedPath, pinnedSHA := "", ""
 	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
+	if filter := filterGitFromContext(ctx); filter != nil {
+		if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
+			return CommandResult{}, fail(CodeInvalidInput, "filter git", fmt.Errorf("tracked integration unsupported"))
+		}
+		gitPath, pinnedPath, pinnedSHA, env, argv = filter.git.path, filter.git.path, filter.git.sha256, filterGitEnv(), append(filterGitConfigArgs(filter.manifest.DriverID), append([]string{"-C", dir}, args...)...)
+	}
 	if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
 		// Final integration retains the normal Git configuration/environment,
 		// including environment-provided hooks and signing. Share only process
@@ -91,7 +110,7 @@ func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, sta
 		return CommandResult{}, err
 	}
 	out := &candidateOutput{}
-	p, err := start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
+	p, err := start(ctx, process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
 	if err != nil {
 		if p != nil {
 			identity := p.Identity()
@@ -152,6 +171,17 @@ func freezeGit(ctx context.Context, dir string, stdin io.Reader, args ...string)
 // process retains its existing bounded diagnostic capture while the supplied
 // writer consumes data incrementally under the same process/journal contract.
 func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...string) error {
+	filter := filterGitFromContext(ctx)
+	if filter != nil {
+		if err := filter.verifyDirectory(dir); err != nil {
+			return err
+		}
+		if err := filter.Verify(ctx); err != nil {
+			return err
+		}
+		err := candidateGitStreamWithStart(ctx, dir, out, process.Start, args...)
+		return filter.verifyAfter(err)
+	}
 	return candidateGitStreamWithStart(ctx, dir, out, process.Start, args...)
 }
 
@@ -164,7 +194,15 @@ func candidateGitStreamWithStart(ctx context.Context, dir string, out io.Writer,
 		}
 	}
 	env = append(env, "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
+	gitPath := "/usr/bin/git"
+	pinnedPath, pinnedSHA := "", ""
 	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
+	if filter := filterGitFromContext(ctx); filter != nil {
+		if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
+			return fail(CodeInvalidInput, "filter git", fmt.Errorf("tracked integration unsupported"))
+		}
+		gitPath, pinnedPath, pinnedSHA, env, argv = filter.git.path, filter.git.path, filter.git.sha256, filterGitEnv(), append(filterGitConfigArgs(filter.manifest.DriverID), append([]string{"-C", dir}, args...)...)
+	}
 	digest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
 	journal, _ := ctx.Value(candidateJournalKey{}).(GitProcessJournal)
 	record := func(phase string, identity *process.Identity, exit int) error {
@@ -176,7 +214,7 @@ func candidateGitStreamWithStart(ctx context.Context, dir string, out io.Writer,
 	if err := record("intent", nil, -1); err != nil {
 		return err
 	}
-	p, err := start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdout: out})
+	p, err := start(ctx, process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdout: out})
 	if err != nil {
 		if p != nil {
 			identity := p.Identity()

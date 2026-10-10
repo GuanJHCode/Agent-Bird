@@ -1,0 +1,262 @@
+{
+  "qualified_source": "dfe66a0c1d99a831a3565aaa267078003595cd0a",
+  "go_module_tree": "6f69962d6d89bade2cbd58f8d430957c46ed5654",
+  "batches": {
+    "combined-build": {
+      "source": "dfe66a0c1d99a831a3565aaa267078003595cd0a",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": 0,
+      "named_including_parents": 0,
+      "counts": {},
+      "results": []
+    },
+    "combined-race": {
+      "source": "dfe66a0c1d99a831a3565aaa267078003595cd0a",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "5dbb21cc68a261ce020b86c4569b7f0b8d3cb9660038fac61ab995b298a214d0",
+      "stderr_bytes": 0,
+      "top": 4,
+      "named_including_parents": 9,
+      "counts": {
+        "pass": 9
+      },
+      "results": [
+        {
+          "Test": "TestOpenFilterGitRoutesPinnedContextAndDetectsDrift",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnlistedFilterWithoutExecutingIt",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/script",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/replaced_open_source",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/info_attributes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/ignored_attributes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/post_error",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty",
+          "Action": "pass"
+        }
+      ]
+    },
+    "combined-vet": {
+      "source": "dfe66a0c1d99a831a3565aaa267078003595cd0a",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": 0,
+      "named_including_parents": 0,
+      "counts": {},
+      "results": []
+    },
+    "routing-race": {
+      "source": "c5abdcda26c521f5a33a66c576eeaa7352212b3b",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "f35bd15898b7ca19b0bf49b6d029d74e85e1403237c7196a8bfa5819b05f70e9",
+      "stderr_bytes": 0,
+      "top": 3,
+      "named_including_parents": 3,
+      "counts": {
+        "pass": 3
+      },
+      "results": [
+        {
+          "Test": "TestOpenFilterGitRoutesPinnedContextAndDetectsDrift",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnlistedFilterWithoutExecutingIt",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts",
+          "Action": "pass"
+        }
+      ]
+    },
+    "routing-vet": {
+      "source": "c5abdcda26c521f5a33a66c576eeaa7352212b3b",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": 0,
+      "named_including_parents": 0,
+      "counts": {},
+      "results": []
+    },
+    "sources-final-race": {
+      "source": "144d5a32547168af1add4f3edfffac098e77e568",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "399c2761044e80112fc142e4a0e65564bbed3af7f9fdac4d40a6bff5dadc5ac5",
+      "stderr_bytes": 0,
+      "top": 4,
+      "named_including_parents": 9,
+      "counts": {
+        "pass": 9
+      },
+      "results": [
+        {
+          "Test": "TestOpenFilterGitRoutesPinnedContextAndDetectsDrift",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnlistedFilterWithoutExecutingIt",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/script",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/replaced_open_source",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/info_attributes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/ignored_attributes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/post_error",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty",
+          "Action": "pass"
+        }
+      ]
+    },
+    "sources-green": {
+      "source": "38278ca21c9903667c3da6b91698e9141bdb2e59",
+      "dirty": "",
+      "exit": 1,
+      "stdout_sha256": "fd0e47d76488b453972e80063f74f0f06e9342a080b7e4dec35f72a8f836f474",
+      "stderr_bytes": 0,
+      "top": 4,
+      "named_including_parents": 9,
+      "counts": {
+        "fail": 4,
+        "pass": 5
+      },
+      "results": [
+        {
+          "Test": "TestOpenFilterGitRoutesPinnedContextAndDetectsDrift",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnlistedFilterWithoutExecutingIt",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/script",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/replaced_open_source",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/info_attributes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/ignored_attributes",
+          "Action": "pass"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/post_error",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty",
+          "Action": "fail"
+        }
+      ]
+    },
+    "sources-red": {
+      "source": "4b45014b1e4a9746bf4e8bfce4778b2aac840619",
+      "dirty": "",
+      "exit": 1,
+      "stdout_sha256": "78ba9ddc75ef42ef97432ff54e1c579f108cf3c725882043448a742971e9df35",
+      "stderr_bytes": 0,
+      "top": 1,
+      "named_including_parents": 6,
+      "counts": {
+        "fail": 6
+      },
+      "results": [
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/script",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/replaced_open_source",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/info_attributes",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/ignored_attributes",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty/post_error",
+          "Action": "fail"
+        },
+        {
+          "Test": "TestOpenFilterGitRejectsUnboundSourcesAndRetainsUncertainty",
+          "Action": "fail"
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Public filter pipeline remains refused; no B/R worktree binding or Host chain yet.",
+    "Checks bind observed source identity before/after; do not exclude a same-UID change-and-restore between observations.",
+    "Only selected actual native Git supported; system multi-hardlink dispatcher source is rejected.",
+    "Worker two full-suite runs have no original completion proof; one observed process group was terminated. Neither is qualification.",
+    "Historical f27 test run was not a clean business RED; ROOT sources-red is retained as the actual failing regression."
+  ],
+  "review": "PASS fixed 6f7cd59 production/test/combined-source/report by independent filter_resource_linux"
+}
