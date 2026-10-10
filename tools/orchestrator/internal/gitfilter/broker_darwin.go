@@ -651,6 +651,12 @@ func (b *Broker) Cleanup(ctx context.Context) (*contract.GitFilterCleanup, error
 		if err = b.root.Remove(name); err != nil {
 			return nil, b.uncertain(err)
 		}
+		// Unlinked-but-open files still occupy the raw resource budget. Close
+		// every original descriptor before a release receipt can be produced.
+		if err = n.file.Close(); err != nil {
+			return nil, b.uncertain(err)
+		}
+		n.file = nil
 		removed += n.Identity.Size
 	}
 	for _, name := range []string{"clean", "smudge", "empty"} {
@@ -660,6 +666,10 @@ func (b *Broker) Cleanup(ctx context.Context) (*contract.GitFilterCleanup, error
 		if err = b.root.Remove(name); err != nil {
 			return nil, b.uncertain(err)
 		}
+		if err = b.nodes[name].file.Close(); err != nil {
+			return nil, b.uncertain(err)
+		}
+		b.nodes[name].file = nil
 	}
 	if err = b.nodes["."].file.Sync(); err != nil {
 		return nil, b.uncertain(err)
@@ -681,6 +691,14 @@ func (b *Broker) Cleanup(ctx context.Context) (*contract.GitFilterCleanup, error
 	if err = b.segment.Remove(".git-filter"); err != nil {
 		return nil, b.uncertain(err)
 	}
+	if err = b.nodes["."].file.Close(); err != nil {
+		return nil, b.uncertain(err)
+	}
+	b.nodes["."].file = nil
+	if err = b.root.Close(); err != nil {
+		return nil, b.uncertain(err)
+	}
+	b.root = nil
 	if err = b.writeJournal("removed"); err != nil {
 		return nil, b.uncertain(err)
 	}
