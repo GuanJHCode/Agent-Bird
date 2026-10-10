@@ -372,7 +372,7 @@ func FreezeFilteredWorkspace(ctx context.Context, p *FilterPreparedWorkspace, jo
 // The caller authenticates the accepted delivery. This boundary binds its
 // immutable objects/evidence to the original source, never adopts its process.
 func checkFilteredCandidateRef(ctx context.Context, source *FilterGitContext, c CandidateReceipt) error {
-	if c.Filter == nil || c.Filter.ValidateBinding(source.manifest, source.SHA256()) != nil || c.Binding == nil || c.Binding.RunID == "" || c.Binding.TaskID == "" || c.Binding.SegmentID == "" || c.Binding.WorkRevision < 1 || c.Binding.AttemptID != c.AttemptID || c.PlanRevision < 1 || int64(c.Binding.PlanRevision) != c.PlanRevision || c.RepoRoot != source.repoRoot || c.CommonDir != source.commonDir || c.RepoRootIdentity != source.repoIdentity || c.CommonDirIdentity != source.commonIdentity || c.WorktreeIdentity != c.Worktree || !filepath.IsAbs(c.Worktree) || CanonicalPath(c.Worktree) != c.Worktree || c.RootIdentity == (DirectoryIdentity{}) || c.PrivateRefExpectedOID != c.CandidateOID {
+	if c.Filter == nil || c.Filter.ValidateBinding(source.manifest, source.SHA256()) != nil || c.Binding == nil || c.Binding.RunID == "" || c.Binding.TaskID == "" || c.Binding.SegmentID == "" || c.Binding.WorkRevision < 1 || c.AttemptID == "" || c.Binding.RevisionSHA256 != "" || c.Binding.NewBaseSHA256 != "" || len(c.OrderedInputOIDs) != 1 || c.OrderedInputOIDs[0] != c.BaseOID || c.CandidateOID == c.BaseOID || len(c.Changes) < 1 || len(c.Changes) > 256 || c.Binding.AttemptID != c.AttemptID || c.PlanRevision < 1 || int64(c.Binding.PlanRevision) != c.PlanRevision || c.RepoRoot != source.repoRoot || c.CommonDir != source.commonDir || c.RepoRootIdentity != source.repoIdentity || c.CommonDirIdentity != source.commonIdentity || c.WorktreeIdentity != c.Worktree || !filepath.IsAbs(c.Worktree) || CanonicalPath(c.Worktree) != c.Worktree || c.RootIdentity == (DirectoryIdentity{}) || c.PrivateRefExpectedOID != c.CandidateOID {
 		return fail(CodeReviewMismatch, "filtered accepted candidate binding", nil)
 	}
 	if err := validatePrivateRef(c.PrivateRef); err != nil {
@@ -408,12 +408,15 @@ func checkFilteredCandidateRef(ctx context.Context, source *FilterGitContext, c 
 	if tree != c.TreeOID {
 		return fail(CodeTargetDrift, "filtered candidate tree", nil)
 	}
-	ancestor, err := mergeAncestor(ctx, source.repoRoot, c.BaseOID, c.CandidateOID)
+	parents, err := freezeGit(ctx, source.repoRoot, nil, "rev-list", "--parents", "-n", "1", c.CandidateOID)
 	if err != nil {
 		return err
 	}
-	if !ancestor {
-		return fail(CodeTargetDrift, "filtered candidate ancestry", nil)
+	if fields := strings.Fields(parents); len(fields) != 2 || fields[0] != c.CandidateOID || fields[1] != c.BaseOID {
+		return fail(CodeReviewMismatch, "filtered direct candidate parent", nil)
+	}
+	if err = verifyFrozenChanges(ctx, source.repoRoot, c.BaseOID, c.TreeOID, c.Changes); err != nil {
+		return err
 	}
 	return previous.Verify(ctx)
 }
@@ -423,7 +426,7 @@ func MaterializeFilteredCandidate(ctx context.Context, source *FilterGitContext,
 		return nil, err
 	}
 	accepted = cloneFilteredCandidate(accepted)
-	if req.RepoRoot != accepted.RepoRoot || req.CandidateOID != accepted.CandidateOID || req.BaseOID != accepted.BaseOID || req.PlanRevision != accepted.PlanRevision || !reflect.DeepEqual(req.OrderedInputOIDs, accepted.OrderedInputOIDs) || req.Worktree == accepted.Worktree {
+	if req.AttemptID == "" || req.AttemptID == accepted.AttemptID || req.RepoRoot != accepted.RepoRoot || req.CandidateOID != accepted.CandidateOID || req.BaseOID != accepted.BaseOID || req.PlanRevision != accepted.PlanRevision || !reflect.DeepEqual(req.OrderedInputOIDs, accepted.OrderedInputOIDs) || req.Worktree == accepted.Worktree {
 		return nil, fail(CodeReviewMismatch, "filtered validator input", nil)
 	}
 	if err = checkFilteredCandidateRef(ctx, source, accepted); err != nil {

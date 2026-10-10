@@ -155,6 +155,37 @@ func freezeNativeSuccess(t *testing.T) {
 	validatorRequest.PlanRevision = receipt.PlanRevision
 	validatorRequest.FilterScopeSHA256 = validatorScope
 	validatorRequest.FilterReservationID = "validator-filter"
+	beforeRecords := len(validator.journal.records)
+	for _, kind := range []string{"same_attempt", "rework", "new_base", "input_vector", "empty_changes"} {
+		badRequest, badReceipt := validatorRequest, cloneCandidateReceipt(receipt)
+		switch kind {
+		case "same_attempt":
+			badRequest.AttemptID = receipt.AttemptID
+		case "rework":
+			badReceipt.Binding.RevisionSHA256 = strings.Repeat("a", 64)
+		case "new_base":
+			badReceipt.Binding.NewBaseSHA256 = strings.Repeat("b", 64)
+		case "input_vector":
+			badReceipt.OrderedInputOIDs = append(badReceipt.OrderedInputOIDs, base)
+			badRequest.OrderedInputOIDs = append([]string(nil), badReceipt.OrderedInputOIDs...)
+		case "empty_changes":
+			badReceipt.Changes = nil
+		}
+		live, e := MaterializeFilteredCandidate(ctx, source, validatorBroker, badRequest, badReceipt, validator.journal)
+		if live != nil {
+			live.Close()
+			t.Fatalf("%s unexpectedly materialized", kind)
+		}
+		if !IsCode(e, CodeReviewMismatch) {
+			t.Fatalf("%s err=%v", kind, e)
+		}
+	}
+	if len(validator.journal.records) != beforeRecords || validatorBroker.State().EverStarted {
+		t.Fatal("invalid validator shape reached Git/filter")
+	}
+	if _, e := os.Lstat(validatorRequest.Worktree); !os.IsNotExist(e) {
+		t.Fatalf("invalid validator created worktree: %v", e)
+	}
 	materialized, err := MaterializeFilteredCandidate(ctx, source, validatorBroker, validatorRequest, receipt, validator.journal)
 	if err != nil || materialized == nil {
 		t.Fatalf("validator materialize: materialized=%v err=%v", materialized, err)
