@@ -1,0 +1,29 @@
+{
+  "source": "aa1124fd4cafacfa4460e3ccbce446d21a54bfb7",
+  "go_tree": "6138a816f620a8403e18923ca59cf5f2417f9564",
+  "dirty": "",
+  "argv": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-json",
+    "-timeout=45s",
+    "./internal/gitfilter",
+    "-run",
+    "^TestOriginalGitGateBoundaries/(pending|peer|session_closed|close_before|publication|known_session|close_error|blocked_close|duplicate_serve)"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-bridge-carrier/tools/orchestrator",
+  "environment": {
+    "TMPDIR": "/private/tmp",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOFLAGS": "",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOOS": "darwin",
+    "GOARCH": "arm64",
+    "GOARM64": "v8.0",
+    "CGO_ENABLED": "1"
+  }
+}
