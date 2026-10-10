@@ -152,7 +152,10 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(source, "a.txt"), canonical, 0600); err != nil {
 				t.Fatal(err)
 			}
-			git(t, source, "add", "a.txt")
+			if err := os.WriteFile(filepath.Join(source, "script"), []byte("#!/bin/true\n"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			git(t, source, "add", "a.txt", "script")
 			git(t, source, "commit", "-m", "canonical")
 			head = git(t, source, "rev-parse", "HEAD")
 			m := filterManifestFor(t, filterGitPath(t), tool.Path, tool.Path)
@@ -190,6 +193,18 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			if tc.clean == "xor" {
 				if err != nil || got == nil {
 					t.Fatalf("materialize success=%v err=%v", got, err)
+				}
+				if info, statErr := os.Stat(filepath.Join(target, "a.txt")); statErr != nil || info.Mode()&0111 != 0 {
+					t.Fatalf("a.txt mode=%v err=%v", info, statErr)
+				}
+				if info, statErr := os.Stat(filepath.Join(target, "script")); statErr != nil || info.Mode()&0111 == 0 {
+					t.Fatalf("script mode=%v err=%v", info, statErr)
+				}
+				if err = got.Close(); err != nil {
+					t.Fatal(err)
+				}
+				if err = g.Verify(ctx); err != nil {
+					t.Fatal("close changed source", err)
 				}
 				return
 			}
