@@ -70,7 +70,7 @@ func RequireGitFilter(c LaunchCommand) error {
 		return err
 	}
 	if m == nil {
-		if c.GitFilter != nil {
+		if c.GitFilter != nil || c.GitFilterCarrier != nil {
 			return ErrGitFilterContract
 		}
 		return nil
@@ -96,7 +96,7 @@ func RequireGitFilter(c LaunchCommand) error {
 	validator := shape.Kind == "candidate" && shape.Action != nil && shape.Action.Version == 1 && shape.Action.Operation == "validate" && shape.Workspace == nil && shape.Profile == nil
 	reviewer := shape.Kind == "" && shape.Action != nil && shape.Action.Version == 1 && (shape.Action.Operation == "review" || shape.Action.Operation == "filter_target_review") && shape.Workspace == nil && shape.Profile != nil && shape.Profile.Role == "reviewer" && shape.Profile.Permission == "read-only"
 	observer := shape.Kind == "candidate" && shape.Action != nil && shape.Action.Version == 1 && shape.Action.Operation == "filter_target_preflight" && shape.Workspace == nil && shape.Profile == nil
-	if !producer && !validator && !reviewer && !observer {
+	if !producer && !validator && !reviewer && !observer && !IsGitFilterCarrierAction(c.AdapterPayload) {
 		return ErrGitFilterContract
 	}
 	if err := validateValidationToolAttachment(c); err != nil {
@@ -120,5 +120,5 @@ func RequireGitFilter(c LaunchCommand) error {
 	if err != nil || scope != g.ScopeSHA256 {
 		return ErrGitFilterContract
 	}
-	return nil
+	return RequireGitFilterCarrier(c)
 }

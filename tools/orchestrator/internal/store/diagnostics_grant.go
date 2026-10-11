@@ -223,7 +223,7 @@ func (d *DB) managedArtifactAdmissionDisk(ctx context.Context, tx *sql.Tx, incom
 	if incoming > d.artifactLimit || used > d.artifactLimit-incoming {
 		return CodeError("artifact_spool_full")
 	}
-	metadataRows, err := tx.QueryContext(ctx, `SELECT m.reserved_bytes,COALESCE((SELECT SUM(f.manifest_bytes) FROM managed_artifact_refs f WHERE f.reservation_id=r.id),0) FROM managed_host_artifact_metadata m JOIN managed_artifact_reservations r ON r.id=m.reservation_id WHERE r.state!='released' UNION ALL SELECT metadata_bytes,0 FROM validation_tool_reservations UNION ALL SELECT metadata_bytes,0 FROM git_filter_resource_reservations`)
+	metadataRows, err := tx.QueryContext(ctx, `SELECT m.reserved_bytes,COALESCE((SELECT SUM(f.manifest_bytes) FROM managed_artifact_refs f WHERE f.reservation_id=r.id),0) FROM managed_host_artifact_metadata m JOIN managed_artifact_reservations r ON r.id=m.reservation_id WHERE r.state!='released' UNION ALL SELECT metadata_bytes,0 FROM validation_tool_reservations UNION ALL SELECT metadata_bytes,0 FROM git_filter_resource_reservations UNION ALL SELECT metadata_bytes,0 FROM git_filter_carrier_reservations`)
 	if err != nil {
 		return err
 	}

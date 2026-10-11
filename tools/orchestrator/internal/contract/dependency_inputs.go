@@ -29,7 +29,8 @@ func CandidateIntentHash(c LaunchCommand) (string, error) {
 			HostArtifacts    *HostArtifactGrant
 			ValidationTool   *ValidationToolGrant `json:",omitempty"`
 			GitFilter        *GitFilterResourceGrant
-		}{c.PlanRevision, c.AdapterPayload, c.Input, c.DependencyInputs, c.Diagnostics, c.HostArtifacts, c.ValidationTool, c.GitFilter})
+			GitFilterCarrier *GitFilterCarrierGrant `json:",omitempty"`
+		}{c.PlanRevision, c.AdapterPayload, c.Input, c.DependencyInputs, c.Diagnostics, c.HostArtifacts, c.ValidationTool, c.GitFilter, c.GitFilterCarrier})
 	} else if c.ValidationTool != nil {
 		body, err = json.Marshal(struct {
 			Plan             int

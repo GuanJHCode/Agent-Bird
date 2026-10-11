@@ -38,7 +38,7 @@ func ValidateGitFilterPipelinePayload(p InvocationPayload) error {
 		return nil
 	}
 	a := p.CandidateAction
-	if p.Kind == "candidate" && a != nil && a.Operation == "filter_target_preflight" {
+	if p.Kind == "candidate" && a != nil && (a.Operation == "filter_target_preflight" || a.Operation == "filter_integrate") {
 		if p.Provider != "" || p.Profile != nil || p.ProviderLock != nil || p.CandidateWorkspace != nil || p.Prompt != "" || p.PermissionMode != "" || a.Version != 1 || a.DependencyInputVersion != 1 || !a.AutoDirectory || a.SourceTask == "" || len(a.OrderedSourceTasks) != 0 || a.ReviewIndex != nil || len(a.Command) != 0 || a.CommandSHA256 != "" || !filterAbsolutePath(a.Target.Worktree) || !filterCommitOID(a.Target.BaseOID) || !filterTargetBranch(a.Target.Ref) {
 			return bad
 		}
@@ -106,4 +106,8 @@ func filterTargetBranch(ref string) bool {
 // IsFilterTargetReview recognizes the fresh readonly target approval shape.
 func IsFilterTargetReview(p InvocationPayload) bool {
 	return p.CandidateAction != nil && p.CandidateAction.Operation == "filter_target_review" && ValidateGitFilterPipelinePayload(p) == nil
+}
+
+func IsFilterIntegrate(p InvocationPayload) bool {
+	return p.CandidateAction != nil && p.CandidateAction.Operation == "filter_integrate" && ValidateGitFilterPipelinePayload(p) == nil
 }

@@ -8,35 +8,36 @@ import (
 )
 
 type Event struct {
-	ValidationToolCleanup *ValidationToolCleanup `json:"validation_tool_cleanup,omitempty"`
-	GitFilterCleanup      *GitFilterCleanup      `json:"git_filter_cleanup,omitempty"`
-	DiagnosticsFailure    *DiagnosticsFailure    `json:"diagnostics_failure,omitempty"`
-	Failure               *FailureFacts          `json:"failure,omitempty"`
-	Version               int                    `json:"version"`
-	ProducerID            string                 `json:"producer_id,omitempty"`
-	EventID               string                 `json:"event_id,omitempty"`
-	EventRevision         int64                  `json:"event_revision,omitempty"`
-	ActionSlot            string                 `json:"action_slot,omitempty"`
-	RunID                 string                 `json:"run_id"`
-	TaskID                string                 `json:"task_id"`
-	AttemptID             string                 `json:"attempt_id"`
-	SegmentID             string                 `json:"segment_id"`
-	WorkRevision          int                    `json:"work_revision,omitempty"`
-	ExecutionEpoch        uint64                 `json:"execution_epoch,omitempty"`
-	CommandID             string                 `json:"command_id,omitempty"`
-	Sequence              int64                  `json:"sequence"`
-	Kind                  string                 `json:"kind"`
-	PayloadHash           string                 `json:"payload_hash"`
-	Process               *ProcessIdentity       `json:"process,omitempty"`
-	ExitCode              *int                   `json:"exit_code,omitempty"`
-	Artifact              *ArtifactRef           `json:"artifact,omitempty"`
-	ActiveMS              int64                  `json:"active_ms,omitempty"`
-	QuestionID            string                 `json:"question_id,omitempty"`
-	QuestionRevision      int                    `json:"question_revision,omitempty"`
-	QuestionKind          string                 `json:"question_kind,omitempty"`
-	SessionKind           string                 `json:"session_kind,omitempty"`
-	SessionID             string                 `json:"session_id,omitempty"`
-	StopReason            string                 `json:"stop_reason,omitempty"`
+	ValidationToolCleanup   *ValidationToolCleanup   `json:"validation_tool_cleanup,omitempty"`
+	GitFilterCarrierCleanup *GitFilterCarrierCleanup `json:"git_filter_carrier_cleanup,omitempty"`
+	GitFilterCleanup        *GitFilterCleanup        `json:"git_filter_cleanup,omitempty"`
+	DiagnosticsFailure      *DiagnosticsFailure      `json:"diagnostics_failure,omitempty"`
+	Failure                 *FailureFacts            `json:"failure,omitempty"`
+	Version                 int                      `json:"version"`
+	ProducerID              string                   `json:"producer_id,omitempty"`
+	EventID                 string                   `json:"event_id,omitempty"`
+	EventRevision           int64                    `json:"event_revision,omitempty"`
+	ActionSlot              string                   `json:"action_slot,omitempty"`
+	RunID                   string                   `json:"run_id"`
+	TaskID                  string                   `json:"task_id"`
+	AttemptID               string                   `json:"attempt_id"`
+	SegmentID               string                   `json:"segment_id"`
+	WorkRevision            int                      `json:"work_revision,omitempty"`
+	ExecutionEpoch          uint64                   `json:"execution_epoch,omitempty"`
+	CommandID               string                   `json:"command_id,omitempty"`
+	Sequence                int64                    `json:"sequence"`
+	Kind                    string                   `json:"kind"`
+	PayloadHash             string                   `json:"payload_hash"`
+	Process                 *ProcessIdentity         `json:"process,omitempty"`
+	ExitCode                *int                     `json:"exit_code,omitempty"`
+	Artifact                *ArtifactRef             `json:"artifact,omitempty"`
+	ActiveMS                int64                    `json:"active_ms,omitempty"`
+	QuestionID              string                   `json:"question_id,omitempty"`
+	QuestionRevision        int                      `json:"question_revision,omitempty"`
+	QuestionKind            string                   `json:"question_kind,omitempty"`
+	SessionKind             string                   `json:"session_kind,omitempty"`
+	SessionID               string                   `json:"session_id,omitempty"`
+	StopReason              string                   `json:"stop_reason,omitempty"`
 }
 
 type DiagnosticsFailure struct {
@@ -181,6 +182,7 @@ type DependencyInputVector struct {
 
 type LaunchCommand struct {
 	ValidationTool     *ValidationToolGrant    `json:"validation_tool,omitempty"`
+	GitFilterCarrier   *GitFilterCarrierGrant  `json:"git_filter_carrier,omitempty"`
 	GitFilter          *GitFilterResourceGrant `json:"git_filter,omitempty"`
 	HostArtifacts      *HostArtifactGrant      `json:"host_artifacts,omitempty"`
 	Diagnostics        *DiagnosticsGrant       `json:"diagnostics,omitempty"`

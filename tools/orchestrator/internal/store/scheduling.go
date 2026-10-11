@@ -212,6 +212,9 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if command.GitFilter != nil {
 		metadataEscrow += contract.GitFilterMetadataBytes
 	}
+	if command.GitFilterCarrier != nil {
+		metadataEscrow += contract.GitFilterCarrierMetadataBytes
+	}
 	if err = d.managedArtifactAdmission(ctx, tx, 0, controlAfter-controlBefore-metadataEscrow); err != nil {
 		return rollback(err)
 	}

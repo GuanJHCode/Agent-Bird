@@ -12,7 +12,11 @@ import (
 // Freeze the artifact permission before invoking preparation/provider callbacks.
 // A copied LaunchCommand alone would retain the caller's mutable grant pointer.
 func metadataForLaunch(g contract.LaunchCommand) launchMetadata {
-	hasGitFilter := g.GitFilter != nil
+	hasGitFilter := g.GitFilter != nil || g.GitFilterCarrier != nil
+	if g.GitFilterCarrier != nil {
+		permission := *g.GitFilterCarrier
+		g.GitFilterCarrier = &permission
+	}
 	if g.GitFilter != nil {
 		g.AdapterPayload = append([]byte(nil), g.AdapterPayload...)
 		permission := *g.GitFilter

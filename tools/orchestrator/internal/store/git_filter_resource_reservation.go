@@ -25,7 +25,7 @@ func gitFilterDeclaredManifest(raw json.RawMessage) (*contract.GitFilterManifest
 }
 
 func (d *DB) reserveGitFilter(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand) error {
-	if c.GitFilter != nil {
+	if c.GitFilter != nil || c.GitFilterCarrier != nil {
 		return contract.ErrGitFilterContract
 	}
 	m, err := gitFilterDeclaredManifest(c.AdapterPayload)
@@ -71,6 +71,9 @@ func (d *DB) reserveGitFilter(ctx context.Context, tx *sql.Tx, c *contract.Launc
 		return mapConflict(err)
 	}
 	c.GitFilter = &contract.GitFilterResourceGrant{Version: 1, ReservationID: id, ScopeSHA256: scope, ManifestSHA256: manifest, CleanToolSHA256: m.Clean.SHA256, SmudgeToolSHA256: m.Smudge.SHA256, ToolMaximumBytes: contract.GitFilterToolMaximumBytes, StreamMaximumBytes: contract.GitFilterStreamMaximumBytes, StreamSlots: contract.GitFilterStreamSlots}
+	if err = d.reserveGitFilterCarrier(ctx, tx, c); err != nil {
+		return err
+	}
 	return contract.RequireGitFilter(*c)
 }
 
@@ -84,7 +87,7 @@ func bindGitFilter(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, l
 		return err
 	}
 	if present == 0 {
-		if !live && m == nil && c.GitFilter == nil && tx.QueryRowContext(ctx, `SELECT version FROM schema_meta`).Scan(&version) == nil && version < 36 {
+		if !live && m == nil && c.GitFilter == nil && c.GitFilterCarrier == nil && tx.QueryRowContext(ctx, `SELECT version FROM schema_meta`).Scan(&version) == nil && version < 36 {
 			return nil
 		}
 		return contract.ErrGitFilterContract
@@ -96,7 +99,7 @@ func bindGitFilter(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, l
 	var release sql.NullString
 	err = tx.QueryRowContext(ctx, `SELECT id,run_id,task_id,attempt_id,segment_id,producer_id,command_id,work_revision,plan_revision,scope_sha256,manifest_sha256,clean_tool_sha256,smudge_tool_sha256,tool_maximum_bytes,stream_maximum_bytes,stream_slots,maximum_bytes,metadata_bytes,state,release_event_id,cleanup_json,host_identity_sha256 FROM git_filter_resource_reservations WHERE segment_id=?`, c.SegmentID).Scan(&g.ReservationID, &run, &task, &attempt, &segment, &host, &command, &revision, &plan, &g.ScopeSHA256, &g.ManifestSHA256, &g.CleanToolSHA256, &g.SmudgeToolSHA256, &g.ToolMaximumBytes, &g.StreamMaximumBytes, &g.StreamSlots, &maximum, &metadata, &state, &release, &cleanup, &physical)
 	if errors.Is(err, sql.ErrNoRows) {
-		if m == nil && c.GitFilter == nil {
+		if m == nil && c.GitFilter == nil && c.GitFilterCarrier == nil {
 			return nil
 		}
 		return contract.ErrGitFilterContract
@@ -124,6 +127,9 @@ func bindGitFilter(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, l
 		return contract.ErrGitFilterContract
 	}
 	c.GitFilter = &g
+	if err = bindGitFilterCarrier(ctx, tx, c, live); err != nil {
+		return err
+	}
 	return contract.RequireGitFilter(*c)
 }
 
