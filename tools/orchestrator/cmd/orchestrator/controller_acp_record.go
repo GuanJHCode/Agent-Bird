@@ -96,6 +96,23 @@ func persistACPCompletion(state string, req contract.ACPReceiveRequest) (string,
 	sum := sha256.Sum256(key)
 	name := "receipt-" + hex.EncodeToString(sum[:]) + ".json"
 	path := filepath.Join(state, acpCompletionDirectory, name)
+	lock, err := lockACPCompletions(parent)
+	if err != nil {
+		return "", err
+	}
+	defer lock.Close() // Closing the original descriptor releases flock.
+	if !checkNamed() || !acpCompletionLockValid(parent, lock) {
+		return "", invalid
+	}
+	// Replays remain available even when an old directory is already at quota.
+	// Only a new immutable receipt consumes one entry and its complete bytes.
+	if _, err = parent.Lstat(name); errors.Is(err, os.ErrNotExist) {
+		if err = admitACPCompletion(parent, int64(len(raw)+1)); err != nil {
+			return "", err
+		}
+	} else if err != nil {
+		return "", invalid
+	}
 	file, err := parent.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if errors.Is(err, os.ErrExist) {
 		before, e := parent.Lstat(name)
@@ -156,13 +173,13 @@ func persistACPCompletion(state string, req contract.ACPReceiveRequest) (string,
 		}
 	}
 	// Include the new directory entry and, on first creation, its state parent.
-	if !checkNamed() {
+	if !checkNamed() || !acpCompletionLockValid(parent, lock) {
 		return "", invalid
 	}
 	if syncACPDirectory(parent) != nil || syncACPDirectory(stateRoot) != nil {
 		return "", failed
 	}
-	if !checkNamed() {
+	if !checkNamed() || !acpCompletionLockValid(parent, lock) {
 		return "", invalid
 	}
 	return path, nil
