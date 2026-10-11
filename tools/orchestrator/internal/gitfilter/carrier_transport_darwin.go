@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -155,7 +156,12 @@ func (c *carrierCheckedConn) Write(p []byte) (int, error) {
 func (tr *carrierTransport) serve() error { return tr.serveWithPeerPID(ipc.PeerPID) }
 
 // The narrow kernel-read seam is package-private; production always uses ipc.PeerPID.
-func (tr *carrierTransport) serveWithPeerPID(peerPID func(net.Conn) (int, error)) (ret error) {
+func (tr *carrierTransport) serveWithPeerPID(peerPID func(net.Conn) (int, error)) error {
+	return tr.serveWithPeerIO(peerPID, hashFD)
+}
+
+// The private hash seam counts the original bounded FD read in native tests.
+func (tr *carrierTransport) serveWithPeerIO(peerPID func(net.Conn) (int, error), hashExecutable func(context.Context, *os.File, int64) (string, error)) (ret error) {
 	if !tr.original() {
 		return errCarrierSocket
 	}
@@ -217,7 +223,7 @@ func (tr *carrierTransport) serveWithPeerPID(peerPID func(net.Conn) (int, error)
 		tr.accepted = true
 		tr.mu.Unlock()
 		serving = make(chan error, 1)
-		go func() { e := tr.serveAccepted(conn, pid); serving <- e; tr.cancel() }()
+		go func() { e := tr.serveAccepted(conn, pid, hashExecutable); serving <- e; tr.cancel() }()
 	}
 }
 
@@ -276,46 +282,6 @@ func (tr *carrierTransport) removeAfterOriginalGit(ctx context.Context, h *proce
 
 var errCarrierPeerExecutable = errors.New("carrier_peer_executable_rejected")
 
-type carrierExecutablePeer struct {
-	live *process.LiveDescendant
-	pid  int
-	pin  CarrierHelperExecutableExpectation
-}
-
-func (p *carrierExecutablePeer) verify(ctx context.Context) error {
-	if p == nil || p.live == nil {
-		return process.ErrProcessTreeUnknown
-	}
-	if err := p.live.Verify(ctx); err != nil {
-		return err
-	}
-	path, err := process.ExecutablePath(p.pid)
-	if err != nil {
-		return errors.Join(process.ErrProcessTreeUnknown, err)
-	}
-	mismatch := path != p.pin.Path
-	if !mismatch {
-		digest, err := process.ExecutableDigest(ctx, path)
-		if err != nil {
-			return errors.Join(process.ErrProcessTreeUnknown, err)
-		}
-		mismatch = digest != p.pin.SHA256
-	}
-	again, err := process.ExecutablePath(p.pid)
-	if err != nil {
-		return errors.Join(process.ErrProcessTreeUnknown, err)
-	}
-	if err = p.live.Verify(ctx); err != nil {
-		return err
-	}
-	if again != path {
-		return process.ErrProcessTreeUnknown
-	}
-	if mismatch {
-		return errCarrierPeerExecutable
-	}
-	return nil
-}
 func (c *carrierCheckedConn) verify() error {
 	if err := c.tr.verify(c.tr.ctx); err != nil {
 		return err
@@ -326,7 +292,7 @@ func (c *carrierCheckedConn) verify() error {
 	}
 	return nil
 }
-func (tr *carrierTransport) serveAccepted(conn *net.UnixConn, pid int) error {
+func (tr *carrierTransport) serveAccepted(conn *net.UnixConn, pid int, hashExecutable func(context.Context, *os.File, int64) (string, error)) (ret error) {
 	// The sole accepted endpoint can wait pending, but never enters the codec
 	// before original activation and executable authentication.
 	select {
@@ -343,8 +309,17 @@ func (tr *carrierTransport) serveAccepted(conn *net.UnixConn, pid int) error {
 	tr.mu.Unlock()
 	live, err := h.BindLiveDescendant(tr.ctx, pid)
 	if err == nil {
-		peer := &carrierExecutablePeer{live: live, pid: pid, pin: tr.helper}
-		err = peer.verify(tr.ctx)
+		peer, e := newCarrierExecutablePeer(tr.ctx, live, pid, tr.helper, hashExecutable)
+		err = e
+		if peer != nil {
+			defer func() {
+				closeErr := peer.close()
+				if closeErr != nil {
+					tr.gate.poison(true)
+				}
+				ret = errors.Join(ret, closeErr)
+			}()
+		}
 		if err == nil {
 			return tr.gate.Serve(&carrierCheckedConn{Conn: conn, tr: tr, peer: peer}, pid)
 		}

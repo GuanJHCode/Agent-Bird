@@ -19,8 +19,12 @@ and pre-codec executable authentication. The owner supplies an immutable helper
 pin; Gate construction and Activate use carrierTransportCommandDigest(base,pin),
 a domain-separated composite. helperRoute(ctx) emits that frozen pin, never an
 argv-supplied replacement. A bound LiveDescendant Verify brackets kernel path
-and file digest observations, including raw PID birth/euid; each subsequent
-transport Read/Write preserves that executable pin and the original tuple. Held/named B1 identity
+and a single original held-binary FD hash, including raw PID birth/euid.
+Held/named dev/inode/size/mtime/ctime/mode/uid/nlink freeze around that hash;
+each subsequent Read/Write preserves those identities and the original tuple
+using lightweight checks, without re-opening/re-hashing/rebaselining. The sole
+worker closes the original executable FD after Gate/endpoint drain; close
+uncertainty permanently rejects cleanup. Held/named B1 identity
 checks bracket transport I/O. Cancellation closes listener/endpoint and bounded
 drain waits for actual completions. Routing is only comparison data.
 

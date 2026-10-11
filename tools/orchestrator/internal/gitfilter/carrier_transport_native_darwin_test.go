@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -255,7 +256,10 @@ func TestCarrierTransportRealGitRoundTrip(t *testing.T) {
 	f.tool = Tool{actor, actorSHA, info.Size()}
 	req := brokerRequest(t, f, "xor")
 	b := liveBroker(t, ctx, f, req)
-	canonical := []byte("canonical\x00content\n")
+	canonical := make([]byte, filterProcessBytes)
+	for i := range canonical {
+		canonical[i] = byte(i)
+	}
 	rendered := append([]byte(nil), canonical...)
 	for i := range rendered {
 		rendered[i] ^= 0x5a
@@ -300,8 +304,11 @@ func TestCarrierTransportRealGitRoundTrip(t *testing.T) {
 		command := shellFilterQuote(helper) + " filter-carrier-helper --routing " + routing
 		gitArgs := append([]string{"-c", "filter.fixture.process=" + command, "-c", "filter.fixture.required=true"}, args...)
 		var output bytes.Buffer
+		var hashCalls atomic.Int64
 		done := make(chan error, 1)
-		go func() { done <- tr.serve() }()
+		go func() {
+			done <- tr.serveWithPeerIO(ipc.PeerPID, func(c context.Context, f *os.File, n int64) (string, error) { hashCalls.Add(1); return hashFD(c, f, n) })
+		}()
 		h := transportOriginalCommand(t, ctx, process.Command{Path: git, PinnedPath: git, PinnedSHA256: gitSHA, Args: gitArgs, Dir: repo, Env: env, ExactEnv: true, Stdin: input, Stdout: &output})
 		// Synthetic fixture ordering; production durable spawned/postguard remains
 		// a required future Host contract, never inferred from this test.
@@ -315,6 +322,9 @@ func TestCarrierTransportRealGitRoundTrip(t *testing.T) {
 		if e = gateResult(t, done); e != nil {
 			t.Fatalf("serve: %v", e)
 		}
+		if hashCalls.Load() != 1 {
+			t.Fatalf("binary hash amplification: calls=%d body=%d", hashCalls.Load(), len(input))
+		}
 		if e = tr.removeAfterOriginalGit(ctx, h); e != nil {
 			t.Fatal(e)
 		}
@@ -327,19 +337,109 @@ func TestCarrierTransportRealGitRoundTrip(t *testing.T) {
 		if _, e = os.Lstat(o.state.directory); !os.IsNotExist(e) {
 			t.Fatal("carrier not removed")
 		}
-		t.Logf("real_git operation=%s calls=1 original_tool_wait/tree=true carrier_removed=true", op)
+		t.Logf("real_git operation=%s calls=1 body_bytes=%d binary_hash_calls=%d original_tool_wait/tree=true carrier_removed=true", op, len(input), hashCalls.Load())
 		return append([]byte(nil), output.Bytes()...)
 	}
 	oid := strings.TrimSpace(string(run("clean", rendered, canonical, []string{"hash-object", "-w", "--path=file.txt", "--stdin"})))
-	plain := transportOriginalCommand(t, ctx, process.Command{Path: git, PinnedPath: git, PinnedSHA256: gitSHA, Args: []string{"cat-file", "blob", oid}, Dir: repo, Env: env, ExactEnv: true})
+	var canonicalBlob bytes.Buffer
+	plain := transportOriginalCommand(t, ctx, process.Command{Path: git, PinnedPath: git, PinnedSHA256: gitSHA, Args: []string{"cat-file", "blob", oid}, Dir: repo, Env: env, ExactEnv: true, Stdout: &canonicalBlob})
 	transportWait(t, ctx, plain)
-	if !bytes.Equal([]byte(plain.Output()), canonical) {
-		t.Fatalf("canonical blob=%x", plain.Output())
+	if !bytes.Equal(canonicalBlob.Bytes(), canonical) {
+		t.Fatalf("canonical blob length=%d expected=%d", canonicalBlob.Len(), len(canonical))
 	}
 	back := run("smudge", canonical, rendered, []string{"cat-file", "--filters", "--path=file.txt", oid})
 	if !bytes.Equal(back, rendered) {
-		t.Fatalf("roundtrip=%x want=%x", back, rendered)
+		t.Fatalf("roundtrip length=%d sha=%s expected_length=%d expected_sha=%s", len(back), exactHash(back), len(rendered), exactHash(rendered))
 	}
+	// An actual owned helper metadata mutation after its original FD hash must
+	// fail before Gate codec, without re-opening or hashing a changed baseline.
+	pin := CarrierHelperExecutableExpectation{helper, helperSHA}
+	base := exactHash([]byte("metadata drift admission"))
+	session, e := OpenExactTransformSession(b, b.Binding(), req.Manifest, []ExactTransformPermit{{Path: "file.txt", Operation: "smudge", InputSHA256: exactHash(canonical), OutputSHA256: exactHash(rendered), InputBytes: int64(len(canonical)), OutputBytes: int64(len(rendered)), MaximumCalls: 1}}, &exactTestJournal{})
+	if e != nil {
+		t.Fatal(e)
+	}
+	gate, e := NewOriginalGitGate(ctx, session, carrierTransportCommandDigest(base, pin))
+	if e != nil {
+		t.Fatal(e)
+	}
+	binding := carrierTestBinding()
+	binding.Original = b.Binding()
+	owner, e := newCarrierSocket(ctx, req.SegmentDirectory, binding, &carrierSocketTestJournal{})
+	if e != nil {
+		if owner != nil {
+			_ = owner.release(ctx)
+		}
+		t.Fatal(e)
+	}
+	transport, e := newCarrierTransport(ctx, owner, gate, pin, base)
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { _ = transport.drain(ctx); _ = owner.release(ctx) })
+	route, e := transport.helperRoute(ctx)
+	if e != nil {
+		t.Fatal(e)
+	}
+	routing, e := EncodeCarrierHelperRoute(route)
+	if e != nil {
+		t.Fatal(e)
+	}
+	command := shellFilterQuote(helper) + " filter-carrier-helper --routing " + routing
+	var heldExecutable *os.File
+	var hashes atomic.Int64
+	done := make(chan error, 1)
+	go func() {
+		done <- transport.serveWithPeerIO(ipc.PeerPID, func(c context.Context, file *os.File, n int64) (string, error) {
+			hashes.Add(1)
+			heldExecutable = file
+			value, e := hashFD(c, file, n)
+			if e != nil {
+				return "", e
+			}
+			// Only the test-owned helper artifact is changed; current test/process,
+			// installed binaries and foreign nodes are never modified.
+			if e = os.Chmod(helper, 0500); e != nil {
+				return "", e
+			}
+			return value, nil
+		})
+	}()
+	handle := transportOriginalCommand(t, ctx, process.Command{Path: git, PinnedPath: git, PinnedSHA256: gitSHA, Args: []string{"-c", "filter.fixture.process=" + command, "-c", "filter.fixture.required=true", "cat-file", "--filters", "--path=file.txt", oid}, Dir: repo, Env: env, ExactEnv: true})
+	if e = transport.activate(ctx, handle, gate.digest); e != nil {
+		t.Fatal(e)
+	}
+	if e = gateResult(t, done); !errors.Is(e, errCarrierPeerExecutable) {
+		t.Fatalf("metadata drift admission accepted: %v", e)
+	}
+	if e = handle.Wait(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if handle.ExitCode() == 0 {
+		t.Fatal("rejected metadata drift succeeded Git")
+	}
+	if e = handle.ConfirmTreeExited(); e != nil {
+		t.Fatal(e)
+	}
+	if e = transport.drain(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if hashes.Load() != 1 || heldExecutable == nil {
+		t.Fatal("metadata drift original hash boundary not reached exactly once")
+	}
+	if _, e = heldExecutable.Stat(); !errors.Is(e, os.ErrClosed) {
+		t.Fatalf("original executable FD not released: %v", e)
+	}
+	if gate.serveStarted || gate.State().Calls != 0 || gate.State().ResponsesCommitted != 0 {
+		t.Fatal("metadata drift reached codec/Exchange")
+	}
+	if e = transport.removeAfterOriginalGit(ctx, handle); e != nil {
+		t.Fatal(e)
+	}
+	if e = session.Close(); e != nil {
+		t.Fatal(e)
+	}
+	t.Logf("actual_helper_metadata_drift_after_hash_rejected=true binary_hash_calls=1 original_fd_closed=true codec_started=false exchange=0 original_git_wait/tree=true exit=%d", handle.ExitCode())
 	receipt, err := b.Cleanup(ctx)
 	if err != nil || receipt == nil {
 		f.retain = true
@@ -497,12 +597,18 @@ func TestCarrierTransportPeerExecRevokesExecutableIdentity(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	peer := &carrierExecutablePeer{live: live, pid: h.PID(), pin: CarrierHelperExecutableExpectation{shell, sha}}
-	if e = peer.verify(ctx); e != nil {
+	peer, e := newCarrierExecutablePeer(ctx, live, h.PID(), CarrierHelperExecutableExpectation{shell, sha}, hashFD)
+	if peer != nil {
+		defer peer.close()
+	}
+	if e != nil {
 		t.Fatalf("initial executable positive control: %v", e)
 	}
-	wrongHashPeer := &carrierExecutablePeer{live: live, pid: h.PID(), pin: CarrierHelperExecutableExpectation{shell, exactHash([]byte("wrong executable bytes"))}}
-	if e = wrongHashPeer.verify(ctx); !errors.Is(e, errCarrierPeerExecutable) {
+	wrongHashPeer, e := newCarrierExecutablePeer(ctx, live, h.PID(), CarrierHelperExecutableExpectation{shell, exactHash([]byte("wrong executable bytes"))}, hashFD)
+	if wrongHashPeer != nil {
+		defer wrongHashPeer.close()
+	}
+	if !errors.Is(e, errCarrierPeerExecutable) {
 		t.Fatalf("kernel executable wrong digest accepted: %v", e)
 	}
 	if _, e = stream.Write([]byte("exec\n")); e != nil {

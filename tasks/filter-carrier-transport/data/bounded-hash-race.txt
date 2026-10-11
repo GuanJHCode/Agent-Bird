@@ -1,0 +1,35 @@
+=== RUN   TestCarrierTransportSecondConnectionRevokesPending
+--- PASS: TestCarrierTransportSecondConnectionRevokesPending (0.02s)
+=== RUN   TestCarrierTransportCopyAndOwnerError
+--- PASS: TestCarrierTransportCopyAndOwnerError (0.02s)
+=== RUN   TestCarrierTransportRejectsUnboundHelperPin
+--- PASS: TestCarrierTransportRejectsUnboundHelperPin (0.02s)
+=== RUN   TestCarrierHelperForeignHostBeforeBody
+    carrier_transport_native_darwin_test.go:140: foreign_host_rejected=true peer_descriptor_lost_before_kernel_read=true unknown=true fds_released=true nodes_retained=true git_body_unread=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierHelperForeignHostBeforeBody (0.03s)
+=== RUN   TestCarrierTransportRealGitRoundTrip
+    carrier_transport_native_darwin_test.go:199: original pid=6713 spawned=2026-10-12T07:34:26.708199+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:218: original pid=6728 spawned=2026-10-12T07:34:28.895935+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:244: original pid=6729 spawned=2026-10-12T07:34:28.934103+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:318: original pid=6746 spawned=2026-10-12T07:34:29.513863+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:340: real_git operation=clean calls=1 body_bytes=16777216 binary_hash_calls=1 original_tool_wait/tree=true carrier_removed=true
+    carrier_transport_native_darwin_test.go:346: original pid=6750 spawned=2026-10-12T07:34:32.507724+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:318: original pid=6751 spawned=2026-10-12T07:34:32.640457+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:340: real_git operation=smudge calls=1 body_bytes=16777216 binary_hash_calls=1 original_tool_wait/tree=true carrier_removed=true
+    carrier_transport_native_darwin_test.go:442: actual_helper_metadata_drift_after_hash_rejected=true binary_hash_calls=1 original_fd_closed=true codec_started=false exchange=0 original_git_wait/tree=true exit=128
+    carrier_transport_native_darwin_test.go:448: real_git_reverse_roundtrip=true original_broker_cleanup=41230564
+--- PASS: TestCarrierTransportRealGitRoundTrip (8.76s)
+=== RUN   TestCarrierHelperCancellationInterruptsAuthenticatedPipes
+    carrier_transport_native_darwin_test.go:513: original pid=6786 spawned=2026-10-12T07:34:35.452708+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:521: authenticated_executable_greeting=true deadline_interrupts_blocked_stdin_and_socket=true
+--- PASS: TestCarrierHelperCancellationInterruptsAuthenticatedPipes (1.03s)
+=== RUN   TestCarrierTransportForeignExecutableGitDescendant
+    carrier_transport_native_darwin_test.go:536: original pid=6787 spawned=2026-10-12T07:34:36.474202+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:551: original pid=6788 spawned=2026-10-12T07:34:36.493316+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:558: real_git_foreign_executable_descendant_rejected=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierTransportForeignExecutableGitDescendant (0.14s)
+=== RUN   TestCarrierTransportPeerExecRevokesExecutableIdentity
+    carrier_transport_native_darwin_test.go:624: same_pid_birth_euid_positive_control=true kernel_executable_changed=true executable_guard_rejected=true
+--- PASS: TestCarrierTransportPeerExecRevokesExecutableIdentity (0.02s)
+PASS
+ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter	11.911s
