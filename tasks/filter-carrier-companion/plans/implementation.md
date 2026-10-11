@@ -12,7 +12,17 @@ bytes, namespace `darwin-private-tmp-v1`, one directory and one socket. Schema
 intent bytes remain unchanged. Both cleanup receipts must validate and release
 in the same existing Host event transaction; UNKNOWN retains both reservations.
 
-The root agent is the only writer in this worktree. Scope: contract, Store
+The root agent owned initial C implementation; the delegated journal correction
+owns this isolated worktree while root integrates elsewhere. Scope: contract, Store
 reservation/replay/accounting, immutable Host metadata and physical journal;
 the final transition and public Host action follow after stable transport.
 Only focused compatibility, quota rollback/replay and cleanup tests are needed.
+
+
+Journal correction: physical writes are scoped to the original held segment
+through openat/exclusive nofollow temp, bounded write+file fsync, same-dirfd
+renameat and directory fsync. Current-body/node identity guards remain before
+replacement and after publication. Do not delete preexisting or uncertain temp
+inodes; retain original partial/complete temp on failure and reject cleanup.
+Deterministic post-precheck namespace/current/temp substitution must preserve
+foreign bytes. Only focused original native journal + this new boundary rerun.

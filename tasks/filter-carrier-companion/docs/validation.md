@@ -34,3 +34,27 @@ socket but transform record fixtures (no model or public pipeline). The native
 filter carrier, original Host executable pin source, D target transition and
 full Host cleanup publication still require their shared integration batch.
 No user installation or production GC was changed.
+
+
+Security correction: journal writes no longer call pathname-based
+`Spool.WriteMetadata`. The journal uses its original segment dirfd for
+`openat(O_CREAT|O_EXCL|O_NOFOLLOW|O_CLOEXEC)` of the one 0600 temp, bounded
+write (<=65537 including newline), file fsync, current content/identity and
+owned-temp inode rechecks, same-dirfd `renameat`, and original directory fsync.
+Preexisting temps are never unlinked. On any failure the original temp is
+retained and the journal permanently fails; it cannot produce cleanup proof.
+This preserves the existing 131074-byte current+temp grant and does not claim
+atomic exclusion against arbitrary same-UID mutation between observations.
+
+Deterministic RED `dirfd-red.txt` reaches the exact precheck-to-write seam once:
+named segment replacement and ancestor symlink modify/delete foreign metadata
+under the prior writer; foreign current/temp inserted after precheck are wrongly
+overwritten. Final `dirfd-green.txt` runs only this boundary, original short
+native journal lifecycle and known-not-created collision under `-race -count=1`:
+3 top-level tests + 8 subtests, 0 failures/skips, exit 0 (1.577 seconds). All four
+new cases prove foreign bytes unchanged and failed journal cleanup rejection.
+Path replacements additionally prove bounded temp retained under the original
+held segment and original current body unchanged. `dirfd-vet.txt` is exit 0 for
+`go vet ./internal/gitfilter`. Go 1.26.8, TMPDIR=/private/tmp. Store/long Host
+suites were not repeated; global events source is unchanged. The existing
+transport task is independently complete/PASS at 61ee2c7 and was not modified.

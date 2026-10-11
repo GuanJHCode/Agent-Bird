@@ -3,6 +3,7 @@
 package gitfilter
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -164,6 +165,116 @@ func TestCarrierCompanionJournalNative(t *testing.T) {
 			if _, err = os.Lstat(filepath.Join(sp.Directory(), "."+carrierJournalName+".tmp")); !os.IsNotExist(err) {
 				t.Fatal("temporary journal retained", err)
 			}
+		})
+	}
+}
+
+func TestCarrierCompanionJournalPrecheckNamespaceRace(t *testing.T) {
+	for _, mode := range []string{"named-segment-replacement", "ancestor-symlink", "foreign-temporary-after-precheck", "foreign-current-after-precheck"} {
+		t.Run(mode, func(t *testing.T) {
+			c, sp := carrierJournalFixture(t)
+			j, e := newCarrierJournal(c, sp)
+			if e != nil {
+				t.Fatal(e)
+			}
+			defer j.close()
+			ctx := carrierTestContext(t)
+			if e = j.write(ctx, j.current); e != nil {
+				t.Fatalf("positive baseline write: %v", e)
+			}
+			if e = j.verify(); e != nil {
+				t.Fatalf("positive current identity control: %v", e)
+			}
+			original := sp.Directory()
+			current := carrierJournalName
+			temporary := "." + current + ".tmp"
+			var foreign, held string
+			var expected map[string][]byte
+			fired := 0
+			e = j.writeWith(ctx, j.current, func() error {
+				fired++
+				switch mode {
+				case "named-segment-replacement":
+					held = original + ".held"
+					if e := os.Rename(original, held); e != nil {
+						return e
+					}
+					if e := os.Mkdir(original, 0700); e != nil {
+						return e
+					}
+					foreign = original
+				case "ancestor-symlink":
+					parent := filepath.Dir(original)
+					held = filepath.Join(parent+".held", filepath.Base(original))
+					if e := os.Rename(parent, parent+".held"); e != nil {
+						return e
+					}
+					target := filepath.Join(filepath.Dir(parent), "foreign")
+					foreign = filepath.Join(target, filepath.Base(original))
+					if e := os.MkdirAll(foreign, 0700); e != nil {
+						return e
+					}
+					if e := os.Symlink(target, parent); e != nil {
+						return e
+					}
+				case "foreign-temporary-after-precheck":
+					foreign = original
+					expected = map[string][]byte{current: append([]byte(nil), j.body...), temporary: []byte("foreign temp must survive\n")}
+					return os.WriteFile(filepath.Join(foreign, temporary), expected[temporary], 0600)
+				case "foreign-current-after-precheck":
+					foreign = original
+					expected = map[string][]byte{current: []byte("foreign current must survive\n")}
+					replacement := filepath.Join(original, "replacement.json")
+					if e := os.WriteFile(replacement, expected[current], 0600); e != nil {
+						return e
+					}
+					return os.Rename(replacement, filepath.Join(original, current))
+				}
+				expected = map[string][]byte{current: []byte("foreign current untouched\n"), temporary: []byte("foreign temp untouched\n"), "sentinel": []byte("foreign sentinel untouched\n")}
+				for name, body := range expected {
+					if e := os.WriteFile(filepath.Join(foreign, name), body, 0600); e != nil {
+						return e
+					}
+				}
+				return nil
+			})
+			if fired != 1 {
+				t.Fatalf("mutation seam fired=%d", fired)
+			}
+			if e == nil || !j.failed {
+				t.Fatalf("namespace drift accepted error=%v failed=%t", e, j.failed)
+			}
+			for name, body := range expected {
+				actual, e := os.ReadFile(filepath.Join(foreign, name))
+				if e != nil || !bytes.Equal(actual, body) {
+					t.Fatalf("foreign bytes changed name=%s got=%q want=%q error=%v", name, actual, body, e)
+				}
+			}
+			if held != "" {
+				retained, e := os.ReadFile(filepath.Join(held, temporary))
+				if e != nil || len(retained) == 0 || len(retained) > contract.GitFilterJournalLimit+1 {
+					t.Fatalf("original held temp not retained: bytes=%d error=%v", len(retained), e)
+				}
+				var snapshot carrierJournalSnapshot
+				if json.Unmarshal(retained, &snapshot) != nil || snapshot.Ordinal != 2 {
+					t.Fatal("retained temp not original bounded write")
+				}
+				prior, e := os.ReadFile(filepath.Join(held, current))
+				if e != nil || !bytes.Equal(prior, j.body) {
+					t.Fatal("original current changed despite namespace rejection", e)
+				}
+				entries, e := os.ReadDir(foreign)
+				if e != nil {
+					t.Fatal(e)
+				}
+				if len(entries) != len(expected) {
+					t.Fatalf("foreign inventory changed=%d expected=%d", len(entries), len(expected))
+				}
+			}
+			if _, e = j.cleanup(nil); e == nil {
+				t.Fatal("failed journal produced cleanup authority")
+			}
+			t.Logf("seam=%s fired=1 foreign_bytes_unchanged=true journal_failed=true cleanup_rejected=true", mode)
 		})
 	}
 }

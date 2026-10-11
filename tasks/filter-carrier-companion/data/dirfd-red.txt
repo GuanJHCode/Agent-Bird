@@ -1,0 +1,17 @@
+=== RUN   TestCarrierCompanionJournalPrecheckNamespaceRace
+=== RUN   TestCarrierCompanionJournalPrecheckNamespaceRace/named-segment-replacement
+    carrier_journal_darwin_test.go:250: foreign bytes changed name=git-filter-carrier.json got="{\"Version\":1,\"Ordinal\":2,\"PreviousSHA256\":\"096f20cce07979839d5459555e03f7b6abd12371f98771d402f93744bb99c844\",\"RunID\":\"run\",\"TaskID\":\"task\",\"AttemptID\":\"attempt\",\"SegmentID\":\"segment\",\"HostID\":\"host\",\"CommandID\":\"command\",\"WorkRevision\":1,\"PlanRevision\":1,\"Grant\":{\"version\":1,\"reservation_id\":\"carrier\",\"scope_sha256\":\"28b6d0ec16e9ce04140e6a0a0653d0a9d68fbfc73338420d78c99ad65dfe8adf\",\"filter_reservation_id\":\"filter\",\"filter_scope_sha256\":\"81dacdd1f458ca61c1c0e64f47480dea5720497d28200b31fedff4bbddc004c6\",\"manifest_sha256\":\"5ccb0d7b0147e10eeb31e0f863d2a27db6c0ec515b9eec188e78ea17a067f0d7\",\"metadata_bytes\":131074,\"runtime_namespace\":\"darwin-private-tmp-v1\",\"directory_slots\":1,\"socket_slots\":1},\"Filter\":{\"version\":1,\"reservation_id\":\"filter\",\"scope_sha256\":\"81dacdd1f458ca61c1c0e64f47480dea5720497d28200b31fedff4bbddc004c6\",\"manifest_sha256\":\"5ccb0d7b0147e10eeb31e0f863d2a27db6c0ec515b9eec188e78ea17a067f0d7\",\"clean_tool_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"smudge_tool_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"tool_maximum_bytes\":33554432,\"stream_maximum_bytes\":16777216,\"stream_slots\":3}}\n" want="foreign current untouched\n" error=<nil>
+=== RUN   TestCarrierCompanionJournalPrecheckNamespaceRace/ancestor-symlink
+    carrier_journal_darwin_test.go:250: foreign bytes changed name=.git-filter-carrier.json.tmp got="" want="foreign temp untouched\n" error=open /private/tmp/TestCarrierCompanionJournalPrecheckNamespaceRaceancestor-symlin248082624/001/foreign/segment/.git-filter-carrier.json.tmp: no such file or directory
+=== RUN   TestCarrierCompanionJournalPrecheckNamespaceRace/foreign-temporary-after-precheck
+    carrier_journal_darwin_test.go:245: namespace drift accepted error=<nil> failed=false
+=== RUN   TestCarrierCompanionJournalPrecheckNamespaceRace/foreign-current-after-precheck
+    carrier_journal_darwin_test.go:245: namespace drift accepted error=<nil> failed=false
+--- FAIL: TestCarrierCompanionJournalPrecheckNamespaceRace (0.10s)
+    --- FAIL: TestCarrierCompanionJournalPrecheckNamespaceRace/named-segment-replacement (0.06s)
+    --- FAIL: TestCarrierCompanionJournalPrecheckNamespaceRace/ancestor-symlink (0.02s)
+    --- FAIL: TestCarrierCompanionJournalPrecheckNamespaceRace/foreign-temporary-after-precheck (0.01s)
+    --- FAIL: TestCarrierCompanionJournalPrecheckNamespaceRace/foreign-current-after-precheck (0.02s)
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter	0.681s
+FAIL

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"golang.org/x/sys/unix"
 	"io"
 	"os"
 	"path/filepath"
@@ -39,7 +40,6 @@ type carrierJournalSocket struct {
 type carrierJournal struct {
 	self           *carrierJournal
 	mu             sync.Mutex
-	spool          *events.Spool
 	segment        *os.Root
 	fd             *os.File
 	segmentID      node
@@ -73,7 +73,7 @@ func newCarrierJournal(g contract.LaunchCommand, sp *events.Spool) (*carrierJour
 		fd.Close()
 		return nil, err
 	}
-	j := &carrierJournal{spool: sp, segment: root, fd: fd, segmentID: id, path: dir, binding: carrierSocketBinding{Original: StreamBinding{g.GitFilter.ManifestSHA256, g.GitFilter.ScopeSHA256, g.GitFilter.ReservationID, g.AttemptID, g.PlanRevision}, ReservationID: g.GitFilterCarrier.ReservationID, Scope: g.GitFilterCarrier.ScopeSHA256, RuntimeNamespace: g.GitFilterCarrier.RuntimeNamespace, DirectorySlots: 1, SocketSlots: 1}, current: carrierJournalSnapshot{Version: 1, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, HostID: g.HostID, CommandID: g.CommandID, WorkRevision: g.WorkRevision, PlanRevision: g.PlanRevision, Grant: *g.GitFilterCarrier, Filter: *g.GitFilter}}
+	j := &carrierJournal{segment: root, fd: fd, segmentID: id, path: dir, binding: carrierSocketBinding{Original: StreamBinding{g.GitFilter.ManifestSHA256, g.GitFilter.ScopeSHA256, g.GitFilter.ReservationID, g.AttemptID, g.PlanRevision}, ReservationID: g.GitFilterCarrier.ReservationID, Scope: g.GitFilterCarrier.ScopeSHA256, RuntimeNamespace: g.GitFilterCarrier.RuntimeNamespace, DirectorySlots: 1, SocketSlots: 1}, current: carrierJournalSnapshot{Version: 1, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, HostID: g.HostID, CommandID: g.CommandID, WorkRevision: g.WorkRevision, PlanRevision: g.PlanRevision, Grant: *g.GitFilterCarrier, Filter: *g.GitFilter}}
 	j.self = j
 	if err = j.verify(); err != nil {
 		_ = j.close()
@@ -131,6 +131,9 @@ func (j *carrierJournal) verify() error {
 	if _, err := j.segment.Lstat("." + carrierJournalName + ".tmp"); !errors.Is(err, os.ErrNotExist) {
 		return errCarrierSocket
 	}
+	return j.verifyCurrent()
+}
+func (j *carrierJournal) verifyCurrent() error {
 	if len(j.body) == 0 {
 		if _, err := j.segment.Lstat(carrierJournalName); !errors.Is(err, os.ErrNotExist) {
 			return errCarrierSocket
@@ -144,12 +147,23 @@ func (j *carrierJournal) verify() error {
 	return nil
 }
 func (j *carrierJournal) write(ctx context.Context, next carrierJournalSnapshot) error {
+	return j.writeWith(ctx, next, nil)
+}
+
+// Private precheck-to-mutation seam for deterministic namespace adversaries.
+func (j *carrierJournal) writeWith(ctx context.Context, next carrierJournalSnapshot, beforeWrite func() error) error {
 	if !carrierSocketContext(ctx) || j.current.Ordinal >= 4096 {
 		return errCarrierSocket
 	}
 	if err := j.verify(); err != nil {
 		j.failed = true
 		return err
+	}
+	if beforeWrite != nil {
+		if err := beforeWrite(); err != nil {
+			j.failed = true
+			return err
+		}
 	}
 	next.Ordinal = j.current.Ordinal + 1
 	h := sha256.Sum256(j.body)
@@ -158,7 +172,7 @@ func (j *carrierJournal) write(ctx context.Context, next carrierJournalSnapshot)
 	if err != nil || len(raw) > contract.GitFilterJournalLimit {
 		return errCarrierSocket
 	}
-	if err = j.spool.WriteMetadata(carrierJournalName, next); err != nil {
+	if err = j.writeMetadataAt(ctx, append(raw, '\n')); err != nil {
 		j.failed = true
 		return err
 	}
@@ -174,6 +188,83 @@ func (j *carrierJournal) write(ctx context.Context, next carrierJournalSnapshot)
 	j.current, j.body, j.currentID = next, body, id
 	return nil
 }
+
+// writeMetadataAt mutates only the original held segment. Every failure
+// retains the partial/complete temp rather than unlinking an unknown inode.
+// No pathname reconstruction, fallback root or preexisting-temp deletion occurs.
+func (j *carrierJournal) writeMetadataAt(ctx context.Context, data []byte) (ret error) {
+	if !carrierSocketContext(ctx) || len(data) < 1 || len(data) > contract.GitFilterJournalLimit+1 {
+		return errCarrierSocket
+	}
+	held, err := identity(j.fd)
+	if err != nil || !brokerDirectorySame(held, j.segmentID) {
+		return errCarrierSocket
+	}
+	temporary := "." + carrierJournalName + ".tmp"
+	dirFD := int(j.fd.Fd())
+	fd, err := unix.Openat(dirFD, temporary, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+	if err != nil {
+		return err
+	}
+	file := os.NewFile(uintptr(fd), temporary)
+	defer func() { ret = errors.Join(ret, file.Close()) }()
+	created, err := identity(file)
+	if err != nil || created.Mode != 0600 || created.UID != uint32(os.Getuid()) || created.Nlink != 1 || created.Size != 0 {
+		return errCarrierSocket
+	}
+	if !carrierSocketContext(ctx) {
+		return errCarrierSocket
+	}
+	count, err := file.Write(data)
+	if err != nil {
+		return err
+	}
+	if count != len(data) {
+		return io.ErrShortWrite
+	}
+	if !carrierSocketContext(ctx) {
+		return errCarrierSocket
+	}
+	if err = file.Sync(); err != nil {
+		return err
+	}
+	written, err := identity(file)
+	if err != nil || written.Device != created.Device || written.Inode != created.Inode || written.Mode != created.Mode || written.UID != created.UID || written.Nlink != 1 || written.Size != int64(len(data)) {
+		return errCarrierSocket
+	}
+	// Named roots and current content are checked again before replacement.
+	// The temp already belongs to this original FD lifetime, so it is retained
+	// on any callback/namespace/current-file uncertainty.
+	if err = j.roots(); err != nil {
+		return err
+	}
+	if err = j.verifyCurrent(); err != nil {
+		return err
+	}
+	namedTemp, err := j.segment.Lstat(temporary)
+	if err != nil {
+		return err
+	}
+	stat, ok := namedTemp.Sys().(*syscall.Stat_t)
+	if !ok || uint64(stat.Dev) != written.Device || stat.Ino != written.Inode || uint64(stat.Nlink) != written.Nlink || stat.Uid != written.UID || uint32(namedTemp.Mode()) != written.Mode || namedTemp.Size() != written.Size || namedTemp.ModTime().UnixNano() != written.Modified {
+		return errCarrierSocket
+	}
+	actual, err := identity(file)
+	if err != nil || actual != written {
+		return errCarrierSocket
+	}
+	if !carrierSocketContext(ctx) {
+		return errCarrierSocket
+	}
+	if err = unix.Renameat(dirFD, temporary, dirFD, carrierJournalName); err != nil {
+		return err
+	}
+	if err = j.fd.Sync(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (j *carrierJournal) RecordCarrierSocket(ctx context.Context, r carrierSocketRecord) error {
 	if j == nil || j.self != j {
 		return errCarrierSocket
