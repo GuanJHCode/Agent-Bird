@@ -42,6 +42,11 @@ func TestFilterTargetTransitionNativeFastForward(t *testing.T) {
 		t.Fatalf("open transition: %v", err)
 	}
 	defer transition.Close()
+	copy := *transition
+	if copy.VerifyInitial(ctx) == nil || copy.Close() == nil {
+		t.Fatal("copied transition acquired original authority")
+	}
+
 	if err = transition.VerifyInitial(ctx); err != nil {
 		t.Fatalf("initial: %v", err)
 	}
@@ -52,10 +57,26 @@ func TestFilterTargetTransitionNativeFastForward(t *testing.T) {
 	if err = transition.RevalidateFinal(ctx); err != nil {
 		t.Fatalf("final revalidation: %v", err)
 	}
+	if _, err := transition.Merge(ctx); err == nil {
+		t.Fatal("transition merged twice")
+	}
 	// This is the exact no-Git tail a RecordIntegration callback receives.
 	// A callback cannot replace the captured final target inventory baseline.
-	if err = os.WriteFile(filepath.Join(repo, "a.txt"), []byte("final callback drift\n"), 0600); err != nil {
-		t.Fatalf("write final callback drift: %v", err)
+	finalFile := filepath.Join(repo, "a.txt")
+	body, err := os.ReadFile(finalFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(finalFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacement := filepath.Join(f.root, "same-content-final-replacement")
+	if err = os.WriteFile(replacement, body, info.Mode()); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Rename(replacement, finalFile); err != nil {
+		t.Fatal(err)
 	}
 	if err = transition.RevalidateFinal(ctx); err == nil {
 		t.Fatal("final pure revalidation accepted callback target drift")

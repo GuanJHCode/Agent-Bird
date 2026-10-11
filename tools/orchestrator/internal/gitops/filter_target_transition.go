@@ -8,7 +8,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -20,11 +22,16 @@ import (
 // normal fast-forward replaces the target index and branch ref, neither of
 // which a readonly observer may adopt.
 type FilterTargetTransition struct {
-	pair      *FilterTargetCandidatePair
-	expected  map[string]filterTargetExpected
-	attempted bool
-	running   bool
-	final     bool
+	self           *FilterTargetTransition
+	mu             sync.Mutex
+	closed         bool
+	finalInventory map[string]filterTargetEntry
+	directories    []transitionDirectoryPin
+	pair           *FilterTargetCandidatePair
+	expected       map[string]filterTargetExpected
+	attempted      bool
+	running        bool
+	final          bool
 
 	finalIndex    *os.File
 	lock          *os.File
@@ -37,6 +44,8 @@ type FilterTargetTransition struct {
 // the two lifecycle boundaries where a carrier may bind and drain transport.
 // It cannot replace the frozen Git command or its process ownership.
 type FilterTargetTransitionHooks struct {
+	configArgs   []string
+	bindCommand  func(context.Context, string) (string, error)
 	Activate     func(*process.Handle, string) error
 	AfterWait    func(*process.Handle, string) error
 	BeforeExited func(*process.Handle, string) error
@@ -46,7 +55,10 @@ type FilterTargetTransitionHooks struct {
 // inventory while the pair is still readonly.  The returned value owns only
 // its final-index descriptor; callers retain and close the pair and owners.
 func OpenFilterTargetTransition(ctx context.Context, pair *FilterTargetCandidatePair) (*FilterTargetTransition, error) {
-	if _, ok := ctx.Deadline(); !ok {
+	if ctx == nil {
+		return nil, fail(CodeInvalidInput, "filter target transition deadline", nil)
+	}
+	if _, ok := ctx.Deadline(); !ok || ctx.Err() != nil {
 		return nil, fail(CodeInvalidInput, "filter target transition deadline", nil)
 	}
 	if pair == nil || pair.target == nil || pair.candidate == nil {
@@ -66,6 +78,11 @@ func OpenFilterTargetTransition(ctx context.Context, pair *FilterTargetCandidate
 		return nil, err
 	}
 	t := &FilterTargetTransition{pair: pair, expected: map[string]filterTargetExpected{}}
+	t.self = t
+	if err := t.captureDirectories(); err != nil {
+		_ = t.Close()
+		return nil, err
+	}
 	for name, entry := range pair.candidate.workspace.owned {
 		if name == ".git" {
 			continue
@@ -80,6 +97,7 @@ func OpenFilterTargetTransition(ctx context.Context, pair *FilterTargetCandidate
 		t.expected[name] = filterTargetExpected{Mode: mode, SHA256: entry.sha256, Size: entry.identity.Size}
 	}
 	if len(t.expected) == 0 {
+		_ = t.Close()
 		return nil, fail(CodeReviewMismatch, "filter target transition candidate inventory", nil)
 	}
 	t.lock = lock
@@ -90,8 +108,18 @@ func OpenFilterTargetTransition(ctx context.Context, pair *FilterTargetCandidate
 // VerifyInitial preserves the existing complete readonly proof before intent,
 // before the merge callback, and before spawning Git.
 func (t *FilterTargetTransition) VerifyInitial(ctx context.Context) error {
-	if t == nil || t.attempted || t.running || t.final || t.pair == nil {
+	if !t.enter() {
+		return fail(CodeIdentityChanged, "filter transition original owner", nil)
+	}
+	defer t.mu.Unlock()
+	return t.verifyInitial(ctx)
+}
+func (t *FilterTargetTransition) verifyInitial(ctx context.Context) error {
+	if t.closed || t.attempted || t.running || t.final || t.pair == nil || !transitionContext(ctx) {
 		return fail(CodeIdentityChanged, "filter target transition state", nil)
+	}
+	if err := t.verifyDirectories(); err != nil {
+		return err
 	}
 	return t.pair.Verify(ctx)
 }
@@ -108,16 +136,27 @@ func (t *FilterTargetTransition) Merge(ctx context.Context) (CommandResult, erro
 // can therefore bind its owned transport to the exact live Git process without
 // moving the merge or weakening its lifecycle proof.
 func (t *FilterTargetTransition) MergeWithHooks(ctx context.Context, hooks FilterTargetTransitionHooks) (CommandResult, error) {
-	if err := t.VerifyInitial(ctx); err != nil {
+	if !t.enter() {
+		return CommandResult{}, fail(CodeIdentityChanged, "filter transition original owner", nil)
+	}
+	defer t.mu.Unlock()
+	if err := t.verifyInitial(ctx); err != nil {
 		return CommandResult{}, err
 	}
 	t.attempted, t.running = true, true
 
 	target := t.pair.target
 	dir := target.request.Worktree
-	args := []string{"-C", dir, "merge", "--ff-only", "--no-autostash", "--no-overwrite-ignore", target.candidate.CandidateOID}
+	args := append(append([]string(nil), hooks.configArgs...), "-C", dir, "merge", "--ff-only", "--no-autostash", "--no-overwrite-ignore", target.candidate.CandidateOID)
 	env := append([]string(nil), os.Environ()...)
 	digest := DigestDetail(target.source.git.path + "\x00" + target.source.git.sha256 + "\x00" + dir + "\x00" + strings.Join(env, "\x00") + "\x00" + strings.Join(args, "\x00"))
+	if hooks.bindCommand != nil {
+		var err error
+		digest, err = hooks.bindCommand(ctx, digest)
+		if err != nil {
+			return CommandResult{}, err
+		}
+	}
 	record := func(phase string, id *process.Identity, exit int) error {
 		if err := target.journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: digest, Process: id, ExitCode: exit}); err != nil {
 			return err
@@ -139,6 +178,12 @@ func (t *FilterTargetTransition) MergeWithHooks(ctx context.Context, hooks Filte
 		return CommandResult{PID: p.PID(), ExitCode: p.ExitCode()}, errors.Join(process.ErrProcessTreeUnknown, process.CleanupFailedStart(stopCtx, p, 10*time.Second))
 	}
 	id := p.Identity()
+	drained := false
+	defer func() {
+		if !drained && hooks.AfterWait != nil {
+			_ = hooks.AfterWait(p, digest)
+		}
+	}()
 	stop := func() error {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
@@ -165,6 +210,7 @@ func (t *FilterTargetTransition) MergeWithHooks(ctx context.Context, hooks Filte
 		stopErr = stop()
 	}
 	if hooks.AfterWait != nil {
+		drained = true
 		if err := hooks.AfterWait(p, digest); err != nil {
 			_ = record("unknown", &id, p.ExitCode())
 			return CommandResult{PID: p.PID(), ExitCode: p.ExitCode()}, err
@@ -204,7 +250,7 @@ func (t *FilterTargetTransition) MergeWithHooks(ctx context.Context, hooks Filte
 // and mutable branch ref.  All other original-owner and child evidence stays
 // pinned while the sole authorized Git process is alive.
 func (t *FilterTargetTransition) verifyRunning(ctx context.Context) error {
-	if t == nil || !t.running || t.final || t.pair == nil {
+	if t == nil || t.self != t || t.closed || !t.running || t.final || t.pair == nil || !transitionContext(ctx) {
 		return fail(CodeIdentityChanged, "filter target transition running", nil)
 	}
 	m, p := t.pair.target, t.pair
@@ -214,11 +260,11 @@ func (t *FilterTargetTransition) verifyRunning(ctx context.Context) error {
 	if err := m.verifySourcePins(); err != nil {
 		return err
 	}
-	for _, name := range []string{filepath.Join(m.source.repository.gitDir, "HEAD"), filepath.Join(m.source.commonDir, filepath.FromSlash(m.candidate.PrivateRef))} {
-		pin := m.refs[name]
-		if pin == nil || !verifyFilterPin(*pin) {
-			return fail(CodeIdentityChanged, "filter target transition immutable ref", nil)
-		}
+	if err := t.verifyDirectories(); err != nil {
+		return err
+	}
+	if err := t.verifyImmutableRefs(); err != nil {
+		return err
 	}
 	if err := p.candidate.workspace.verify(); err != nil {
 		return err
@@ -243,7 +289,7 @@ func (t *FilterTargetTransition) verifyRunning(ctx context.Context) error {
 }
 
 func (t *FilterTargetTransition) captureFinal(ctx context.Context) error {
-	if t == nil || !t.running || t.final {
+	if t == nil || t.self != t || t.closed || !t.running || t.final {
 		return fail(CodeIdentityChanged, "filter target transition final state", nil)
 	}
 	m := t.pair.target
@@ -268,12 +314,12 @@ func (t *FilterTargetTransition) captureFinal(ctx context.Context) error {
 		{[]string{"rev-parse", "--verify", "HEAD^{tree}"}, m.candidate.TreeOID},
 		{[]string{"write-tree"}, m.candidate.TreeOID},
 	} {
-		r, err := run(pureCtx, m.request.Worktree, check.args...)
+		r, err := t.query(pureCtx, check.args...)
 		if err != nil || r.Stdout != check.want {
 			return fail(CodeTargetDrift, "filter target transition final git", err)
 		}
 	}
-	if err := t.snapshotFinalInventory(pureCtx); err != nil {
+	if err := t.snapshotFinalInventory(pureCtx, true); err != nil {
 		return err
 	}
 	branchPath := filepath.Join(m.source.commonDir, filepath.FromSlash(m.request.Ref))
@@ -301,10 +347,10 @@ func (t *FilterTargetTransition) captureFinal(ctx context.Context) error {
 	}
 	t.finalIndex, t.finalIndexID, t.finalIndexSHA, t.finalBranch, t.final = index, id, filterTargetHash(raw), pin, true
 	t.running = false
-	return t.RevalidateFinal(pureCtx)
+	return t.revalidateFinal(pureCtx)
 }
 
-func (t *FilterTargetTransition) snapshotFinalInventory(ctx context.Context) error {
+func (t *FilterTargetTransition) snapshotFinalInventory(ctx context.Context, capture bool) error {
 	m := t.pair.target
 	original := m.expected
 	m.expected = t.expected
@@ -313,8 +359,11 @@ func (t *FilterTargetTransition) snapshotFinalInventory(ctx context.Context) err
 	if err != nil {
 		return err
 	}
-	if len(got) != len(t.expected) {
+	if len(got) != len(t.expected) || !capture && !reflect.DeepEqual(got, t.finalInventory) {
 		return fail(CodeTargetDrift, "filter target transition final inventory", nil)
+	}
+	if capture {
+		t.finalInventory = got
 	}
 	return nil
 }
@@ -322,7 +371,14 @@ func (t *FilterTargetTransition) snapshotFinalInventory(ctx context.Context) err
 // RevalidateFinal is deliberately pure: it issues no Git command and closes
 // the RecordIntegration callback window after the final snapshot is captured.
 func (t *FilterTargetTransition) RevalidateFinal(ctx context.Context) error {
-	if t == nil || !t.final || t.running || t.finalIndex == nil {
+	if !t.enter() {
+		return fail(CodeIdentityChanged, "filter transition original owner", nil)
+	}
+	defer t.mu.Unlock()
+	return t.revalidateFinal(ctx)
+}
+func (t *FilterTargetTransition) revalidateFinal(ctx context.Context) error {
+	if t.closed || !t.final || t.running || t.finalIndex == nil || !transitionContext(ctx) {
 		return fail(CodeIdentityChanged, "filter target transition final", nil)
 	}
 	m := t.pair.target
@@ -342,14 +398,39 @@ func (t *FilterTargetTransition) RevalidateFinal(ctx context.Context) error {
 	if err != nil || id != t.finalIndexID || filterTargetHash(raw) != t.finalIndexSHA {
 		return fail(CodeIdentityChanged, "filter target transition final index", err)
 	}
-	return t.snapshotFinalInventory(ctx)
+	if err := t.verifyDirectories(); err != nil {
+		return err
+	}
+	if err := t.verifyImmutableRefs(); err != nil {
+		return err
+	}
+	// Candidate side remains immutable after the final target state too.
+	t.running, t.final = true, false
+	err = t.verifyRunning(ctx)
+	t.running, t.final = false, true
+	if err != nil {
+		return err
+	}
+	return t.snapshotFinalInventory(ctx, false)
 }
 
 func (t *FilterTargetTransition) Close() error {
 	if t == nil {
 		return nil
 	}
+	if !t.enter() {
+		return fail(CodeIdentityChanged, "filter transition original owner", nil)
+	}
+	defer t.mu.Unlock()
+	if t.closed {
+		return nil
+	}
+	t.closed = true
 	var err error
+	for _, pin := range t.directories {
+		err = errors.Join(err, pin.file.Close())
+	}
+	t.directories = nil
 	if t.finalIndex != nil {
 		err = t.finalIndex.Close()
 		t.finalIndex = nil
