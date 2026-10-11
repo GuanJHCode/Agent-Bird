@@ -53,6 +53,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
+	case "filter-carrier-helper":
+		return filterCarrierHelper(ctx, args[1:])
 	case "runtime-status":
 		return runtimeStatus(ctx, args[1:], stdout)
 	case "routing":

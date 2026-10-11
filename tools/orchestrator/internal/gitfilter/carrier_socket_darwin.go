@@ -22,6 +22,7 @@ const carrierSocketName = "socket"
 type carrierSocketState struct {
 	mu                                                    sync.Mutex
 	busy, unknown, closed, closeDone, removed, notCreated bool
+	transportOwned                                        bool
 	sealed, released                                      bool
 	closeWait                                             chan struct{}
 	closeErr, releaseErr, fdCloseErr                      error

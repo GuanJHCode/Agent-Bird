@@ -1,0 +1,6 @@
+# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter.test]
+internal/gitfilter/carrier_transport_darwin_test.go:13:39: undefined: carrierTransport
+internal/gitfilter/carrier_transport_darwin_test.go:19:13: undefined: newCarrierTransport
+internal/gitfilter/carrier_transport_darwin_test.go:45:9: undefined: newCarrierTransport
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter [build failed]
+FAIL
