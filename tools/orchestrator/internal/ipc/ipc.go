@@ -89,6 +89,9 @@ const (
 )
 
 const (
+	KindDiagnosticsGCEnable       Kind = "diagnostics_gc_enable"
+	KindDiagnosticsGCDisable      Kind = "diagnostics_gc_disable"
+	KindDiagnosticsGCStatus       Kind = "diagnostics_gc_status"
 	KindDiagnosticsRetentionPlan  Kind = "diagnostics_retention_plan"
 	KindDiagnosticsRetentionApply Kind = "diagnostics_retention_apply"
 )

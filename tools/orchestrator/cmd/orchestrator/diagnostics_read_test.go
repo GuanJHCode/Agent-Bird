@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -56,6 +57,7 @@ func TestDiagnosticsPublicCLIDeleteAfterOwnerCompletion(t *testing.T) {
 func TestDiagnosticsPublicCLIRetentionSavedPlanAndReplay(t *testing.T) {
 	testDiagnosticsPublicCLI(t, true, true)
 }
+func TestDiagnosticsPublicCLIGCPolicy(t *testing.T) { testDiagnosticsPublicCLI(t, true, false, true) }
 func testDiagnosticsPublicCLI(t *testing.T, deleteCompleted bool, retention ...bool) {
 	root, err := os.MkdirTemp("/private/tmp", "diag-cli-")
 	if err != nil {
@@ -208,6 +210,31 @@ func testDiagnosticsPublicCLI(t *testing.T, deleteCompleted bool, retention ...b
 			t.Fatalf("original CLI child Wait failed: %v %s", err, out)
 		}
 		return out
+	}
+
+	if len(retention) > 1 && retention[1] {
+		for _, step := range []struct {
+			action   string
+			expected int64
+			enabled  bool
+			revision int64
+		}{{"status", 0, false, 0}, {"enable", 0, true, 1}, {"disable", 1, false, 2}, {"status", 0, false, 2}} {
+			path := filepath.Join(root, "gc-"+step.action+"-"+fmt.Sprint(step.revision)+".json")
+			if e := writeExclusiveJSON(path, store.DiagnosticsGCRequest{Version: 1, RunID: g.RunID, ExpectedRevision: step.expected}); e != nil {
+				t.Fatal(e)
+			}
+			raw := invoke("diagnostics-gc-"+step.action, "--state-dir", state, "--control-file", control, "--request", path)
+			var status store.DiagnosticsGCStatus
+			if e := json.Unmarshal(raw, &status); e != nil || status.Enabled != step.enabled || status.Revision != step.revision || status.TTLDays != 7 {
+				t.Fatal(string(raw), e)
+			}
+		}
+		raw, _ := json.Marshal(coordinator.DiagnosticsGCRequest{ControllerThread: "foreign", ControlToken: accepted.ControlToken, Request: store.DiagnosticsGCRequest{Version: 1, RunID: g.RunID, ExpectedRevision: 2}})
+		reply, e := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: ipc.KindDiagnosticsGCEnable, RequestID: "gc-foreign", Payload: raw})
+		if e != nil || reply.Kind != ipc.KindError || !bytes.Contains(reply.Payload, []byte("owner_mismatch")) {
+			t.Fatal(reply, e)
+		}
+		return
 	}
 	readArgs := []string{"diagnostics-read", "--state-dir", state, "--control-file", control, "--request", requestFile}
 	first := invoke(readArgs...)

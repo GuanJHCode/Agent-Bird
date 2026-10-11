@@ -158,6 +158,9 @@ func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofS
 	if _, err = tx.ExecContext(ctx, `INSERT INTO delivery_receipts(delivery_id,task_id,history_proof_sha256,decisions_hash,created_at) VALUES(?,?,?,?,?)`, deliveryID, taskID, strings.ToLower(historyProofSHA256), decisionsHash, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return rollback(mapConflict(err))
 	}
+	if err = d.recordDiagnosticsConsumption(ctx, tx, taskID, decisions, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return rollback(err)
+	}
 	return owned.commit()
 }
 

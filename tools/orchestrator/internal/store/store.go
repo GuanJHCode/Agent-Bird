@@ -31,6 +31,7 @@ const (
 )
 
 type DB struct {
+	gcMu                sync.Mutex
 	configIdentity      contract.ConfigPreparationAuthority
 	configIdentityError error
 	sql                 *sql.DB

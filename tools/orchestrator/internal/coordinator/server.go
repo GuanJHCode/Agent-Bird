@@ -219,6 +219,8 @@ func (h *hostSession) send(message ipc.Envelope) error {
 }
 
 type Server struct {
+	gcCancel            context.CancelFunc
+	gcDone              chan struct{}
 	launchSupervisor    *contract.OriginalOwnerLaunchSupervisor // registration lock
 	launchChildren      map[string]*originalOwnerLaunchChild    // registration lock
 	cliSupervised       bool
@@ -377,6 +379,7 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 		}
 	}
 	server.releaseTaskPins()
+	server.startDiagnosticsGC()
 	return server, nil
 }
 
@@ -559,6 +562,10 @@ func (s *Server) Close() error {
 	var result error
 	s.close.Do(func() {
 		s.closed.Store(true)
+		if s.gcCancel != nil {
+			s.gcCancel()
+			<-s.gcDone
+		}
 		_ = s.listener.Close()
 		s.closeBridgeConnections()
 		s.bridgeWG.Wait()
@@ -734,7 +741,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 		err = store.CodeError("diagnostics_request_invalid")
 	}
 	switch message.Kind {
-	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply:
+	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus:
 		if err == nil {
 			ctx, err = s.authorizePeer(ctx, conn)
 		}
@@ -764,10 +771,10 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
-	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply:
+	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus:
 		return s.diagnosticsControl(ctx, kind, raw)
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1", "diagnostics_delete_v1", "diagnostics_retention_v1", "owner_rebind_publication_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1", "diagnostics_delete_v1", "diagnostics_retention_v1", "diagnostics_gc_v1", "owner_rebind_publication_v1"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:

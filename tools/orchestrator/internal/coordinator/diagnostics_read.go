@@ -42,7 +42,7 @@ type DiagnosticsRetentionApplyRequest struct {
 }
 
 func diagnosticsControlKind(kind ipc.Kind) bool {
-	return kind == ipc.KindDiagnosticsRead || kind == ipc.KindDiagnosticsAck || kind == ipc.KindDiagnosticsDelete || kind == ipc.KindDiagnosticsRetentionPlan || kind == ipc.KindDiagnosticsRetentionApply
+	return kind == ipc.KindDiagnosticsGCEnable || kind == ipc.KindDiagnosticsGCDisable || kind == ipc.KindDiagnosticsGCStatus || kind == ipc.KindDiagnosticsRead || kind == ipc.KindDiagnosticsAck || kind == ipc.KindDiagnosticsDelete || kind == ipc.KindDiagnosticsRetentionPlan || kind == ipc.KindDiagnosticsRetentionApply
 }
 
 func diagnosticsControlError(err error) error {
@@ -76,6 +76,10 @@ func (s *Server) handleDiagnosticsConnection(ctx context.Context, conn net.Conn,
 }
 
 func (s *Server) diagnosticsControl(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
+	if kind == ipc.KindDiagnosticsGCEnable || kind == ipc.KindDiagnosticsGCDisable || kind == ipc.KindDiagnosticsGCStatus {
+		return s.diagnosticsGCControl(ctx, kind, raw)
+	}
+
 	if kind == ipc.KindDiagnosticsRetentionPlan {
 		var r DiagnosticsRetentionPlanRequest
 		if contract.DecodeBridgeStrict(raw, &r) != nil {

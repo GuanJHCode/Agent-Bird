@@ -13,6 +13,9 @@ import (
 )
 
 func authorizeRetentionRun(ctx context.Context, tx *sql.Tx, run, controller, token string) error {
+	if ok, e := authorizeDiagnosticsGC(ctx, tx, run); ok {
+		return e
+	}
 	var owner, hash string
 	e := tx.QueryRowContext(ctx, `SELECT r.controller_thread,c.token_hash FROM runs r JOIN run_control c ON c.run_id=r.id WHERE r.id=?`, run).Scan(&owner, &hash)
 	if errors.Is(e, sql.ErrNoRows) {

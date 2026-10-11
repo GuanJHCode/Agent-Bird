@@ -17,6 +17,7 @@ import (
 )
 
 type diagnosticsCLIInput struct {
+	gc               store.DiagnosticsGCRequest
 	read             store.DiagnosticsReadRequest
 	retentionRequest store.DiagnosticsRetentionPlanRequest
 	retentionPlan    store.DiagnosticsRetentionPlan
@@ -92,7 +93,18 @@ func loadDiagnosticsCLIInput(action, path string) (in diagnosticsCLIInput, err e
 	if err != nil {
 		return in, err
 	}
-	if action == "diagnostics-retention-plan" {
+	if action == "diagnostics-gc-enable" || action == "diagnostics-gc-disable" || action == "diagnostics-gc-status" {
+		in.kind = ipc.KindDiagnosticsGCStatus
+		if action == "diagnostics-gc-enable" {
+			in.kind = ipc.KindDiagnosticsGCEnable
+		}
+		if action == "diagnostics-gc-disable" {
+			in.kind = ipc.KindDiagnosticsGCDisable
+		}
+		if err = json.Unmarshal(raw, &in.gc); err != nil {
+			return in, codeError("diagnostics_gc_request_invalid")
+		}
+	} else if action == "diagnostics-retention-plan" {
 		in.kind = ipc.KindDiagnosticsRetentionPlan
 		if err = json.Unmarshal(raw, &in.retentionRequest); err != nil {
 			return in, codeError("diagnostics_retention_request_invalid")
@@ -128,7 +140,12 @@ func loadDiagnosticsCLIInput(action, path string) (in diagnosticsCLIInput, err e
 
 func performDiagnosticsCLI(ctx context.Context, state string, capability controlCapability, in diagnosticsCLIInput, out io.Writer) error {
 	var payload any
-	if in.kind == ipc.KindDiagnosticsRetentionPlan {
+	if in.kind == ipc.KindDiagnosticsGCEnable || in.kind == ipc.KindDiagnosticsGCDisable || in.kind == ipc.KindDiagnosticsGCStatus {
+		if capability.RunID != in.gc.RunID {
+			return codeError("diagnostics_retention_scope_mismatch")
+		}
+		payload = coordinator.DiagnosticsGCRequest{ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, Request: in.gc}
+	} else if in.kind == ipc.KindDiagnosticsRetentionPlan {
 		if capability.RunID != in.retentionRequest.RunID {
 			return codeError("diagnostics_retention_scope_mismatch")
 		}

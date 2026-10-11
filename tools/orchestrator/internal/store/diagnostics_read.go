@@ -41,7 +41,11 @@ func authorizeDiagnosticsIdentity(ctx context.Context, tx *sql.Tx, task, attempt
 	if err != nil {
 		return row, err
 	}
-	if controller == "" || token == "" || owner != controller || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(token))) != 1 {
+	if gc, e := authorizeDiagnosticsGC(ctx, tx, run); gc {
+		if e != nil {
+			return row, e
+		}
+	} else if controller == "" || token == "" || owner != controller || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(token))) != 1 {
 		return row, CodeError("owner_mismatch")
 	}
 	policy, hash, err := diagnosticsTaskPolicy(ctx, tx, run, task)

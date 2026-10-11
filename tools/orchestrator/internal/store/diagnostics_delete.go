@@ -209,6 +209,9 @@ func (d *DB) diagnosticDeletionSnapshot(ctx context.Context, controller, token s
 	}
 	x, err = loadDiagnosticDeletion(ctx, owned.tx, row)
 	if errors.Is(err, sql.ErrNoRows) {
+		if err = validateDiagnosticsGCFresh(ctx, owned.tx, row, request); err != nil {
+			return x, err
+		}
 		if row.reservationState != "reserved" && row.reservationState != "active" {
 			return x, CodeError("diagnostics_state_invalid")
 		}
@@ -278,6 +281,9 @@ func (d *DB) prepareDiagnosticDeletion(ctx context.Context, controller, token st
 	}
 	if row.scope != x.row.scope || row.reservation != x.row.reservation || row.namespace != x.row.namespace || (row.reservationState != "reserved" && row.reservationState != "active") || row.phase != "idle" || row.nextRevision != x.request.ExpectedRevision {
 		return ErrConflict
+	}
+	if err = validateDiagnosticsGCFresh(ctx, owned.tx, row, x.request); err != nil {
+		return err
 	}
 	facts, err := diagnosticDeletionFacts(ctx, owned.tx, row, true)
 	if err != nil {
