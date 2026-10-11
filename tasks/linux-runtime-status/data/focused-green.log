@@ -1,0 +1,30 @@
+=== RUN   TestPluginRunRejectsUnsupportedActionBeforeInstall
+--- PASS: TestPluginRunRejectsUnsupportedActionBeforeInstall (0.00s)
+=== RUN   TestPortableRunPolicy
+=== RUN   TestPortableRunPolicy/linux_check
+=== RUN   TestPortableRunPolicy/linux_runtime_status
+=== RUN   TestPortableRunPolicy/linux_config_apply
+=== RUN   TestPortableRunPolicy/linux_collect
+=== RUN   TestPortableRunPolicy/linux_provider
+=== RUN   TestPortableRunPolicy/linux_unknown
+=== RUN   TestPortableRunPolicy/darwin_provider
+=== RUN   TestPortableRunPolicy/darwin_unknown
+=== RUN   TestPortableRunPolicy/windows
+--- PASS: TestPortableRunPolicy (0.00s)
+    --- PASS: TestPortableRunPolicy/linux_check (0.00s)
+    --- PASS: TestPortableRunPolicy/linux_runtime_status (0.00s)
+    --- PASS: TestPortableRunPolicy/linux_config_apply (0.00s)
+    --- PASS: TestPortableRunPolicy/linux_collect (0.00s)
+    --- PASS: TestPortableRunPolicy/linux_provider (0.00s)
+    --- PASS: TestPortableRunPolicy/linux_unknown (0.00s)
+    --- PASS: TestPortableRunPolicy/darwin_provider (0.00s)
+    --- PASS: TestPortableRunPolicy/darwin_unknown (0.00s)
+    --- PASS: TestPortableRunPolicy/windows (0.00s)
+=== RUN   TestPluginRunAllowsOwnerScopedRouting
+--- PASS: TestPluginRunAllowsOwnerScopedRouting (0.00s)
+=== RUN   TestRuntimeStatusDoesNotCreateMissingDatabase
+--- PASS: TestRuntimeStatusDoesNotCreateMissingDatabase (0.00s)
+=== RUN   TestRuntimeStatusRunObservation
+--- PASS: TestRuntimeStatusRunObservation (0.01s)
+PASS
+ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator	0.531s

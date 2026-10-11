@@ -68,7 +68,7 @@ func portableRunPolicy(platform, action string) error {
 		}
 		return codeError("portable_action_unsupported")
 	case "linux":
-		if action == "check" {
+		if action == "check" || action == "runtime-status" {
 			return nil
 		}
 		return codeError("portable_action_unsupported")

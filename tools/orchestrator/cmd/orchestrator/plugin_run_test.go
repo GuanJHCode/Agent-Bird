@@ -21,6 +21,9 @@ func TestPortableRunPolicy(t *testing.T) {
 		want     error
 	}{
 		{name: "linux check", platform: "linux", action: "check"},
+		{name: "linux runtime status", platform: "linux", action: "runtime-status"},
+		{name: "linux config apply", platform: "linux", action: "config-apply", want: codeError("portable_action_unsupported")},
+		{name: "linux collect", platform: "linux", action: "collect", want: codeError("portable_action_unsupported")},
 		{name: "linux provider", platform: "linux", action: "provider", want: codeError("portable_action_unsupported")},
 		{name: "linux unknown", platform: "linux", action: "unknown", want: codeError("portable_action_unsupported")},
 		{name: "darwin provider", platform: "darwin", action: "provider"},
