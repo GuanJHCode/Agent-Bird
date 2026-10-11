@@ -1,0 +1,77 @@
+[
+  {
+    "path": "tasks/linux-followup/data/native-followup",
+    "bytes": 30017980,
+    "sha256": "8a9c91bb3c9a271fb2f30923bd92efb6f1c3d1007b115db13ae22adfd5e48940"
+  },
+  {
+    "path": "tasks/linux-followup/data/codex-orchestrator",
+    "bytes": 21378469,
+    "sha256": "a97efc6c129f36d29165359840a8c22ce9f704cede73d2bb53f3180d945264b1"
+  },
+  {
+    "path": "tasks/linux-followup/data/package.tar",
+    "bytes": 21452800,
+    "sha256": "722f1bf3534081bb782c23cebf762ffc56d736ae81adcb09fd7e066a5e42f4f8"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/package-manifest.json",
+    "bytes": 2016,
+    "sha256": "fd412856e881fc601077c63e01b3fa3ef644e00fb6be13315f1a8fc9d63fbb34"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/.codex-plugin/plugin.json",
+    "bytes": 693,
+    "sha256": "2d5429a5e590d6c13080509727e1310306d44cff1060391988b8de2961720534"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/bin/codex-orchestrator",
+    "bytes": 21378469,
+    "sha256": "a97efc6c129f36d29165359840a8c22ce9f704cede73d2bb53f3180d945264b1"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/defaults.json",
+    "bytes": 155,
+    "sha256": "d87cce1addf8d6b66930adb465abb5438214b09ac691e351a0b64865687acda5"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/hooks/agy-proposed-hooks.json",
+    "bytes": 223,
+    "sha256": "4c531167f9260339323aa6e0ce9ea16cf53824e6b413c64068ebe17ecb3a28cd"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/payload-manifest.json",
+    "bytes": 1487,
+    "sha256": "f5ef6501bd462652a89cd51600b2a09873e1b43e077cc6e2b654aca3731e8c91"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/portable.json",
+    "bytes": 1076,
+    "sha256": "4f8f1a287bc076d647b0b9d058a7c5a682c9db936bf038d0be1cedc484fd3958"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/runtime/g0/runtime-manifest.json",
+    "bytes": 36,
+    "sha256": "3eff2193261ada3448cc6c93c9c5297beed153d35d31b1bfe6c865d31a3c77a8"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/scripts/agent-bird-agy-hook",
+    "bytes": 345,
+    "sha256": "005b2f1bdda862db7268355ad5096fee5ce73cd0963a046b2b3e85f7908bf779"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/scripts/agent-bird-hook",
+    "bytes": 652,
+    "sha256": "4201dcd41ab82ac6e2203daf3a647c58662213d2c03e7cfb5f9ba98a544b9f8a"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/scripts/invoke.sh",
+    "bytes": 721,
+    "sha256": "30a76b7c1f016cba6c7dde8f360f9155cc644bcbe9273196deec85bc66f47828"
+  },
+  {
+    "path": "tasks/linux-followup/data/package/plugin/skills/orchestrate/SKILL.md",
+    "bytes": 54946,
+    "sha256": "9b6cd7f2dfe19d0f1397b8231f74e9e55ba8de5b1d184a0ffc5e0ade65e5f80a"
+  }
+]

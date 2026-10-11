@@ -1,0 +1,20 @@
+=== RUN   TestLinuxPortableFollowupNative
+    linux_followup_native_test.go:117: call=1 action=check output={"binary":"/tmp/lf-904715026/install/versions/0.1.0-linux-followup/bin/codex-orchestrator","runtime":"collect-only","status":"ready"}
+    linux_followup_native_test.go:133: call=2 action=status output={"task_id":"task","run_id":"followup","status":"ready","work_revision":1}
+    linux_followup_native_test.go:133: call=3 action=summary output={"version":1,"run_id":"followup","counts":{"blocked":0,"completed":0,"pending":1,"running":0},"tasks":[{"task_id":"task","status":"ready","group":"pending","work_revision":1,"active_segments":0,"allowed_actions":["status","collect","wait-events"]}]}
+    linux_followup_native_test.go:133: call=4 action=collect output={"version":1,"status":"pending","events":[]}
+    linux_followup_native_test.go:133: call=5 action=wait-events output={"version":1,"status":"timeout","events":[]}
+    linux_followup_native_test.go:156: call=6 action=task output={"version":1,"run_id":"followup","counts":{"blocked":0,"completed":0,"pending":1,"running":0},"tasks":[{"task_id":"task","status":"ready","group":"pending","work_revision":1,"active_segments":0,"allowed_actions":["status","collect","wait-events"]}]}
+    linux_followup_native_test.go:156: call=7 action=task output={"task_id":"task","run_id":"followup","status":"ready","work_revision":1}
+    linux_followup_native_test.go:156: call=8 action=task output={"version":1,"status":"pending","events":[]}
+    linux_followup_native_test.go:156: call=9 action=task output={"version":1,"status":"timeout","events":[]}
+    linux_followup_native_test.go:164: call=10 action=collect output={"error":"owner_mismatch","status":"error","version":1}
+    linux_followup_native_test.go:169: call=11 action=task output={"error":"portable_action_unsupported","status":"error","version":1}
+    linux_followup_native_test.go:169: call=12 action=task output={"error":"portable_action_unsupported","status":"error","version":1}
+    linux_followup_native_test.go:169: call=13 action=task output={"error":"portable_action_unsupported","status":"error","version":1}
+    linux_followup_native_test.go:169: call=14 action=task output={"error":"portable_action_unsupported","status":"error","version":1}
+    linux_followup_native_test.go:169: call=15 action=task output={"error":"portable_action_unsupported","status":"error","version":1}
+    linux_followup_native_test.go:169: call=16 action=task output={"error":"portable_action_unsupported","status":"error","version":1}
+    linux_followup_native_test.go:182: native Linux installed followups=16 ownerUDS=true originalCLIWait=true queued task unchanged; no pending-result/Host/provider qualification
+--- PASS: TestLinuxPortableFollowupNative (1.60s)
+PASS

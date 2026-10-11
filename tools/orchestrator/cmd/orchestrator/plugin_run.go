@@ -24,7 +24,7 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 		return codeError("invalid_args")
 	}
 	action := fs.Arg(0)
-	if err := portableRunPolicy(runtime.GOOS, action); err != nil {
+	if err := portableRunPolicy(runtime.GOOS, fs.Args()...); err != nil {
 		return err
 	}
 	state, err := resolveState(*requestedState)
@@ -60,7 +60,11 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 
 // portableRunPolicy is deliberately pure so platform admission can be unit
 // tested without representing that test as native Linux execution.
-func portableRunPolicy(platform, action string) error {
+func portableRunPolicy(platform string, args ...string) error {
+	if len(args) == 0 {
+		return codeError("portable_action_unsupported")
+	}
+	action := args[0]
 	switch platform {
 	case "darwin":
 		if pluginActionAllowed(action) {
@@ -68,8 +72,16 @@ func portableRunPolicy(platform, action string) error {
 		}
 		return codeError("portable_action_unsupported")
 	case "linux":
-		if action == "check" || action == "runtime-status" {
+		switch action {
+		case "check", "runtime-status", "status", "summary", "collect", "wait-events":
 			return nil
+		case "task":
+			if len(args) > 1 {
+				switch args[1] {
+				case "inspect", "status", "collect", "wait":
+					return nil
+				}
+			}
 		}
 		return codeError("portable_action_unsupported")
 	default:
