@@ -5,7 +5,7 @@ Status: implemented; targeted native/race evidence in ../docs/validation.md; pen
 Scope: private Darwin B1 + original Gate adapter and current-binary helper;
 no Store/schema/Host changes, public merge remains denied. Linux build-only.
 
-Frozen contract: newCarrierTransport(finiteCtx, originalB1, originalGate),
+Frozen contract: newCarrierTransport(finiteCtx, originalB1, originalGate, ownerHelperPin, baseCommandDigest),
 activate(finiteCtx, originalHandle, frozenDigest), serve(), drain(finiteCtx),
 removeAfterOriginalGit(finiteCtx, sameHandle). Activation caller must first
 prove durable spawned/postguard for that original Start. Removal independently
@@ -13,8 +13,14 @@ requires drain, original Handle Wait and tree; helper EOF never releases Broker.
 Constructor errors after taking a nonnil B1 owner release descriptors and retain
 Unknown nodes. Copies, duplicate activation and second accepted socket reject.
 
-One sequential Accept lifetime plus one original Gate Serve lifetime. Kernel
-PeerPID from the accepted UnixConn enters Gate unchanged. Held/named B1 identity
+One sequential Accept lifetime plus one pending accepted worker. Kernel PeerPID
+from the same accepted UnixConn enters Gate unchanged, after original Activate
+and pre-codec executable authentication. The owner supplies an immutable helper
+pin; Gate construction and Activate use carrierTransportCommandDigest(base,pin),
+a domain-separated composite. helperRoute(ctx) emits that frozen pin, never an
+argv-supplied replacement. A bound LiveDescendant Verify brackets kernel path
+and file digest observations, including raw PID birth/euid; each subsequent
+transport Read/Write preserves that executable pin and the original tuple. Held/named B1 identity
 checks bracket transport I/O. Cancellation closes listener/endpoint and bounded
 drain waits for actual completions. Routing is only comparison data.
 

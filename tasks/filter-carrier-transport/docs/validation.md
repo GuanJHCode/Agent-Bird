@@ -1,40 +1,50 @@
-# B2 qualification
+# B2 qualification and security correction
 
-Private Darwin carrier transport + dedicated current-binary helper only.
-No Store/grant/schema/Host admission or public filtered merge is enabled.
-Independent review and integration are the parent task's remaining gates.
+Private Darwin carrier transport + current-binary helper only. No Store/grant/
+schema/Host admission or public filtered merge is enabled. C/D, authenticated
+Host executable-pin source and durable spawned/target transition remain pending.
+Independent security re-review/integration are the parent task's remaining gates.
 
-Frozen API and required future durable ordering are in ../plans/implementation.md.
-Host must supply its authenticated original owner executable pin; helper routing
-and fixture-generated pins cannot grant production transform authority.
+API: newCarrierTransport(ctx, originalB1, originalGate, ownerHelperPin,
+baseCommandDigest). Gate construction and Activate must use the domain-separated
+carrierTransportCommandDigest(base,pin). helperRoute(ctx) emits the frozen pin;
+helper argv is comparison routing and cannot authorize any helper executable.
 
-Evidence uses Go 1.26 at tasks/g0-macos/data/go/bin/go, TMPDIR=/private/tmp.
-Raw files in ../data preserve actual stdout/stderr. Commands run from
- tools/orchestrator:
+Before Gate.Serve/codec, the original activated Handle binds the same accepted
+kernel peer PID. Its LiveDescendant raw PID birth/euid/PGID/ancestry verification
+brackets kernel executable path and bounded file digest checks. Subsequent
+Read/Write boundaries repeat both process and executable verification. No old
+session/permit, helper restart or PID-exec can replace the original pin.
+
+Final source evidence (Go 1.26.8, TMPDIR=/private/tmp, tools/orchestrator cwd):
 
 - go test -race -count=1 -v ./internal/gitfilter -run
-  '^(TestCarrierTransport|TestCarrierHelper|TestCarrierSocket|TestOriginalGitGate|TestRunFilterProcess)'
-  exit 0: 22 top-level + 74 subtests, 0 failures, 0 skipped (race.txt).
-- go test -race -count=10 -v ./internal/gitfilter -run
-  '^(TestCarrierTransportCopyAndOwnerError|TestCarrierHelperForeignHostBeforeBody)$'
-  exit 0: 20 test iterations, 0 failures/skipped (cancel-repeat.txt).
-- go build ./..., go vet ./...: exit 0 (build.txt/vet.txt).
-- GOOS=linux GOARCH=amd64 go build ./...: exit 0; build-only,
-  non-Darwin helper rejects before transport mutation (linux-build.txt).
+  '^(TestCarrierTransport|TestCarrierHelper)': exit 0, 8 top-level, 0 subtests,
+  0 failures/skips (security-race.txt).
+- go test -race -count=5 -v ./internal/gitfilter -run
+  '^(TestCarrierHelperForeignHostBeforeBody|TestCarrierTransportForeignExecutableGitDescendant|TestCarrierTransportPeerExecRevokesExecutableIdentity)$':
+  exit 0, 15 iterations, 0 failures/skips (security-repeat.txt; subsequent
+  close-error propagation and extra wrong-digest assertion verified in final race).
+- go build ./... and go vet ./...: exit 0 (security-build/security-vet.txt).
+- GOOS=linux GOARCH=amd64 go build ./...: build-only (security-linux-build.txt).
 
-Real Git fixture used original process.Start/Wait/tree receipts for helper build,
-Git init, actual clean to canonical blob, and smudge back to rendered content;
-original live Broker tool Wait/tree and carrier delete are recorded in race.txt.
-Both Gate lifetimes have exactly one Exchange/publication. Broker cleanup proved.
-Authenticated greeting precedes cancellation fixture's blocked stdin/socket IO.
-Foreign Host rejection has positive named/executable controls, unchanged unread
-Git body, zero Exchange. Early client disconnect can precede server credentials:
-that correctly yields sticky Unknown, releases descriptors and retains nodes.
+Real Git clean→canonical blob→smudge reverse roundtrip still passes with original
+live Broker, original Start/Wait/tree, carrier delete and Broker cleanup receipts.
+Real Git alias starts a foreign Python executable descendant that skips helper
+self-authentication; rejection is before Gate.serveStarted/codec, with zero
+Exchange/publication. A live same-PID sh→cat exec preserves original birth/euid
+positive control but executable guard rejects; wrong executable digest rejects.
 
-RED missing API retained in red.txt. Earlier race failures retained separately:
-cancelled observation must not manufacture Unknown; early peer disconnect must
-not be relabeled as a known successful drain. Final tests enforce both cases.
-Task-owned unused broker fixture directory was removed; tmp is empty. Native
-failure roots outside this task are not scanned/adopted or garbage-collected.
-Full legacy Host/provider/native TUI suites were intentionally not rerun per
-scoped instructions. No model calls, install, push, publication or merge.
+Early disconnect is now deterministic: helper Host rejection leaves Git body
+unread; a narrow test seam waits for helper EOF and closes the exact accepted FD
+before calling real ipc.PeerPID. This is an explicit original-observation-loss
+fixture, not evidence that every remote close invalidates cached credentials.
+It must return Unknown, release all held FDs, retain the socket/directory, and
+leave codec/Exchange unstarted. The previous conditional assertion is removed.
+
+executable-red.txt retains missing-API RED; security-native.txt retains an early
+child-fixture deadline assertion failure. An OS pipe deadline may report a
+net.Error timeout before context.Err publishes; final child assertion accepts
+both actual deadline errors and verifies original child Wait/tree. Older logs
+are historical evidence for the initial implementation, not current qualification.
+No full legacy Host/provider/native TUI rerun, model, install, push or merge.

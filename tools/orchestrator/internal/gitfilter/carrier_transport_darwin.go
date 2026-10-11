@@ -5,7 +5,6 @@ package gitfilter
 import (
 	"context"
 	"errors"
-	"io"
 	"net"
 	"sync"
 	"time"
@@ -26,9 +25,13 @@ type carrierTransport struct {
 	started, finished, sealed, activating, activated bool
 	handle                                           *process.Handle
 	done                                             chan struct{}
+	ready                                            chan struct{}
+	accepted                                         bool
+	helper                                           CarrierHelperExecutableExpectation
+	baseDigest, digest                               string
 }
 
-func newCarrierTransport(ctx context.Context, o *carrierSocket, g *OriginalGitGate) (*carrierTransport, error) {
+func newCarrierTransport(ctx context.Context, o *carrierSocket, g *OriginalGitGate, pin CarrierHelperExecutableExpectation, baseDigest string) (*carrierTransport, error) {
 	if !o.original() {
 		return nil, errCarrierSocket
 	}
@@ -39,7 +42,7 @@ func newCarrierTransport(ctx context.Context, o *carrierSocket, g *OriginalGitGa
 	}
 	o.state.transportOwned = true
 	o.state.mu.Unlock()
-	tr := &carrierTransport{socket: o, gate: g, done: make(chan struct{})}
+	tr := &carrierTransport{socket: o, gate: g, done: make(chan struct{}), ready: make(chan struct{}), helper: pin, baseDigest: baseDigest, digest: carrierTransportCommandDigest(baseDigest, pin)}
 	tr.self = tr
 	fail := func(e error) (*carrierTransport, error) {
 		o.uncertain(e)
@@ -47,7 +50,7 @@ func newCarrierTransport(ctx context.Context, o *carrierSocket, g *OriginalGitGa
 		defer cancel()
 		return tr, errors.Join(e, o.release(c))
 	}
-	if !carrierSocketContext(ctx) || !g.valid() {
+	if !carrierSocketContext(ctx) || !g.valid() || tr.digest == "" || g.digest != tr.digest {
 		return fail(errCarrierSocket)
 	}
 	if err := o.verify(ctx); err != nil {
@@ -68,7 +71,7 @@ func (tr *carrierTransport) activate(ctx context.Context, h *process.Handle, dig
 		return errCarrierSocket
 	}
 	tr.mu.Lock()
-	bad := tr.sealed || tr.activating || tr.activated
+	bad := tr.sealed || tr.activating || tr.activated || digest != tr.digest
 	if !bad {
 		tr.activating = true
 	}
@@ -87,6 +90,7 @@ func (tr *carrierTransport) activate(ctx context.Context, h *process.Handle, dig
 	if err == nil && !tr.sealed {
 		tr.activated = true
 		tr.handle = h
+		close(tr.ready)
 	} else if err == nil {
 		err = errCarrierSocket
 	}
@@ -117,28 +121,29 @@ func (tr *carrierTransport) verify(ctx context.Context) error {
 
 type carrierCheckedConn struct {
 	net.Conn
-	tr *carrierTransport
+	tr   *carrierTransport
+	peer *carrierExecutablePeer
 }
 
 func (c *carrierCheckedConn) Read(p []byte) (int, error) {
-	if err := c.tr.verify(c.tr.ctx); err != nil {
+	if err := c.verify(); err != nil {
 		return 0, err
 	}
 	n, err := c.Conn.Read(p)
-	if c.tr.ctx.Err() == nil {
-		if e := c.tr.verify(c.tr.ctx); e != nil {
+	if n > 0 && c.tr.ctx.Err() == nil {
+		if e := c.verify(); e != nil {
 			return 0, e
 		}
 	}
 	return n, err
 }
 func (c *carrierCheckedConn) Write(p []byte) (int, error) {
-	if err := c.tr.verify(c.tr.ctx); err != nil {
+	if err := c.verify(); err != nil {
 		return 0, err
 	}
 	n, err := c.Conn.Write(p)
-	if c.tr.ctx.Err() == nil {
-		if e := c.tr.verify(c.tr.ctx); e != nil {
+	if n > 0 && c.tr.ctx.Err() == nil {
+		if e := c.verify(); e != nil {
 			return n, e
 		}
 	}
@@ -147,7 +152,10 @@ func (c *carrierCheckedConn) Write(p []byte) (int, error) {
 
 // serve has one sequential accept lifetime and one original Gate Serve worker.
 // A second accepted endpoint poisons the first; there are no per-client workers.
-func (tr *carrierTransport) serve() (ret error) {
+func (tr *carrierTransport) serve() error { return tr.serveWithPeerPID(ipc.PeerPID) }
+
+// The narrow kernel-read seam is package-private; production always uses ipc.PeerPID.
+func (tr *carrierTransport) serveWithPeerPID(peerPID func(net.Conn) (int, error)) (ret error) {
 	if !tr.original() {
 		return errCarrierSocket
 	}
@@ -199,14 +207,17 @@ func (tr *carrierTransport) serve() (ret error) {
 			tr.gate.poison(tr.ctx.Err() == nil)
 			return err
 		}
-		pid, err := ipc.PeerPID(conn)
+		pid, err := peerPID(conn)
 		if err != nil {
 			_ = conn.Close()
 			tr.gate.poison(tr.ctx.Err() == nil)
 			return err
 		}
+		tr.mu.Lock()
+		tr.accepted = true
+		tr.mu.Unlock()
 		serving = make(chan error, 1)
-		go func() { e := tr.gate.Serve(&carrierCheckedConn{Conn: conn, tr: tr}, pid); serving <- e; tr.cancel() }()
+		go func() { e := tr.serveAccepted(conn, pid); serving <- e; tr.cancel() }()
 	}
 }
 
@@ -263,4 +274,82 @@ func (tr *carrierTransport) removeAfterOriginalGit(ctx context.Context, h *proce
 	return nil
 }
 
-var _ io.ReadWriteCloser = (*carrierCheckedConn)(nil)
+var errCarrierPeerExecutable = errors.New("carrier_peer_executable_rejected")
+
+type carrierExecutablePeer struct {
+	live *process.LiveDescendant
+	pid  int
+	pin  CarrierHelperExecutableExpectation
+}
+
+func (p *carrierExecutablePeer) verify(ctx context.Context) error {
+	if p == nil || p.live == nil {
+		return process.ErrProcessTreeUnknown
+	}
+	if err := p.live.Verify(ctx); err != nil {
+		return err
+	}
+	path, err := process.ExecutablePath(p.pid)
+	if err != nil {
+		return errors.Join(process.ErrProcessTreeUnknown, err)
+	}
+	mismatch := path != p.pin.Path
+	if !mismatch {
+		digest, err := process.ExecutableDigest(ctx, path)
+		if err != nil {
+			return errors.Join(process.ErrProcessTreeUnknown, err)
+		}
+		mismatch = digest != p.pin.SHA256
+	}
+	again, err := process.ExecutablePath(p.pid)
+	if err != nil {
+		return errors.Join(process.ErrProcessTreeUnknown, err)
+	}
+	if err = p.live.Verify(ctx); err != nil {
+		return err
+	}
+	if again != path {
+		return process.ErrProcessTreeUnknown
+	}
+	if mismatch {
+		return errCarrierPeerExecutable
+	}
+	return nil
+}
+func (c *carrierCheckedConn) verify() error {
+	if err := c.tr.verify(c.tr.ctx); err != nil {
+		return err
+	}
+	if err := c.peer.verify(c.tr.ctx); err != nil {
+		c.tr.gate.poison(!errors.Is(err, errCarrierPeerExecutable))
+		return err
+	}
+	return nil
+}
+func (tr *carrierTransport) serveAccepted(conn *net.UnixConn, pid int) error {
+	// The sole accepted endpoint can wait pending, but never enters the codec
+	// before original activation and executable authentication.
+	select {
+	case <-tr.ready:
+	case <-tr.ctx.Done():
+		closeErr := conn.Close()
+		if closeErr != nil {
+			tr.gate.poison(true)
+		}
+		return errors.Join(errCarrierSocket, closeErr)
+	}
+	tr.mu.Lock()
+	h := tr.handle
+	tr.mu.Unlock()
+	live, err := h.BindLiveDescendant(tr.ctx, pid)
+	if err == nil {
+		peer := &carrierExecutablePeer{live: live, pid: pid, pin: tr.helper}
+		err = peer.verify(tr.ctx)
+		if err == nil {
+			return tr.gate.Serve(&carrierCheckedConn{Conn: conn, tr: tr, peer: peer}, pid)
+		}
+	}
+	closeErr := conn.Close()
+	tr.gate.poison(closeErr != nil || tr.ctx.Err() == nil && !errors.Is(err, errCarrierPeerExecutable))
+	return errors.Join(err, closeErr)
+}

@@ -1,0 +1,7 @@
+=== RUN   TestCarrierTransportForeignExecutableGitDescendant
+    carrier_transport_native_darwin_test.go:383: original pid=84650 spawned=2026-10-12T07:20:48.367116+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:398: original pid=84653 spawned=2026-10-12T07:20:48.387033+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:405: real_git_foreign_executable_descendant_rejected=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierTransportForeignExecutableGitDescendant (0.14s)
+PASS
+ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter	0.703s

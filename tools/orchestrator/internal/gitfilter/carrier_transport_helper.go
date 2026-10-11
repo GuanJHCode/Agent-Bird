@@ -3,11 +3,15 @@ package gitfilter
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -68,4 +72,18 @@ func RunCarrierHelper(ctx context.Context, r CarrierHelperRoute, input, output *
 	bounded, cancel := context.WithDeadline(ctx, r.Deadline)
 	defer cancel()
 	return runCarrierHelper(bounded, r, input, output)
+}
+
+// The domain-separated binding is made by the original owner, never from
+// helper argv. The Gate must be created with this digest before construction.
+func carrierTransportCommandDigest(base string, pin CarrierHelperExecutableExpectation) string {
+	if !exactDigest(base) || !exactDigest(pin.SHA256) || !filepath.IsAbs(pin.Path) || filepath.Clean(pin.Path) != pin.Path || len(pin.Path) > 4096 || strings.IndexByte(pin.Path, 0) >= 0 {
+		return ""
+	}
+	raw, _ := json.Marshal(struct {
+		Command string
+		Helper  CarrierHelperExecutableExpectation
+	}{base, pin})
+	sum := sha256.Sum256(append([]byte("agent-bird-filter-carrier-command-v1\x00"), raw...))
+	return hex.EncodeToString(sum[:])
 }

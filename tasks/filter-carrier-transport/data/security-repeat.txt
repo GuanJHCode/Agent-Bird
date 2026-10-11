@@ -1,0 +1,57 @@
+=== RUN   TestCarrierHelperForeignHostBeforeBody
+    carrier_transport_native_darwin_test.go:139: foreign_host_rejected=true peer_descriptor_lost_before_kernel_read=true unknown=true fds_released=true nodes_retained=true git_body_unread=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierHelperForeignHostBeforeBody (0.03s)
+=== RUN   TestCarrierTransportForeignExecutableGitDescendant
+    carrier_transport_native_darwin_test.go:436: original pid=85995 spawned=2026-10-12T07:23:22.240387+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:451: original pid=85996 spawned=2026-10-12T07:23:22.266598+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:458: real_git_foreign_executable_descendant_rejected=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierTransportForeignExecutableGitDescendant (0.19s)
+=== RUN   TestCarrierTransportPeerExecRevokesExecutableIdentity
+    carrier_transport_native_darwin_test.go:514: same_pid_birth_euid_positive_control=true kernel_executable_changed=true executable_guard_rejected=true
+--- PASS: TestCarrierTransportPeerExecRevokesExecutableIdentity (0.02s)
+=== RUN   TestCarrierHelperForeignHostBeforeBody
+    carrier_transport_native_darwin_test.go:139: foreign_host_rejected=true peer_descriptor_lost_before_kernel_read=true unknown=true fds_released=true nodes_retained=true git_body_unread=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierHelperForeignHostBeforeBody (0.03s)
+=== RUN   TestCarrierTransportForeignExecutableGitDescendant
+    carrier_transport_native_darwin_test.go:436: original pid=86002 spawned=2026-10-12T07:23:22.482356+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:451: original pid=86003 spawned=2026-10-12T07:23:22.50938+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:458: real_git_foreign_executable_descendant_rejected=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierTransportForeignExecutableGitDescendant (0.18s)
+=== RUN   TestCarrierTransportPeerExecRevokesExecutableIdentity
+    carrier_transport_native_darwin_test.go:514: same_pid_birth_euid_positive_control=true kernel_executable_changed=true executable_guard_rejected=true
+--- PASS: TestCarrierTransportPeerExecRevokesExecutableIdentity (0.02s)
+=== RUN   TestCarrierHelperForeignHostBeforeBody
+    carrier_transport_native_darwin_test.go:139: foreign_host_rejected=true peer_descriptor_lost_before_kernel_read=true unknown=true fds_released=true nodes_retained=true git_body_unread=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierHelperForeignHostBeforeBody (0.03s)
+=== RUN   TestCarrierTransportForeignExecutableGitDescendant
+    carrier_transport_native_darwin_test.go:436: original pid=86012 spawned=2026-10-12T07:23:22.717447+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:451: original pid=86013 spawned=2026-10-12T07:23:22.740007+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:458: real_git_foreign_executable_descendant_rejected=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierTransportForeignExecutableGitDescendant (0.14s)
+=== RUN   TestCarrierTransportPeerExecRevokesExecutableIdentity
+    carrier_transport_native_darwin_test.go:514: same_pid_birth_euid_positive_control=true kernel_executable_changed=true executable_guard_rejected=true
+--- PASS: TestCarrierTransportPeerExecRevokesExecutableIdentity (0.02s)
+=== RUN   TestCarrierHelperForeignHostBeforeBody
+    carrier_transport_native_darwin_test.go:139: foreign_host_rejected=true peer_descriptor_lost_before_kernel_read=true unknown=true fds_released=true nodes_retained=true git_body_unread=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierHelperForeignHostBeforeBody (0.03s)
+=== RUN   TestCarrierTransportForeignExecutableGitDescendant
+    carrier_transport_native_darwin_test.go:436: original pid=86024 spawned=2026-10-12T07:23:22.914347+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:451: original pid=86025 spawned=2026-10-12T07:23:22.939511+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:458: real_git_foreign_executable_descendant_rejected=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierTransportForeignExecutableGitDescendant (0.19s)
+=== RUN   TestCarrierTransportPeerExecRevokesExecutableIdentity
+    carrier_transport_native_darwin_test.go:514: same_pid_birth_euid_positive_control=true kernel_executable_changed=true executable_guard_rejected=true
+--- PASS: TestCarrierTransportPeerExecRevokesExecutableIdentity (0.02s)
+=== RUN   TestCarrierHelperForeignHostBeforeBody
+    carrier_transport_native_darwin_test.go:139: foreign_host_rejected=true peer_descriptor_lost_before_kernel_read=true unknown=true fds_released=true nodes_retained=true git_body_unread=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierHelperForeignHostBeforeBody (0.03s)
+=== RUN   TestCarrierTransportForeignExecutableGitDescendant
+    carrier_transport_native_darwin_test.go:436: original pid=86029 spawned=2026-10-12T07:23:23.152201+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:451: original pid=86031 spawned=2026-10-12T07:23:23.178838+08:00 wait=true exit=0 tree=true
+    carrier_transport_native_darwin_test.go:458: real_git_foreign_executable_descendant_rejected=true codec_started=false exchange_calls=0
+--- PASS: TestCarrierTransportForeignExecutableGitDescendant (0.19s)
+=== RUN   TestCarrierTransportPeerExecRevokesExecutableIdentity
+    carrier_transport_native_darwin_test.go:514: same_pid_birth_euid_positive_control=true kernel_executable_changed=true executable_guard_rejected=true
+--- PASS: TestCarrierTransportPeerExecRevokesExecutableIdentity (0.02s)
+PASS
+ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter	2.565s

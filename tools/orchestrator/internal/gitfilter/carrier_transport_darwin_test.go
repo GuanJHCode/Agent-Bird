@@ -4,8 +4,10 @@ package gitfilter
 
 import (
 	"context"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"net"
 	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -18,8 +20,27 @@ func transportFixture(t *testing.T) (*carrierTransport, context.Context) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, _, _, _ := gateNew(t)
-	tr, err := newCarrierTransport(ctx, o, g)
+	old, session, _, _ := gateNew(t)
+	_ = old.Close(ctx)
+	path, e := os.Executable()
+	if e != nil {
+		t.Fatal(e)
+	}
+	path, e = filepath.EvalSymlinks(path)
+	if e != nil {
+		t.Fatal(e)
+	}
+	sha, e := process.ExecutableDigest(ctx, path)
+	if e != nil {
+		t.Fatal(e)
+	}
+	pin := CarrierHelperExecutableExpectation{path, sha}
+	baseDigest := exactHash([]byte("command"))
+	g, e := NewOriginalGitGate(ctx, session, carrierTransportCommandDigest(baseDigest, pin))
+	if e != nil {
+		t.Fatal(e)
+	}
+	tr, err := newCarrierTransport(ctx, o, g, pin, baseDigest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +66,7 @@ func TestCarrierTransportSecondConnectionRevokesPending(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	gateAwait(t, func() bool { return tr.gate.State().Serving })
+	gateAwait(t, func() bool { tr.mu.Lock(); defer tr.mu.Unlock(); return tr.accepted })
 	c2, err := net.Dial("unix", tr.socket.state.socket)
 	if err != nil {
 		t.Fatal(err)
@@ -67,7 +88,7 @@ func TestCarrierTransportSecondConnectionRevokesPending(t *testing.T) {
 
 func TestCarrierTransportCopyAndOwnerError(t *testing.T) {
 	tr, ctx := transportFixture(t)
-	if duplicate, err := newCarrierTransport(ctx, tr.socket, tr.gate); err == nil || duplicate != nil {
+	if duplicate, err := newCarrierTransport(ctx, tr.socket, tr.gate, tr.helper, tr.baseDigest); err == nil || duplicate != nil {
 		t.Fatal("B1 borrowed by second transport")
 	}
 	cp := reflect.New(reflect.TypeOf(tr).Elem()).Interface().(*carrierTransport)
@@ -85,11 +106,32 @@ func TestCarrierTransportCopyAndOwnerError(t *testing.T) {
 	if err == nil || o == nil {
 		t.Fatal("missing original error owner")
 	}
-	bad, e := newCarrierTransport(ctx, o, nil)
+	bad, e := newCarrierTransport(ctx, o, nil, tr.helper, tr.baseDigest)
 	if e == nil || bad == nil {
 		t.Fatal("discarded original B1 owner")
 	}
 	if !o.state.released || !o.state.unknown || o.state.parent != nil || o.state.segment != nil {
 		t.Fatal("errored owner descriptors retained")
+	}
+}
+
+func TestCarrierTransportRejectsUnboundHelperPin(t *testing.T) {
+	tr, ctx := transportFixture(t)
+	o, e := newCarrierSocket(ctx, carrierTestSegment(t), carrierTestBinding(), &carrierSocketTestJournal{})
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer carrierTestRelease(t, o)
+	wrong := tr.helper
+	wrong.SHA256 = exactHash([]byte("foreign helper pin"))
+	owner, e := newCarrierTransport(ctx, o, tr.gate, wrong, tr.baseDigest)
+	if e == nil || owner == nil {
+		t.Fatal("unbound helper pin accepted")
+	}
+	if !o.state.unknown || !o.state.released || o.state.parent != nil || o.state.child != nil || o.state.segment != nil {
+		t.Fatal("unbound helper pin failed to release original descriptors")
+	}
+	if _, e = os.Lstat(o.state.socket); e != nil {
+		t.Fatal("unbound pin uncertainty deleted socket")
 	}
 }

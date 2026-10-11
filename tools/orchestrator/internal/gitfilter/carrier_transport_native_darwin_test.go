@@ -6,7 +6,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,7 +33,10 @@ func TestCarrierHelperForeignHostBeforeBody(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	route, err := tr.helperRoute(ctx, CarrierHelperExecutableExpectation{path, sha})
+	if (CarrierHelperExecutableExpectation{path, sha}) != tr.helper {
+		t.Fatal("fixture helper pin drift")
+	}
+	route, err := tr.helperRoute(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,8 +64,45 @@ func TestCarrierHelperForeignHostBeforeBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
-	go func() { done <- tr.serve() }()
-	if err = RunCarrierHelper(ctx, route, in, ow); err == nil {
+	beforePeer := make(chan struct{})
+	disconnected := make(chan struct{})
+	observed := make(chan error, 1)
+	go func() {
+		done <- tr.serveWithPeerPID(func(conn net.Conn) (int, error) {
+			close(beforePeer)
+			select {
+			case <-disconnected:
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			}
+			_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+			var empty [1]byte
+			n, e := conn.Read(empty[:])
+			if n != 0 || e != io.EOF {
+				observed <- errors.New("disconnected helper supplied bytes or lacked EOF")
+				return 0, process.ErrProcessTreeUnknown
+			}
+			// This explicit observation-loss seam deterministically closes the exact
+			// accepted descriptor after its peer EOF, before the real kernel read.
+			if e = conn.Close(); e != nil {
+				observed <- e
+				return 0, e
+			}
+			pid, e := ipc.PeerPID(conn)
+			observed <- e
+			return pid, e
+		})
+	}()
+	helper := make(chan error, 1)
+	go func() { helper <- RunCarrierHelper(ctx, route, in, ow) }()
+	select {
+	case <-beforePeer:
+	case <-ctx.Done():
+		t.Fatal("PeerPID seam not reached")
+	}
+	err = gateResult(t, helper)
+	close(disconnected)
+	if err == nil {
 		t.Fatal("foreign Host accepted")
 	}
 	if !errors.Is(err, process.ErrProcessTreeUnknown) || !strings.Contains(err.Error(), "helper_host_expectation") {
@@ -70,19 +112,31 @@ func TestCarrierHelperForeignHostBeforeBody(t *testing.T) {
 	if _, err = in.Read(got); err != nil || !bytes.Equal(got, payload) {
 		t.Fatalf("authentication consumed body: %q %v", got, err)
 	}
-	if err = tr.drain(ctx); err != nil {
-		// The rejected helper may disconnect before the server obtains its
-		// kernel credentials. That uncertainty must retain nodes and release
-		// FDs, not be relabeled as a known successful drain.
-		if !tr.gate.State().Unknown || !tr.socket.state.unknown || !tr.socket.state.released {
-			t.Fatalf("unproved failed drain: %v gate=%+v", err, tr.gate.State())
-		}
+	if e := gateResult(t, done); e == nil {
+		t.Fatal("disconnected original kernel descriptor accepted")
 	}
-	_ = gateResult(t, done)
+	if e := <-observed; e == nil {
+		t.Fatal("lost original descriptor still produced kernel peer credentials")
+	}
+	if err = tr.drain(ctx); err == nil {
+		t.Fatal("unproved early disconnect returned known drain")
+	}
+	if !tr.gate.State().Unknown || !tr.socket.state.unknown || !tr.socket.state.released || tr.socket.state.parent != nil || tr.socket.state.child != nil || tr.socket.state.segment != nil {
+		t.Fatalf("Unknown/FD-release proof missing gate=%+v", tr.gate.State())
+	}
+	if _, e := os.Lstat(tr.socket.state.socket); e != nil {
+		t.Fatalf("uncertain socket removed: %v", e)
+	}
+	if _, e := os.Lstat(tr.socket.state.directory); e != nil {
+		t.Fatalf("uncertain directory removed: %v", e)
+	}
+	if tr.gate.serveStarted {
+		t.Fatal("unobserved peer reached codec")
+	}
 	if tr.gate.State().Calls != 0 {
 		t.Fatal("unauthenticated Exchange")
 	}
-	t.Log("foreign_host_rejected=true git_body_unread=true exchange_calls=0")
+	t.Log("foreign_host_rejected=true peer_descriptor_lost_before_kernel_read=true unknown=true fds_released=true nodes_retained=true git_body_unread=true codec_started=false exchange_calls=0")
 }
 
 func transportOriginalCommand(t *testing.T, ctx context.Context, spec process.Command) *process.Handle {
@@ -212,7 +266,9 @@ func TestCarrierTransportRealGitRoundTrip(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		g, e := NewOriginalGitGate(ctx, session, exactHash([]byte(op)))
+		pin := CarrierHelperExecutableExpectation{helper, helperSHA}
+		baseDigest := exactHash([]byte(op))
+		g, e := NewOriginalGitGate(ctx, session, carrierTransportCommandDigest(baseDigest, pin))
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -225,12 +281,12 @@ func TestCarrierTransportRealGitRoundTrip(t *testing.T) {
 			}
 			t.Fatal(e)
 		}
-		tr, e := newCarrierTransport(ctx, o, g)
+		tr, e := newCarrierTransport(ctx, o, g, pin, baseDigest)
 		if e != nil {
 			t.Fatal(e)
 		}
 		t.Cleanup(func() { _ = tr.drain(ctx); _ = o.release(ctx) })
-		route, e := tr.helperRoute(ctx, CarrierHelperExecutableExpectation{helper, helperSHA})
+		route, e := tr.helperRoute(ctx)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -292,64 +348,69 @@ func TestCarrierTransportRealGitRoundTrip(t *testing.T) {
 	t.Logf("real_git_reverse_roundtrip=true original_broker_cleanup=%d", receipt.RemovedBytes)
 }
 
+// Only the original subprocess invocation selects this fixture branch. It
+// executes production RunCarrierHelper with a tighter local cancellation window.
+func TestFilterCarrierPrivateHelperChild(t *testing.T) {
+	encoded := os.Getenv("FILTER_CARRIER_TEST_ROUTE")
+	if encoded == "" {
+		t.Skip("private subprocess fixture")
+	}
+	route, e := DecodeCarrierHelperRoute(encoded)
+	if e != nil {
+		os.Exit(4)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	e = RunCarrierHelper(ctx, route, os.Stdin, os.Stdout)
+	var timeout net.Error
+	if e == nil || !(errors.Is(e, context.DeadlineExceeded) || errors.As(e, &timeout) && timeout.Timeout()) {
+		os.Exit(5)
+	}
+	os.Exit(0)
+}
 func TestCarrierHelperCancellationInterruptsAuthenticatedPipes(t *testing.T) {
 	tr, owner := transportFixture(t)
-	path, e := os.Executable()
+	route, e := tr.helperRoute(owner)
 	if e != nil {
 		t.Fatal(e)
 	}
-	path, e = filepath.EvalSymlinks(path)
+	encoded, e := EncodeCarrierHelperRoute(route)
 	if e != nil {
 		t.Fatal(e)
 	}
-	sha, e := process.ExecutableDigest(owner, path)
-	if e != nil {
+	h, stream, e := process.StartDuplex(owner, process.Command{Path: tr.helper.Path, PinnedPath: tr.helper.Path, PinnedSHA256: tr.helper.SHA256, Args: []string{"-test.run=^TestFilterCarrierPrivateHelperChild$"}, Env: []string{"PATH=/usr/bin:/bin", "FILTER_CARRIER_TEST_ROUTE=" + encoded, "GORACE=atexit_sleep_ms=0"}, ExactEnv: true})
+	if h != nil {
+		t.Cleanup(func() {
+			if stream != nil {
+				_ = stream.Close()
+			}
+			c, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			_ = h.Stop(c)
+			if e := h.Wait(c); e != nil {
+				t.Error(e)
+			}
+			if e := h.ConfirmTreeExited(); e != nil {
+				t.Error(e)
+			}
+		})
+	}
+	if e != nil || h == nil || stream == nil {
 		t.Fatal(e)
 	}
-	route, e := tr.helperRoute(owner, CarrierHelperExecutableExpectation{path, sha})
-	if e != nil {
+	if e = tr.activate(owner, h, tr.gate.digest); e != nil {
 		t.Fatal(e)
 	}
-	if e = tr.gate.activateWith(owner, gateTestOwner{peer: gateTestPeer{}}, tr.gate.digest); e != nil {
-		t.Fatal(e)
-	}
-	in, writer, e := os.Pipe()
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer in.Close()
-	defer writer.Close()
-	reader, out, e := os.Pipe()
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer reader.Close()
-	defer out.Close()
 	server := make(chan error, 1)
 	go func() { server <- tr.serve() }()
-	ctx, cancel := context.WithCancel(owner)
-	defer cancel()
-	helper := make(chan error, 1)
-	go func() { helper <- RunCarrierHelper(ctx, route, in, out) }()
-	if _, e = writer.Write([]byte(fpGreeting())); e != nil {
-		t.Fatal(e)
-	}
-	if e = reader.SetReadDeadline(time.Now().Add(time.Second)); e != nil {
+	if _, e = stream.Write([]byte(fpGreeting())); e != nil {
 		t.Fatal(e)
 	}
 	header := make([]byte, 4)
-	if _, e = io.ReadFull(reader, header); e != nil {
-		t.Fatalf("authenticated greeting response: %v", e)
+	if _, e = io.ReadFull(stream, header); e != nil {
+		t.Fatalf("authenticated executable greeting: %v", e)
 	}
-	cancel()
-	select {
-	case e = <-helper:
-		if e == nil {
-			t.Fatal("canceled helper succeeded")
-		}
-	case <-time.After(time.Second):
-		t.Fatal("authenticated helper pipe read did not interrupt")
-	}
+	transportWait(t, owner, h)
 	if e = tr.drain(owner); e != nil {
 		t.Fatal(e)
 	}
@@ -357,5 +418,102 @@ func TestCarrierHelperCancellationInterruptsAuthenticatedPipes(t *testing.T) {
 	if tr.gate.State().Calls != 0 {
 		t.Fatal("cancellation reached Exchange")
 	}
-	t.Log("authenticated_greeting=true blocked_stdin_and_socket_reads_interrupted=true")
+	t.Log("authenticated_executable_greeting=true deadline_interrupts_blocked_stdin_and_socket=true")
+}
+
+func TestCarrierTransportForeignExecutableGitDescendant(t *testing.T) {
+	tr, ctx := transportFixture(t)
+	root := t.TempDir()
+	git, e := filepath.EvalSymlinks("/usr/bin/git")
+	if e != nil {
+		t.Fatal(e)
+	}
+	gitSHA, e := process.ExecutableDigest(ctx, git)
+	if e != nil {
+		t.Fatal(e)
+	}
+	init := transportOriginalCommand(t, ctx, process.Command{Path: git, PinnedPath: git, PinnedSHA256: gitSHA, Args: []string{"init", "-q", root}, ExactEnv: true, Env: []string{"PATH=/usr/bin:/bin", "HOME=" + root}})
+	transportWait(t, ctx, init)
+	script, e := filepath.Abs("../../../../tasks/filter-carrier-transport/scripts/foreign-client.py")
+	if e != nil {
+		t.Fatal(e)
+	}
+	alias := "!/usr/bin/python3 " + shellFilterQuote(script) + " " + shellFilterQuote(tr.socket.state.socket)
+	h := transportOriginalCommand(t, ctx, process.Command{Path: git, PinnedPath: git, PinnedSHA256: gitSHA, Args: []string{"-c", "alias.attack=" + alias, "attack"}, Dir: root, ExactEnv: true, Env: []string{"PATH=/usr/bin:/bin", "HOME=" + root}})
+	if e = tr.activate(ctx, h, tr.gate.digest); e != nil {
+		t.Fatal(e)
+	}
+	done := make(chan error, 1)
+	go func() { done <- tr.serve() }()
+	if e = gateResult(t, done); !errors.Is(e, errCarrierPeerExecutable) {
+		t.Fatalf("expected kernel executable rejection: %v", e)
+	}
+	transportWait(t, ctx, h)
+	if e = tr.drain(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if tr.gate.serveStarted || tr.gate.State().Calls != 0 || tr.gate.State().ResponsesCommitted != 0 {
+		t.Fatalf("foreign executable reached codec: %+v", tr.gate.State())
+	}
+	t.Log("real_git_foreign_executable_descendant_rejected=true codec_started=false exchange_calls=0")
+}
+
+func TestCarrierTransportPeerExecRevokesExecutableIdentity(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	shell, e := filepath.EvalSymlinks("/bin/sh")
+	if e != nil {
+		t.Fatal(e)
+	}
+	cat, e := filepath.EvalSymlinks("/bin/cat")
+	if e != nil {
+		t.Fatal(e)
+	}
+	sha, e := process.ExecutableDigest(ctx, shell)
+	if e != nil {
+		t.Fatal(e)
+	}
+	h, stream, e := process.StartDuplex(ctx, process.Command{Path: shell, PinnedPath: shell, PinnedSHA256: sha, Args: []string{"-c", "read trigger; exec /bin/cat"}, ExactEnv: true, Env: []string{"PATH=/usr/bin:/bin"}})
+	if h != nil {
+		t.Cleanup(func() {
+			if stream != nil {
+				_ = stream.Close()
+			}
+			c, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			_ = h.Stop(c)
+			if e := h.Wait(c); e != nil {
+				t.Error(e)
+			}
+			if e := h.ConfirmTreeExited(); e != nil {
+				t.Error(e)
+			}
+		})
+	}
+	if e != nil || h == nil || stream == nil {
+		t.Fatal(e)
+	}
+	live, e := h.BindLiveDescendant(ctx, h.PID())
+	if e != nil {
+		t.Fatal(e)
+	}
+	peer := &carrierExecutablePeer{live: live, pid: h.PID(), pin: CarrierHelperExecutableExpectation{shell, sha}}
+	if e = peer.verify(ctx); e != nil {
+		t.Fatalf("initial executable positive control: %v", e)
+	}
+	wrongHashPeer := &carrierExecutablePeer{live: live, pid: h.PID(), pin: CarrierHelperExecutableExpectation{shell, exactHash([]byte("wrong executable bytes"))}}
+	if e = wrongHashPeer.verify(ctx); !errors.Is(e, errCarrierPeerExecutable) {
+		t.Fatalf("kernel executable wrong digest accepted: %v", e)
+	}
+	if _, e = stream.Write([]byte("exec\n")); e != nil {
+		t.Fatal(e)
+	}
+	gateAwait(t, func() bool { path, e := process.ExecutablePath(h.PID()); return e == nil && path == cat })
+	if e = live.Verify(ctx); e != nil {
+		t.Fatalf("fixture lost raw birth/euid instead of changing executable: %v", e)
+	}
+	if e = peer.verify(ctx); !errors.Is(e, errCarrierPeerExecutable) {
+		t.Fatalf("same-PID exec accepted: %v", e)
+	}
+	t.Log("same_pid_birth_euid_positive_control=true kernel_executable_changed=true executable_guard_rejected=true")
 }

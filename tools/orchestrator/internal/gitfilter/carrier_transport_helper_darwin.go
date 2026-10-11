@@ -22,7 +22,7 @@ import (
 func helperID(id carrierSocketIdentity) CarrierHelperNamedIdentity {
 	return CarrierHelperNamedIdentity{id.Device, id.Inode, id.Nlink, id.UID, id.Mode}
 }
-func (tr *carrierTransport) helperRoute(ctx context.Context, pin CarrierHelperExecutableExpectation) (CarrierHelperRoute, error) {
+func (tr *carrierTransport) helperRoute(ctx context.Context) (CarrierHelperRoute, error) {
 	if err := tr.verify(ctx); err != nil {
 		return CarrierHelperRoute{}, err
 	}
@@ -32,7 +32,7 @@ func (tr *carrierTransport) helperRoute(ctx context.Context, pin CarrierHelperEx
 	}
 	deadline, _ := tr.ctx.Deadline()
 	s := tr.socket.state
-	return CarrierHelperRoute{Domain: carrierHelperDomain, Host: host, Socket: s.socket, Parent: helperID(s.parentID), Directory: helperID(s.childID), SocketID: helperID(s.socketID), Helper: pin, Deadline: deadline}, nil
+	return CarrierHelperRoute{Domain: carrierHelperDomain, Host: host, Socket: s.socket, Parent: helperID(s.parentID), Directory: helperID(s.childID), SocketID: helperID(s.socketID), Helper: tr.helper, Deadline: deadline}, nil
 }
 func helperNamed(r CarrierHelperRoute) error {
 	dir := filepath.Dir(r.Socket)
