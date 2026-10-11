@@ -8,3 +8,10 @@
 - No full suite, race suite, long native acceptance or user-runtime deletion performed, per requested fast focused validation. Independent review belongs to main session; not claimed complete here.
 - Capacity: policy prepays cursor/stop/tick fixed bounds; exact plan JSON charged/refunded by quota triggers. Consumption prepays its success timestamp so completing or disabling cannot be blocked by an extra control-plane capacity charge.
 - Historical receipt timestamps have no attempt/revision binding and are not backfilled. A prior result segment cannot qualify a later resumed segment. Owner/token/rebind drift denies all automatic work; new explicit enable is required when no original pending plan exists.
+
+## Independent review follow-up
+
+- `review-red.json`: behavior failures reproduced default-off/disabled/drift ACK `control_spool_full` and enable receiving no subsequent round before idle exit.
+- `review-final.json`: `go test -count=1 ./internal/store ./internal/coordinator ./cmd/orchestrator -run '^(TestDiagnosticsGC.*|TestDiagnosticsPublicCLIGCPolicy)$' -json`; 9 top-level + 15 subtests, 24 pass, 0 fail/skip. Includes real Server short-idle wake, real DB I/O cancellation and idle protection, full-capacity ACK while disabled/drifted, no enable backfill, completion not reviving disabled/drifted consent, existing TTL/ACK-accept order/exact replay/prepared recovery/public CLI.
+- Completion timestamp now uses an enabled/binding-validated Go helper inside actual accept or successful-exit transaction; the earlier SQLite completion trigger is removed. Enable uses one bounded wake channel; active GC rounds share inFlight idle admission.
+- `git diff --check`: passed. No expanded/full/native suite run; this is the authoritative affected snapshot evidence.

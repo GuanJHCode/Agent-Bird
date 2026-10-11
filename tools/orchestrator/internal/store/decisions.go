@@ -246,6 +246,9 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 		if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='completed' WHERE id=?`, spec.TaskID); err != nil {
 			return rollback(err)
 		}
+		if err = d.completeDiagnosticsConsumption(ctx, tx, spec.TaskID); err != nil {
+			return rollback(err)
+		}
 		if err = releaseReady(ctx, tx); err != nil {
 			return rollback(err)
 		}

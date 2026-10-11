@@ -12,6 +12,12 @@
 ## Implemented milestones
 
 - Store/schema37: private narrow policy authorization, exact bounded plans/cursor/replay, fresh consumption checks at both snapshot and intent admission; saved intent can finish after disable.
-- Consumption: exact handled result receipt is stored by ACK; the first transaction with both completed and handled conditions supplies success consumption time. ACK-first completion is recorded by the same completion transaction's SQLite trigger. Both paths use current attempt/revision/latest result segment. Fixed timestamp capacity is prepaid.
+- Consumption: exact handled result receipt is stored by ACK; the first transaction with both completed and handled conditions supplies success consumption time. ACK-first completion is recorded by a Go helper in the same completion transaction, rechecking enabled policy and exact binding. Both paths use current attempt/revision/latest result segment. Fixed timestamp capacity is prepaid.
 - Public route: diagnostics-gc-enable/disable/status require original run control and private request `{version:1,run_id,expected_revision}`. Status starts disabled/revision0; changes compare revisions. Coordinator owns one loop, one bounded run per minute, cancellation and wait on Close.
 - Focused verification is in data/verification.md and raw JSON reports. Public docs/support matrix and independent review are assigned to main session.
+
+## Review fixes
+
+- Enable wakes the single GC loop via a capacity-1 channel. GC rounds enter the existing inFlight/idle fence and retain context cancellation.
+- ACK and completion only record consumption while the policy is currently enabled and its original binding is valid; owner drift pauses policy without failing the original ACK/accept. Default-off/full-capacity ACK adds no GC record, and later enable cannot reconstruct its historical consumption.
+- Follow-up raw behavior RED is review-red.json; authoritative affected verification is review-final.json (original final.json describes the earlier snapshot).

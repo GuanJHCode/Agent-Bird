@@ -172,6 +172,18 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 			return rollback(err)
 		}
 	}
+
+	if event.Kind == contract.EventExited {
+		var status string
+		if err = tx.QueryRowContext(ctx, `SELECT status FROM tasks WHERE id=?`, event.TaskID).Scan(&status); err != nil {
+			return rollback(err)
+		}
+		if status == "completed" {
+			if err = d.completeDiagnosticsConsumption(ctx, tx, event.TaskID); err != nil {
+				return rollback(err)
+			}
+		}
+	}
 	if err = applyValidationToolRelease(ctx, tx, event); err != nil {
 		return rollback(err)
 	}

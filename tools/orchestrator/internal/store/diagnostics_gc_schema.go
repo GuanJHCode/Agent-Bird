@@ -14,8 +14,7 @@ func migrateDiagnosticsGC(tx *sql.Tx) error {
  CREATE TABLE diagnostics_consumptions(
  attempt_id TEXT NOT NULL REFERENCES attempts(id),run_id TEXT NOT NULL REFERENCES runs(id),task_id TEXT NOT NULL REFERENCES tasks(id),
  work_revision INTEGER NOT NULL CHECK(work_revision>0),event_id TEXT NOT NULL,event_revision INTEGER NOT NULL CHECK(event_revision>0),event_hash TEXT NOT NULL CHECK(length(event_hash)=64), consumed_at TEXT NOT NULL CHECK(length(consumed_at)<=32), PRIMARY KEY(attempt_id,event_id));
- CREATE TRIGGER diagnostics_consumption_completed AFTER UPDATE OF status ON tasks WHEN NEW.status='completed' AND OLD.status!='completed' BEGIN
- UPDATE diagnostics_consumptions SET consumed_at=rtrim(rtrim(strftime('%Y-%m-%dT%H:%M:%f','now'),'0'),'.')||'Z' WHERE task_id=NEW.id AND consumed_at='' AND work_revision=(SELECT work_revision FROM task_runtime WHERE task_id=NEW.id) AND attempt_id=(SELECT id FROM attempts WHERE task_id=NEW.id ORDER BY attempt_no DESC LIMIT 1) AND EXISTS(SELECT 1 FROM attempts a WHERE a.id=attempt_id AND a.status='result_ready') AND EXISTS(SELECT 1 FROM (SELECT event_id,body_json FROM runtime_events UNION ALL SELECT event_id,body_json FROM report_events) e WHERE e.event_id=diagnostics_consumptions.event_id AND json_extract(e.body_json,'$.segment_id')=(SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=NEW.id ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1)); END;
+
  CREATE TRIGGER diagnostics_consumption_binding BEFORE UPDATE OF attempt_id,run_id,task_id,work_revision,event_id,event_revision,event_hash ON diagnostics_consumptions BEGIN SELECT RAISE(ABORT,'diagnostics_consumption_immutable'); END;
  CREATE TRIGGER diagnostics_consumption_retained BEFORE DELETE ON diagnostics_consumptions BEGIN SELECT RAISE(ABORT,'diagnostics_consumption_immutable'); END;`)
 	if err != nil {

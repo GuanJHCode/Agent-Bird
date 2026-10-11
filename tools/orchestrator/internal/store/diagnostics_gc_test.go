@@ -41,6 +41,7 @@ func TestDiagnosticsGCTTLAndConsumption(t *testing.T) {
 	}{{"unconsumed", "", false}, {"unknown", "2020-01-01T00:00:00Z", false}, {"exact_boundary", "2020-01-05T00:00:00Z", false}, {"recent_consumption", "2020-01-10T00:00:00Z", false}, {"expired", "2020-01-01T00:00:00Z", true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			f, _ := retentionFixture(t)
+			gcControl(t, f, "enable", 0)
 			if tc.consumed != "" {
 				gcConsumed(t, f, tc.consumed)
 			}
@@ -49,7 +50,6 @@ func TestDiagnosticsGCTTLAndConsumption(t *testing.T) {
 					t.Fatal(e)
 				}
 			}
-			gcControl(t, f, "enable", 0)
 			if e := f.db.RunDiagnosticsGC(context.Background(), time.Date(2020, 1, 12, 0, 0, 0, 0, time.UTC)); e != nil {
 				t.Fatal(e)
 			}
@@ -65,7 +65,6 @@ func TestDiagnosticsGCTTLAndConsumption(t *testing.T) {
 }
 func TestDiagnosticsGCDefaultDisableAndOwnerDrift(t *testing.T) {
 	f, _ := retentionFixture(t)
-	gcConsumed(t, f, "2020-01-01T00:00:00Z")
 	if s := gcControl(t, f, "status", 0); s.Enabled || s.Revision != 0 {
 		t.Fatal(s)
 	}
@@ -73,6 +72,7 @@ func TestDiagnosticsGCDefaultDisableAndOwnerDrift(t *testing.T) {
 		t.Fatal(e)
 	}
 	gcControl(t, f, "enable", 0)
+	gcConsumed(t, f, "2020-01-01T00:00:00Z")
 	previousLimit := f.db.runControlLimit
 	f.db.runControlLimit = 0
 	gcControl(t, f, "disable", 1)
@@ -98,8 +98,8 @@ func TestDiagnosticsGCDefaultDisableAndOwnerDrift(t *testing.T) {
 }
 func TestDiagnosticsGCSavedExactPlanReplay(t *testing.T) {
 	f, _ := retentionFixture(t)
-	gcConsumed(t, f, "2020-01-01T00:00:00Z")
 	gcControl(t, f, "enable", 0)
+	gcConsumed(t, f, "2020-01-01T00:00:00Z")
 	ctx := context.Background()
 	p, e := f.db.prepareDiagnosticsGC(ctx, time.Date(2020, 1, 12, 0, 0, 0, 0, time.UTC))
 	if e != nil {
@@ -137,8 +137,8 @@ func TestDiagnosticsGCDisableAdmissionAndPreparedRecovery(t *testing.T) {
 	for _, prepared := range []bool{false, true} {
 		t.Run(map[bool]string{false: "before_intent", true: "prepared"}[prepared], func(t *testing.T) {
 			f, _ := retentionFixture(t)
-			gcConsumed(t, f, "2020-01-01T00:00:00Z")
 			gcControl(t, f, "enable", 0)
+			gcConsumed(t, f, "2020-01-01T00:00:00Z")
 			batch, e := f.db.prepareDiagnosticsGC(context.Background(), time.Now())
 			if e != nil {
 				t.Fatal(e)
@@ -178,6 +178,7 @@ func testDiagnosticsGCConsumptionCompletionOrder(t *testing.T) {
 	for _, ackFirst := range []bool{false, true} {
 		t.Run(map[bool]string{false: "complete_then_ack", true: "ack_then_complete"}[ackFirst], func(t *testing.T) {
 			f, _ := retentionFixture(t)
+			gcControl(t, f, "enable", 0)
 
 			if _, e := f.db.sql.Exec(`UPDATE tasks SET status='result_ready'; UPDATE task_runtime SET completion_policy='owner_review'`); e != nil {
 				t.Fatal(e)
@@ -206,7 +207,6 @@ func testDiagnosticsGCConsumptionCompletionOrder(t *testing.T) {
 			if e != nil || time.Since(at) > time.Minute {
 				t.Fatal(stamp, e)
 			}
-			gcControl(t, f, "enable", 0)
 			if e = f.db.RunDiagnosticsGC(context.Background(), time.Now()); e != nil {
 				t.Fatal(e)
 			}
@@ -214,6 +214,89 @@ func testDiagnosticsGCConsumptionCompletionOrder(t *testing.T) {
 			f.db.sql.QueryRow(`SELECT count(*) FROM diagnostic_deletions`).Scan(&n)
 			if n != 0 {
 				t.Fatal("new completion was deleted", n)
+			}
+		})
+	}
+}
+
+func TestDiagnosticsGCDisabledACKPreservesCapacity(t *testing.T) {
+	for _, mode := range []string{"never_enabled", "disabled", "owner_drift"} {
+		t.Run(mode, func(t *testing.T) {
+			f, _ := retentionFixture(t)
+			if mode != "never_enabled" {
+				gcControl(t, f, "enable", 0)
+			}
+			if mode == "disabled" {
+				gcControl(t, f, "disable", 1)
+			}
+			if mode == "owner_drift" {
+				if _, e := f.db.sql.Exec(`UPDATE runs SET origin_birth='changed' WHERE id=?`, f.grant.RunID); e != nil {
+					t.Fatal(e)
+				}
+			}
+			previous := f.db.runControlLimit
+			f.db.runControlLimit = 0
+			gcConsumed(t, f, "")
+			f.db.runControlLimit = previous
+			var n int
+			if e := f.db.sql.QueryRow(`SELECT count(*) FROM diagnostics_consumptions`).Scan(&n); e != nil {
+				t.Fatal(e)
+			}
+			if n != 0 {
+				t.Fatal("disabled policy charged consumption", n)
+			}
+			if mode == "owner_drift" {
+				s := gcControl(t, f, "status", 0)
+				if s.Enabled || s.Stopped != "diagnostics_gc_owner_changed" {
+					t.Fatal(s)
+				}
+			}
+			if mode == "never_enabled" {
+				gcControl(t, f, "enable", 0)
+				if e := f.db.RunDiagnosticsGC(context.Background(), time.Now()); e != nil {
+					t.Fatal(e)
+				}
+				if e := f.db.sql.QueryRow(`SELECT count(*) FROM diagnostic_deletions`).Scan(&n); e != nil {
+					t.Fatal(e)
+				}
+				if n != 0 {
+					t.Fatal("enable backfilled historical ACK", n)
+				}
+			}
+		})
+	}
+}
+
+func TestDiagnosticsGCCompletionDoesNotReviveConsent(t *testing.T) {
+	for _, mode := range []string{"disabled", "owner_drift"} {
+		t.Run(mode, func(t *testing.T) {
+			f, _ := retentionFixture(t)
+			gcControl(t, f, "enable", 0)
+			if _, e := f.db.sql.Exec(`UPDATE tasks SET status='result_ready'; UPDATE task_runtime SET completion_policy='owner_review'`); e != nil {
+				t.Fatal(e)
+			}
+			gcConsumed(t, f, "")
+			if mode == "disabled" {
+				gcControl(t, f, "disable", 1)
+			} else {
+				if _, e := f.db.sql.Exec(`UPDATE runs SET origin_birth='changed' WHERE id=?`, f.grant.RunID); e != nil {
+					t.Fatal(e)
+				}
+			}
+			spec := ReviewSpec{TaskID: f.grant.TaskID, WorkRevision: f.grant.WorkRevision, Decision: "accept", CommandID: "accept-disabled"}
+			if e := f.db.sql.QueryRow(`SELECT event_id,event_revision,payload_hash,action_slot FROM runtime_events WHERE attempt_id=? AND sequence=1`, f.grant.AttemptID).Scan(&spec.EventID, &spec.EventRevision, &spec.EventHash, &spec.ActionSlot); e != nil {
+				t.Fatal(e)
+			}
+			f.db.runControlLimit = 0
+			if _, e := f.db.ReviewResult(context.Background(), spec); e != nil {
+				t.Fatal(e)
+			}
+			var stamp string
+			if e := f.db.sql.QueryRow(`SELECT consumed_at FROM diagnostics_consumptions`).Scan(&stamp); e != nil {
+				t.Fatal(e)
+			}
+			if stamp != "" {
+				t.Fatal("completion revived disabled consent", stamp)
 			}
 		})
 	}

@@ -221,6 +221,7 @@ func (h *hostSession) send(message ipc.Envelope) error {
 type Server struct {
 	gcCancel            context.CancelFunc
 	gcDone              chan struct{}
+	gcWake              chan struct{}
 	launchSupervisor    *contract.OriginalOwnerLaunchSupervisor // registration lock
 	launchChildren      map[string]*originalOwnerLaunchChild    // registration lock
 	cliSupervised       bool

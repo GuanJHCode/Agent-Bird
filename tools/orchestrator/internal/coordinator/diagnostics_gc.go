@@ -31,28 +31,50 @@ func (s *Server) diagnosticsGCControl(ctx context.Context, kind ipc.Kind, raw js
 	if e != nil {
 		return nil, e
 	}
+	if kind == ipc.KindDiagnosticsGCEnable {
+		select {
+		case s.gcWake <- struct{}{}:
+		default:
+		}
+	}
 	return json.Marshal(result)
 }
 func (s *Server) startDiagnosticsGC() {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.gcCancel = cancel
 	s.gcDone = make(chan struct{})
+	s.gcWake = make(chan struct{}, 1)
 	go func() {
 		defer close(s.gcDone)
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
 		for {
-			if s.closed.Load() || s.terminating.Load() {
+			if !s.runDiagnosticsGCRound(ctx) {
 				return
 			}
-			round, cancelRound := context.WithTimeout(ctx, 15*time.Second)
-			_ = s.db.RunDiagnosticsGC(round, time.Now().UTC())
-			cancelRound()
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+			case <-s.gcWake:
 			}
 		}
 	}()
+}
+
+// A GC round is accepted work, sharing the same idle fence as public requests.
+// The mutex serializes admission against monitorIdle committing idleExit.
+func (s *Server) runDiagnosticsGCRound(ctx context.Context) bool {
+	s.mu.Lock()
+	if ctx.Err() != nil || s.closed.Load() || s.terminating.Load() || s.idleExit.Load() {
+		s.mu.Unlock()
+		return false
+	}
+	s.inFlight++
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); s.inFlight--; s.mu.Unlock() }()
+	round, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	_ = s.db.RunDiagnosticsGC(round, time.Now().UTC())
+	return ctx.Err() == nil
 }

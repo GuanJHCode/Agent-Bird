@@ -194,6 +194,12 @@ func (d *DB) recordDiagnosticsConsumption(ctx context.Context, tx *sql.Tx, task 
 	if detailed == 0 {
 		return nil
 	}
+
+	enabled, e := d.diagnosticsGCConsumptionEnabled(ctx, tx, task)
+	if e != nil || !enabled {
+		return e
+	}
+
 	for _, decision := range decisions {
 		if decision.Decision != "handled" {
 			continue
@@ -443,3 +449,35 @@ func (d *DB) RunDiagnosticsGC(ctx context.Context, now time.Time) error {
 	return owned.commit()
 }
 func mustGCPlanJSON(p DiagnosticsRetentionPlan) string { raw, _ := json.Marshal(p); return string(raw) }
+
+// Completion shares the caller's business transaction and can only finalize
+// consumption while the same narrow policy still has a valid enabled binding.
+func (d *DB) diagnosticsGCConsumptionEnabled(ctx context.Context, tx *sql.Tx, task string) (bool, error) {
+	var run string
+	if e := tx.QueryRowContext(ctx, `SELECT run_id FROM tasks WHERE id=?`, task).Scan(&run); e != nil {
+		return false, e
+	}
+	policy, e := loadDiagnosticsGC(ctx, tx, run)
+	if errors.Is(e, sql.ErrNoRows) || e == nil && !policy.enabled {
+		return false, nil
+	}
+	if e != nil {
+		return false, e
+	}
+	if e = validateDiagnosticsGCPolicy(ctx, tx, policy); e != nil {
+		if errors.Is(e, CodeError("diagnostics_gc_owner_changed")) {
+			_, e = tx.ExecContext(ctx, `UPDATE diagnostics_gc_policies SET enabled=0,stopped='diagnostics_gc_owner_changed' WHERE run_id=?`, run)
+			return false, e
+		}
+		return false, e
+	}
+	return true, nil
+}
+func (d *DB) completeDiagnosticsConsumption(ctx context.Context, tx *sql.Tx, task string) error {
+	enabled, e := d.diagnosticsGCConsumptionEnabled(ctx, tx, task)
+	if e != nil || !enabled {
+		return e
+	}
+	_, e = tx.ExecContext(ctx, `UPDATE diagnostics_consumptions SET consumed_at=? WHERE task_id=? AND consumed_at='' AND work_revision=(SELECT work_revision FROM task_runtime WHERE task_id=?) AND attempt_id=(SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1) AND EXISTS(SELECT 1 FROM attempts a WHERE a.id=diagnostics_consumptions.attempt_id AND a.status='result_ready') AND EXISTS(SELECT 1 FROM (SELECT event_id,body_json FROM runtime_events UNION ALL SELECT event_id,body_json FROM report_events) e WHERE e.event_id=diagnostics_consumptions.event_id AND json_extract(e.body_json,'$.segment_id')=(SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1))`, time.Now().UTC().Format(time.RFC3339Nano), task, task, task, task)
+	return e
+}
