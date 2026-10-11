@@ -12,3 +12,5 @@ func newCarrierSocket(context.Context, string, carrierSocketBinding, carrierSock
 func (*carrierSocket) verify(context.Context) error { return errCarrierSocket }
 func (*carrierSocket) close(context.Context) error  { return errCarrierSocket }
 func (*carrierSocket) remove(context.Context) error { return errCarrierSocket }
+
+func (*carrierSocket) release(context.Context) error { return errCarrierSocket }

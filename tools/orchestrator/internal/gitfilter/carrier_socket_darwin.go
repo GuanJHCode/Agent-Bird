@@ -22,6 +22,9 @@ const carrierSocketName = "socket"
 type carrierSocketState struct {
 	mu                                                    sync.Mutex
 	busy, unknown, closed, closeDone, removed, notCreated bool
+	sealed, released                                      bool
+	closeWait                                             chan struct{}
+	closeErr, releaseErr, fdCloseErr                      error
 	binding                                               carrierSocketBinding
 	journal                                               carrierSocketJournal
 	segmentPath, basename, directory, socket              string
@@ -146,7 +149,7 @@ func (o *carrierSocket) begin(ctx context.Context, allowClosed bool) error {
 	s := o.state
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.busy || s.removed || s.unknown || s.closed && !allowClosed {
+	if s.busy || s.sealed || s.removed || s.unknown || s.closed && !allowClosed {
 		return errCarrierSocket
 	}
 	s.busy = true
@@ -324,45 +327,112 @@ func (o *carrierSocket) verify(ctx context.Context) error {
 	}
 	return nil
 }
-func (o *carrierSocket) close(ctx context.Context) error {
-	if !o.original() {
-		return errCarrierSocket
-	}
-	s := o.state
+
+// startClose retains one completion for the original listener even if a caller
+// times out. The asynchronous close always publishes its eventual result.
+func (s *carrierSocketState) startClose() <-chan struct{} {
 	s.mu.Lock()
-	if s.busy || s.closed || s.removed {
+	if s.closeWait != nil {
+		done := s.closeWait
 		s.mu.Unlock()
-		return errCarrierSocket
+		return done
 	}
-	s.closed, s.busy = true, true
+	s.closed = true
+	done := make(chan struct{})
+	s.closeWait = done
 	listener := s.listener
 	s.mu.Unlock()
-	defer o.end()
-	// Always attempt original-listener closure, including cancelled/Unknown owners.
-	done := make(chan error, 1)
 	go func() {
 		var err error
 		if listener != nil {
 			err = listener.Close()
 		}
-		done <- err
+		s.mu.Lock()
+		s.closeErr, s.closeDone = err, err == nil
+		s.mu.Unlock()
+		close(done)
 	}()
+	return done
+}
+func (o *carrierSocket) waitClose(ctx context.Context) error {
+	done := o.state.startClose()
 	if !carrierSocketContext(ctx) {
 		return o.uncertain(errCarrierSocket)
 	}
 	select {
-	case err := <-done:
-		s.mu.Lock()
-		s.closeDone = err == nil
-		unknown := s.unknown
-		s.mu.Unlock()
-		if err != nil || unknown {
+	case <-done:
+		o.state.mu.Lock()
+		err := o.state.closeErr
+		o.state.mu.Unlock()
+		if err != nil {
 			return o.uncertain(err)
 		}
 		return nil
 	case <-ctx.Done():
 		return o.uncertain(ctx.Err())
 	}
+}
+func (o *carrierSocket) close(ctx context.Context) error {
+	if !o.original() {
+		return errCarrierSocket
+	}
+	s := o.state
+	s.mu.Lock()
+	if s.busy || s.sealed || s.closed || s.removed {
+		s.mu.Unlock()
+		return errCarrierSocket
+	}
+	s.busy = true
+	s.mu.Unlock()
+	defer o.end()
+	// Unknown/cancelled owners still attempt original listener closure.
+	if err := o.waitClose(ctx); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	unknown := s.unknown
+	s.mu.Unlock()
+	if unknown {
+		return errCarrierSocket
+	}
+	return nil
+}
+
+// release seals this original owner, waits for its original listener closure,
+// and closes held descriptors. It never deletes a node or changes Unknown or
+// Removed into a success claim. A timeout can be retried after close completes.
+func (o *carrierSocket) release(ctx context.Context) error {
+	if !o.original() {
+		return errCarrierSocket
+	}
+	s := o.state
+	s.mu.Lock()
+	if s.busy {
+		s.mu.Unlock()
+		return errCarrierSocket
+	}
+	if s.released {
+		err := s.releaseErr
+		s.mu.Unlock()
+		return err
+	}
+	s.sealed, s.busy = true, true
+	s.mu.Unlock()
+	defer o.end()
+	if err := o.waitClose(ctx); err != nil {
+		return err
+	}
+	if !carrierSocketContext(ctx) {
+		return o.uncertain(errCarrierSocket)
+	}
+	err := s.closeFDs()
+	s.mu.Lock()
+	s.released, s.releaseErr = true, err
+	s.mu.Unlock()
+	if err != nil {
+		return o.uncertain(err)
+	}
+	return nil
 }
 func (o *carrierSocket) remove(ctx context.Context) error {
 	if err := o.begin(ctx, true); err != nil {
@@ -425,10 +495,12 @@ func (o *carrierSocket) remove(ctx context.Context) error {
 // owners remain live Unknown objects; there is no adoption or cleanup scan.
 func (s *carrierSocketState) closeFDs() error {
 	var errs []error
-	for _, f := range []*os.File{s.child, s.parent, s.segment} {
-		if f != nil {
-			errs = append(errs, f.Close())
+	for _, slot := range []**os.File{&s.child, &s.parent, &s.segment} {
+		if *slot != nil {
+			errs = append(errs, (*slot).Close())
+			*slot = nil // Close is attempted once; uncertainty is retained by the owner.
 		}
 	}
-	return errors.Join(errs...)
+	s.fdCloseErr = errors.Join(s.fdCloseErr, errors.Join(errs...))
+	return s.fdCloseErr
 }

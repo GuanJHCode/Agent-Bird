@@ -5,6 +5,7 @@ package gitfilter
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,11 +50,8 @@ func carrierTestRelease(t *testing.T, o *carrierSocket, paths ...string) {
 	t.Helper()
 	if o != nil {
 		s := o.state
-		if s.listener != nil {
-			_ = s.listener.Close()
-		}
-		if !s.removed {
-			_ = s.closeFDs()
+		if err := o.release(carrierTestContext(t)); err != nil {
+			t.Errorf("original owner release: %v", err)
 		}
 		paths = append(paths, s.directory)
 	}
@@ -299,7 +297,7 @@ func TestCarrierSocketOriginalAndConcurrent(t *testing.T) {
 	}
 	copyOwner := *o
 	for _, foreign := range []*carrierSocket{nil, {}, &copyOwner} {
-		if foreign.verify(ctx) == nil || foreign.close(ctx) == nil || foreign.remove(ctx) == nil {
+		if foreign.verify(ctx) == nil || foreign.close(ctx) == nil || foreign.remove(ctx) == nil || foreign.release(ctx) == nil {
 			t.Fatal("nonoriginal owner admitted")
 		}
 	}
@@ -336,5 +334,114 @@ func TestCarrierSocketRejectBeforeMutation(t *testing.T) {
 	}
 	if len(j.records) != 0 {
 		t.Fatal("invalid input attempted journal")
+	}
+}
+
+func TestCarrierSocketTerminalRelease(t *testing.T) {
+	for _, scenario := range []string{"reserved_error", "prepared_error", "not_created", "known_live", "cancelled_close"} {
+		t.Run(scenario, func(t *testing.T) {
+			ctx := carrierTestContext(t)
+			segment := carrierTestSegment(t)
+			j := &carrierSocketTestJournal{}
+			fired := 0
+			j.hook = func(r carrierSocketRecord) error {
+				switch {
+				case scenario == "reserved_error" && r.Phase == "reserved", scenario == "prepared_error" && r.Phase == "prepared":
+					fired++
+					return errors.New("durable journal failure")
+				case scenario == "not_created" && r.Phase == "reserved":
+					fired++
+					if err := os.Mkdir(r.Directory, 0700); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(r.Directory, "foreign"), []byte("preserve"), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				return nil
+			}
+			o, err := newCarrierSocket(ctx, segment, carrierTestBinding(), j)
+			if o == nil {
+				t.Fatalf("lost owner: %v", err)
+			}
+			defer func() { carrierTestRelease(t, o) }()
+			if strings.HasSuffix(scenario, "error") || scenario == "not_created" {
+				if fired != 1 || err == nil {
+					t.Fatalf("fired=%d err=%v", fired, err)
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			fds := []*os.File{o.state.segment, o.state.parent, o.state.child}
+			before := map[string]node{}
+			for _, path := range []string{segment, o.state.directory, o.state.socket, filepath.Join(o.state.directory, "foreign")} {
+				if id, err := named(path); err == nil {
+					before[path] = id
+				} else if !errors.Is(err, os.ErrNotExist) {
+					t.Fatal(err)
+				}
+			}
+			if scenario == "cancelled_close" {
+				cancelled, cancel := context.WithCancel(ctx)
+				cancel()
+				if err := o.close(cancelled); err == nil {
+					t.Fatal("cancelled closure claimed success")
+				}
+			} else if scenario != "known_live" {
+				_ = o.close(ctx)
+			}
+			o.state.mu.Lock()
+			wasUnknown, wasRemoved := o.state.unknown, o.state.removed
+			o.state.mu.Unlock()
+			copyOwner := *o
+			if copyOwner.release(ctx) == nil {
+				t.Fatal("copied owner released originals")
+			}
+			var wg sync.WaitGroup
+			for i := 0; i < 4; i++ {
+				wg.Add(1)
+				go func() { defer wg.Done(); _ = o.release(ctx) }()
+			}
+			wg.Wait()
+			if err := o.release(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if err := o.release(ctx); err != nil {
+				t.Fatalf("release was not idempotent: %v", err)
+			}
+			o.state.mu.Lock()
+			unknown, removed := o.state.unknown, o.state.removed
+			o.state.mu.Unlock()
+			if unknown != wasUnknown || removed != wasRemoved {
+				t.Fatal("release relabelled original lifecycle state")
+			}
+			if o.verify(ctx) == nil || o.remove(ctx) == nil {
+				t.Fatal("sealed owner admitted further operations")
+			}
+			if o.state.listener != nil {
+				if _, err := o.state.listener.AcceptUnix(); !errors.Is(err, net.ErrClosed) {
+					t.Fatalf("original listener not closed: %v", err)
+				}
+			}
+			for _, fd := range fds {
+				if fd != nil {
+					if _, err := fd.Stat(); !errors.Is(err, os.ErrClosed) {
+						t.Fatalf("terminal owner retains original FD %s: %v", fd.Name(), err)
+					}
+				}
+			}
+			for path, want := range before {
+				got, err := named(path)
+				if err != nil || got != want {
+					t.Fatalf("release changed retained node %s: %v", path, err)
+				}
+			}
+			if scenario == "not_created" {
+				body, err := os.ReadFile(filepath.Join(o.state.directory, "foreign"))
+				if err != nil || string(body) != "preserve" {
+					t.Fatalf("release changed foreign content: %v", err)
+				}
+			}
+		})
 	}
 }
