@@ -19,3 +19,7 @@ The exact minimal actor/registration contract is under read-only architecture ve
 ## Recovery contract revision
 
 `cleanup_recovery.go` defines one immutable plan containing original identities, inventories and names. Each action has a sequential durable intent; the next index proves the previous action finished. Each tree is quarantined with no-replace rename, each entry moves into a predetermined private staging name before identity verification and unlink, then its root is removed. The private ref is last. Parent Sync precedes the next intent. Plan-only, rename-before-checkpoint, unlink-before-next-intent and ref-before-outcome are resumable. Legacy pending records never acquire new authority. Journal admission reserves all future action records and a final outcome before any destructive action.
+
+## Recovery milestone accepted
+
+Root final source b711b5a passed independent review and focused durable/race/capacity/native checks; see docs/validation.md for exact scopes and failures retained. The initial worker prototype was not merged. Journal final capacity and state validation were completed by root. Full candidate TTL is still the following dependent slice.

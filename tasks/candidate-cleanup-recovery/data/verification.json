@@ -1,0 +1,76 @@
+{
+  "source": "b711b5a45b69d69ae0d3b8fe4f4df8810f6ce209",
+  "source_sha256": {
+    "tools/orchestrator/internal/gitops/cleanup_recovery.go": "4ca77dc678988b5021a901568f80c5ccf1c88291895dd824cedf81e82ecbb94f",
+    "tools/orchestrator/internal/gitops/cleanup_recovery_test.go": "81970e19a2f64bae903dab7d1436baff9f9c0cf2d9d3fa6becdadc44fc9d28e2",
+    "tools/orchestrator/internal/gitops/cleanup_recovery_unix.go": "23e84deb0230f4bbbf63cb58ee5d40a6a17e3aaa9e72342d59c602cc28607b21",
+    "tools/orchestrator/internal/gitops/cleanup_rename_darwin.go": "06410a397bdf5e38bbe199fce21d647eac493dcf464b306d6d5ee507a3a28fd0",
+    "tools/orchestrator/internal/gitops/cleanup_rename_linux.go": "44b33b454c0f322ad32e729db95bb858b9d9bc83d7e10036c6f4664965c1c7a7",
+    "tools/orchestrator/internal/gitops/cleanup_rename_other.go": "80d5c78c370882e2b2ba8a6922ce7847d75f0122ea4ae95de4acac3dfd393bd3",
+    "tools/orchestrator/internal/gitops/gitops.go": "3103d0c7b44cf72714b8351ae7a62c1807bc94fab37d5c0c136dcea4f603d0ba",
+    "tools/orchestrator/internal/gitopsworker/cleanup_recovery_test.go": "3acd07d084287afde17cff7acd03430893cea772c9d3cf6e60a88d4626c0e72a",
+    "tools/orchestrator/internal/gitopsworker/filter_fresh_journal_test.go": "4c17b86c10ff85fe0107a0d5eec5d42699793bd16cfebab4ae2e85e3d84bdbe0",
+    "tools/orchestrator/internal/gitopsworker/worker.go": "fe69e0a23f08cff19375df94b8b5eb1290210c8d7d133f559b06fdf8dd46bda8",
+    "tools/orchestrator/internal/gitopsworker/workspace.go": "c145c38852014d3bd163fe03b8e1fe48ed70c52a661d5622da89d6822a59d7d0"
+  },
+  "checks": [
+    {
+      "label": "root-recovery-final-race",
+      "package_filter": "/internal/gitops",
+      "top": 4,
+      "sub": 4,
+      "fail": 0,
+      "skip": 0,
+      "package_pass": true,
+      "shell_exit": "1",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "root-journal-final-race",
+      "package_filter": null,
+      "top": 5,
+      "sub": 7,
+      "fail": 0,
+      "skip": 0,
+      "package_pass": true,
+      "shell_exit": "0",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "root-journal-capacity",
+      "package_filter": null,
+      "top": 1,
+      "sub": 2,
+      "fail": 0,
+      "skip": 0,
+      "package_pass": true,
+      "shell_exit": "0",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "root-alias-race-2",
+      "package_filter": null,
+      "top": 3,
+      "sub": 0,
+      "fail": 0,
+      "skip": 0,
+      "package_pass": true,
+      "shell_exit": "0",
+      "stderr_bytes": 0
+    },
+    {
+      "label": "root-native",
+      "package_filter": null,
+      "top": 1,
+      "sub": 0,
+      "fail": 0,
+      "skip": 0,
+      "package_pass": true,
+      "shell_exit": "0",
+      "stderr_bytes": 0
+    }
+  ],
+  "review": "PASS b711b5a, prior admin and alias blockers fixed",
+  "build_at": "608ce6b",
+  "build_exit": 0
+}

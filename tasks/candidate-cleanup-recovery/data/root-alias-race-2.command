@@ -1,0 +1,1 @@
+TMPDIR=/private/tmp go test -json -race -count=1 -run TestCleanupRecoveryDurableReopenAtEveryAction|TestCleanupExactCompletedReplayReturnsDurableOutcome|TestCleanupCompletedReplayRejectsRebuiltRoot ./internal/gitops ./internal/gitopsworker
