@@ -85,7 +85,15 @@ func (j *durableJournal) LoadCandidateFreeze(ctx context.Context) (gitops.Candid
 // LoadCleanup reads one bounded, strict journal snapshot.  The pathname must
 // still name the inode held by this journal; otherwise a replacement could
 // fabricate a completion proof during replay.
-func (j *durableJournal) LoadCleanup(ctx context.Context, receiptSHA256 string) (gitops.CleanupIntent, gitops.CleanupOutcome, bool, error) {
+func (j *durableJournal) LoadCleanup(ctx context.Context, receiptSHA256 string) (intent gitops.CleanupIntent, outcome gitops.CleanupOutcome, found bool, err error) {
+	err = j.withLock(syscall.LOCK_SH, func() error {
+		intent, outcome, found, err = j.loadCleanupLocked(ctx, receiptSHA256)
+		return err
+	})
+	return intent, outcome, found, err
+}
+
+func (j *durableJournal) loadCleanupLocked(ctx context.Context, receiptSHA256 string) (gitops.CleanupIntent, gitops.CleanupOutcome, bool, error) {
 	var intent gitops.CleanupIntent
 	var outcome gitops.CleanupOutcome
 	f, err := os.OpenFile(j.file.Name(), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
@@ -93,6 +101,9 @@ func (j *durableJournal) LoadCleanup(ctx context.Context, receiptSHA256 string) 
 		return intent, outcome, false, err
 	}
 	defer f.Close()
+	if err = f.Sync(); err != nil {
+		return intent, outcome, false, err
+	}
 	st, err := f.Stat()
 	if err != nil {
 		return intent, outcome, false, err
@@ -109,7 +120,8 @@ func (j *durableJournal) LoadCleanup(ctx context.Context, receiptSHA256 string) 
 	if !st.Mode().IsRegular() || st.Mode().Perm() != 0600 || !owned || owner.Uid != uint32(os.Geteuid()) || st.Size() > 16*1024*1024 {
 		return intent, outcome, false, errors.New("gitops_journal_unsafe")
 	}
-	dec := json.NewDecoder(io.LimitReader(f, 16*1024*1024+1))
+	initialSize := st.Size()
+	dec := json.NewDecoder(io.NewSectionReader(f, 0, initialSize))
 	dec.DisallowUnknownFields()
 	foundIntent, foreign := false, false
 	for {
@@ -166,6 +178,18 @@ func (j *durableJournal) LoadCleanup(ctx context.Context, receiptSHA256 string) 
 	}
 	if outcome.ReceiptSHA256 != "" && !foundIntent {
 		return intent, outcome, false, errors.New("gitops_journal_orphan_outcome")
+	}
+	latest, statErr := f.Stat()
+	if statErr != nil || latest.Size() != initialSize || !os.SameFile(latest, st) {
+		return intent, outcome, false, errors.New("gitops_journal_changed")
+	}
+	held, statErr = j.file.Stat()
+	if statErr != nil || !os.SameFile(latest, held) || held.Size() != initialSize {
+		return intent, outcome, false, errors.New("gitops_journal_changed")
+	}
+	pathInfo, statErr = os.Stat(j.file.Name())
+	if statErr != nil || !os.SameFile(latest, pathInfo) || pathInfo.Size() != initialSize {
+		return intent, outcome, false, errors.New("gitops_journal_changed")
 	}
 	return intent, outcome, foundIntent, nil
 }

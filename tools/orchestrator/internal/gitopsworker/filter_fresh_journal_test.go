@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
@@ -156,5 +157,29 @@ func TestCleanupHistoryRequiresOneExactDurableBinding(t *testing.T) {
 	defer foreign.Close()
 	if _, _, _, err = foreign.LoadCleanup(context.Background(), "exact"); err == nil {
 		t.Fatal("foreign cleanup journal accepted")
+	}
+}
+
+func TestCleanupHistoryRefusesConcurrentJournalWriter(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "journal")
+	first, err := OpenFreshJournal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	if err = first.PersistCleanupIntent(context.Background(), gitops.CleanupIntent{Root: "/owned/root", ReceiptSHA256: "exact"}); err != nil {
+		t.Fatal(err)
+	}
+	second, err := OpenJournal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	if err = syscall.Flock(int(first.lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	defer syscall.Flock(int(first.lock.Fd()), syscall.LOCK_UN)
+	if _, _, _, err = second.LoadCleanup(context.Background(), "exact"); err == nil {
+		t.Fatal("read accepted a concurrently writable journal")
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -310,7 +311,9 @@ func (j *durableJournal) composePreflight(ctx context.Context) error {
 }
 
 type durableJournal struct {
-	file *os.File
+	file   *os.File
+	lock   *os.File
+	lockMu sync.Mutex
 }
 
 // OpenJournal shares the existing Git Host journal with managed workspace execution.
@@ -321,7 +324,9 @@ func OpenJournal(root string) (*durableJournal, error) { return openJournal(root
 func OpenFreshJournal(root string) (*durableJournal, error) {
 	return openJournalFlags(root, os.O_EXCL)
 }
-func (j *durableJournal) Close() error { return j.file.Close() }
+func (j *durableJournal) Close() error {
+	return errors.Join(j.lock.Close(), j.file.Close())
+}
 
 func (j *durableJournal) RecordGitProcess(_ context.Context, record gitops.GitProcessRecord) error {
 	return j.append("git_process", record)
@@ -417,20 +422,80 @@ func openJournalFlags(root string, extra int) (*durableJournal, error) {
 		_ = file.Close()
 		return nil, err
 	}
-	return &durableJournal{file: file}, nil
+	lock, err := os.OpenFile(filepath.Join(root, "events.lock"), os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		_ = file.Close()
+		return nil, err
+	}
+	lockInfo, err := lock.Stat()
+	if err != nil {
+		_ = lock.Close()
+		_ = file.Close()
+		return nil, err
+	}
+	owner, owned := lockInfo.Sys().(*syscall.Stat_t)
+	if !lockInfo.Mode().IsRegular() || lockInfo.Mode().Perm() != 0600 || !owned || owner.Uid != uint32(os.Geteuid()) {
+		_ = lock.Close()
+		_ = file.Close()
+		return nil, errors.New("gitops_journal_unsafe")
+	}
+	directory, err = os.Open(root)
+	if err != nil {
+		_ = lock.Close()
+		_ = file.Close()
+		return nil, err
+	}
+	err = directory.Sync()
+	_ = directory.Close()
+	if err != nil {
+		_ = lock.Close()
+		_ = file.Close()
+		return nil, err
+	}
+	return &durableJournal{file: file, lock: lock}, nil
 }
 
-func (j *durableJournal) close() { _ = j.file.Close() }
+func (j *durableJournal) close() { _ = j.Close() }
 func (j *durableJournal) append(kind string, value any) error {
 	body, err := json.Marshal(map[string]any{"version": 1, "kind": kind, "value": value})
 	if err != nil {
 		return err
 	}
 	body = append(body, '\n')
-	if _, err = j.file.Write(body); err != nil {
+	return j.withLock(syscall.LOCK_EX, func() error {
+		if _, err = j.file.Write(body); err != nil {
+			return err
+		}
+		return j.file.Sync()
+	})
+}
+
+// withLock is shared by append and durable readers. The separately opened
+// lock file gives every journal object and process a common flock authority;
+// lockMu covers concurrent calls through one descriptor.
+func (j *durableJournal) withLock(mode int, fn func() error) error {
+	j.lockMu.Lock()
+	defer j.lockMu.Unlock()
+	held, err := j.lock.Stat()
+	if err != nil {
 		return err
 	}
-	return j.file.Sync()
+	named, err := os.Stat(j.lock.Name())
+	if err != nil || !os.SameFile(held, named) {
+		return errors.New("gitops_journal_lock_replaced")
+	}
+	if err = syscall.Flock(int(j.lock.Fd()), mode|syscall.LOCK_NB); err != nil {
+		return err
+	}
+	defer syscall.Flock(int(j.lock.Fd()), syscall.LOCK_UN)
+	if err = fn(); err != nil {
+		return err
+	}
+	named, err = os.Stat(j.lock.Name())
+	if err != nil || !os.SameFile(held, named) {
+		return errors.New("gitops_journal_lock_replaced")
+	}
+	return nil
 }
 func (j *durableJournal) PersistIntegrationIntent(_ context.Context, value gitops.IntegrationIntent) error {
 	return j.append("integration_intent", value)
