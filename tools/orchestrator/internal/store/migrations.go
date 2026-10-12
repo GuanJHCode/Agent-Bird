@@ -9,6 +9,9 @@ import (
 
 const currentSchemaVersion = 41
 
+// SchemaVersion reports the schema this binary writes, without opening state.
+func SchemaVersion() int { return currentSchemaVersion }
+
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
 // rollback preserves the prior schema and data rather than guessing recovery.
