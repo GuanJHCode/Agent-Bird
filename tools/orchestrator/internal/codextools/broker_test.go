@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 func testBroker(t *testing.T, options Options) (*Broker, string) {
@@ -53,6 +55,10 @@ func TestBrokerReadCreateAndFailClosedReplacement(t *testing.T) {
 	if _, err = b.Write(context.Background(), "note.txt", "", []byte("third")); !errors.Is(err, ErrConflict) {
 		t.Fatalf("create-only overwrite err=%v", err)
 	}
+	read, got, err = b.Read(context.Background(), "note.txt")
+	if err != nil || string(read) != "first" || got != created.SHA256 {
+		t.Fatalf("conflict changed original: read=%q sha=%q err=%v", read, got, err)
+	}
 }
 
 func TestBrokerWriteGuardsAndUnknownReceipt(t *testing.T) {
@@ -95,6 +101,10 @@ func TestBrokerListIsBoundedAndAnchored(t *testing.T) {
 	if err != nil || len(names) != 1 || names[0] != "a" {
 		t.Fatalf("names=%v err=%v", names, err)
 	}
+	again, err := b.List(context.Background(), "listed")
+	if err != nil || !reflect.DeepEqual(names, again) || len(again) == 0 {
+		t.Fatalf("repeated list=%v err=%v", again, err)
+	}
 	for i := 0; i < 257; i++ {
 		if err := os.WriteFile(filepath.Join(root, "listed", fmt.Sprintf("n-%03d", i)), []byte("x"), 0600); err != nil {
 			t.Fatal(err)
@@ -120,6 +130,68 @@ func TestBrokerListIsBoundedAndAnchored(t *testing.T) {
 	}
 	if _, err = b.List(context.Background(), ""); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBrokerConcurrentCreateKeepsWinningContent(t *testing.T) {
+	b, root := testBroker(t, writableOptions())
+	second, err := Open(root, writableOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = second.Close() })
+	start := make(chan struct{})
+	type outcome struct {
+		content string
+		receipt WriteReceipt
+		err     error
+	}
+	results := make(chan outcome, 2)
+	for _, item := range []struct {
+		broker  *Broker
+		content string
+	}{{b, "first"}, {second, "second"}} {
+		go func(item struct {
+			broker  *Broker
+			content string
+		}) { <-start; r, err := item.broker.Write(context.Background(), "race.txt", "", []byte(item.content)); results <- outcome{item.content, r, err} }(item)
+	}
+	close(start)
+	var winner outcome
+	for range 2 {
+		out := <-results
+		if out.err == nil {
+			winner = out
+			continue
+		}
+		if !errors.Is(out.err, ErrConflict) {
+			t.Fatalf("create err=%v", out.err)
+		}
+	}
+	if winner.content == "" {
+		t.Fatal("no create winner")
+	}
+	data, got, err := b.Read(context.Background(), "race.txt")
+	if err != nil || string(data) != winner.content || got != winner.receipt.SHA256 {
+		t.Fatalf("winner not retained: data=%q sha=%q receipt=%+v err=%v", data, got, winner.receipt, err)
+	}
+}
+
+type unknownSysInfo struct{}
+
+func (unknownSysInfo) Name() string       { return "unknown" }
+func (unknownSysInfo) Size() int64        { return 0 }
+func (unknownSysInfo) Mode() os.FileMode  { return 0 }
+func (unknownSysInfo) ModTime() time.Time { return time.Time{} }
+func (unknownSysInfo) IsDir() bool        { return false }
+func (unknownSysInfo) Sys() any           { return "not-a-stat" }
+
+func TestFileIdentityRejectsNilAndUnknownSys(t *testing.T) {
+	if _, ok := fileIdentity(nil); ok {
+		t.Fatal("nil identity accepted")
+	}
+	if _, ok := fileIdentity(unknownSysInfo{}); ok {
+		t.Fatal("unknown Sys identity accepted")
 	}
 }
 

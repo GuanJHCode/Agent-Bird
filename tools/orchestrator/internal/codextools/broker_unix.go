@@ -159,6 +159,8 @@ func (b *Broker) List(ctx context.Context, path string) ([]string, error) {
 	return filtered, nil
 }
 
+// Write creates a previously absent file. Non-empty expectedSHA256 is rejected
+// because this API has no verifiable exclusive workspace write lease.
 func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content []byte) (WriteReceipt, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -178,7 +180,7 @@ func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content
 	if expectedSHA256 != "" && !validSHA(expectedSHA256) {
 		return WriteReceipt{}, ErrConflict
 	}
-	// Options has no capability that proves a caller holds an exclusive
+	// This API currently supports create-only writes. Options has no capability that proves a caller holds an exclusive
 	// workspace write lease. A replacement would require an overwrite rename,
 	// which cannot provide a compare-and-swap guarantee against another writer.
 	// Keep this path fail-closed until such a lease is part of the contract.
@@ -475,6 +477,9 @@ func fileIdentity(info os.FileInfo) (identity, bool) {
 		return identity{}, false
 	}
 	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || st == nil {
+		return identity{}, false
+	}
 	return identity{uint64(st.Dev), uint64(st.Ino)}, ok
 }
 func digest(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
