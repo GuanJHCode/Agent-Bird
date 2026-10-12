@@ -17,6 +17,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -1502,16 +1503,62 @@ func (h *Host) recoverDuplicateGrant(grant contract.LaunchCommand, epoch uint64)
 	if err != nil {
 		return err
 	}
-	for _, record := range records {
+	eligibleCandidateScope := candidateResourceScopeForGrant(grant)
+	var result *contract.Event
+	var exited bool
+	for i := range records {
+		record := records[i]
 		if record.CommandID != grant.CommandID {
 			return errors.New("grant_event_identity_conflict")
 		}
-		if record.Kind == contract.EventExited || record.Kind == contract.EventLaunchRejected || record.Kind == contract.EventUnknown {
+		if record.Kind == contract.EventCandidateResourceRegistered {
+			if candidateResourceRegistrationMatchesGrant(record.CandidateResource, grant, eligibleCandidateScope) {
+				return nil
+			}
+			return errors.New("candidate_resource_registration_conflict")
+		}
+		if record.Kind == contract.EventResult {
+			if result != nil {
+				return errors.New("candidate_resource_result_conflict")
+			}
+			result = &records[i]
+		}
+		if record.Kind == contract.EventExited {
+			exited = true
+		}
+		if record.Kind == contract.EventLaunchRejected || record.Kind == contract.EventUnknown {
 			return nil
 		}
 	}
 	meta := metadataForLaunch(grant)
 	meta.executionEpoch = epoch
+	if exited {
+		if eligibleCandidateScope == "" || result == nil || result.Artifact == nil || result.Artifact.HostArtifact == nil {
+			return nil
+		}
+		meta.candidateResourceKind = eligibleCandidateScope
+		binding, bindErr := h.artifactSlot(meta, "terminal", 0)
+		if bindErr != nil {
+			return bindErr
+		}
+		loadCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		desc, proof, body, readErr := artifacts.LoadHostSlot(loadCtx, h.spoolRoot, binding)
+		cancel()
+		if readErr != nil {
+			return nil
+		}
+		ref, refErr := hostArtifactReference(result.Artifact.ID, desc, proof)
+		if refErr != nil || !reflect.DeepEqual(ref, result.Artifact) {
+			return nil
+		}
+		// Registration is best effort just as it was on the original execution:
+		// an immutable Result/Exited pair remains the business outcome if sealing
+		// or the internal append is temporarily unavailable.
+		sealCtx, stopSeal := context.WithTimeout(context.Background(), 2*time.Second)
+		h.registerCandidateResource(sealCtx, spool, grant.RunID, grant.TaskID, a, meta, body)
+		stopSeal()
+		return nil
+	}
 	{
 		// An original descriptor-bound artifact can be retained as evidence,
 		// but it never proves that this restarted Host did not enter Start.
