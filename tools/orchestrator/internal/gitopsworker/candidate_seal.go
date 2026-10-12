@@ -46,12 +46,8 @@ func sourceJournalPath(root string) bool {
 	p := filepath.Base(filepath.Dir(root))
 	return p == ".gitops-journal" || p == "gitops-journal"
 }
-func writeSourceOrigin(root string, file, lock *os.File) error {
-	if !sourceJournalPath(root) {
-		return nil
-	}
-	spool, ns, dir, e := candidateSealDirectories(filepath.Dir(filepath.Dir(root)), root)
-	if e != nil {
+func writeSourceOrigin(a *sealAuthority, file, lock *os.File) error {
+	if e := a.verify(); e != nil {
 		return e
 	}
 	fs, e := file.Stat()
@@ -62,20 +58,31 @@ func writeSourceOrigin(root string, file, lock *os.File) error {
 	if e != nil {
 		return e
 	}
-	raw, e := json.Marshal(sourceOrigin{spool, ns, dir, sealFileIdentity(fs), sealFileIdentity(ls)})
+	if !privateJournalFile(fs) || !privateJournalFile(ls) || !sameAtFile(a.root, "events.jsonl", file) || !sameAtFile(a.root, "events.lock", lock) {
+		return errCandidateSeal
+	}
+	raw, e := json.Marshal(sourceOrigin{a.spool, a.namespace, a.directory, sealFileIdentity(fs), sealFileIdentity(ls)})
 	if e != nil {
 		return e
 	}
-	return writeExclusiveOrSame(filepath.Join(root, "origin.json"), raw)
+	if e = writePrivateAt(a.root, "origin.json", raw); e != nil {
+		return e
+	}
+	return a.verify()
 }
+
 func verifySourceOrigin(a *sealAuthority, file, lock *os.File) error {
 	f, e := openAtFile(a.root, "origin.json", unix.O_RDONLY)
 	if e != nil {
 		return errCandidateSeal
 	}
 	defer f.Close()
+	info, e := f.Stat()
+	if e != nil || !privateJournalFile(info) || info.Size() > 8192 {
+		return errCandidateSeal
+	}
 	raw, e := io.ReadAll(io.LimitReader(f, 8193))
-	if e != nil {
+	if e != nil || int64(len(raw)) != info.Size() || len(raw) > 8192 || !sameAtFile(a.root, "origin.json", f) {
 		return errCandidateSeal
 	}
 	var o sourceOrigin
@@ -107,7 +114,7 @@ func OpenExistingMaintenanceJournal(root string, expected MaintenanceJournalIden
 		return nil, errCandidateSeal
 	}
 	d := os.NewFile(uintptr(fd), root)
-	id, e := sealDirectoryIdentity(root)
+	id, e := heldSealDirectory(d)
 	if e != nil || id != expected.Directory {
 		d.Close()
 		return nil, errCandidateSeal
@@ -129,6 +136,13 @@ func OpenExistingMaintenanceJournal(root string, expected MaintenanceJournalIden
 		d.Close()
 		return nil, errCandidateSeal
 	}
+	named, e := sealDirectoryIdentity(root)
+	if e != nil || named != id || !sameAtFile(d, "events.jsonl", f) || !sameAtFile(d, "events.lock", l) {
+		f.Close()
+		l.Close()
+		d.Close()
+		return nil, errCandidateSeal
+	}
 	return &durableJournal{file: f, lock: l, dir: d}, nil
 }
 func maintenanceFile(f *os.File, want gitops.FileIdentity) bool {
@@ -145,54 +159,107 @@ func maintenanceFile(f *os.File, want gitops.FileIdentity) bool {
 
 type sealAuthority struct {
 	spool, namespace, directory gitops.DirectoryIdentity
-	root                        *os.File
+	spoolFD, namespaceFD, root  *os.File
 	path                        string
 }
 
+func sealDirectoryInfo(info os.FileInfo) (gitops.DirectoryIdentity, error) {
+	if info == nil {
+		return gitops.DirectoryIdentity{}, errCandidateSeal
+	}
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0700 || st.Uid != uint32(os.Geteuid()) {
+		return gitops.DirectoryIdentity{}, errCandidateSeal
+	}
+	return gitops.DirectoryIdentity{Device: int64(st.Dev), Inode: int64(st.Ino), Mode: int64(info.Mode()), UID: int64(st.Uid)}, nil
+}
+func heldSealDirectory(f *os.File) (gitops.DirectoryIdentity, error) {
+	if f == nil {
+		return gitops.DirectoryIdentity{}, errCandidateSeal
+	}
+	i, e := f.Stat()
+	if e != nil {
+		return gitops.DirectoryIdentity{}, e
+	}
+	return sealDirectoryInfo(i)
+}
+func (a *sealAuthority) close() {
+	if a.root != nil {
+		a.root.Close()
+	}
+	if a.namespaceFD != nil {
+		a.namespaceFD.Close()
+	}
+	if a.spoolFD != nil {
+		a.spoolFD.Close()
+	}
+}
 func (a *sealAuthority) verify() error {
-	if a.root == nil {
+	for _, x := range []struct {
+		f  *os.File
+		id gitops.DirectoryIdentity
+	}{{a.spoolFD, a.spool}, {a.namespaceFD, a.namespace}, {a.root, a.directory}} {
+		id, e := heldSealDirectory(x.f)
+		if e != nil || id != x.id {
+			return errCandidateSeal
+		}
+	}
+	named, e := sealDirectoryIdentity(a.spoolFD.Name())
+	if e != nil || named != a.spool {
 		return errCandidateSeal
 	}
-	st, err := a.root.Stat()
-	if err != nil || sealFileIdentity(st).Inode != a.directory.Inode {
+	if !sameAtFile(a.spoolFD, filepath.Base(a.namespaceFD.Name()), a.namespaceFD) || !sameAtFile(a.namespaceFD, filepath.Base(a.path), a.root) {
 		return errCandidateSeal
 	}
 	return nil
 }
-func openSealAuthority(spoolRoot string, source gitops.CandidateResourceSource) (*sealAuthority, error) {
-	root, err := candidateJournalRoot(spoolRoot, source)
-	if err != nil {
-		return nil, err
+func openSealDirectories(spoolRoot, root string) (a *sealAuthority, err error) {
+	if !filepath.IsAbs(spoolRoot) || filepath.Dir(filepath.Dir(root)) != filepath.Clean(spoolRoot) {
+		return nil, errCandidateSeal
 	}
-	openDir := func(path string) (*os.File, gitops.DirectoryIdentity, error) {
-		fd, e := unix.Open(path, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
-		if e != nil {
-			return nil, gitops.DirectoryIdentity{}, errCandidateSeal
+	a = &sealAuthority{path: root}
+	defer func() {
+		if err != nil {
+			a.close()
+			a = nil
 		}
-		f := os.NewFile(uintptr(fd), path)
-		id, e := sealDirectoryIdentity(path)
-		if e != nil {
-			f.Close()
-			return nil, gitops.DirectoryIdentity{}, e
-		}
-		return f, id, nil
+	}()
+	fd, e := unix.Open(filepath.Clean(spoolRoot), unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return a, errCandidateSeal
 	}
-	_, spool, err := openDir(filepath.Clean(spoolRoot))
+	a.spoolFD = os.NewFile(uintptr(fd), filepath.Clean(spoolRoot))
+	if a.spool, err = heldSealDirectory(a.spoolFD); err != nil {
+		return
+	}
+	ns := filepath.Base(filepath.Dir(root))
+	a.namespaceFD, err = openAtFile(a.spoolFD, ns, unix.O_RDONLY|unix.O_DIRECTORY)
 	if err != nil {
-		return nil, err
+		return
 	}
-	_, namespace, err := openDir(filepath.Dir(root))
+	if a.namespace, err = heldSealDirectory(a.namespaceFD); err != nil {
+		return
+	}
+	a.root, err = openAtFile(a.namespaceFD, filepath.Base(root), unix.O_RDONLY|unix.O_DIRECTORY)
 	if err != nil {
-		return nil, err
+		return
 	}
-	f, directory, err := openDir(root)
-	if err != nil {
-		return nil, err
+	if a.directory, err = heldSealDirectory(a.root); err != nil {
+		return
 	}
-	return &sealAuthority{spool: spool, namespace: namespace, directory: directory, root: f, path: root}, nil
+	err = a.verify()
+	return
 }
+func openSealAuthority(spoolRoot string, source gitops.CandidateResourceSource) (*sealAuthority, error) {
+	root, e := candidateJournalRoot(spoolRoot, source)
+	if e != nil {
+		return nil, e
+	}
+	return openSealDirectories(spoolRoot, root)
+}
+
 func openAtFile(dir *os.File, name string, flags int) (*os.File, error) {
-	fd, e := unix.Openat(int(dir.Fd()), name, flags|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	fd, e := unix.Openat(int(dir.Fd()), name, flags|unix.O_NOFOLLOW|unix.O_CLOEXEC|unix.O_NONBLOCK, 0)
 	if e != nil {
 		return nil, e
 	}
@@ -216,6 +283,7 @@ func SealCandidateJournal(ctx context.Context, spoolRoot string, source gitops.C
 	if err != nil {
 		return gitops.CandidateResourceHeader{}, err
 	}
+	defer a.close()
 	j, err := openExistingJournalAt(a)
 	if err != nil {
 		return gitops.CandidateResourceHeader{}, err
@@ -226,15 +294,25 @@ func SealCandidateJournal(ctx context.Context, spoolRoot string, source gitops.C
 
 func (j *durableJournal) SealCandidateResource(ctx context.Context, spoolRoot string, source gitops.CandidateResourceSource) (out gitops.CandidateResourceHeader, err error) {
 	a, err := openSealAuthority(spoolRoot, source)
-	if err != nil || !sameAtFile(a.root, "events.jsonl", j.file) {
+	if err != nil {
+		return out, err
+	}
+	defer a.close()
+	if !sameAtFile(a.root, "events.jsonl", j.file) || !sameAtFile(a.root, "events.lock", j.lock) {
 		return out, errCandidateSeal
 	}
-	j.dir = a.root
 	return j.sealCandidateResourceAt(ctx, a, source)
 }
+
 func (j *durableJournal) sealCandidateResourceAt(ctx context.Context, a *sealAuthority, source gitops.CandidateResourceSource) (out gitops.CandidateResourceHeader, err error) {
 	spool, namespace, directory := a.spool, a.namespace, a.directory
 	err = j.withLock(syscall.LOCK_EX, func() error {
+		if e := a.verify(); e != nil {
+			return e
+		}
+		if e := verifySourceOrigin(a, j.file, j.lock); e != nil {
+			return e
+		}
 		if existing, found, e := readCandidateSealAt(a.root); e != nil {
 			return e
 		} else if found {
@@ -263,7 +341,7 @@ func (j *durableJournal) sealCandidateResourceAt(ctx context.Context, a *sealAut
 				return errCandidateSeal
 			}
 			out = existing
-			return nil
+			return a.verify()
 		}
 		body, rows, e := j.snapshotLocked(ctx)
 		if e != nil {
@@ -305,74 +383,51 @@ func sameSealDirectories(h gitops.CandidateResourceHeader, spool, namespace, dir
 }
 
 func (j *durableJournal) CandidateResourceSealed(ctx context.Context) (bool, error) {
-	sealed := false
-	err := j.withLock(syscall.LOCK_SH, func() error {
-		h, found, err := readCandidateSeal(filepath.Join(filepath.Dir(j.file.Name()), "seal.json"))
-		if err != nil {
-			return err
-		}
-		if !found {
-			return nil
-		}
-		if err = h.Validate(); err != nil {
-			return errCandidateSeal
-		}
-		root := filepath.Dir(j.file.Name())
-		suffix := string(filepath.Separator) + filepath.FromSlash(h.Source.JournalRelative)
-		spool := strings.TrimSuffix(root, suffix)
-		if spool == root || filepath.Join(spool, filepath.FromSlash(h.Source.JournalRelative)) != root {
-			return errCandidateSeal
-		}
-		spoolID, namespaceID, directoryID, err := candidateSealDirectories(spool, root)
-		if err != nil || !sameSealDirectories(h, spoolID, namespaceID, directoryID) {
-			return errCandidateSeal
-		}
-		body, rows, err := j.snapshotLocked(ctx)
-		if err != nil {
-			return err
-		}
-		receipt, err := sealReceipt(h.Source, rows)
-		if err != nil || gitops.CandidateResourceReceiptDigest(receipt) != h.ReceiptSHA256 {
-			return errCandidateSeal
-		}
-		projection, err := candidateProjection(h.Source, receipt)
-		if err != nil || projection != h.Source.ProjectionSHA256 {
-			return errCandidateSeal
-		}
-		sum := sha256.Sum256(body)
-		st, err := j.validJournalFile()
-		if err != nil || hex.EncodeToString(sum[:]) != h.JournalSHA256 || sealFileIdentity(st) != h.JournalIdentity {
-			return errCandidateSeal
-		}
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-		sealed = true
-		return nil
-	})
-	return sealed, err
+	h, found, e := readCandidateSeal(filepath.Join(filepath.Dir(j.file.Name()), "seal.json"))
+	if e != nil || !found {
+		return false, e
+	}
+	root := filepath.Dir(j.file.Name())
+	suffix := string(filepath.Separator) + filepath.FromSlash(h.Source.JournalRelative)
+	spool := strings.TrimSuffix(root, suffix)
+	if spool == root {
+		return false, errCandidateSeal
+	}
+	a, e := openSealAuthority(spool, h.Source)
+	if e != nil {
+		return false, e
+	}
+	defer a.close()
+	if !sameAtFile(a.root, "events.jsonl", j.file) || !sameAtFile(a.root, "events.lock", j.lock) {
+		return false, errCandidateSeal
+	}
+	_, e = OpenSealedCandidateResource(ctx, spool, h)
+	return e == nil, e
 }
 
 func OpenSealedCandidateResource(ctx context.Context, spoolRoot string, header gitops.CandidateResourceHeader) (gitops.CandidateReceipt, error) {
 	if err := header.Validate(); err != nil {
 		return gitops.CandidateReceipt{}, errCandidateSeal
 	}
-	root, err := candidateJournalRoot(spoolRoot, header.Source)
+	a, err := openSealAuthority(spoolRoot, header.Source)
 	if err != nil {
 		return gitops.CandidateReceipt{}, err
 	}
-	spool, namespace, directory, err := candidateSealDirectories(spoolRoot, root)
-	if err != nil || spool != header.SpoolIdentity || namespace != header.NamespaceIdentity || directory != header.DirectoryIdentity {
+	defer a.close()
+	if !sameSealDirectories(header, a.spool, a.namespace, a.directory) {
 		return gitops.CandidateReceipt{}, errCandidateSeal
 	}
-	j, err := openExistingJournal(root)
+	j, err := openExistingJournalAt(a)
 	if err != nil {
 		return gitops.CandidateReceipt{}, err
 	}
 	defer j.close()
 	var receipt gitops.CandidateReceipt
 	err = j.withLock(syscall.LOCK_SH, func() error {
-		seal, found, e := readCandidateSeal(filepath.Join(root, "seal.json"))
+		if e := a.verify(); e != nil {
+			return e
+		}
+		seal, found, e := readCandidateSealAt(a.root)
 		if e != nil || !found || !reflect.DeepEqual(seal, header) {
 			return errCandidateSeal
 		}
@@ -398,7 +453,7 @@ func OpenSealedCandidateResource(ctx context.Context, spoolRoot string, header g
 		if e != nil || projection != header.Source.ProjectionSHA256 {
 			return errCandidateSeal
 		}
-		return nil
+		return a.verify()
 	})
 	return receipt, err
 }
@@ -414,33 +469,14 @@ func candidateJournalRoot(spoolRoot string, source gitops.CandidateResourceSourc
 	return root, nil
 }
 
-func candidateSealDirectories(spoolRoot, root string) (gitops.DirectoryIdentity, gitops.DirectoryIdentity, gitops.DirectoryIdentity, error) {
-	spool, err := sealDirectoryIdentity(filepath.Clean(spoolRoot))
-	if err != nil {
-		return gitops.DirectoryIdentity{}, gitops.DirectoryIdentity{}, gitops.DirectoryIdentity{}, err
+func sealDirectoryIdentity(path string) (gitops.DirectoryIdentity, error) {
+	info, e := os.Lstat(path)
+	if e != nil {
+		return gitops.DirectoryIdentity{}, errCandidateSeal
 	}
-	namespace, err := sealDirectoryIdentity(filepath.Dir(root))
-	if err != nil {
-		return gitops.DirectoryIdentity{}, gitops.DirectoryIdentity{}, gitops.DirectoryIdentity{}, err
-	}
-	directory, err := sealDirectoryIdentity(root)
-	if err != nil {
-		return gitops.DirectoryIdentity{}, gitops.DirectoryIdentity{}, gitops.DirectoryIdentity{}, err
-	}
-	return spool, namespace, directory, nil
+	return sealDirectoryInfo(info)
 }
 
-func sealDirectoryIdentity(path string) (gitops.DirectoryIdentity, error) {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return gitops.DirectoryIdentity{}, errCandidateSeal
-	}
-	st, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0700 || st.Uid != uint32(os.Geteuid()) {
-		return gitops.DirectoryIdentity{}, errCandidateSeal
-	}
-	return gitops.DirectoryIdentity{Device: int64(st.Dev), Inode: int64(st.Ino), Mode: int64(info.Mode()), UID: int64(st.Uid)}, nil
-}
 func sealFileIdentity(info os.FileInfo) gitops.FileIdentity {
 	st := info.Sys().(*syscall.Stat_t)
 	return gitops.FileIdentity{Device: int64(st.Dev), Inode: int64(st.Ino), Mode: int64(info.Mode()), Size: info.Size(), ModUnixNano: info.ModTime().UnixNano()}
@@ -499,70 +535,37 @@ func readCandidateSealAt(dir *os.File) (gitops.CandidateResourceHeader, bool, er
 	}
 	return h, true, nil
 }
-func writeCandidateSealAt(dir *os.File, header gitops.CandidateResourceHeader) error {
-	body, e := json.Marshal(header)
-	if e != nil || len(body) > 8192 {
-		return errCandidateSeal
-	}
-	fd, e := unix.Openat(int(dir.Fd()), "seal.json", unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+func writePrivateAt(dir *os.File, name string, body []byte) error {
+	fd, e := unix.Openat(int(dir.Fd()), name, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
 	if e != nil {
-		if e == unix.EEXIST {
-			return errCandidateSeal
-		}
 		return e
 	}
-	f := os.NewFile(uintptr(fd), "seal.json")
+	f := os.NewFile(uintptr(fd), filepath.Join(dir.Name(), name))
 	defer f.Close()
-	if _, e = f.Write(body); e != nil {
-		return e
+	for n := 0; n < len(body); {
+		k, e := f.Write(body[n:])
+		n += k
+		if e != nil {
+			return e
+		}
+		if k == 0 {
+			return io.ErrShortWrite
+		}
 	}
 	if e = f.Sync(); e != nil {
 		return e
 	}
+	if !sameAtFile(dir, name, f) {
+		return errCandidateSeal
+	}
 	return dir.Sync()
 }
-func writeCandidateSeal(path string, header gitops.CandidateResourceHeader) error {
-	body, err := json.Marshal(header)
-	if err != nil || len(body) > 8192 {
+func writeCandidateSealAt(dir *os.File, header gitops.CandidateResourceHeader) error {
+	b, e := json.Marshal(header)
+	if e != nil || len(b) > 8192 {
 		return errCandidateSeal
 	}
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
-	if errors.Is(err, os.ErrExist) {
-		existing, found, e := readCandidateSeal(path)
-		if e == nil && found && reflect.DeepEqual(existing, header) {
-			return nil
-		}
-		return errCandidateSeal
-	}
-	if err != nil {
-		return err
-	}
-	for written := 0; written < len(body); {
-		n, e := f.Write(body[written:])
-		written += n
-		if e != nil {
-			_ = f.Close()
-			return e
-		}
-		if n == 0 {
-			_ = f.Close()
-			return io.ErrShortWrite
-		}
-	}
-	if err = f.Sync(); err == nil {
-		err = f.Close()
-	} else {
-		_ = f.Close()
-	}
-	if err != nil {
-		return err
-	}
-	d, err := os.Open(filepath.Dir(path))
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	return d.Sync()
+	return writePrivateAt(dir, "seal.json", b)
 }
 
 func sealReceipt(source gitops.CandidateResourceSource, rows []journalRecord) (gitops.CandidateReceipt, error) {
@@ -570,6 +573,9 @@ func sealReceipt(source gitops.CandidateResourceSource, rows []journalRecord) (g
 	count, completed := 0, 0
 	var pending *gitops.GitProcessRecord
 	for _, row := range rows {
+		if count > 0 {
+			return receipt, errCandidateSeal
+		}
 		switch row.Kind {
 		case "cleanup_intent", "cleanup_plan", "cleanup_step", "cleanup_outcome", "integration_intent", "integration_outcome":
 			return receipt, errCandidateSeal
@@ -656,30 +662,6 @@ func candidateProjection(source gitops.CandidateResourceSource, receipt gitops.C
 	return gitops.CandidateResourceReceiptDigest(public), nil
 }
 
-func openExistingJournal(root string) (*durableJournal, error) {
-	if _, _, _, err := candidateSealDirectories(filepath.Dir(filepath.Dir(root)), root); err != nil {
-		return nil, err
-	}
-	file, err := os.OpenFile(filepath.Join(root, "events.jsonl"), os.O_RDWR|os.O_APPEND|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return nil, err
-	}
-	if !privateJournalFileMust(file) {
-		_ = file.Close()
-		return nil, errCandidateSeal
-	}
-	lock, err := os.OpenFile(filepath.Join(root, "events.lock"), os.O_RDWR|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		_ = file.Close()
-		return nil, err
-	}
-	if !privateJournalFileMust(lock) {
-		_ = lock.Close()
-		_ = file.Close()
-		return nil, errCandidateSeal
-	}
-	return &durableJournal{file: file, lock: lock}, nil
-}
 func openExistingJournalAt(a *sealAuthority) (*durableJournal, error) {
 	file, e := openAtFile(a.root, "events.jsonl", unix.O_RDWR|unix.O_APPEND)
 	if e != nil {
@@ -704,7 +686,7 @@ func openExistingJournalAt(a *sealAuthority) (*durableJournal, error) {
 		_ = file.Close()
 		return nil, err
 	}
-	return &durableJournal{file: file, lock: lock, dir: a.root}, nil
+	return &durableJournal{file: file, lock: lock}, nil
 }
 func privateJournalFileMust(f *os.File) bool {
 	info, err := f.Stat()
@@ -750,4 +732,61 @@ func (j *durableJournal) snapshotLocked(ctx context.Context) ([]byte, []journalR
 		return nil, nil, errCandidateSeal
 	}
 	return body, rows, nil
+}
+
+func openSourceJournal(root string, extra int) (j *durableJournal, err error) {
+	a, err := openSealDirectories(filepath.Dir(filepath.Dir(root)), root)
+	if err != nil {
+		return nil, err
+	}
+	defer a.close()
+	fd, e := unix.Openat(int(a.root.Fd()), "events.jsonl", unix.O_CREAT|unix.O_EXCL|unix.O_APPEND|unix.O_RDWR|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+	created := e == nil
+	if e == unix.EEXIST && extra&os.O_EXCL == 0 {
+		fd, e = unix.Openat(int(a.root.Fd()), "events.jsonl", unix.O_APPEND|unix.O_RDWR|unix.O_NOFOLLOW|unix.O_CLOEXEC|unix.O_NONBLOCK, 0)
+	}
+	if e != nil {
+		return nil, e
+	}
+	f := os.NewFile(uintptr(fd), filepath.Join(root, "events.jsonl"))
+	defer func() {
+		if err != nil {
+			f.Close()
+		}
+	}()
+	if !privateJournalFileMust(f) {
+		return nil, errCandidateSeal
+	}
+	lockFlags := unix.O_RDWR | unix.O_NOFOLLOW | unix.O_CLOEXEC | unix.O_NONBLOCK
+	if created {
+		lockFlags |= unix.O_CREAT | unix.O_EXCL
+	}
+	lfd, e := unix.Openat(int(a.root.Fd()), "events.lock", lockFlags, 0600)
+	if e != nil {
+		return nil, e
+	}
+	l := os.NewFile(uintptr(lfd), filepath.Join(root, "events.lock"))
+	defer func() {
+		if err != nil {
+			l.Close()
+		}
+	}()
+	if !privateJournalFileMust(l) {
+		return nil, errCandidateSeal
+	}
+	if created {
+		if err = f.Sync(); err != nil {
+			return
+		}
+		if err = l.Sync(); err != nil {
+			return
+		}
+		if err = writeSourceOrigin(a, f, l); err != nil {
+			return
+		}
+	}
+	if err = a.verify(); err != nil {
+		return
+	}
+	return &durableJournal{file: f, lock: l}, nil
 }

@@ -397,9 +397,10 @@ func openJournalFlags(root string, extra int) (*durableJournal, error) {
 	if err := ensurePrivateDir(root); err != nil {
 		return nil, err
 	}
+	if sourceJournalPath(root) {
+		return openSourceJournal(root, extra)
+	}
 	path := filepath.Join(root, "events.jsonl")
-	_, statErr := os.Lstat(path)
-	created := os.IsNotExist(statErr)
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NOFOLLOW|extra, 0600)
 	if err != nil {
 		return nil, err
@@ -444,13 +445,6 @@ func openJournalFlags(root string, extra int) (*durableJournal, error) {
 		_ = lock.Close()
 		_ = file.Close()
 		return nil, errors.New("gitops_journal_unsafe")
-	}
-	if created {
-		if err = writeSourceOrigin(root, file, lock); err != nil {
-			_ = lock.Close()
-			_ = file.Close()
-			return nil, err
-		}
 	}
 	directory, err = os.Open(root)
 	if err != nil {

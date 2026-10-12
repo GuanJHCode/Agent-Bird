@@ -154,3 +154,70 @@ func TestSealCandidateJournalRejectsDirectoryReplacement(t *testing.T) {
 		t.Fatal("replacement journal adopted")
 	}
 }
+
+func TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement(t *testing.T) {
+	for _, level := range []string{"root", "namespace", "spool"} {
+		t.Run(level, func(t *testing.T) {
+			spool, j, source, _ := sealedFixture(t)
+			defer j.close()
+			a, e := openSealAuthority(spool, source)
+			if e != nil {
+				t.Fatal(e)
+			}
+			defer a.close()
+			path := filepath.Join(spool, source.JournalRelative)
+			if level == "namespace" {
+				path = filepath.Dir(path)
+			}
+			if level == "spool" {
+				path = spool
+			}
+			if e = os.Rename(path, path+"-old"); e != nil {
+				t.Fatal(e)
+			}
+			t.Cleanup(func() { os.RemoveAll(path + "-old") })
+			if e = os.Mkdir(path, 0700); e != nil {
+				t.Fatal(e)
+			}
+			if e = a.verify(); e == nil {
+				t.Fatal("held authority accepted replaced named chain")
+			}
+			if _, e = j.sealCandidateResourceAt(context.Background(), a, source); e == nil {
+				t.Fatal("seal accepted replaced chain")
+			}
+		})
+	}
+}
+func TestCandidateSealRejectsCopiedOriginAndLegacy(t *testing.T) {
+	for _, copyOrigin := range []bool{false, true} {
+		t.Run(map[bool]string{false: "legacy", true: "copied"}[copyOrigin], func(t *testing.T) {
+			spool, j, source, _ := sealedFixture(t)
+			j.close()
+			root := filepath.Join(spool, source.JournalRelative)
+			if !copyOrigin {
+				if e := os.Remove(filepath.Join(root, "origin.json")); e != nil {
+					t.Fatal(e)
+				}
+			} else {
+				if e := os.Rename(root, root+"-old"); e != nil {
+					t.Fatal(e)
+				}
+				if e := os.Mkdir(root, 0700); e != nil {
+					t.Fatal(e)
+				}
+				for _, name := range []string{"events.jsonl", "events.lock", "origin.json"} {
+					b, e := os.ReadFile(filepath.Join(root+"-old", name))
+					if e != nil {
+						t.Fatal(e)
+					}
+					if e = os.WriteFile(filepath.Join(root, name), b, 0600); e != nil {
+						t.Fatal(e)
+					}
+				}
+			}
+			if _, e := SealCandidateJournal(context.Background(), spool, source); e == nil {
+				t.Fatal("unowned journal sealed")
+			}
+		})
+	}
+}
