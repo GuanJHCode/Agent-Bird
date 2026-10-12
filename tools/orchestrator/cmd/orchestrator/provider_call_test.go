@@ -94,13 +94,17 @@ func TestProviderCallUnknownAndCancellationDoNotClaimExit(t *testing.T) {
 	}
 }
 
-func TestCodexInitiatorKeepsWorkerWriteGated(t *testing.T) {
+func TestCodexPluginWriteRequiresDeclaredPaths(t *testing.T) {
 	if _, name, err := controllerProvider("codex"); err != nil || name != "codex" {
 		t.Fatal(name, err)
 	}
 	req := providerCallRequest{Version: 1, Provider: "codex", Task: "edit", Directory: "/private/project", Mode: "workspace-write", Paths: []string{"a"}}
+	if err := normalizeProviderCall(&req); err != nil {
+		t.Fatal(err)
+	}
+	req.Paths = nil
 	if normalizeProviderCall(&req) == nil {
-		t.Fatal("unverified Codex writes admitted")
+		t.Fatal("unscoped writes admitted")
 	}
 }
 

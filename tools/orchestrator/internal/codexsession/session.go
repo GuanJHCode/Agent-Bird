@@ -34,6 +34,7 @@ type Options struct {
 	CWD, OwnedHome, PlatformFamily, PlatformOS, Prompt, ResumeThreadID string
 	OnThread                                                           func(context.Context, ThreadBinding) error
 	HostTools                                                          *HostTools
+	ModelOverride                                                      string
 }
 type Outcome struct {
 	Binding        ThreadBinding
@@ -74,7 +75,7 @@ func Run(ctx context.Context, client *codexrpc.Client, projection *codexconfig.P
 		}
 		jobs.Wait()
 	}()
-	if ctx == nil || projection == nil || options.OnThread == nil || !validPath(options.CWD) || !validPath(options.OwnedHome) || !validScalar(options.PlatformFamily) || !validScalar(options.PlatformOS) || !utf8.ValidString(options.Prompt) || strings.TrimSpace(options.Prompt) == "" || (options.ResumeThreadID != "" && !validScalar(options.ResumeThreadID)) {
+	if (options.ModelOverride != "" && (options.HostTools == nil || options.ResumeThreadID != "" || options.ModelOverride != string(adapter.CodexPluginCompatibilityModel))) || ctx == nil || projection == nil || options.OnThread == nil || !validPath(options.CWD) || !validPath(options.OwnedHome) || !validScalar(options.PlatformFamily) || !validScalar(options.PlatformOS) || !utf8.ValidString(options.Prompt) || strings.TrimSpace(options.Prompt) == "" || (options.ResumeThreadID != "" && !validScalar(options.ResumeThreadID)) {
 		return Outcome{}, ErrInput
 	}
 	if _, ok := ctx.Deadline(); !ok {

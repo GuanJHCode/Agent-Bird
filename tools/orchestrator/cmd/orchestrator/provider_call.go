@@ -70,9 +70,6 @@ func normalizeProviderCall(r *providerCallRequest) error {
 	if r.TimeoutMS < 1 || r.TimeoutMS > 3600000 {
 		return codeError("call_timeout_invalid")
 	}
-	if r.Provider == "codex" && r.Mode == "workspace-write" {
-		return codeError("codex_write_not_ready")
-	}
 	if r.Mode != "read-only" && r.Mode != "workspace-write" {
 		return codeError("call_mode_invalid")
 	}
@@ -189,6 +186,9 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 		role = adapter.Implementer
 	}
 	dispatch := dispatchRequest{Version: 1, RequestID: result.CallID, Provider: req.Provider, ProviderLock: req.ProviderLock, Directory: req.Directory, Prompt: req.Task, Role: role, Paths: req.Paths, Acceptance: []string{"Return the task result and describe any incomplete work."}, Model: "cli-default", MaxAttempts: 1, MaxActiveMS: req.TimeoutMS, GrokSessionWrite: req.Provider == "grok", GrokExistingAuthOnly: req.Provider == "grok"}
+	if req.Provider == "codex" {
+		dispatch.Model = string(adapter.CodexPluginCompatibilityModel)
+	}
 	var receipt bytes.Buffer
 	dispatchErr := withTaskRequest(dispatch, func(path string) error {
 		return taskDispatch(ctx, []string{"--request", path, "--state-dir", state}, &receipt)

@@ -128,3 +128,10 @@ Claude→Codex首次未通过：Host首次session事件经Store旧continuationPa
 本地原Wait事件未获Store提交，调用方不能据本地残留声称process_exited=true。
 新Store定向事务测试已复现该具体拒绝；修复只区分initial session binding与continuation
 admission，不让新plugin thread获取旧M3恢复权限。
+
+## Fresh Codex target compatibility and candidate tools (2026-10-12)
+
+- Native evidence identifies the target 0.154.0 ChatGPT failure: configured `gpt-6.1-sol` returns HTTP 400, unsupported for that account. Fresh plugin calls use explicit `gpt-5.4` thread model, after verifying the original read-only projection. No source config/account changes; M3 and continuation remain gated.
+- Host candidate tools use exclusive owned candidate only, SHA-bound replace/create, durable private intent/receipt, and existing original-Wait then Git freeze. Original project remains unchanged. Broker mode/create regression: 9 named race PASS. Host/session/adapter targeted race: 19 named PASS, 0 failures, 1 opt-in native diagnostic skipped (synthetic tests are not native acceptance).
+- Earlier native7 Grok→Codex reached actual MCP and target thread but failed Host binding against the source model. Host now checks the explicit plugin compatibility model; candidate integration test covers this binding. Native rerun pending.
+- AGY account unavailable confirmed by user; no more AGY model calls this stage.

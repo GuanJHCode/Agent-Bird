@@ -15,7 +15,6 @@ import time
 from typing import Any
 
 MAX_QUEUE = 64
-MAX_UPDATES = 64
 MAX_LINE_BYTES = 64 * 1024
 MAX_PUBLIC_TEXT_BYTES = 64 * 1024
 MAX_PUBLIC_OUTPUT_BYTES = 128 * 1024
@@ -147,7 +146,7 @@ def write_rpc(process: subprocess.Popen[bytes], value: dict[str, Any]) -> None:
     process.stdin.flush()
 
 
-def public_update(params: dict[str, Any], output_bytes: list[int]) -> dict[str, Any] | None:
+def public_update(params: dict[str, Any]) -> dict[str, Any] | None:
     update = params.get("update")
     if not isinstance(update, dict):
         return None
@@ -169,11 +168,35 @@ def public_update(params: dict[str, Any], output_bytes: list[int]) -> dict[str, 
                 public[key] = value
     session_id = params.get("sessionId")
     result = {"sessionId": session_id, "update": public} if isinstance(session_id, str) else {"update": public}
-    encoded_size = len(json.dumps(result, separators=(",", ":")).encode("utf-8"))
-    if output_bytes[0] + encoded_size > MAX_PUBLIC_OUTPUT_BYTES:
-        raise ACPError("Grok ACP public output exceeds byte limit")
-    output_bytes[0] += encoded_size
     return result
+
+
+def append_public_update(updates: list[dict[str, Any]], value: dict[str, Any], output_bytes: list[int]) -> None:
+    update = value["update"]
+    merge = bool(updates and update.get("sessionUpdate") == "agent_message_chunk" and
+                 updates[-1].get("sessionId") == value.get("sessionId") and
+                 updates[-1]["update"].get("sessionUpdate") == "agent_message_chunk")
+    prior_size = 0
+    candidate = value
+    if merge:
+        prior = updates[-1]
+        prior_text = prior["update"].get("content", {}).get("text", "")
+        next_text = update.get("content", {}).get("text", "")
+        text = prior_text + next_text
+        if len(text.encode("utf-8")) > MAX_PUBLIC_TEXT_BYTES:
+            raise ACPError("Grok ACP message text exceeds byte limit")
+        candidate = {"sessionId": value["sessionId"], "update": {
+            "sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": text},
+        }}
+        prior_size = len(json.dumps(prior, separators=(",", ":")).encode("utf-8"))
+    candidate_size = len(json.dumps(candidate, separators=(",", ":")).encode("utf-8"))
+    if output_bytes[0] - prior_size + candidate_size > MAX_PUBLIC_OUTPUT_BYTES:
+        raise ACPError("Grok ACP public output exceeds byte limit")
+    output_bytes[0] = output_bytes[0] - prior_size + candidate_size
+    if merge:
+        updates[-1] = candidate
+    else:
+        updates.append(candidate)
 
 
 def reply_server_request(process: subprocess.Popen[str], message: dict[str, Any]) -> None:
@@ -210,9 +233,9 @@ def request(process: subprocess.Popen[bytes], output: queue.Queue[Any], request_
             if inbound_method == "session/update":
                 params_value = message.get("params")
                 if isinstance(params_value, dict):
-                    published = public_update(params_value, output_bytes)
-                    if published is not None and len(updates) < MAX_UPDATES:
-                        updates.append(published)
+                    published = public_update(params_value)
+                    if published is not None:
+                        append_public_update(updates, published, output_bytes)
             elif "id" in message:
                 reply_server_request(process, message)
             continue

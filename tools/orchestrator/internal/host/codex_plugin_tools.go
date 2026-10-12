@@ -25,6 +25,10 @@ func openCodexReadTools(root string) (*codexsession.HostTools, func() error, err
 	if err != nil {
 		return nil, nil, err
 	}
+	return codexBrokerTools(broker), broker.Close, nil
+}
+
+func codexBrokerTools(broker *codextools.Broker) *codexsession.HostTools {
 	tools := &codexsession.HostTools{Writable: false}
 	tools.OnTool = func(ctx context.Context, call codexsession.ToolCall) (codexsession.ToolResult, error) {
 		if ctx.Err() != nil {
@@ -58,7 +62,7 @@ func openCodexReadTools(root string) (*codexsession.HostTools, func() error, err
 			return codexPluginToolFailureResult(), nil
 		}
 	}
-	return tools, broker.Close, nil
+	return tools
 }
 
 func codexPluginToolJSON(value any) (codexsession.ToolResult, error) {

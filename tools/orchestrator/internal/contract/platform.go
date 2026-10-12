@@ -61,7 +61,14 @@ func CompiledPlatformContract(goos, goarch string) PlatformContract {
 	if goos != "darwin" {
 		darwinGate, darwinReason = "blocked", "darwin_required"
 	}
-	add("codex_worker", "blocked", "codex_execution_domain_not_verified", "pinned_provider", "separate_tool_network_and_state_boundary", "native_read_write_continuation")
+	pluginGate, pluginReason := "public", "fresh_serial_calls_only"
+	if goos != "darwin" {
+		pluginGate, pluginReason = "blocked", "darwin_required"
+	}
+	add("provider_call", pluginGate, pluginReason, "installed_package", "pinned_target", "live_original_owner", "single_call", "original_wait")
+	add("codex_worker_read", pluginGate, pluginReason, "codex_0_154_0_exact_pin", "host_tools_v1", "fresh_read_only_thread", "original_wait")
+	add("codex_worker_write", pluginGate, pluginReason, "codex_0_154_0_exact_pin", "host_tools_v1", "fresh_exclusive_candidate", "declared_paths", "original_wait", "frozen_receipt")
+	add("codex_worker", "blocked", "full_continuation_contract_not_qualified", "pinned_provider", "separate_tool_network_and_state_boundary", "native_read_write_continuation")
 	add("filtered_broker_carrier", darwinGate, darwinReason, "original_host", "bound_manifest", "exact_transform_permit", "original_wait")
 	add("filtered_conversion_freeze", darwinGate, darwinReason, "broker", "raw_canonical_roundtrip", "frozen_input", "original_wait")
 	for _, id := range []string{"filtered_compose", "filtered_rework", "filtered_retry", "filtered_continuation"} {

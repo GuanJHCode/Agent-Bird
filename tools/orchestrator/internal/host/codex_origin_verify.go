@@ -65,14 +65,22 @@ func codexValidateOriginRecord(o codexOriginRecord) error {
 			return errCodexStateFile
 		}
 	}
-	if o.Version != 1 || o.Scope.WorkRevision < 1 || o.Scope.PlanRevision < 1 || !codexHexDigest(o.Scope.AdapterPayloadSHA256) || (o.Backend != adapter.ManagedCodexBackend && o.Backend != adapter.CodexPluginBackend) || o.Lock.Version != 1 || o.Lock.Provider != adapter.ProviderCodex || o.Lock.Protocol != adapter.ProtocolID(adapter.ProviderCodex) || o.Lock.Binary.Version != adapter.CodexVersion || o.Lock.Binary.SHA256 != adapter.CodexSHA256 || !codexCanonicalPath(o.Lock.Binary.Path) || o.Lock.Binary.Path == string(filepath.Separator) {
+	if o.Version != 1 || o.Scope.WorkRevision < 1 || o.Scope.PlanRevision < 1 || !codexHexDigest(o.Scope.AdapterPayloadSHA256) || (o.Backend != adapter.ManagedCodexBackend && o.Backend != adapter.CodexPluginBackend && o.Backend != adapter.CodexPluginWriteBackend) || o.Lock.Version != 1 || o.Lock.Provider != adapter.ProviderCodex || o.Lock.Protocol != adapter.ProtocolID(adapter.ProviderCodex) || o.Lock.Binary.Version != adapter.CodexVersion || o.Lock.Binary.SHA256 != adapter.CodexSHA256 || !codexCanonicalPath(o.Lock.Binary.Path) || o.Lock.Binary.Path == string(filepath.Separator) {
 		return errCodexStateFile
 	}
 	p := o.Profile
-	if (o.Backend == adapter.CodexPluginBackend && p.CodexHostToolsVersion != 1) || (o.Backend == adapter.ManagedCodexBackend && p.CodexHostToolsVersion != 0) {
+	if ((o.Backend == adapter.CodexPluginBackend || o.Backend == adapter.CodexPluginWriteBackend) && p.CodexHostToolsVersion != 1) || (o.Backend == adapter.ManagedCodexBackend && p.CodexHostToolsVersion != 0) {
 		return errCodexStateFile
 	}
-	if p.Version != 1 || p.Role != adapter.Reviewer || p.Permission != adapter.ReadOnly || !p.CLIModelDefault || p.Model != "" || p.Reasoning != "" || p.GrokSessionWrite || p.GrokExistingAuthOnly || p.TimeoutMS < 1 || p.TimeoutMS > 3600000 {
+	validRole := p.Role == adapter.Reviewer && p.Permission == adapter.ReadOnly
+	if o.Backend == adapter.CodexPluginWriteBackend {
+		validRole = p.Role == adapter.Implementer && p.Permission == adapter.WorkspaceWrite
+	}
+	validModel := p.CLIModelDefault && p.Model == ""
+	if o.Backend != adapter.ManagedCodexBackend && !p.CLIModelDefault && p.Model == adapter.CodexPluginCompatibilityModel {
+		validModel = true
+	}
+	if p.Version != 1 || !validRole || !validModel || p.Reasoning != "" || p.GrokSessionWrite || p.GrokExistingAuthOnly || p.TimeoutMS < 1 || p.TimeoutMS > 3600000 {
 		return errCodexStateFile
 	}
 	for _, path := range []string{o.Workspace, o.StatePath, o.ProtectedPath, o.Source.Home} {

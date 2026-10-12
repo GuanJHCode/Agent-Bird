@@ -11,6 +11,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codexrpc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codexsession"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
@@ -93,8 +94,21 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 	if g.Continuation == nil && (g.SessionKind != "" || g.SessionID != "" || g.QuestionID != "" || g.QuestionRevision != 0 || g.Answer != "") {
 		return reject(errors.New("codex_managed_continuation_unverified"))
 	}
+	var candidate *gitops.PreparedWorkspace
+	var freeze func(context.Context, string) ([]byte, error)
+	if descriptor, ok := adapter.ManagedCodexDescriptorFor(inv); ok && descriptor.Backend == adapter.CodexPluginWriteBackend {
+		var closeCandidate func()
+		freeze, closeCandidate, candidate, err = h.prepareCandidate(ctx, g, inv, inv.ExecutionProfile())
+		if closeCandidate != nil {
+			defer closeCandidate()
+		}
+		if err != nil || candidate == nil || freeze == nil {
+			return reject(errors.Join(err, errors.New("codex_plugin_candidate_unavailable")))
+		}
+		meta.candidateResourceKind = "producer"
+	}
 	sourceEnv := os.Environ()
-	prepared, err := h.prepareManagedCodexState(ctx, g, inv, sourceEnv, codexPreparationControl{})
+	prepared, err := h.prepareManagedCodexState(ctx, g, inv, sourceEnv, codexPreparationControl{Candidate: candidate})
 	if err != nil {
 		return reject(err)
 	}
@@ -254,7 +268,7 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 	if ownerStopped {
 		kind, status, content = contract.EventStopped, "interrupted", nil
 	} else if runErr != nil || exit.exitCode != 0 || out.Status != "completed" {
-		kind, status, content = contract.EventFailed, "failed", []byte(`{"status":"failed","reason":"codex_managed_protocol_failed"}`)
+		kind, status, content = contract.EventFailed, "failed", codexFailureContent(runErr)
 	} else if out.Completion.Kind == "technical_question" {
 		kind, status = contract.EventQuestion, "waiting_user"
 		candidate, sealErr := h.captureManagedCodexQuestionSeal(ctx, prepared, g, bound, meta.questionRevision+1, hashBytes(content), codexStateReadControl{}, codexSealControl{BeforeFinalVerify: control.beforeSealFinalVerify})
@@ -266,6 +280,12 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 		}
 	} else if out.Completion.Version != 1 || out.Completion.Kind != "result" {
 		kind, status, content, runErr = contract.EventFailed, "failed", []byte(`{"status":"failed","reason":"codex_managed_output_invalid"}`), codexsession.ErrOutput
+	}
+	if kind == contract.EventResult && freeze != nil {
+		content, err = freeze(ctx, string(content))
+		if err != nil {
+			kind, status, content, runErr = contract.EventFailed, "failed", candidateFailure(err), err
+		}
 	}
 	// A stop arriving during final reference/state capture still joins the
 	// same original operation before terminal publication. It cannot turn a
@@ -302,6 +322,9 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 	if err != nil {
 		return unknown(err, &id)
 	}
+	if status == "result_ready" && freeze != nil {
+		count += h.registerCandidateResource(ctx, spool, g.RunID, g.TaskID, a, meta, content)
+	}
 	if err = h.retireCodexHandleLease(lease, exit); err != nil {
 		return unknown(err, &id)
 	}
@@ -313,11 +336,21 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 func (h *Host) runManagedCodexTurn(ctx context.Context, client *codexrpc.Client, p codexPreparedState, g contract.LaunchCommand, id process.Identity) (codexsession.Outcome, codexBoundThread, error) {
 	var bound codexBoundThread
 	var tools *codexsession.HostTools
-	if p.Origin.Backend == adapter.CodexPluginBackend {
+	if p.Origin.Backend == adapter.CodexPluginBackend || p.Origin.Backend == adapter.CodexPluginWriteBackend {
 		if p.Previous != nil || p.Origin.Profile.CodexHostToolsVersion != 1 || g.Continuation != nil {
 			return codexsession.Outcome{}, bound, errCodexStateFile
 		}
-		opened, closeTools, err := openCodexReadTools(p.Origin.Workspace)
+		var opened *codexsession.HostTools
+		var closeTools func() error
+		var err error
+		if p.Origin.Backend == adapter.CodexPluginWriteBackend {
+			if p.Candidate == nil {
+				return codexsession.Outcome{}, bound, errCodexStateFile
+			}
+			opened, closeTools, err = openCodexCandidateTools(ctx, *p.Candidate, p.Protected)
+		} else {
+			opened, closeTools, err = openCodexReadTools(p.Origin.Workspace)
+		}
 		if err != nil {
 			return codexsession.Outcome{}, bound, err
 		}
@@ -326,10 +359,11 @@ func (h *Host) runManagedCodexTurn(ctx context.Context, client *codexrpc.Client,
 	}
 	prompt := strings.TrimSuffix(p.Descriptor.Prompt, "\n\n"+adapter.ManagedTaskInstruction())
 	if tools != nil {
-		prompt += "\nUse agent_bird.read_file and agent_bird.list_files for all project inspection. Shell execution is unavailable. Do not invoke other tools or delegate."
+		prompt += "\nUse agent_bird.read_file and agent_bird.list_files with relative paths for all project inspection. If write_file is available, edit only declared paths using the SHA256 returned by read_file (empty expectedSHA256 only for new files). Read back edits using read_file. Shell execution is unavailable. Do not invoke other tools or delegate."
 	}
 	out, err := codexsession.Run(ctx, client, p.Projection, codexsession.Options{
 		HostTools:        tools,
+		ModelOverride:    string(p.Origin.Profile.Model),
 		RequireStdoutEOF: g.Diagnostics != nil,
 		CWD:              p.Origin.Workspace, OwnedHome: p.Layout.Home.Path,
 		PlatformFamily: "unix", PlatformOS: "macos", Prompt: prompt, ResumeThreadID: p.Descriptor.ResumeThreadID,

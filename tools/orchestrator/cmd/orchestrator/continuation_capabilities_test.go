@@ -11,7 +11,7 @@ func TestProviderProjectionDescribesContinuationByRoleAndPath(t *testing.T) {
 	for _, provider := range []adapter.Provider{adapter.ProviderAGY, adapter.ProviderClaude} {
 		t.Run(string(provider), func(t *testing.T) {
 			lock := adapter.ProviderLock{Version: 1, Provider: provider, Protocol: adapter.ProtocolID(provider), Binary: adapter.BinaryPin{Version: "2.1.285 (Claude Code)"}}
-			help := "--input-format --output-format --permission-mode --disallowed-tools --mode --resume --conversation --json-schema"
+			help := "--print --input-format --output-format --permission-mode --disallowed-tools --mode --resume --conversation --json-schema"
 			projection := providerProjection(lock, "", "provider-probe", help)
 			if projection["profile_resume_supported"] != false {
 				t.Fatal("unconditional resume admission claimed")
@@ -49,7 +49,7 @@ func TestProviderProjectionDescribesContinuationByRoleAndPath(t *testing.T) {
 }
 
 func TestProviderProjectionFailsClosedForMissingContinuationCapability(t *testing.T) {
-	complete := "--input-format --output-format --permission-mode --disallowed-tools --mode --resume --conversation --json-schema"
+	complete := "--print --input-format --output-format --permission-mode --disallowed-tools --mode --resume --conversation --json-schema"
 	for _, tc := range []struct {
 		name                            string
 		provider                        adapter.Provider
@@ -75,5 +75,19 @@ func TestProviderProjectionFailsClosedForMissingContinuationCapability(t *testin
 				}
 			}
 		})
+	}
+}
+
+func TestProviderProjectionCallModes(t *testing.T) {
+	for _, provider := range []adapter.Provider{adapter.ProviderCodex, adapter.ProviderClaude, adapter.ProviderGrok, adapter.ProviderAGY} {
+		p := providerProjection(adapter.ProviderLock{Provider: provider}, "", "provider-probe", "")
+		c := p["call_capabilities"].(map[string]any)
+		if c["version"] != 1 || c["read_only"] != true || c["workspace_write"] != true || c["continuation"] != false {
+			t.Fatal(c)
+		}
+		blocked := providerProjection(adapter.ProviderLock{Provider: provider}, "blocked", "provider-probe", "")["call_capabilities"].(map[string]any)
+		if blocked["read_only"] != false || blocked["workspace_write"] != false {
+			t.Fatal(blocked)
+		}
 	}
 }

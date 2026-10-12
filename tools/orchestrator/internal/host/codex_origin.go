@@ -14,6 +14,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codexconfig"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"golang.org/x/sys/unix"
 )
 
@@ -56,9 +57,13 @@ type codexOriginRecord struct {
 	RequiredAbsences     []string              `json:"required_absences"`
 }
 
-type codexPreparationControl struct{ BeforePublish func() }
+type codexPreparationControl struct {
+	BeforePublish func()
+	Candidate     *gitops.PreparedWorkspace
+}
 
 type codexPreparedState struct {
+	Candidate  *gitops.PreparedWorkspace `json:"-"`
 	Origin     codexOriginRecord
 	OriginFile codexStateFile
 	Protected  codexStateRoot
@@ -250,7 +255,7 @@ func (h *Host) prepareManagedCodexState(ctx context.Context, g contract.LaunchCo
 	}
 	var empty codexPreparedState
 	descriptor, ok := adapter.ManagedCodexDescriptorFor(inv)
-	if !ok || (descriptor.Backend != adapter.ManagedCodexBackend && descriptor.Backend != adapter.CodexPluginBackend) || descriptor.ResumeThreadID != "" || g.Continuation != nil || g.SessionID != "" || g.SessionKind != "" || ctx.Err() != nil {
+	if !ok || (descriptor.Backend != adapter.ManagedCodexBackend && descriptor.Backend != adapter.CodexPluginBackend && descriptor.Backend != adapter.CodexPluginWriteBackend) || descriptor.ResumeThreadID != "" || g.Continuation != nil || g.SessionID != "" || g.SessionKind != "" || ctx.Err() != nil {
 		return empty, errCodexStateFile
 	}
 	h.mu.Lock()
@@ -262,7 +267,19 @@ func (h *Host) prepareManagedCodexState(ctx context.Context, g contract.LaunchCo
 	}
 	p, err := adapter.DecodeInvocationPayload(g.AdapterPayload)
 	profile := inv.ExecutionProfile()
-	if err != nil || p.Kind != "provider" || p.Provider != string(adapter.ProviderCodex) || p.Profile == nil || profile == nil || *p.Profile != *profile || p.ProviderLock == nil || *p.ProviderLock != descriptor.Lock || p.Directory != inv.WorkingDirectory() || p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" || p.Prompt+"\n\n"+adapter.ManagedTaskInstruction() != descriptor.Prompt || p.SessionID != "" || p.SessionKind != "" || len(p.Args) != 0 || len(p.Allow) != 0 || len(p.Deny) != 0 || len(p.ExtraArgs) != 0 || p.CandidateAction != nil || p.CandidateWorkspace != nil || p.PermissionMode != "" && p.PermissionMode != "plan" {
+	if err != nil || p.Kind != "provider" || p.Provider != string(adapter.ProviderCodex) || p.Profile == nil || profile == nil || *p.Profile != *profile || p.ProviderLock == nil || *p.ProviderLock != descriptor.Lock || p.Directory != inv.WorkingDirectory() || p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" || p.Prompt+"\n\n"+adapter.ManagedTaskInstruction() != descriptor.Prompt || p.SessionID != "" || p.SessionKind != "" || len(p.Args) != 0 || len(p.Allow) != 0 || len(p.Deny) != 0 || len(p.ExtraArgs) != 0 || p.CandidateAction != nil || !reflect.DeepEqual(p.CandidateWorkspace, inv.CandidateWorkspace()) || p.PermissionMode != "" && p.PermissionMode != "plan" {
+		return empty, errCodexStateFile
+	}
+	workspacePath := inv.WorkingDirectory()
+	if descriptor.Backend == adapter.CodexPluginWriteBackend {
+		c := control.Candidate
+		if c == nil || p.CandidateWorkspace == nil || profile.Role != adapter.Implementer || profile.Permission != adapter.WorkspaceWrite || c.OwnerContextID != owner || c.AdapterPayloadSHA256 != hashBytes(g.AdapterPayload) || c.Binding.RunID != g.RunID || c.Binding.TaskID != g.TaskID || c.Binding.AttemptID != g.AttemptID || c.Binding.SegmentID != g.SegmentID || c.Receipt.Worktree != candidateDirectory(inv.WorkingDirectory(), g, true) || c.Receipt.RepoRoot != p.CandidateWorkspace.RepoRoot || !reflect.DeepEqual(c.Paths, p.CandidateWorkspace.Paths) || gitops.ValidatePreparedWorkspace(ctx, *c) != nil {
+			return empty, errCodexStateFile
+		}
+		// The app-server keeps the original repository as its read-only CWD. Only
+		// the Host callback learns the private candidate root and can mutate it.
+		workspacePath = p.CandidateWorkspace.RepoRoot
+	} else if p.CandidateWorkspace != nil || control.Candidate != nil {
 		return empty, errCodexStateFile
 	}
 	sourceHome, err := codexSourceHome(env)
@@ -271,14 +288,14 @@ func (h *Host) prepareManagedCodexState(ctx context.Context, g contract.LaunchCo
 	}
 	statePath := filepath.Join(h.spoolRoot, g.AttemptID, "codex-state")
 	protectedPath := filepath.Join(h.spoolRoot, g.AttemptID, g.SegmentID)
-	if codexPathsOverlap(sourceHome, statePath) || codexPathsOverlap(sourceHome, protectedPath) || codexPathsOverlap(sourceHome, inv.WorkingDirectory()) || codexPathsOverlap(statePath, inv.WorkingDirectory()) || codexPathsOverlap(protectedPath, inv.WorkingDirectory()) {
+	if codexPathsOverlap(sourceHome, statePath) || codexPathsOverlap(sourceHome, protectedPath) || codexPathsOverlap(sourceHome, workspacePath) || codexPathsOverlap(statePath, workspacePath) || codexPathsOverlap(protectedPath, workspacePath) {
 		return empty, errCodexStateFile
 	}
 	source, projection, err := codexCaptureSourceReferences(ctx, sourceHome, codexSourceControl{})
 	if err != nil {
 		return empty, err
 	}
-	workspace, err := codexOpenSourceRoot(ctx, inv.WorkingDirectory())
+	workspace, err := codexOpenSourceRoot(ctx, workspacePath)
 	if err != nil {
 		return empty, err
 	}
@@ -351,7 +368,7 @@ func (h *Host) prepareManagedCodexState(ctx context.Context, g contract.LaunchCo
 	if err != nil {
 		return empty, err
 	}
-	origin := codexOriginRecord{Version: 1, Scope: scope, Backend: descriptor.Backend, Lock: descriptor.Lock, Profile: *profile, Workspace: inv.WorkingDirectory(), ProtectedPath: protected.Path, StatePath: state.Path, Parents: parents, Source: codexSourceRecord{Home: source.Home, Config: source.Config, Auth: source.Auth, ProjectedSHA256: source.ProjectedSHA256, OverridesSHA256: source.OverridesSHA256}, Owned: owned, InstallationID: installation, InitialInstallation: initialInstallation.File, InitialPrimarySHA256: primary.SHA256, InitialAuxiliary: aux, RequiredAbsences: codexRequiredAbsences()}
+	origin := codexOriginRecord{Version: 1, Scope: scope, Backend: descriptor.Backend, Lock: descriptor.Lock, Profile: *profile, Workspace: workspacePath, ProtectedPath: protected.Path, StatePath: state.Path, Parents: parents, Source: codexSourceRecord{Home: source.Home, Config: source.Config, Auth: source.Auth, ProjectedSHA256: source.ProjectedSHA256, OverridesSHA256: source.OverridesSHA256}, Owned: owned, InstallationID: installation, InitialInstallation: initialInstallation.File, InitialPrimarySHA256: primary.SHA256, InitialAuxiliary: aux, RequiredAbsences: codexRequiredAbsences()}
 	if codexValidateOriginRecord(origin) != nil {
 		return empty, errCodexStateFile
 	}
@@ -370,7 +387,7 @@ func (h *Host) prepareManagedCodexState(ctx context.Context, g contract.LaunchCo
 	if err != nil {
 		return empty, err
 	}
-	prepared := codexPreparedState{Origin: origin, OriginFile: originFile, Protected: protected, Layout: layout, Source: source, Projection: projection, Descriptor: descriptor}
+	prepared := codexPreparedState{Candidate: control.Candidate, Origin: origin, OriginFile: originFile, Protected: protected, Layout: layout, Source: source, Projection: projection, Descriptor: descriptor}
 	if codexVerifyInitialPrepared(ctx, prepared) != nil {
 		return empty, errCodexStateFile
 	}

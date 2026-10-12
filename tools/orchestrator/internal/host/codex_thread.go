@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codexsession"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -143,7 +144,13 @@ func codexCheckManagedBinding(p codexPreparedState, b codexsession.ThreadBinding
 	if p.Projection == nil || toml.Unmarshal(p.Projection.ConfigTOML(), &config) != nil || config["sandbox_mode"] != "read-only" {
 		return errCodexStateBinding
 	}
-	if model, present := config["model"]; present && model != b.Model {
+	model, present := config["model"]
+	if p.Origin.Backend == adapter.CodexPluginBackend || p.Origin.Backend == adapter.CodexPluginWriteBackend {
+		if !p.Origin.Profile.CLIModelDefault && p.Origin.Profile.Model == adapter.CodexPluginCompatibilityModel {
+			model, present = string(p.Origin.Profile.Model), true
+		}
+	}
+	if present && model != b.Model {
 		return errCodexStateBinding
 	}
 	return nil

@@ -52,7 +52,8 @@ class GrokPluginACPTest(unittest.TestCase):
                         seen["permission_reply"] = json.loads(next(sys.stdin))
                         for update in (
                             {"sessionUpdate": "agent_thought_chunk", "content": {"text": "private", "signature": "secret"}},
-                            {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "Bird ready", "signature": "hidden"}},
+                            {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "Bird ", "signature": "hidden"}},
+                            {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "ready"}},
                             {"sessionUpdate": "tool_call", "toolCallId": "tool-1", "toolName": "agent_bird_call", "rawInput": {"secret": "no"}},
                         ):
                             print(json.dumps({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "session-1", "update": update}}), flush=True)
@@ -78,6 +79,7 @@ class GrokPluginACPTest(unittest.TestCase):
             summary = json.loads(result.stdout)
             self.assertEqual(summary["session_id"], "session-1")
             self.assertEqual([item["update"]["sessionUpdate"] for item in summary["updates"]], ["agent_message_chunk", "tool_call"])
+            self.assertEqual(summary["updates"][0]["update"]["content"]["text"], "Bird ready")
             self.assertNotIn("signature", result.stdout)
             self.assertNotIn("private", result.stdout)
             observed = json.loads(trace.read_text())

@@ -60,9 +60,6 @@ func validateDispatch(req dispatchRequest) error {
 	if err != nil {
 		return err
 	}
-	if p == adapter.ProviderCodex && req.Role != adapter.Reviewer {
-		return codeError("codex_write_not_ready")
-	}
 	if req.Role != adapter.Reviewer && req.Role != adapter.Implementer {
 		return codeError("dispatch_request_invalid")
 	}

@@ -87,7 +87,7 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 }
 
 func providerProjection(lock adapter.ProviderLock, reason, operation, help string) map[string]any {
-	return map[string]any{"version": 1, "lock": lock, "profile_supported": reason == "", "profile_resume_supported": false, "profile_resume_scope": "legacy_or_caller_supplied_session", "profile_resume_reason": "profile_resume_not_verified", "continuation_capabilities": continuationCapabilities(lock, reason, help), "reason": reason, "requires_confirmation": operation == "provider-probe", "requires_session_write_authorization": lock.Provider == adapter.ProviderGrok}
+	return map[string]any{"version": 1, "call_capabilities": map[string]any{"version": 1, "read_only": reason == "", "workspace_write": reason == "", "continuation": false}, "lock": lock, "profile_supported": reason == "", "profile_resume_supported": false, "profile_resume_scope": "legacy_or_caller_supplied_session", "profile_resume_reason": "profile_resume_not_verified", "continuation_capabilities": continuationCapabilities(lock, reason, help), "reason": reason, "requires_confirmation": operation == "provider-probe", "requires_session_write_authorization": lock.Provider == adapter.ProviderGrok}
 }
 
 type continuationCapability struct {

@@ -69,6 +69,9 @@ func (s *sessionState) config(response map[string]any) error {
 		return ErrPolicy
 	}
 	s.model = config["model"]
+	if s.options.ModelOverride != "" {
+		s.model = s.options.ModelOverride
+	}
 	s.effort = config["model_reasoning_effort"]
 	s.tier = config["service_tier"]
 	if s.model != nil && !validScalar(str(s.model)) {
@@ -341,17 +344,25 @@ func (s *sessionState) event(event codexrpc.Event) error {
 		switch status["type"] {
 		case "idle":
 		case "active":
+			s.failure.Branch = "thread_active"
 			if !s.callbackDone || s.phase != "turn/start" && s.phase != "running" {
 				return ErrProtocol
 			}
 			for _, flag := range arr(status["activeFlags"]) {
 				if flag == "waitingOnUserInput" {
+					s.failure.Branch = "thread_waiting_user"
 					return ErrProtocol
 				}
 				if flag == "waitingOnApproval" {
 					s.permission = true
 				}
 			}
+		case "notLoaded":
+			s.failure.Branch = "thread_not_loaded"
+			return ErrNativeFailure
+		case "systemError":
+			s.failure.Branch = "thread_system_error"
+			return ErrNativeFailure
 		default:
 			return ErrNativeFailure
 		}
