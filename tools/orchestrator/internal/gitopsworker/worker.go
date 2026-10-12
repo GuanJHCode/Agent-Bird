@@ -313,6 +313,7 @@ func (j *durableJournal) composePreflight(ctx context.Context) error {
 type durableJournal struct {
 	file   *os.File
 	lock   *os.File
+	dir    *os.File // held journal directory; seal paths use openat through it
 	lockMu sync.Mutex
 }
 
@@ -325,6 +326,9 @@ func OpenFreshJournal(root string) (*durableJournal, error) {
 	return openJournalFlags(root, os.O_EXCL)
 }
 func (j *durableJournal) Close() error {
+	if j.dir != nil {
+		return errors.Join(j.lock.Close(), j.file.Close(), j.dir.Close())
+	}
 	return errors.Join(j.lock.Close(), j.file.Close())
 }
 
@@ -394,6 +398,8 @@ func openJournalFlags(root string, extra int) (*durableJournal, error) {
 		return nil, err
 	}
 	path := filepath.Join(root, "events.jsonl")
+	_, statErr := os.Lstat(path)
+	created := os.IsNotExist(statErr)
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NOFOLLOW|extra, 0600)
 	if err != nil {
 		return nil, err
@@ -438,6 +444,13 @@ func openJournalFlags(root string, extra int) (*durableJournal, error) {
 		_ = lock.Close()
 		_ = file.Close()
 		return nil, errors.New("gitops_journal_unsafe")
+	}
+	if created {
+		if err = writeSourceOrigin(root, file, lock); err != nil {
+			_ = lock.Close()
+			_ = file.Close()
+			return nil, err
+		}
 	}
 	directory, err = os.Open(root)
 	if err != nil {

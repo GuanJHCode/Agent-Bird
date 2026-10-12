@@ -139,3 +139,18 @@ func TestOpenSealedCandidateResourceRejectsReplacement(t *testing.T) {
 		t.Fatal("replacement accepted")
 	}
 }
+
+func TestSealCandidateJournalRejectsDirectoryReplacement(t *testing.T) {
+	spool, j, source, _ := sealedFixture(t)
+	j.close()
+	dir := filepath.Join(spool, source.JournalRelative)
+	if err := os.Rename(dir, dir+"-old"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SealCandidateJournal(context.Background(), spool, source); err == nil {
+		t.Fatal("replacement journal adopted")
+	}
+}

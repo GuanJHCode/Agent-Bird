@@ -17,36 +17,225 @@ import (
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"golang.org/x/sys/unix"
 )
 
 var errCandidateSeal = errors.New("candidate_resource_seal_invalid")
 
+type MaintenanceJournalIdentity struct {
+	Directory gitops.DirectoryIdentity `json:"directory"`
+	Events    gitops.FileIdentity      `json:"events"`
+	Lock      gitops.FileIdentity      `json:"lock"`
+}
+type sourceOrigin struct {
+	Spool     gitops.DirectoryIdentity `json:"spool"`
+	Namespace gitops.DirectoryIdentity `json:"namespace"`
+	Directory gitops.DirectoryIdentity `json:"directory"`
+	Events    gitops.FileIdentity      `json:"events"`
+	Lock      gitops.FileIdentity      `json:"lock"`
+}
+
+func sourceJournalPath(root string) bool {
+	n := filepath.Base(root)
+	if len(n) != 64 {
+		return false
+	}
+	if _, e := hex.DecodeString(n); e != nil {
+		return false
+	}
+	p := filepath.Base(filepath.Dir(root))
+	return p == ".gitops-journal" || p == "gitops-journal"
+}
+func writeSourceOrigin(root string, file, lock *os.File) error {
+	if !sourceJournalPath(root) {
+		return nil
+	}
+	spool, ns, dir, e := candidateSealDirectories(filepath.Dir(filepath.Dir(root)), root)
+	if e != nil {
+		return e
+	}
+	fs, e := file.Stat()
+	if e != nil {
+		return e
+	}
+	ls, e := lock.Stat()
+	if e != nil {
+		return e
+	}
+	raw, e := json.Marshal(sourceOrigin{spool, ns, dir, sealFileIdentity(fs), sealFileIdentity(ls)})
+	if e != nil {
+		return e
+	}
+	return writeExclusiveOrSame(filepath.Join(root, "origin.json"), raw)
+}
+func verifySourceOrigin(a *sealAuthority, file, lock *os.File) error {
+	f, e := openAtFile(a.root, "origin.json", unix.O_RDONLY)
+	if e != nil {
+		return errCandidateSeal
+	}
+	defer f.Close()
+	raw, e := io.ReadAll(io.LimitReader(f, 8193))
+	if e != nil {
+		return errCandidateSeal
+	}
+	var o sourceOrigin
+	if decodeJournalStrict(raw, &o) != nil {
+		return errCandidateSeal
+	}
+	fs, e := file.Stat()
+	if e != nil {
+		return errCandidateSeal
+	}
+	ls, e := lock.Stat()
+	if e != nil {
+		return errCandidateSeal
+	}
+	match := func(x, y gitops.FileIdentity) bool {
+		return x.Device == y.Device && x.Inode == y.Inode && x.Mode == y.Mode
+	}
+	if o.Spool != a.spool || o.Namespace != a.namespace || o.Directory != a.directory || !match(o.Events, sealFileIdentity(fs)) || !match(o.Lock, sealFileIdentity(ls)) {
+		return errCandidateSeal
+	}
+	return nil
+}
+func OpenExistingMaintenanceJournal(root string, expected MaintenanceJournalIdentity) (*durableJournal, error) {
+	if !filepath.IsAbs(root) {
+		return nil, errCandidateSeal
+	}
+	fd, e := unix.Open(root, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return nil, errCandidateSeal
+	}
+	d := os.NewFile(uintptr(fd), root)
+	id, e := sealDirectoryIdentity(root)
+	if e != nil || id != expected.Directory {
+		d.Close()
+		return nil, errCandidateSeal
+	}
+	f, e := openAtFile(d, "events.jsonl", unix.O_RDWR|unix.O_APPEND)
+	if e != nil || !maintenanceFile(f, expected.Events) {
+		if f != nil {
+			f.Close()
+		}
+		d.Close()
+		return nil, errCandidateSeal
+	}
+	l, e := openAtFile(d, "events.lock", unix.O_RDWR)
+	if e != nil || !maintenanceFile(l, expected.Lock) {
+		if l != nil {
+			l.Close()
+		}
+		f.Close()
+		d.Close()
+		return nil, errCandidateSeal
+	}
+	return &durableJournal{file: f, lock: l, dir: d}, nil
+}
+func maintenanceFile(f *os.File, want gitops.FileIdentity) bool {
+	if f == nil {
+		return false
+	}
+	i, e := f.Stat()
+	if e != nil || !privateJournalFile(i) {
+		return false
+	}
+	got := sealFileIdentity(i)
+	return got.Device == want.Device && got.Inode == want.Inode && got.Mode == want.Mode
+}
+
+type sealAuthority struct {
+	spool, namespace, directory gitops.DirectoryIdentity
+	root                        *os.File
+	path                        string
+}
+
+func (a *sealAuthority) verify() error {
+	if a.root == nil {
+		return errCandidateSeal
+	}
+	st, err := a.root.Stat()
+	if err != nil || sealFileIdentity(st).Inode != a.directory.Inode {
+		return errCandidateSeal
+	}
+	return nil
+}
+func openSealAuthority(spoolRoot string, source gitops.CandidateResourceSource) (*sealAuthority, error) {
+	root, err := candidateJournalRoot(spoolRoot, source)
+	if err != nil {
+		return nil, err
+	}
+	openDir := func(path string) (*os.File, gitops.DirectoryIdentity, error) {
+		fd, e := unix.Open(path, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if e != nil {
+			return nil, gitops.DirectoryIdentity{}, errCandidateSeal
+		}
+		f := os.NewFile(uintptr(fd), path)
+		id, e := sealDirectoryIdentity(path)
+		if e != nil {
+			f.Close()
+			return nil, gitops.DirectoryIdentity{}, e
+		}
+		return f, id, nil
+	}
+	_, spool, err := openDir(filepath.Clean(spoolRoot))
+	if err != nil {
+		return nil, err
+	}
+	_, namespace, err := openDir(filepath.Dir(root))
+	if err != nil {
+		return nil, err
+	}
+	f, directory, err := openDir(root)
+	if err != nil {
+		return nil, err
+	}
+	return &sealAuthority{spool: spool, namespace: namespace, directory: directory, root: f, path: root}, nil
+}
+func openAtFile(dir *os.File, name string, flags int) (*os.File, error) {
+	fd, e := unix.Openat(int(dir.Fd()), name, flags|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return nil, e
+	}
+	return os.NewFile(uintptr(fd), filepath.Join(dir.Name(), name)), nil
+}
+func sameAtFile(dir *os.File, name string, f *os.File) bool {
+	x, e := openAtFile(dir, name, unix.O_RDONLY)
+	if e != nil {
+		return false
+	}
+	defer x.Close()
+	a, e := x.Stat()
+	b, be := f.Stat()
+	return e == nil && be == nil && os.SameFile(a, b)
+}
+
 // SealCandidateJournal opens only the exact, already-existing source journal.
 // It intentionally never adopts a sibling journal or creates recovery state.
 func SealCandidateJournal(ctx context.Context, spoolRoot string, source gitops.CandidateResourceSource) (gitops.CandidateResourceHeader, error) {
-	root, err := candidateJournalRoot(spoolRoot, source)
+	a, err := openSealAuthority(spoolRoot, source)
 	if err != nil {
 		return gitops.CandidateResourceHeader{}, err
 	}
-	j, err := openExistingJournal(root)
+	j, err := openExistingJournalAt(a)
 	if err != nil {
 		return gitops.CandidateResourceHeader{}, err
 	}
 	defer j.close()
-	return j.SealCandidateResource(ctx, spoolRoot, source)
+	return j.sealCandidateResourceAt(ctx, a, source)
 }
 
 func (j *durableJournal) SealCandidateResource(ctx context.Context, spoolRoot string, source gitops.CandidateResourceSource) (out gitops.CandidateResourceHeader, err error) {
-	root, err := candidateJournalRoot(spoolRoot, source)
-	if err != nil || filepath.Clean(j.file.Name()) != filepath.Join(root, "events.jsonl") {
+	a, err := openSealAuthority(spoolRoot, source)
+	if err != nil || !sameAtFile(a.root, "events.jsonl", j.file) {
 		return out, errCandidateSeal
 	}
-	spool, namespace, directory, err := candidateSealDirectories(spoolRoot, root)
-	if err != nil {
-		return out, err
-	}
+	j.dir = a.root
+	return j.sealCandidateResourceAt(ctx, a, source)
+}
+func (j *durableJournal) sealCandidateResourceAt(ctx context.Context, a *sealAuthority, source gitops.CandidateResourceSource) (out gitops.CandidateResourceHeader, err error) {
+	spool, namespace, directory := a.spool, a.namespace, a.directory
 	err = j.withLock(syscall.LOCK_EX, func() error {
-		if existing, found, e := readCandidateSeal(filepath.Join(root, "seal.json")); e != nil {
+		if existing, found, e := readCandidateSealAt(a.root); e != nil {
 			return e
 		} else if found {
 			// A seal is a permanent append fence, including a malformed one.
@@ -103,7 +292,10 @@ func (j *durableJournal) SealCandidateResource(ctx context.Context, spoolRoot st
 		if e = out.Validate(); e != nil {
 			return errCandidateSeal
 		}
-		return writeCandidateSeal(filepath.Join(root, "seal.json"), out)
+		if e = writeCandidateSealAt(a.root, out); e != nil {
+			return e
+		}
+		return a.verify()
 	})
 	return out, err
 }
@@ -284,6 +476,51 @@ func readCandidateSeal(path string) (gitops.CandidateResourceHeader, bool, error
 	}
 	return h, true, nil
 }
+func readCandidateSealAt(dir *os.File) (gitops.CandidateResourceHeader, bool, error) {
+	f, err := openAtFile(dir, "seal.json", unix.O_RDONLY)
+	if errors.Is(err, unix.ENOENT) {
+		return gitops.CandidateResourceHeader{}, false, nil
+	}
+	if err != nil {
+		return gitops.CandidateResourceHeader{}, false, errCandidateSeal
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || !privateJournalFile(info) || info.Size() > 8192 {
+		return gitops.CandidateResourceHeader{}, false, errCandidateSeal
+	}
+	body, err := io.ReadAll(io.LimitReader(f, 8193))
+	if err != nil || int64(len(body)) != info.Size() || len(body) > 8192 {
+		return gitops.CandidateResourceHeader{}, false, errCandidateSeal
+	}
+	var h gitops.CandidateResourceHeader
+	if decodeJournalStrict(body, &h) != nil || h.Validate() != nil {
+		return gitops.CandidateResourceHeader{}, false, errCandidateSeal
+	}
+	return h, true, nil
+}
+func writeCandidateSealAt(dir *os.File, header gitops.CandidateResourceHeader) error {
+	body, e := json.Marshal(header)
+	if e != nil || len(body) > 8192 {
+		return errCandidateSeal
+	}
+	fd, e := unix.Openat(int(dir.Fd()), "seal.json", unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+	if e != nil {
+		if e == unix.EEXIST {
+			return errCandidateSeal
+		}
+		return e
+	}
+	f := os.NewFile(uintptr(fd), "seal.json")
+	defer f.Close()
+	if _, e = f.Write(body); e != nil {
+		return e
+	}
+	if e = f.Sync(); e != nil {
+		return e
+	}
+	return dir.Sync()
+}
 func writeCandidateSeal(path string, header gitops.CandidateResourceHeader) error {
 	body, err := json.Marshal(header)
 	if err != nil || len(body) > 8192 {
@@ -442,6 +679,32 @@ func openExistingJournal(root string) (*durableJournal, error) {
 		return nil, errCandidateSeal
 	}
 	return &durableJournal{file: file, lock: lock}, nil
+}
+func openExistingJournalAt(a *sealAuthority) (*durableJournal, error) {
+	file, e := openAtFile(a.root, "events.jsonl", unix.O_RDWR|unix.O_APPEND)
+	if e != nil {
+		return nil, e
+	}
+	if !privateJournalFileMust(file) {
+		file.Close()
+		return nil, errCandidateSeal
+	}
+	lock, e := openAtFile(a.root, "events.lock", unix.O_RDWR)
+	if e != nil {
+		file.Close()
+		return nil, e
+	}
+	if !privateJournalFileMust(lock) {
+		lock.Close()
+		file.Close()
+		return nil, errCandidateSeal
+	}
+	if err := verifySourceOrigin(a, file, lock); err != nil {
+		_ = lock.Close()
+		_ = file.Close()
+		return nil, err
+	}
+	return &durableJournal{file: file, lock: lock, dir: a.root}, nil
 }
 func privateJournalFileMust(f *os.File) bool {
 	info, err := f.Stat()
