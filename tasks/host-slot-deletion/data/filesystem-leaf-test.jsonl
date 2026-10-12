@@ -1,0 +1,7 @@
+{"command":"TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -json -race ./internal/artifacts -run '^TestHostSlot(Deletion|BindingDeletion)'","workdir":"tools/orchestrator","stderr":"","exit":0}
+{"Time":"2026-10-12T10:38:42.201317+08:00","Action":"pass","Test":"TestHostSlotDeletionRemovesDataAndPreventsResurrection"}
+{"Time":"2026-10-12T10:38:47.421362+08:00","Action":"pass","Test":"TestHostSlotDeletionRejectsForeignAndRecreatedData"}
+{"Time":"2026-10-12T10:38:47.470781+08:00","Action":"pass","Test":"TestHostSlotDeletionRejectsRootAndObjectReplacement"}
+{"Time":"2026-10-12T10:38:47.494961+08:00","Action":"pass","Test":"TestHostSlotDeletionHoldsWriterLock"}
+{"Time":"2026-10-12T10:38:47.594339+08:00","Action":"pass","Test":"TestHostSlotBindingDeletionAbsentAndManagedDiscovery"}
+{"Time":"2026-10-12T10:38:48.608697+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts","Elapsed":6.884}
