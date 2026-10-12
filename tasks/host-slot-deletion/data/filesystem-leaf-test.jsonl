@@ -1,4 +1,4 @@
-{"command":"TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -json -race ./internal/artifacts -run '^TestHostSlot(Deletion|BindingDeletion)'","workdir":"tools/orchestrator","stderr":"","exit":0}
+{"status":"invalid evidence","reason":"This hand-curated summary is not raw go test stdout. Use filesystem-leaf-test.stdout.jsonl with its adjacent command, stderr, and exit files."}
 {"Time":"2026-10-12T10:38:42.201317+08:00","Action":"pass","Test":"TestHostSlotDeletionRemovesDataAndPreventsResurrection"}
 {"Time":"2026-10-12T10:38:47.421362+08:00","Action":"pass","Test":"TestHostSlotDeletionRejectsForeignAndRecreatedData"}
 {"Time":"2026-10-12T10:38:47.470781+08:00","Action":"pass","Test":"TestHostSlotDeletionRejectsRootAndObjectReplacement"}

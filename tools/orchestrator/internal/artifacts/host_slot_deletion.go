@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"strings"
 
 	"golang.org/x/sys/unix"
 )
@@ -65,12 +66,13 @@ type HostSlotDeletionPlan struct {
 // HostSlotDeletion is an exclusive, durable removal of a Host slot's data.bin.
 // Its descriptor, intent and writer lock remain as the recovery anchor.
 type HostSlotDeletion struct {
-	n           *object
-	descriptor  HostSlotDescriptor
-	expected    Proof
-	requestID   string
-	plan        []byte
-	bindingPlan *HostSlotDeletionPlan
+	n            *object
+	descriptor   HostSlotDescriptor
+	expected     Proof
+	requestID    string
+	plan         []byte
+	bindingPlan  *HostSlotDeletionPlan
+	removedBytes int64
 }
 
 type hostSlotDeletionPlan struct {
@@ -124,6 +126,17 @@ func (d *HostSlotDeletion) MarkerBytes() int64 {
 func (d *HostSlotDeletion) RemovedBytes() int64 {
 	if d == nil || d.n == nil {
 		return 0
+	}
+	if d.bindingPlan != nil {
+		var removed int64
+		for _, snapshot := range []*HostSlotFileSnapshot{d.bindingPlan.Data, d.bindingPlan.DataStage} {
+			if snapshot != nil {
+				if _, err := d.n.stat(snapshot.Name); errors.Is(err, unix.ENOENT) {
+					removed += int64(snapshot.Size)
+				}
+			}
+		}
+		return removed
 	}
 	if _, err := d.n.stat("data.bin"); errors.Is(err, unix.ENOENT) {
 		return d.descriptor.Size
@@ -367,7 +380,7 @@ func (d *HostSlotDeletion) bindBindingPlan(ctx context.Context) error {
 	}
 	for _, expected := range []*HostSlotFileSnapshot{p.Intent, p.IntentStage, p.Data, p.DataStage} {
 		if expected != nil {
-			if err := verifyHostSlotSnapshot(d.n, expected); err != nil && !(marked && (expected.Name == "intent.stage" || expected.Name == "data.bin" || expected.Name == "data.stage") && errors.Is(err, unix.ENOENT)) {
+			if err := verifyHostSlotSnapshot(d.n, p.Binding, expected); err != nil && !(marked && (expected.Name == "intent.stage" || expected.Name == "data.bin" || expected.Name == "data.stage") && errors.Is(err, unix.ENOENT)) {
 				return err
 			}
 		}
@@ -426,15 +439,27 @@ func (d *HostSlotDeletion) removeBinding(ctx context.Context) error {
 	if err := d.ensureMarker(ctx); err != nil {
 		return err
 	}
-	for _, snapshot := range []*HostSlotFileSnapshot{d.bindingPlan.Data, d.bindingPlan.DataStage, d.bindingPlan.IntentStage} {
+	for _, target := range []struct {
+		name     string
+		snapshot *HostSlotFileSnapshot
+	}{{"data.bin", d.bindingPlan.Data}, {"data.stage", d.bindingPlan.DataStage}, {"intent.stage", d.bindingPlan.IntentStage}} {
+		snapshot := target.snapshot
 		if snapshot == nil {
 			continue
 		}
-		if err := verifyHostSlotSnapshot(d.n, snapshot); err != nil {
+		if _, err := d.n.stat(target.name); errors.Is(err, unix.ENOENT) {
+			continue
+		} else if err != nil {
 			return err
 		}
-		if err := unix.Unlinkat(int(d.n.last().Fd()), snapshot.Name, 0); err != nil {
+		if err := verifyHostSlotSnapshot(d.n, d.bindingPlan.Binding, snapshot); err != nil {
 			return err
+		}
+		if err := unix.Unlinkat(int(d.n.last().Fd()), target.name, 0); err != nil {
+			return err
+		}
+		if target.name == "data.bin" || target.name == "data.stage" {
+			d.removedBytes += int64(snapshot.Size)
 		}
 	}
 	return d.n.sync()
@@ -456,8 +481,8 @@ func (d *HostSlotDeletion) verifyBindingRemoved(ctx context.Context) error {
 	return d.n.sync()
 }
 
-func verifyHostSlotSnapshot(n *object, want *HostSlotFileSnapshot) error {
-	got, err := hostSlotSnapshot(n, want.Name)
+func verifyHostSlotSnapshot(n *object, binding HostSlotBinding, want *HostSlotFileSnapshot) error {
+	got, err := hostSlotSnapshot(n, binding, want.Name)
 	if err != nil || *got != *want {
 		return errors.Join(ErrUnsafe, err)
 	}
@@ -518,6 +543,9 @@ func OpenHostSlotBindingDeletion(ctx context.Context, root string, binding HostS
 			return nil, HostSlotDeletionPlan{}, err
 		}
 	}
+	if err = validateHostSlotBindingPlan(plan, binding, namespace, id, requestID); err != nil {
+		return nil, HostSlotDeletionPlan{}, err
+	}
 	encoded := savedPlan
 	if replay == nil {
 		encoded, err = canonicalHostSlotBindingPlan(nil, plan)
@@ -530,6 +558,64 @@ func OpenHostSlotBindingDeletion(ctx context.Context, root string, binding HostS
 		return nil, HostSlotDeletionPlan{}, err
 	}
 	return d, plan, nil
+}
+
+func validateHostSlotBindingPlan(plan HostSlotDeletionPlan, binding HostSlotBinding, namespace HostSlotNamespaceProof, id, requestID string) error {
+	if plan.Version != 1 || plan.RequestID != requestID || plan.Binding != binding || plan.ObjectID != id || plan.Namespace != namespace ||
+		(plan.Mode != string(HostSlotAbsentOnly) && plan.Mode != "published_orphan" && plan.Mode != "partial_orphan") ||
+		plan.DirectoryDevice == 0 || plan.DirectoryInode == 0 || plan.LockDevice == 0 || plan.LockInode == 0 {
+		return ErrUnsafe
+	}
+	wantNames := []struct {
+		name string
+		got  *HostSlotFileSnapshot
+	}{{"intent.json", plan.Intent}, {"intent.stage", plan.IntentStage}, {"data.bin", plan.Data}, {"data.stage", plan.DataStage}}
+	seen := make(map[string]bool, len(wantNames))
+	for _, entry := range wantNames {
+		if entry.got == nil {
+			continue
+		}
+		if entry.got.Name != entry.name || seen[entry.got.Name] || entry.got.Device == 0 || entry.got.Inode == 0 || int64(entry.got.Size) < 0 || entry.got.Size > uint64(bindingLimit(binding)) || len(entry.got.SHA256) != sha256.Size*2 {
+			return ErrUnsafe
+		}
+		if entry.name == "intent.json" || entry.name == "intent.stage" {
+			if entry.got.Size > uint64(MaxHostSlotManifestBytes) {
+				return ErrUnsafe
+			}
+		}
+		if decoded, err := hex.DecodeString(entry.got.SHA256); err != nil || len(decoded) != sha256.Size || strings.ToLower(entry.got.SHA256) != entry.got.SHA256 {
+			return ErrUnsafe
+		}
+		seen[entry.got.Name] = true
+	}
+	removed := int64(0)
+	if plan.Data != nil {
+		removed += int64(plan.Data.Size)
+	}
+	if plan.DataStage != nil {
+		removed += int64(plan.DataStage.Size)
+	}
+	if plan.PlannedRemovedBytes != removed {
+		return ErrUnsafe
+	}
+	switch plan.Mode {
+	case string(HostSlotAbsentOnly):
+		if plan.Descriptor != nil || plan.Proof != nil || plan.Intent != nil || plan.IntentStage != nil || plan.Data != nil || plan.DataStage != nil || removed != 0 {
+			return ErrUnsafe
+		}
+	case "published_orphan":
+		if plan.Descriptor == nil || plan.Proof == nil || plan.Intent == nil || plan.Data == nil || plan.IntentStage != nil || plan.DataStage != nil || plan.Descriptor.HostSlotBinding != binding || plan.Descriptor.Validate() != nil {
+			return ErrUnsafe
+		}
+		if plan.Proof.IntakeID != id || plan.Proof.Size != plan.Descriptor.Size || plan.Proof.SHA256 != plan.Descriptor.SHA256 || plan.Proof.Device != plan.Data.Device || plan.Proof.Inode != plan.Data.Inode || plan.Proof.IntentDevice != plan.Intent.Device || plan.Proof.IntentInode != plan.Intent.Inode || plan.Proof.DirectoryDevice != plan.DirectoryDevice || plan.Proof.DirectoryInode != plan.DirectoryInode || plan.Proof.LockDevice != plan.LockDevice || plan.Proof.LockInode != plan.LockInode {
+			return ErrUnsafe
+		}
+	case "partial_orphan":
+		if plan.Descriptor != nil || plan.Proof != nil || (plan.Intent == nil && plan.IntentStage == nil && plan.Data == nil && plan.DataStage == nil) {
+			return ErrUnsafe
+		}
+	}
+	return nil
 }
 
 func verifyHostSlotNamespace(root string, p HostSlotNamespaceProof) error {
@@ -618,7 +704,7 @@ func discoverManagedHostSlotDeletion(ctx context.Context, n *object, binding Hos
 		name string
 		to   **HostSlotFileSnapshot
 	}{{"intent.json", &plan.Intent}, {"intent.stage", &plan.IntentStage}, {"data.bin", &plan.Data}, {"data.stage", &plan.DataStage}} {
-		s, err := hostSlotSnapshot(n, spec.name)
+		s, err := hostSlotSnapshot(n, binding, spec.name)
 		if errors.Is(err, unix.ENOENT) {
 			continue
 		}
@@ -689,12 +775,12 @@ func hostSlotManagedLayout(n *object) error {
 	return n.check()
 }
 
-func hostSlotSnapshot(n *object, name string) (*HostSlotFileSnapshot, error) {
+func hostSlotSnapshot(n *object, binding HostSlotBinding, name string) (*HostSlotFileSnapshot, error) {
 	st, err := n.stat(name)
 	if err != nil {
 		return nil, err
 	}
-	limit := HostTerminalSlotBytes
+	limit := bindingLimit(binding)
 	if name == "intent.json" || name == "intent.stage" {
 		limit = MaxHostSlotManifestBytes
 	}
@@ -707,4 +793,11 @@ func hostSlotSnapshot(n *object, name string) (*HostSlotFileSnapshot, error) {
 	}
 	sum := sha256.Sum256(body)
 	return &HostSlotFileSnapshot{Name: name, Device: uint64(st.Dev), Inode: uint64(st.Ino), Size: uint64(st.Size), SHA256: hex.EncodeToString(sum[:])}, nil
+}
+
+func bindingLimit(binding HostSlotBinding) int64 {
+	if binding.Class == "progress" {
+		return HostProgressSlotBytes
+	}
+	return HostTerminalSlotBytes
 }

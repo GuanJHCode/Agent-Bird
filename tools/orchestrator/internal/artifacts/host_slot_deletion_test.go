@@ -246,4 +246,45 @@ func TestHostSlotBindingDeletionAbsentAndManagedDiscovery(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("partial-replay", func(t *testing.T) {
+		root := hostSlotRoot(t)
+		body := []byte("partial")
+		desc := hostSlot(t, "progress", "progress", 0, body)
+		proof, err := MaterializeHostSlot(context.Background(), root, desc, body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := filepath.Dir(proof.Path)
+		if err = os.Rename(filepath.Join(dir, "data.bin"), filepath.Join(dir, "data.stage")); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.Rename(filepath.Join(dir, "intent.json"), filepath.Join(dir, "intent.stage")); err != nil {
+			t.Fatal(err)
+		}
+		d, plan, err := OpenHostSlotBindingDeletion(context.Background(), root, desc.HostSlotBinding, hostNamespaceProof(t, root), HostSlotDiscoverManaged, "request-seven", nil)
+		if err != nil || plan.Mode != "partial_orphan" || plan.DataStage == nil || plan.IntentStage == nil {
+			t.Fatal("partial discovery failed", err)
+		}
+		if err = d.Remove(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		saved := d.Plan()
+		if got := d.RemovedBytes(); got != int64(len(body)) {
+			t.Fatal("wrong removed bytes", got)
+		}
+		if err = d.Close(); err != nil {
+			t.Fatal(err)
+		}
+		replay, _, err := OpenHostSlotBindingDeletion(context.Background(), root, desc.HostSlotBinding, hostNamespaceProof(t, root), HostSlotDiscoverManaged, "request-seven", saved)
+		if err != nil {
+			t.Fatal("partial replay rejected", err)
+		}
+		defer replay.Close()
+		if err = replay.Remove(context.Background()); err != nil {
+			t.Fatal("partial replay remove", err)
+		}
+		if err = replay.VerifyRemoved(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
