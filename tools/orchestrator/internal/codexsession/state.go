@@ -74,6 +74,11 @@ func (s *sessionState) config(response map[string]any) error {
 	}
 	s.effort = config["model_reasoning_effort"]
 	s.tier = config["service_tier"]
+	// The pinned native protocol reports the configured fast alias as priority.
+	// Canonicalize only this observed equivalent; all other tiers stay exact.
+	if s.tier == "fast" {
+		s.tier = "priority"
+	}
 	if s.model != nil && !validScalar(str(s.model)) {
 		return ErrPolicy
 	}

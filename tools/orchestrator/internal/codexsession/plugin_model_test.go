@@ -57,3 +57,28 @@ func TestPluginCompatibilityModelKeepsReadOnlyProjection(t *testing.T) {
 		})
 	}
 }
+
+// Pinned 0.154.0 config/read retains "fast", but thread/start returns its
+// canonical wire spelling "priority". These describe the same service tier.
+func TestPluginFastTierUsesPinnedCanonicalPriority(t *testing.T) {
+	projection, err := codexconfig.Project([]byte("service_tier = 'fast'\n"), codexconfig.ReadOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := runScenario(t, fixtureScenario{projection: projection, mutate: func(method string, value map[string]any) {
+		if method == "config/read" {
+			obj(value["config"])["service_tier"] = "fast"
+		}
+	}, checkRequest: func(method string, raw json.RawMessage, resume bool) error {
+		if method == "thread/start" || method == "turn/start" {
+			var params map[string]any
+			if json.Unmarshal(raw, &params) != nil || params["serviceTier"] != "priority" {
+				return fmt.Errorf("tier alias not canonicalized")
+			}
+		}
+		return nil
+	}})
+	if result.err != nil {
+		t.Fatal(result.err)
+	}
+}
