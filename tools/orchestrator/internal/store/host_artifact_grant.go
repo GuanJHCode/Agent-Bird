@@ -33,6 +33,7 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 	for _, pair := range [][2]string{{terminal, "terminal"}, {progress, "progress"}} {
 		control += storedBytes(pair[0], c.RunID, c.TaskID, c.AttemptID, c.HostID, pair[1], c.SegmentID, "", scope, "reserved", stamp)
 		control += storedBytes(pair[0], c.RunID)
+		control += int64(1024 + len(pair[0]) + len(c.RunID) + len(scope) + len(pair[1]) + len(stamp))
 	}
 	control += hostArtifactManifestReservationBytes
 	if err = d.storageAdmission(ctx, tx, c.RunID, control, false); err != nil {
@@ -46,6 +47,13 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 		maximum   int64
 	}{{terminal, "terminal", contract.HostTerminalArtifactBytes}, {progress, "progress", contract.HostProgressArtifactSlots * contract.HostProgressArtifactBytes}} {
 		if _, err = tx.ExecContext(ctx, `INSERT INTO managed_artifact_reservations(id,run_id,task_id,attempt_id,producer_id,class,scope_key,policy_sha256,namespace_sha256,reserved_bytes,state,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,'reserved',?)`, slot.id, c.RunID, c.TaskID, c.AttemptID, c.HostID, slot.class, c.SegmentID, "", scope, slot.maximum, stamp); err != nil {
+			return mapConflict(err)
+		}
+		slots := 1
+		if slot.class == "progress" {
+			slots = contract.HostProgressArtifactSlots
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO host_artifact_cleanup_authorities(reservation_id,run_id,version,scope_sha256,class,slot_count,created_at) VALUES(?,?,1,?,?,?,?)`, slot.id, c.RunID, scope, slot.class, slots, stamp); err != nil {
 			return mapConflict(err)
 		}
 		manifestBytes := int64(contract.HostArtifactManifestLimit)
