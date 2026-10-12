@@ -270,6 +270,9 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		CandidateAction() *adapter.CandidateAction
 	}); ok && value.CandidateAction() != nil {
 		action := value.CandidateAction()
+		if filtered == nil && action.AutoDirectory && (action.Operation == "validate" || action.Operation == "review") {
+			meta.temporaryWorkspace = &temporaryWorkspaceCleanup{operation: action.Operation}
+		}
 		meta.integrationAction = action.Operation == "integrate"
 		if _, err := adapter.ValidationRetryPayload(grant.AdapterPayload); action.Operation == "validate" && err == nil {
 			meta.validationGrant = &grant
@@ -293,7 +296,7 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 				}
 				return h.prepareFilteredValidation(ctx, filtered, inv, filterPayload)
 			}
-			return h.prepareCandidateAction(ctx, grant, inv, action, profile)
+			return h.prepareCandidateAction(ctx, grant, inv, action, profile, meta.temporaryWorkspace)
 		}
 		return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
 	}
@@ -398,6 +401,16 @@ type launchMetadata struct {
 	executionEpoch           uint64
 	outputProvider           string
 	questionRevision         int
+	temporaryWorkspace       *temporaryWorkspaceCleanup
+}
+
+// temporaryWorkspaceCleanup is shared by preparation and terminal publication.
+// launchMetadata itself is intentionally copied through execute, so mutable
+// cleanup authority must not live only in a copied metadata value.
+type temporaryWorkspaceCleanup struct {
+	operation string
+	receipt   gitops.MaterializeReceipt
+	journal   gitops.Journal
 }
 
 func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (result contract.Result, returnedErr error) {
@@ -1075,6 +1088,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, err
 		}
+		if status == "result_ready" {
+			h.cleanupPublishedTemporaryWorkspace(ctx, spool, runID, taskID, a, meta)
+		}
 		h.finishAttempt(a.ID, status, persistDB)
 		return contract.Result{Status: status, ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, nil
 	}
@@ -1136,6 +1152,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, err
 	}
+	if status == "result_ready" {
+		h.cleanupPublishedTemporaryWorkspace(ctx, spool, runID, taskID, a, meta)
+	}
 	if persistDB {
 		if err = h.db.FinishAttempt(context.Background(), a.ID, status); err != nil {
 			return contract.Result{}, err
@@ -1193,16 +1212,17 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 }
 
 type structuredEventFields struct {
-	GitFilterCarrierCleanup *contract.GitFilterCarrierCleanup
-	GitFilterCleanup        *contract.GitFilterCleanup
-	DiagnosticsFailure      *contract.DiagnosticsFailure
-	ValidationToolCleanup   *contract.ValidationToolCleanup
-	Failure                 *contract.FailureFacts
-	StopReason              string
-	QuestionRevision        int
-	SessionKind             string
-	SessionID               string
-	ActiveMS                int64
+	GitFilterCarrierCleanup   *contract.GitFilterCarrierCleanup
+	GitFilterCleanup          *contract.GitFilterCleanup
+	DiagnosticsFailure        *contract.DiagnosticsFailure
+	ValidationToolCleanup     *contract.ValidationToolCleanup
+	Failure                   *contract.FailureFacts
+	StopReason                string
+	QuestionRevision          int
+	SessionKind               string
+	SessionID                 string
+	ActiveMS                  int64
+	TemporaryWorkspaceCleanup *contract.TemporaryWorkspaceCleanup
 }
 
 func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef, fields structuredEventFields) (contract.Event, error) {
@@ -1219,6 +1239,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	event.ValidationToolCleanup = fields.ValidationToolCleanup
 	event.GitFilterCleanup = fields.GitFilterCleanup
 	event.GitFilterCarrierCleanup = fields.GitFilterCarrierCleanup
+	event.TemporaryWorkspaceCleanup = fields.TemporaryWorkspaceCleanup
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}

@@ -324,7 +324,7 @@ func candidateReviewProvider(grant contract.LaunchCommand) (adapter.Provider, er
 	return adapter.Provider(payload.Provider), nil
 }
 
-func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, action *adapter.CandidateAction, profile *adapter.ExecutionProfile) (process.Command, actionFinalizer, func(), error) {
+func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, action *adapter.CandidateAction, profile *adapter.ExecutionProfile, temporaryCleanup *temporaryWorkspaceCleanup) (process.Command, actionFinalizer, func(), error) {
 	empty := invocationCommand(inv)
 	noop := func() {}
 	if action != nil && action.Version == 2 && action.DependencyInputVersion == 2 && action.Operation == "compose" {
@@ -515,6 +515,10 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 		}
 		if err = journal.RecordCandidateAction(ctx, "materialized", workspace); err != nil {
 			return fail(err)
+		}
+		if temporaryCleanup != nil {
+			temporaryCleanup.receipt = workspace
+			temporaryCleanup.journal = journal
 		}
 		if action.Operation == "validate" {
 			tool, err := filepath.EvalSymlinks(action.Command[0])
