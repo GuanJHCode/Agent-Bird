@@ -28,6 +28,6 @@ Real external Provider sessions, native TUI/Hook user windows, Intel/Windows, lo
 
 ## Final package
 
-Clean source `525d7d30fca936396c317272ee9485903cea8e1c` produced `0.1.0-closure.525d7d30fca9`. Binary SHA256 `01de574498197ecd88e35711a2554f85bb2441b89e220955f2f96055a276b964`. Two deterministic builds and packages matched; all13 verifier commands exit0/stderr0. Independent main-agent inventory checked28 package files and24 source mappings, zero mismatches. Task-owned install/replay/Doctor/uninstall/Doctor preserved the runtime sentinel; no real install changed.
+Clean source `525d7d30fca936396c317272ee9485903cea8e1c` produced `0.1.0-closure.525d7d30fca9`. Binary SHA256 `01de574498197ecd88e35711a2554f85bb2441b89e220955f2f96055a276b964`. Two deterministic builds and packages matched; all12 verifier commands exit0/stderr0. Independent main-agent inventory checked28 package files and24 source mappings, zero mismatches. Task-owned install/replay/Doctor/uninstall/Doctor preserved the runtime sentinel; no real install changed.
 
 Full receipt and raw command evidence: `tasks/closure-package-provenance/data/candidate-retention-525d7d3/`. Deliverable retained at that task's `tmp/candidate-retention-525d7d3/package-a/` in the candidate-retention integration worktree. The two duplicate standalone binaries and duplicate package-b were removed after exact identity/hash checks; package-a, sentinel, audit metadata and raw evidence remain. Cleanup ledger: `data/package-cleanup.json`.
