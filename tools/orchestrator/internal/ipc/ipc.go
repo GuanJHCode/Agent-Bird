@@ -89,11 +89,17 @@ const (
 )
 
 const (
-	KindDiagnosticsGCEnable       Kind = "diagnostics_gc_enable"
-	KindDiagnosticsGCDisable      Kind = "diagnostics_gc_disable"
-	KindDiagnosticsGCStatus       Kind = "diagnostics_gc_status"
-	KindDiagnosticsRetentionPlan  Kind = "diagnostics_retention_plan"
-	KindDiagnosticsRetentionApply Kind = "diagnostics_retention_apply"
+	KindReportArtifactResolve        Kind = "report_artifact_retention_resolve"
+	KindReportArtifactRetentionPlan  Kind = "report_artifact_retention_plan"
+	KindReportArtifactRetentionApply Kind = "report_artifact_retention_apply"
+	KindReportGCEnable               Kind = "report_gc_enable"
+	KindReportGCDisable              Kind = "report_gc_disable"
+	KindReportGCStatus               Kind = "report_gc_status"
+	KindDiagnosticsGCEnable          Kind = "diagnostics_gc_enable"
+	KindDiagnosticsGCDisable         Kind = "diagnostics_gc_disable"
+	KindDiagnosticsGCStatus          Kind = "diagnostics_gc_status"
+	KindDiagnosticsRetentionPlan     Kind = "diagnostics_retention_plan"
+	KindDiagnosticsRetentionApply    Kind = "diagnostics_retention_apply"
 )
 
 var (

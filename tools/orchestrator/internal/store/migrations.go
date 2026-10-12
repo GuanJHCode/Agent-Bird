@@ -7,7 +7,7 @@ import (
 	"errors"
 )
 
-const currentSchemaVersion = 38
+const currentSchemaVersion = 39
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
@@ -424,6 +424,15 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 			return err
 		}
 		if _, err = tx.Exec(`UPDATE schema_meta SET version=38`); err != nil {
+			return err
+		}
+	}
+
+	if version < 39 {
+		if err = migrateReportRetentionSchema(tx); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE schema_meta SET version=39`); err != nil {
 			return err
 		}
 	}

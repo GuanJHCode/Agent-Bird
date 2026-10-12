@@ -212,6 +212,10 @@ func testDiagnosticsPublicCLI(t *testing.T, deleteCompleted bool, retention ...b
 		return out
 	}
 
+	if len(retention) > 2 && retention[2] {
+		testReportRetentionPublicRequests(t, ctx, root, state, control, g.RunID, accepted.ControlToken, db, server, invoke)
+		return
+	}
 	if len(retention) > 1 && retention[1] {
 		for _, step := range []struct {
 			action   string

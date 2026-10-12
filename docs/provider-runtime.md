@@ -90,3 +90,8 @@ Host 仅在本次原进程 Wait/tree 已证明后 freeze/发布结果；旧 jour
 `filter_integrate` 是独立 candidate action：v1、AutoDirectory、DependencyInputVersion=1、exact Target，SourceTask 指向 accepted target-bound review，并将该 review 的原 preflight 一同列为直接依赖。没有 Provider/command/profile/session/retry 路径。Host 严格读取两个 managed artifacts；helper 仅继承已验签 original-owner scope 的 executable pin，不根据现场文件自行授予执行权限。
 
 最终执行使用正常 pinned Git fast-forward、精确 C/R 转换许可和原 Handle Wait/tree。任一不确定状态均保留 UNKNOWN 与配额；只有原 carrier 已关闭并删除且 Broker 已清理，才由同一 Exited event 释放两份预约。受控原生证据与限制见[验证记录](../tasks/filter-public-integration/docs/validation.md)。Linux仍不开放此运行路径。
+
+
+## Managed report 附件回收
+
+`report-artifact-retention-resolve/plan/apply` 与 `report-gc-enable/disable/status` 提供独立的原 run-control 授权链。仅删除受管 `result/failure` 附件的 `data.bin`，保留事件、ACK、原 descriptor/proof、持久删除意图和 marker。成功以精确 handled 与可信 Exited 的较晚时间起算30天；失败还需逐项明确解决/放弃，按三者较晚时间起算7天。未知执行、未消费、开放问题和活动 pin 均阻止回收。默认关闭；同 owner 可显式暂停并恢复原 pending plan，owner/rebind 漂移停止。详见[使用说明](../tasks/report-retention/docs/usage.md)与[定向验证](../tasks/report-retention/docs/validation.md)。

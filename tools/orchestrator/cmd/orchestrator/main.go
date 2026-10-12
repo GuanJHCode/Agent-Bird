@@ -137,6 +137,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return acknowledge(ctx, args[1:], stdout)
 	case "diagnostics-read", "diagnostics-ack", "diagnostics-delete", "diagnostics-retention-plan", "diagnostics-retention-apply", "diagnostics-gc-enable", "diagnostics-gc-disable", "diagnostics-gc-status":
 		return diagnosticsCLI(ctx, args[0], args[1:], stdout)
+	case "report-artifact-retention-resolve", "report-artifact-retention-plan", "report-artifact-retention-apply", "report-gc-enable", "report-gc-disable", "report-gc-status":
+		return reportRetentionCLI(ctx, args[0], args[1:], stdout)
 	default:
 		return codeError("invalid_args")
 	}

@@ -6,7 +6,7 @@ ACP 容量与诊断 GC 已通过定向验证和独立审查。B2/C/Host evidence
 
 验证只覆盖受控本地进程与明确协议。真实模型/账号、原 TUI/Hook 五窗口、Intel/Windows、物理断电/洪峰和 Formal60 不在本次通过范围；Formal60 历史 FAILED 保留。Codex Worker 执行域仍受嵌套 Seatbelt 限制，未放宽原有写入/网络防护。
 
-其他 artifact/report、失败现场、worktree/ref pin 的自动回收尚缺实体清单、保留时钟、持久 resolved/abandon 与恢复 pin 释放转换。用户已选择显式确认已解决后按保留期回收，并保留恢复索引；继续实施该独立后续批次，不按 created_at 直接删除 immutable/recovery 资源。
+用户已选择显式确认已解决后按保留期回收，并保留恢复索引。schema39 已落地 managed report 附件闭环：逐项失败确认、精确消费/终态资格、成功30天与失败7天、保存计划与崩溃恢复、原ACK重放和默认关闭自动GC；见[验证](../../report-retention/docs/validation.md)。Host 附件/进度和 candidate worktree/private ref 的回收仍在后续范围，不能按 created_at 直接删除 immutable/recovery 资源。
 
 本候选只作本地集成。未替换用户安装、注册 Hook、推送或发布。原根用户补丁继续保留。
 

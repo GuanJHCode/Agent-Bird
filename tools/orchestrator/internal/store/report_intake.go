@@ -313,18 +313,24 @@ func (d *DB) restoreManagedReportArtifact(ctx context.Context, tx *sql.Tx, spec 
 	if err != nil {
 		return err
 	}
-	if phase != "committed" || state != "active" {
+	if phase != "committed" || (state != "active" && state != "released") {
 		return CodeError("artifact_intake_invalid")
 	}
 	var proof artifacts.Proof
 	var desc artifacts.Intake
-	if json.Unmarshal([]byte(raw), &proof) != nil || json.Unmarshal([]byte(descriptor), &desc) != nil || desc.Validate() != nil || event.Artifact == nil || event.Artifact.Size != proof.Size || strings.ToLower(event.Artifact.SHA256) != proof.SHA256 || desc.ID != id || proof.IntakeID != id || proof.DescriptorSHA256 != runtimeHash(descriptor) || namespace != proof.DescriptorSHA256 || proof.Path != filepath.Join(filepath.Dir(d.path), "managed-artifacts", id, "data.bin") || proof.Size != desc.Size || proof.SHA256 != desc.SHA256 || reserved != proof.Size || retained != reserved || scope != reportIntakeScope(spec.CapabilityID, spec.Sequence, spec.EventID) {
+	if json.Unmarshal([]byte(raw), &proof) != nil || json.Unmarshal([]byte(descriptor), &desc) != nil || desc.Validate() != nil || event.Artifact == nil || event.Artifact.Size != proof.Size || strings.ToLower(event.Artifact.SHA256) != proof.SHA256 || desc.ID != id || proof.IntakeID != id || proof.DescriptorSHA256 != runtimeHash(descriptor) || namespace != proof.DescriptorSHA256 || proof.Path != filepath.Join(filepath.Dir(d.path), "managed-artifacts", id, "data.bin") || proof.Size != desc.Size || proof.SHA256 != desc.SHA256 || reserved != proof.Size || (state == "active" && retained != reserved) || (state == "released" && retained != 0) || scope != reportIntakeScope(spec.CapabilityID, spec.Sequence, spec.EventID) {
 		return CodeError("artifact_intake_invalid")
 	}
 	canonical, _ := json.Marshal(proof)
 	canonicalDesc, _ := json.Marshal(desc)
 	if string(canonical) != raw || string(canonicalDesc) != descriptor {
 		return CodeError("artifact_intake_invalid")
+	}
+	if state == "released" {
+		var retired int
+		if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM report_artifact_deletions x JOIN managed_artifact_intakes i ON i.id=x.intake_id WHERE x.intake_id=? AND x.reservation_id=i.reservation_id AND x.run_id=i.run_id AND x.phase='removed' AND x.removed_bytes=?)`, id, proof.Size).Scan(&retired); err != nil || retired != 1 {
+			return CodeError("artifact_intake_invalid")
+		}
 	}
 	event.Artifact.Path, event.Artifact.SHA256 = proof.Path, proof.SHA256
 	return nil
