@@ -47,7 +47,7 @@ func (p PlatformContract) CanonicalJSON() ([]byte, string, error) {
 func CompiledPlatformContract(goos, goarch string) PlatformContract {
 	p := PlatformContract{Version: 1, OS: goos, Arch: goarch,
 		Events: PlatformEventContract{Version: 1,
-			Kinds:         []string{EventPrepared, EventSpawned, EventRunning, EventSession, EventProgress, EventResult, EventQuestion, EventFailed, EventStopped, EventExited, EventUnknown},
+			Kinds:         []string{EventPrepared, EventSpawned, EventRunning, EventSession, EventProgress, EventResult, EventQuestion, EventFailed, EventStopped, EventExited, EventLaunchRejected, EventUnknown},
 			Authority:     "authenticated_producer_sequence_hash_epoch_durable_ack",
 			TerminalProof: "original_wait_and_owned_tree_exit"},
 	}
@@ -76,9 +76,11 @@ func CompiledPlatformContract(goos, goarch string) PlatformContract {
 		supervisionGate, supervisionReason = "blocked", "platform_unsupported"
 	}
 	add("original_owner_supervision", supervisionGate, supervisionReason,
-		"supervised_v1", "original_owner_alive", "signed_current_scope", "exact_pid_birth", "original_handle_retained")
+		"supervised_v1", "original_owner_alive", "signed_current_scope", "exact_pid_birth", "original_handle_retained",
+		"current_origin_control_revision_budget_admission")
 	add("owner_prebind_recovery_v2", supervisionGate, supervisionReason,
-		"owner_launch_protocol_2", "same_scope", "original_supervisor_wait", "first_host_exited", "at_most_one_replacement")
+		"owner_launch_protocol_2", "same_scope", "original_supervisor_wait", "first_host_exited", "at_most_one_replacement",
+		"current_origin_control_revision_budget_admission")
 	add("historical_wait_reconstruction", "blocked", "lost_original_wait_is_not_reconstructible")
 	add("unknown_execution_takeover", "blocked", "missing_original_owner_proof")
 	return p

@@ -38,3 +38,17 @@ func TestCompiledPlatformContractGates(t *testing.T) {
 		})
 	}
 }
+
+func TestPlatformEventVocabularyIncludesLaunchRejected(t *testing.T) {
+	p := CompiledPlatformContract("darwin", "arm64")
+	seen := map[string]bool{}
+	for _, kind := range p.Events.Kinds {
+		if seen[kind] {
+			t.Fatalf("duplicate event %s", kind)
+		}
+		seen[kind] = true
+	}
+	if !seen[EventLaunchRejected] {
+		t.Fatal("launch_rejected missing")
+	}
+}

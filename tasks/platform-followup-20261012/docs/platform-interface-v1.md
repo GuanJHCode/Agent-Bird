@@ -19,4 +19,6 @@ contract 固定顺序字段：version/os/arch/capabilities/events；capabilities
 
 ## 验证
 
-本批新增CLI用例最初因 invalid_args 失败；实现后定向Go JSON：3个顶层、7个命名用例PASS，0 FAIL/0 SKIP（data/platform-green.jsonl）。测试覆盖严格参数、无诊断输出、外层与canonical hash、未知平台默认关闭、不可误开的公共动作和稳定版本摘要。不构成Provider/native执行验收。
+本批新增CLI用例最初因 invalid_args 失败；实现后定向Go JSON：4个顶层、8个命名用例PASS，0 FAIL/0 SKIP（data/platform-final.jsonl）。测试覆盖严格参数、无诊断输出、外层与canonical hash、未知平台默认关闭、不可误开的公共动作和稳定版本摘要。不构成Provider/native执行验收。
+
+独立只读审查覆盖 2e0f79b；发现遗漏 launch_rejected vocabulary，已通过新增失败回归补齐。恢复条目追加 current_origin_control_revision_budget_admission 条件；本次不修改运行时准入或所有权流程。
