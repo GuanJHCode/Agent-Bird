@@ -1252,11 +1252,11 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	if pathErr != nil {
 		return out, pathErr
 	}
-	parent, pathErr := filepath.EvalSymlinks(filepath.Dir(absolute))
+	canonicalParent, pathErr := filepath.EvalSymlinks(filepath.Dir(absolute))
 	if pathErr != nil {
 		return out, pathErr
 	}
-	canonicalRoot := filepath.Join(parent, filepath.Base(absolute))
+	canonicalRoot := filepath.Join(canonicalParent, filepath.Base(absolute))
 	if err := noSymlinkComponents(canonicalRoot); err != nil {
 		return out, err
 	}
