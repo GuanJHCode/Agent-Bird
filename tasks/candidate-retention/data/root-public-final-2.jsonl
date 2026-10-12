@@ -1,8 +1,0 @@
-{"Time":"2026-10-12T12:45:50.861273+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator"}
-{"Time":"2026-10-12T12:45:51.373741+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCandidateRetentionPublicCLI"}
-{"Time":"2026-10-12T12:45:51.389253+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCandidateRetentionPublicCLI","Output":"=== RUN   TestCandidateRetentionPublicCLI\n"}
-{"Time":"2026-10-12T12:45:51.807186+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCandidateRetentionPublicCLI","Output":"--- PASS: TestCandidateRetentionPublicCLI (0.43s)\n"}
-{"Time":"2026-10-12T12:45:51.807208+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCandidateRetentionPublicCLI","Elapsed":0.43}
-{"Time":"2026-10-12T12:45:51.807226+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"PASS\n"}
-{"Time":"2026-10-12T12:45:51.808107+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator\t0.946s\n"}
-{"Time":"2026-10-12T12:45:51.808124+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Elapsed":0.947}

@@ -1,9 +1,0 @@
-# Private filter worktree binding
-
-Production e0f68d6, fixture398b40c; combined source10326e8 / Go tree45858ed68c14f3f8b503fa05a8d231f98fc3bf52 includes the reviewed DTO, source-anchor and bounded LoadStream. A live child pins its own root, .git link, common directory, backlink and attrs while verifying its original parent before/after. Closing the child preserves the parent; closing/drifting the parent invalidates child use. Receipts use the original source SHA, never the child's ephemeral observation. Foreign repositories, borrowed indexes and attrs drift are refused.
-
-Binding proves structural identity, not Host-created ownership. Git worktree list is not independent authority: Git itself enumerates common/worktrees and reads each gitdir backlink ([Git2.39.3 worktree.c](https://github.com/git/git/blob/v2.39.3/worktree.c#L67-L138)). The initial independent review demand for an extra list command was withdrawn after verifying that source. Raw materialize must still prove original absent target, intent, original worktree-add Wait/tree and newly created identity; Bind cannot reconstruct those facts.
-
-Actual feature RED0cabd34: parent+2sub3FAIL. First race e0f68d6: 1PASS2FAIL/exit1; lifetime/routing passed, while the other fixture attempted to copy nonexistent a.txt instead of repo helper's README.398b40c fixes only that input and clarifies authority; only the failed foreign/attribute subcase was rerun, parent+sub2PASS. The independent source/test review passed; source/byte hashes and original counts are in data/root-verification.json. Related vet at e0f68d6 and whole combined Mac build10326e8 exit0 with empty streams. Linux CGO0 whole cross-build10326e8 also exits0; it is not native Git/Broker qualification.
-
-Public filter remains closed and B/R prepare/freeze/validate is still required. Original failed batches remain unchanged.

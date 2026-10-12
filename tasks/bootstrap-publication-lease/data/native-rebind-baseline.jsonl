@@ -1,9 +1,0 @@
-{"Time":"2026-10-09T09:30:31.319909+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator"}
-{"Time":"2026-10-09T09:30:32.085376+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume"}
-{"Time":"2026-10-09T09:30:32.085588+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume","Output":"=== RUN   TestCLIOwnerExitRequiresVerifiedRebindBeforeResume\n"}
-{"Time":"2026-10-09T09:30:35.917192+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume","Output":"    main_test.go:840: owner rebind did not authenticate a replacement Host\n"}
-{"Time":"2026-10-09T09:30:36.051438+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume","Output":"--- FAIL: TestCLIOwnerExitRequiresVerifiedRebindBeforeResume (3.97s)\n"}
-{"Time":"2026-10-09T09:30:36.051524+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume","Elapsed":3.97}
-{"Time":"2026-10-09T09:30:36.051773+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"FAIL\n"}
-{"Time":"2026-10-09T09:30:36.053188+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator\t4.730s\n"}
-{"Time":"2026-10-09T09:30:36.053229+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Elapsed":4.733}

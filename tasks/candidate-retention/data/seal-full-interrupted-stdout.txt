@@ -1,5 +1,0 @@
---- FAIL: TestAGYCommittedSubmitAndHostFailuresPreserveOriginalReservation (20.20s)
-    --- FAIL: TestAGYCommittedSubmitAndHostFailuresPreserveOriginalReservation/source_host_start_failed (0.09s)
-        agy_controller_test.go:372: exact original Host stage boundary changed
-FAIL github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator 71.571s
-ok github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter 0.861s

@@ -1,7 +1,0 @@
-# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator.test]
-cmd/orchestrator/public_owner_succession_native_test.go:18:2: "strings" imported and not used
-cmd/orchestrator/public_owner_succession_native_test.go:178:24: undefined: runInitialOriginalOwnerWithWaitObserver
-cmd/orchestrator/public_owner_succession_native_test.go:178:94: undefined: initialOwnerWaitObservation
-cmd/orchestrator/public_owner_succession_native_test.go:227:28: undefined: initialOwnerWaitObservation
-cmd/orchestrator/public_owner_succession_native_test.go:228:71: unknown field observer in struct literal of type initialOwnerChild
-cmd/orchestrator/public_owner_succession_native_test.go:228:95: undefined: initialOwnerWaitObservation

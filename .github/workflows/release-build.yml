@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Package version (for example 0.2.0-preview.3)
+        description: Package version (for example 1.0.0-rc.2)
         required: true
         type: string
 permissions:
@@ -24,7 +24,9 @@ jobs:
         with:
           python-version: '3.14'
       - name: Test release and native installer behavior
-        run: python3 -m unittest discover -s tasks/native-rollout/tests
+        run: |
+          python3 -B -m unittest discover -s tasks/macos-1.0-20261012/tests
+          python3 -B tasks/macos-1.0-20261012/scripts/grok_plugin_acp_test.py
       - name: Build versioned macOS ARM64 archive
         env:
           BIRD_RELEASE_VERSION: ${{ inputs.version }}
@@ -36,5 +38,4 @@ jobs:
           path: |
             dist/release/*.tar.gz
             dist/release/SHA256SUMS
-            dist/release/agent-bird.rb
           if-no-files-found: error

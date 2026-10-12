@@ -1,8 +1,0 @@
-{
-  "merge": "8ccc0b02e944339408c1799dd99a7dd35c5772ad",
-  "delivery": "e637864d9aca0c43ac098658addce593bb3a0093",
-  "qualified_source": "233959746c141b2f8fe8c51c56729796489beaea",
-  "go_tree": "d43e8ac891e20e77c2e969a6152f476ef5ebe6af",
-  "root_verification_sha256": "dd98b4741879b0bd3c138729b07d89eeffff7f28b96fb3a4777d54646bd9878e",
-  "scope": "Darwin controlled filtered producer to standalone validator; zero Target; no real Provider or public CLI protocol qualification"
-}

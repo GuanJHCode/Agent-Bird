@@ -1,6 +1,0 @@
-=== RUN   TestLocalOwnerLegacyRebindRequiresPublicationProtocol
---- PASS: TestLocalOwnerLegacyRebindRequiresPublicationProtocol (0.42s)
-=== RUN   TestOwnerPublicationDirectIPCReplayAndRestart
-    owner_rebind_publication_test.go:113: original origin PID=12 Wait=0
---- PASS: TestOwnerPublicationDirectIPCReplayAndRestart (0.34s)
-PASS

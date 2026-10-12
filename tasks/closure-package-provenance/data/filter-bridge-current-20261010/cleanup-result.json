@@ -1,9 +1,0 @@
-{
-  "intent_sha256": "5abc0df2c44e97f73a91927d857f88f51ff42d41f7671a53b86aa9694f5485ca",
-  "removed_files": 30,
-  "removed_directories": 13,
-  "removed_bytes": 67376460,
-  "all_removed_absent": true,
-  "retained_package_a_unchanged": true,
-  "sentinel_unchanged": true
-}

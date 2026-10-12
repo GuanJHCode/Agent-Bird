@@ -1,5 +1,0 @@
-=== RUN   TestCarrierHelperForeignHostBeforeBody
-    carrier_transport_native_darwin_test.go:85: foreign_host_rejected=true git_body_unread=true exchange_calls=0
---- PASS: TestCarrierHelperForeignHostBeforeBody (0.02s)
-PASS
-ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter	1.619s

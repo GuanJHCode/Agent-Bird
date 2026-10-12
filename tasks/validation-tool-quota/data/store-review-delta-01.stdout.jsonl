@@ -1,8 +1,0 @@
-{"Time":"2026-10-09T15:18:12.628854+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
-{"Time":"2026-10-09T15:18:13.332269+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestValidationToolBindingAndHistoryCannotBeErased"}
-{"Time":"2026-10-09T15:18:13.332336+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestValidationToolBindingAndHistoryCannotBeErased","Output":"=== RUN   TestValidationToolBindingAndHistoryCannotBeErased\n"}
-{"Time":"2026-10-09T15:18:13.554941+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestValidationToolBindingAndHistoryCannotBeErased","Output":"--- PASS: TestValidationToolBindingAndHistoryCannotBeErased (0.22s)\n"}
-{"Time":"2026-10-09T15:18:13.554965+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestValidationToolBindingAndHistoryCannotBeErased","Elapsed":0.22}
-{"Time":"2026-10-09T15:18:13.554992+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
-{"Time":"2026-10-09T15:18:13.555974+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.926s\n"}
-{"Time":"2026-10-09T15:18:13.556003+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.927}

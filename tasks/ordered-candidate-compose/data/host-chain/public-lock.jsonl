@@ -1,8 +1,0 @@
-{"Time":"2026-10-09T11:04:25.617253+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator"}
-{"Time":"2026-10-09T11:04:26.182136+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOrderedCandidateComposition"}
-{"Time":"2026-10-09T11:04:26.18229+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOrderedCandidateComposition","Output":"=== RUN   TestCLIOrderedCandidateComposition\n"}
-{"Time":"2026-10-09T11:04:41.961346+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOrderedCandidateComposition","Output":"--- PASS: TestCLIOrderedCandidateComposition (15.78s)\n"}
-{"Time":"2026-10-09T11:04:41.961384+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOrderedCandidateComposition","Elapsed":15.78}
-{"Time":"2026-10-09T11:04:41.961623+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"PASS\n"}
-{"Time":"2026-10-09T11:04:41.963012+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator\t16.344s\n"}
-{"Time":"2026-10-09T11:04:41.963044+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Elapsed":16.346}

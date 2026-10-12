@@ -2,9 +2,9 @@
 
 `g0-return-lab` is a bounded **macOS-only synthetic executor** for G0 return-channel experiments. It starts one detached process, writes one fixed result, and exposes read-only observation. It is not a scheduler, a database, a third-party CLI adapter, or evidence that the native Codex return channel or G0 works.
 
-The optional owner/revision/ACK experiment is documented in [ACK.md](ACK.md). Build that variant as `data/g0-return-lab-ack`; keep a running baseline binary unchanged. Without `--controller-thread`, the original start metadata and four-field read/wait output remain unchanged.
+The optional owner/revision/ACK experiment is retained as development probe code. Build that variant as `data/g0-return-lab-ack`; keep a running baseline binary unchanged. Without `--controller-thread`, the original start metadata and four-field read/wait output remain unchanged.
 
-The separate foreground `retained-start`, `retained-inspect`, and `retained-resume` lifecycle is documented in [RETAINED.md](RETAINED.md). It stops when its direct caller exits, preserves fixed step artifacts, and continues only after an explicit matching resume. The detached command behavior described below is unchanged.
+The separate foreground `retained-start`, `retained-inspect`, and `retained-resume` lifecycle is retained as development probe code. It stops when its direct caller exits, preserves fixed step artifacts, and continues only after an explicit matching resume. The detached command behavior described below is unchanged.
 
 Build with Go 1.26 or newer; the module uses only the standard library:
 

@@ -1,9 +1,0 @@
-{
-  "integration_merge": "099ded011716b751ce6c913f219b30c66376ecaf",
-  "source_delivery": "4d699fb0f98197ccdd095528edd3c532ed8edb77",
-  "orchestrator_tree": "0d428fa6094a594a2be2cfb423053e078bdc4f97",
-  "exact_module_tree_equal": true,
-  "review": "edcea95364d9347aa6d0bd8ac2a60aed379a5aab final report/receipt PASS; 4d699fb removes only unsupported retained-nlink detail",
-  "tests_reused": "See final-receipt.json; no production delta in integration",
-  "remaining": "Formal60 FAILED; Intel/Windows native and physical power loss unverified; no real model/user install/push/release"
-}

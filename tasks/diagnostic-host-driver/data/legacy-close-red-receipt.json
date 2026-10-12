@@ -1,6 +1,0 @@
-{
-  "exit": 1,
-  "source_sha256": "a5d661efc473c7ca499be230d54083544a00cba016aa62af0625dec1e26c841a",
-  "log_sha256": "881bac7ce066f3c8bdb019cdc58324d0f39fa3151895c1b8b458a192d8c96228",
-  "scope": "Rejected pre-M2c caller pattern; existing Writer.Close is not itself required to know a dropped preaccept lease"
-}

@@ -1,8 +1,0 @@
-=== RUN   TestPublicOwnerLaunchCoordinatorLossUnknown
-    public_owner_launch_loss_native_test.go:267: old-origin public CLI owner-bind PID=23 original Wait=0 error=
-    public_owner_launch_loss_native_test.go:271: old-origin public CLI submit PID=28 original Wait=2 error=exit status 2
-    public_owner_launch_loss_native_test.go:377: old-origin public CLI recover-host PID=59 original Wait=2 error=exit status 2
-    public_owner_launch_loss_native_test.go:397: old origin PID=18 original Wait=<nil>
-    public_owner_launch_loss_native_test.go:398: Coordinator loss retained signed started_wait_owned UNKNOWN: epoch 1->2; first PID=12 SIGKILL original Wait; FirstHost original Wait={Kind:first_host PID:38 ExitCode:2 WaitError:exit status 2}; phase=intended launch_head=started_wait_owned task=ready launch_attempts=1 receipts=3 bindings=0 attempts=0 segments=0 grants=0
---- PASS: TestPublicOwnerLaunchCoordinatorLossUnknown (0.35s)
-PASS

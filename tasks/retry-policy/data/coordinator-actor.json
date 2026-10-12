@@ -1,8 +1,0 @@
-{"Time":"2026-10-06T14:58:00.486647+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"}
-{"Time":"2026-10-06T14:58:01.140527+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator","Test":"TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost"}
-{"Time":"2026-10-06T14:58:01.14062+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator","Test":"TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost","Output":"=== RUN   TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost\n"}
-{"Time":"2026-10-06T14:58:01.587504+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator","Test":"TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost","Output":"--- PASS: TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost (0.45s)\n"}
-{"Time":"2026-10-06T14:58:01.587534+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator","Test":"TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost","Elapsed":0.45}
-{"Time":"2026-10-06T14:58:01.587561+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator","Output":"PASS\n"}
-{"Time":"2026-10-06T14:58:01.588294+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator\t1.101s\n"}
-{"Time":"2026-10-06T14:58:01.588318+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator","Elapsed":1.102}

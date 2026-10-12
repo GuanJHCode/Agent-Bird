@@ -1,4 +1,0 @@
-internal/gitfilter/original_git_gate_boundary_test.go:366:38: call of reflect.TypeOf copies lock value: github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter.OriginalGitGate contains sync.Mutex
-internal/gitfilter/original_git_gate_boundary_test.go:413:38: call of reflect.TypeOf copies lock value: github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter.ExactTransformSession contains sync.Mutex
-internal/gitfilter/original_git_gate_boundary_test.go:468:39: call of reflect.TypeOf copies lock value: github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter.ExactTransformSession contains sync.Mutex
-internal/gitfilter/transform_session_test.go:153:38: call of reflect.TypeOf copies lock value: github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter.ExactTransformSession contains sync.Mutex

@@ -1,8 +1,0 @@
-{"Time":"2026-10-12T07:45:06.76754+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"}
-{"Time":"2026-10-12T07:45:07.140135+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Test":"TestOpenFilterTargetTransitionRejectsDetachedPair"}
-{"Time":"2026-10-12T07:45:07.140314+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Test":"TestOpenFilterTargetTransitionRejectsDetachedPair","Output":"=== RUN   TestOpenFilterTargetTransitionRejectsDetachedPair\n"}
-{"Time":"2026-10-12T07:45:07.140338+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Test":"TestOpenFilterTargetTransitionRejectsDetachedPair","Output":"--- PASS: TestOpenFilterTargetTransitionRejectsDetachedPair (0.00s)\n"}
-{"Time":"2026-10-12T07:45:07.140343+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Test":"TestOpenFilterTargetTransitionRejectsDetachedPair","Elapsed":0}
-{"Time":"2026-10-12T07:45:07.140352+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Output":"PASS\n"}
-{"Time":"2026-10-12T07:45:07.140579+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops\t0.373s\n"}
-{"Time":"2026-10-12T07:45:07.1406+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Elapsed":0.373}

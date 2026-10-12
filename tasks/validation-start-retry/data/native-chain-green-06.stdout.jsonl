@@ -1,9 +1,0 @@
-{"Time":"2026-10-09T15:49:20.53406+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"}
-{"Time":"2026-10-09T15:49:21.125315+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt"}
-{"Time":"2026-10-09T15:49:21.125374+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt","Output":"=== RUN   TestValidationRetryActualHostGitQueueAndNextAttempt\n"}
-{"Time":"2026-10-09T15:49:25.444637+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt","Output":"    validation_retry_native_darwin_test.go:262: original rejection audit removed 0 \u003cnil\u003e\n"}
-{"Time":"2026-10-09T15:49:25.463225+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt","Output":"--- FAIL: TestValidationRetryActualHostGitQueueAndNextAttempt (4.34s)\n"}
-{"Time":"2026-10-09T15:49:25.463254+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt","Elapsed":4.34}
-{"Time":"2026-10-09T15:49:25.463444+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"FAIL\n"}
-{"Time":"2026-10-09T15:49:25.464444+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host\t4.929s\n"}
-{"Time":"2026-10-09T15:49:25.464471+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Elapsed":4.93}

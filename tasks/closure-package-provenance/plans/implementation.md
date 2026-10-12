@@ -1,9 +1,0 @@
-# F13 reproducible candidate package and isolated installation
-
-ROOT exclusively owns this worktree. Preparation starts from integration 039c0d4; execution waits for a stable, reviewed F03 candidate to be merged. Do not package a moving tree. This is a scoped F13 milestone, not a claim that F01–F13 or every platform is complete.
-
-Use Go1.26.8 and the existing package-plugin.sh with explicit absolute binary/interpreter/output and a local prerelease version. Build the exact clean source twice with trimpath/buildvcs=false and dependencies offline, compare binary hashes, then package twice and compare all file bytes/modes including generated manifests. Record source commit/tree, toolchain, flags, interpreter pin and original command outputs.
-
-On macOS arm64, install the full-native-hooks package through public install --request into a fresh task-private directory. Independently verify every installed payload hash/mode/owner and the exact binary hash against the built/package source. Check Doctor, exact repeated installation without changing binary inode/mtime, then uninstall only this explicitly created version and verify separate data survives. Never run install.command, native plugin registration, provider/bridge/controller, user configuration changes or a real model. Preserve the first reproducible package and evidence; clean only redundant owned copies after hash verification.
-
-Reuse the existing Linux collect-only native installer evidence unless changed source requires a targeted new run; no Linux full-native or Intel/Windows qualification is inferred. Independent review covers this runner and the final source/receipt binding. Each run label is immutable; a failure is retained and not overwritten. No source modification is planned unless this acceptance exposes a defect.

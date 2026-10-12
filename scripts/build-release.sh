@@ -1,14 +1,11 @@
 #!/bin/sh
 set -eu
 umask 077
-repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-version=${1:-0.2.0-preview.4}
+repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+version=${1:-1.0.0-rc.2}
 output=${2:-"$repo_root/dist/release"}
-command -v go >/dev/null 2>&1 || { echo 'Go 1.26+ is required for building.' >&2; exit 1; }
-command -v python3 >/dev/null 2>&1 || { echo 'Python 3 is required for building.' >&2; exit 1; }
-[ ! -e "$output" ] || { echo 'Output already exists; preserved.' >&2; exit 1; }
-mkdir -p "$repo_root/tasks/native-rollout/tmp"
-build_dir=$(mktemp -d "$repo_root/tasks/native-rollout/tmp/build.XXXXXX")
-trap 'rm -f "$build_dir/codex-orchestrator"; rmdir "$build_dir"' EXIT HUP INT TERM
-(cd "$repo_root/tools/orchestrator" && GOOS=darwin GOARCH=arm64 go build -trimpath -o "$build_dir/codex-orchestrator" ./cmd/orchestrator)
-python3 "$repo_root/tasks/native-rollout/scripts/build-release.py" --binary "$build_dir/codex-orchestrator" --version "$version" --output "$output"
+go_tool=${GO:-$(command -v go)}
+python=$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.executable).resolve(strict=True))')
+case "$output" in /*) ;; *) output="$PWD/$output" ;; esac
+mkdir -p "$(dirname -- "$output")"
+exec sh "$repo_root/tasks/macos-1.0-20261012/scripts/package-candidate.sh" "$go_tool" "$python" "$output" "$version"

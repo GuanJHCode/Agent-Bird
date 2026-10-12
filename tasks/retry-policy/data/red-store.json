@@ -1,9 +1,0 @@
-{"Time":"2026-10-06T14:32:59.420534+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
-{"Time":"2026-10-06T14:33:00.083482+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation"}
-{"Time":"2026-10-06T14:33:00.083739+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation","Output":"=== RUN   TestExecutionPolicySegmentGrantAndContinuation\n"}
-{"Time":"2026-10-06T14:33:00.10288+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation","Output":"    execution_policy_test.go:23: policy ignored: grant=500 want 200\n"}
-{"Time":"2026-10-06T14:33:00.105585+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation","Output":"--- FAIL: TestExecutionPolicySegmentGrantAndContinuation (0.02s)\n"}
-{"Time":"2026-10-06T14:33:00.105606+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation","Elapsed":0.02}
-{"Time":"2026-10-06T14:33:00.105906+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\n"}
-{"Time":"2026-10-06T14:33:00.106139+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.685s\n"}
-{"Time":"2026-10-06T14:33:00.106158+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.686}

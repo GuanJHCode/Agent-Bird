@@ -1,9 +1,0 @@
-=== RUN   TestPublicOwnerLaunchCoordinatorLossUnknown
-    public_owner_launch_loss_native_test.go:241: old-origin public CLI owner-bind PID=3229 original Wait=0 error=
-    public_owner_launch_loss_native_test.go:245: old-origin public CLI submit PID=3230 original Wait=2 error=exit status 2
-    public_owner_launch_loss_native_test.go:337: old-origin public CLI recover-host PID=3301 original Wait=2 error=exit status 2
-    public_owner_launch_loss_native_test.go:357: old origin PID=3228 original Wait=<nil>
-    public_owner_launch_loss_native_test.go:358: Coordinator loss retained signed started_wait_owned UNKNOWN: epoch 1->2; first PID=3226 SIGKILL original Wait; FirstHost original Wait={Kind:first_host PID:3232 ExitCode:2 WaitError:exit status 2}; phase=intended launch_head=started_wait_owned task=ready launch_attempts=1 receipts=3 bindings=0 attempts=0 segments=0 grants=0
---- PASS: TestPublicOwnerLaunchCoordinatorLossUnknown (5.77s)
-PASS
-ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator	6.206s

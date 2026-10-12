@@ -1,5 +1,0 @@
-tools/orchestrator/internal/store/store.go:196:	return tx.Commit()
-tools/orchestrator/internal/store/snapshot.go:67:	return snapshot, tx.Commit()
-tools/orchestrator/internal/store/summary.go:210:	if e = tx.Commit(); e != nil {
-tools/orchestrator/internal/store/config_abandon.go:95:	if e = tx.Commit(); e != nil {
-tools/orchestrator/internal/store/owner_transaction.go:60:	err := t.tx.Commit()

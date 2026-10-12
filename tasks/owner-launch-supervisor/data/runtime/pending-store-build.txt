@@ -1,4 +1,0 @@
-# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator
-internal/coordinator/owner_runtime.go:171:25: s.db.ResolvePreBindRetryAdmission undefined (type *store.DB has no field or method ResolvePreBindRetryAdmission)
-internal/coordinator/owner_runtime.go:259:24: s.db.ResolvePreBindRetryAdmission undefined (type *store.DB has no field or method ResolvePreBindRetryAdmission)
-internal/coordinator/owner_runtime.go:267:21: s.db.CommitPreBindRetryAdmission undefined (type *store.DB has no field or method CommitPreBindRetryAdmission)

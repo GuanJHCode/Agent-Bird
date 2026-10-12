@@ -1,4 +1,0 @@
-action=start package=github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator test=- elapsed=-
-action=run package=github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator test=TestPublicOwnerLaunchCoordinatorLossUnknown elapsed=-
-action=pass package=github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator test=TestPublicOwnerLaunchCoordinatorLossUnknown elapsed=5.82
-action=pass package=github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator test=- elapsed=6.315

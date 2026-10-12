@@ -1,7 +1,0 @@
-# Final Git hook native acceptance
-
-ROOT uniquely owns this isolated worktree (base865f4ae), only new gitops tests and task evidence. F01 has a separate writer and public chain; no shared production edit. Existing TrackedIntegrate promises normal final Git config/hooks and original Handle/Wait/tree plus post-merge HEAD/ref/tree/index/status reconciliation.
-
-Add two focused native Darwin tests: real post-merge hook normal and tracked-content writes (including nonzero hook exit), and cancellation after the actual merge/hook has started. Assert one merge, exact process identity in spawned/exited journal, uncertain outcome on changed tracked content/cancel, preserved resulting HEAD/content, no invented retry. Isolate Git global/system environment and all repositories/config/hooks under task-owned roots. Failure with unresolved process/tree retains its root; only original Wait/tree evidence authorizes deletion.
-
-This validates existing final integration semantics. Candidate filter/LFS remains gated. Config/hook/tool pins are not yet implemented, so config drift is explicitly outstanding rather than falsely asserted as passing. Fast-forward creates no commit and cannot establish commit signing support; no signing qualification is claimed. No model/provider/account or user installation/push/release. Keep the two tests grouped, review fixed test source, and reuse unchanged F01/build evidence as applicable.

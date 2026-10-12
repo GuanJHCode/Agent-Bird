@@ -1,8 +1,0 @@
-{"Time":"2026-10-09T09:34:42.154597+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator"}
-{"Time":"2026-10-09T09:34:42.889728+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume"}
-{"Time":"2026-10-09T09:34:42.889837+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume","Output":"=== RUN   TestCLIOwnerExitRequiresVerifiedRebindBeforeResume\n"}
-{"Time":"2026-10-09T09:34:45.646783+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume","Output":"--- PASS: TestCLIOwnerExitRequiresVerifiedRebindBeforeResume (2.76s)\n"}
-{"Time":"2026-10-09T09:34:45.646832+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIOwnerExitRequiresVerifiedRebindBeforeResume","Elapsed":2.76}
-{"Time":"2026-10-09T09:34:45.646867+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"PASS\n"}
-{"Time":"2026-10-09T09:34:45.648079+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator\t3.493s\n"}
-{"Time":"2026-10-09T09:34:45.648111+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Elapsed":3.4939999999999998}

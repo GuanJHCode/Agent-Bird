@@ -1,1 +1,0 @@
-{"command":"TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 ./internal/host -run '^TestCandidateResourceRecovery' -v","exit_code":0,"stdout_file":"host-replay-recovery-20261012.stdout","stderr_file":"host-replay-recovery-20261012.stderr"}

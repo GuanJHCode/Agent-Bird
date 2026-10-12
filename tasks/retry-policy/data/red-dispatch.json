@@ -1,9 +1,0 @@
-{"Time":"2026-10-06T14:56:24.368972+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator"}
-{"Time":"2026-10-06T14:56:25.057407+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestDispatchPublicJSONExecutionPolicyReachesPlan"}
-{"Time":"2026-10-06T14:56:25.057467+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestDispatchPublicJSONExecutionPolicyReachesPlan","Output":"=== RUN   TestDispatchPublicJSONExecutionPolicyReachesPlan\n"}
-{"Time":"2026-10-06T14:56:25.058013+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestDispatchPublicJSONExecutionPolicyReachesPlan","Output":"    task_dispatch_test.go:124: public dispatch policy was dropped\n"}
-{"Time":"2026-10-06T14:56:25.058037+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestDispatchPublicJSONExecutionPolicyReachesPlan","Output":"--- FAIL: TestDispatchPublicJSONExecutionPolicyReachesPlan (0.00s)\n"}
-{"Time":"2026-10-06T14:56:25.058057+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestDispatchPublicJSONExecutionPolicyReachesPlan","Elapsed":0}
-{"Time":"2026-10-06T14:56:25.058069+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"FAIL\n"}
-{"Time":"2026-10-06T14:56:25.058801+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator\t0.690s\n"}
-{"Time":"2026-10-06T14:56:25.058825+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Elapsed":0.69}

@@ -1,5 +1,0 @@
-{"Time":"2026-10-08T06:15:14.476813+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
-{"Time":"2026-10-08T06:15:15.265881+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"testing: warning: no tests to run\n"}
-{"Time":"2026-10-08T06:15:15.265936+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
-{"Time":"2026-10-08T06:15:16.273752+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t1.796s [no tests to run]\n"}
-{"Time":"2026-10-08T06:15:16.273793+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":1.7970000000000002}

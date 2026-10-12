@@ -1,9 +1,0 @@
-{"Time":"2026-10-12T07:20:11.810329+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"}
-{"Time":"2026-10-12T07:20:12.383893+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestGitFilterCarrierIntentAndStrictWire"}
-{"Time":"2026-10-12T07:20:12.383946+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestGitFilterCarrierIntentAndStrictWire","Output":"=== RUN   TestGitFilterCarrierIntentAndStrictWire\n"}
-{"Time":"2026-10-12T07:20:12.384234+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestGitFilterCarrierIntentAndStrictWire","Output":"    git_filter_carrier_test.go:30: git_filter_contract_invalid\n"}
-{"Time":"2026-10-12T07:20:12.384248+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestGitFilterCarrierIntentAndStrictWire","Output":"--- FAIL: TestGitFilterCarrierIntentAndStrictWire (0.00s)\n"}
-{"Time":"2026-10-12T07:20:12.384257+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestGitFilterCarrierIntentAndStrictWire","Elapsed":0}
-{"Time":"2026-10-12T07:20:12.38427+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Output":"FAIL\n"}
-{"Time":"2026-10-12T07:20:12.384613+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract\t0.574s\n"}
-{"Time":"2026-10-12T07:20:12.384634+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Elapsed":0.574}

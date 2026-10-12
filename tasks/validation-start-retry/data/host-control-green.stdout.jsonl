@@ -1,8 +1,0 @@
-{"Time":"2026-10-09T15:41:51.285851+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"}
-{"Time":"2026-10-09T15:41:51.975727+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationStartControlRejectsOrdinaryGrant"}
-{"Time":"2026-10-09T15:41:51.975834+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationStartControlRejectsOrdinaryGrant","Output":"=== RUN   TestValidationStartControlRejectsOrdinaryGrant\n"}
-{"Time":"2026-10-09T15:41:52.028413+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationStartControlRejectsOrdinaryGrant","Output":"--- PASS: TestValidationStartControlRejectsOrdinaryGrant (0.05s)\n"}
-{"Time":"2026-10-09T15:41:52.028442+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationStartControlRejectsOrdinaryGrant","Elapsed":0.05}
-{"Time":"2026-10-09T15:41:52.028698+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"PASS\n"}
-{"Time":"2026-10-09T15:41:52.029078+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host\t0.738s\n"}
-{"Time":"2026-10-09T15:41:52.029101+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Elapsed":0.743}

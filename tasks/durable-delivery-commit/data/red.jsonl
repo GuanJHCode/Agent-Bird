@@ -1,9 +1,0 @@
-{"Time":"2026-10-08T12:28:41.333813+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
-{"Time":"2026-10-08T12:28:42.028115+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit"}
-{"Time":"2026-10-08T12:28:42.028183+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Output":"=== RUN   TestDurableDeliveryDiscardFailedCommit\n"}
-{"Time":"2026-10-08T12:28:42.18601+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Output":"    durable_delivery_commit_test.go:15: bridge_receipts SQL logic error: no such table: bridge_receipts (1)\n"}
-{"Time":"2026-10-08T12:28:42.192104+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Output":"--- FAIL: TestDurableDeliveryDiscardFailedCommit (0.16s)\n"}
-{"Time":"2026-10-08T12:28:42.192128+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Elapsed":0.16}
-{"Time":"2026-10-08T12:28:42.192449+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\n"}
-{"Time":"2026-10-08T12:28:42.193162+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.858s\n"}
-{"Time":"2026-10-08T12:28:42.193184+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.859}

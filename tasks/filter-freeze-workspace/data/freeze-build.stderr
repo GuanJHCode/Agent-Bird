@@ -1,2 +1,0 @@
-# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops
-internal/gitops/filter_freeze_blob.go:136:29: invalid operation: len(body) > gitfilter.MaximumBytes (mismatched types int and int64)

@@ -1,2 +1,0 @@
-# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.test]
-internal/gitops/filter_target_index_guard_darwin_test.go:28:17: undefined: OpenFilterTargetGit

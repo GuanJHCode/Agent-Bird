@@ -1,6 +1,0 @@
-# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter.test]
-internal/gitfilter/carrier_transport_native_darwin_test.go:310:15: tr.serveWithPeerIO undefined (type *carrierTransport has no field or method serveWithPeerIO)
-internal/gitfilter/carrier_transport_native_darwin_test.go:511:13: undefined: newCarrierExecutablePeer
-internal/gitfilter/carrier_transport_native_darwin_test.go:518:22: undefined: newCarrierExecutablePeer
-FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter [build failed]
-FAIL

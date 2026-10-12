@@ -1,9 +1,0 @@
-{"Time":"2026-10-07T19:52:30.847249+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"}
-{"Time":"2026-10-07T19:52:31.210481+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsUpdateForForeignSession"}
-{"Time":"2026-10-07T19:52:31.210564+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsUpdateForForeignSession","Output":"=== RUN   TestClientRejectsUpdateForForeignSession\n"}
-{"Time":"2026-10-07T19:52:32.211784+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsUpdateForForeignSession","Output":"    wire_test.go:285: foreign update left client open\n"}
-{"Time":"2026-10-07T19:52:32.211837+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsUpdateForForeignSession","Output":"--- FAIL: TestClientRejectsUpdateForForeignSession (1.00s)\n"}
-{"Time":"2026-10-07T19:52:32.211844+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsUpdateForForeignSession","Elapsed":1}
-{"Time":"2026-10-07T19:52:32.211857+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"FAIL\n"}
-{"Time":"2026-10-07T19:52:32.212216+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp\t1.365s\n"}
-{"Time":"2026-10-07T19:52:32.212235+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":1.365}

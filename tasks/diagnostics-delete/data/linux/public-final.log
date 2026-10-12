@@ -1,4 +1,0 @@
-=== RUN   TestDiagnosticsPublicCLIDeleteAfterOwnerCompletion
-    diagnostics_read_test.go:314: original_host_pid=12 original_host_wait=0 cli_children_wait=0 lost_ack=durable_unread original_attempt=attempt-c81c639b534f76068376f434
---- PASS: TestDiagnosticsPublicCLIDeleteAfterOwnerCompletion (1.11s)
-PASS

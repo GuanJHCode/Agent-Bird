@@ -1,8 +1,0 @@
-{"Time":"2026-10-08T07:30:41.218228+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"}
-{"Time":"2026-10-08T07:30:41.594863+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope"}
-{"Time":"2026-10-08T07:30:41.594937+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope","Output":"=== RUN   TestOwnerRecoveryRPCIdentityAndEnvelope\n"}
-{"Time":"2026-10-08T07:30:41.596283+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope","Output":"--- PASS: TestOwnerRecoveryRPCIdentityAndEnvelope (0.00s)\n"}
-{"Time":"2026-10-08T07:30:41.5963+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope","Elapsed":0}
-{"Time":"2026-10-08T07:30:41.596311+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Output":"PASS\n"}
-{"Time":"2026-10-08T07:30:41.596684+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract\t0.378s\n"}
-{"Time":"2026-10-08T07:30:41.596705+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Elapsed":0.378}

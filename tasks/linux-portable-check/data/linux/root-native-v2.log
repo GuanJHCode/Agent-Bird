@@ -1,4 +1,0 @@
-=== RUN   TestLinuxPortablePackageCheckNative
-    linux_portable_native_test.go:203: Linux arm64: real packaged CLI check, independent Doctor, payload hashes/modes/uid, immutable repeat, action/package refusals; original child Wait completed
---- PASS: TestLinuxPortablePackageCheckNative (0.73s)
-PASS

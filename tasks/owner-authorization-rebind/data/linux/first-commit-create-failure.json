@@ -1,9 +1,0 @@
-{
-  "source_commit": "a62d644",
-  "phase": "docker_create",
-  "returncode": 1,
-  "cid": null,
-  "test_started": false,
-  "stderr": "not saved by worker; actual daemon cause unknown",
-  "recovery": "ROOT verified cached image exists and no named container, then independently ran exact SHA in owned commit-retry container; 2PASS and cleanup verified"
-}

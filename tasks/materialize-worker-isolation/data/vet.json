@@ -1,1 +1,0 @@
-{"source": "4dde4c5cc523cfd41e132f6ff692b9ffc445c04f", "command": ["/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go", "vet", "./internal/gitopsworker"], "exit": 0}

@@ -1,9 +1,0 @@
-{"Time":"2026-10-12T00:09:37.693821+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter"}
-{"Time":"2026-10-12T00:09:38.316678+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter","Test":"TestCarrierSocketNativeLifecycle"}
-{"Time":"2026-10-12T00:09:38.316722+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter","Test":"TestCarrierSocketNativeLifecycle","Output":"=== RUN   TestCarrierSocketNativeLifecycle\n"}
-{"Time":"2026-10-12T00:09:38.316988+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter","Test":"TestCarrierSocketNativeLifecycle","Output":"    carrier_socket_darwin_test.go:22: create owner=false err=carrier_socket_unknown\n"}
-{"Time":"2026-10-12T00:09:38.31718+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter","Test":"TestCarrierSocketNativeLifecycle","Output":"--- FAIL: TestCarrierSocketNativeLifecycle (0.00s)\n"}
-{"Time":"2026-10-12T00:09:38.317187+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter","Test":"TestCarrierSocketNativeLifecycle","Elapsed":0}
-{"Time":"2026-10-12T00:09:38.317201+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter","Output":"FAIL\n"}
-{"Time":"2026-10-12T00:09:38.317861+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter\t0.623s\n"}
-{"Time":"2026-10-12T00:09:38.317877+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter","Elapsed":0.624}

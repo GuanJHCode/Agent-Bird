@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "integration_parent": "b40afb08657e5baed43f8105d8456247c8441115",
-  "qualified_source": "8e29b399caaaaa875146db9fb81c391ccbb4d4e3",
-  "go_tree": "a8a6ecd99d8a5c88bdf8a33bf3b2a6053d1d7620",
-  "root_verification_sha256": "02d28e0cc7ed0e1500f41a636e58460e5b9478dbcadb30d25a2cb2a63f2728d7",
-  "public_filtered_target_or_integrate_enabled": false
-}

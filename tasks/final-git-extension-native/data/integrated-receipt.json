@@ -1,9 +1,0 @@
-{
-  "integration_merge": "51a559b3fbae34378c55f2a0b7e58e357d938778",
-  "verified_source": "12a79dc475a175bd9fed4c9b67a06f93cf4cf726",
-  "go_tree": "5bd9e03e660b8b5ab8f4197bc8fcf22ce4878729",
-  "source_equal": true,
-  "test_sha256": "5f54b66ab6be36e7a3599236c4d28dd3dd305d43bcde6acda8ea6bc45da58cfb",
-  "independent_review": "PASS",
-  "scope": "native final Git hook/cancellation; no new extension support"
-}

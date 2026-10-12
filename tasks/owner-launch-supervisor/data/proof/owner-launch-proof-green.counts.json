@@ -1,7 +1,0 @@
-{
-  "command": "TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -json ./internal/store -run 'TestLoadOwnerLaunch(TreatsOnlyAbsentSchema32FactsAsLegacy|RejectsCorruptV2FactMatrix)$'",
-  "exit_code": 0,
-  "go_test_pass_events": 11,
-  "go_test_fail_events": 0,
-  "stderr_bytes": 0
-}

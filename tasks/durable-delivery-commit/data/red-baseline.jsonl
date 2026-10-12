@@ -1,9 +1,0 @@
-{"Time":"2026-10-08T12:30:37.209829+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
-{"Time":"2026-10-08T12:30:37.891577+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit"}
-{"Time":"2026-10-08T12:30:37.891767+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Output":"=== RUN   TestDurableDeliveryDiscardFailedCommit\n"}
-{"Time":"2026-10-08T12:30:38.055398+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Output":"    durable_delivery_commit_test.go:27: failed claim COMMIT exposed state: external=true pool=false\n"}
-{"Time":"2026-10-08T12:30:38.060174+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Output":"--- FAIL: TestDurableDeliveryDiscardFailedCommit (0.17s)\n"}
-{"Time":"2026-10-08T12:30:38.060203+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Elapsed":0.17}
-{"Time":"2026-10-08T12:30:38.06114+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\n"}
-{"Time":"2026-10-08T12:30:38.061174+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.851s\n"}
-{"Time":"2026-10-08T12:30:38.061187+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.851}

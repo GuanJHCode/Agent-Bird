@@ -1,9 +1,0 @@
-{
-  "roots_absent": {
-    "/private/tmp/filter-sandbox-1088402187": true,
-    "/private/tmp/filter-sandbox-161881773": true,
-    "/private/tmp/filter-sandbox-280575843": true,
-    "/private/tmp/filter-sandbox-4220510311": true
-  },
-  "exact_root_actor_lines": []
-}

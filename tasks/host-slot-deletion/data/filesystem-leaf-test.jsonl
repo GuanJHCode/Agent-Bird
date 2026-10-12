@@ -1,7 +1,0 @@
-{"status":"invalid evidence","reason":"This hand-curated summary is not raw go test stdout. Use filesystem-leaf-test.stdout.jsonl with its adjacent command, stderr, and exit files."}
-{"Time":"2026-10-12T10:38:42.201317+08:00","Action":"pass","Test":"TestHostSlotDeletionRemovesDataAndPreventsResurrection"}
-{"Time":"2026-10-12T10:38:47.421362+08:00","Action":"pass","Test":"TestHostSlotDeletionRejectsForeignAndRecreatedData"}
-{"Time":"2026-10-12T10:38:47.470781+08:00","Action":"pass","Test":"TestHostSlotDeletionRejectsRootAndObjectReplacement"}
-{"Time":"2026-10-12T10:38:47.494961+08:00","Action":"pass","Test":"TestHostSlotDeletionHoldsWriterLock"}
-{"Time":"2026-10-12T10:38:47.594339+08:00","Action":"pass","Test":"TestHostSlotBindingDeletionAbsentAndManagedDiscovery"}
-{"Time":"2026-10-12T10:38:48.608697+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts","Elapsed":6.884}

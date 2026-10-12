@@ -1,9 +1,0 @@
-{
-  "source": "431cdb9b83a422081e73fe7f8a943a704b8c64c4",
-  "source_tree": "e4bf700974fb0218ae33081a4235fe1168d5acc1",
-  "runner_head": "0ad93e0a769fb706e9792db0d695211bba26b072",
-  "go": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
-  "go_version": "go version go1.26.8 darwin/arm64",
-  "source_clean": true,
-  "scope": "tools/orchestrator/internal/store"
-}

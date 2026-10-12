@@ -1,9 +1,0 @@
-# 内部调用边界
-
-`gitfilter.Execute(ctx, Request)`只用于可信上层提供的sealed native入口和caller独占的已锚定regular FD。Operation为clean/smudge，ScopeSHA256是canonical opaque观察摘要，不是Store authority。请求不得来自model输出或未经认证的wire grant。
-
-caller预建0500工具与其canonical parent、不同的0500空working directory；input/output由caller独占，output须空0600 single-link O_RDWR且非APPEND，两者不得同inode。固定Args最多16项/4096UTF8字节，单tool32MiB，input/output各16MiB，ctx须有deadline。本层不打开输入/output named路径、不创建scratch、不接受env、不管理资源预约；named锚定、祖先保护、原source seal和physical Store escrow属于下一层。
-
-只有error为nil且Result.Accepted才接纳转换字节；输入/output摘要与Result.RequestSHA256记录观察事实。任何失败保留output部分内容和原对象；Result.Unknown禁止上层推导可删或自动重跑。即便WaitProved/TreeProved为true，也没有unlink/退款授权。原层不负责关闭caller输入/output FD，不承诺跨Execute同FD并发安全。
-
-非Darwin返回unsupported；没有未隔离fallback。不得据此放开candidateRepositoryAllowed或宣称公共filter已支持。

@@ -1,9 +1,0 @@
-{"Time":"2026-10-07T20:32:07.528217+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance"}
-{"Time":"2026-10-07T20:32:08.107666+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance","Test":"TestPrepareStateDirRejectsFinalSameInodeSymlinkLeaf"}
-{"Time":"2026-10-07T20:32:08.107705+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance","Test":"TestPrepareStateDirRejectsFinalSameInodeSymlinkLeaf","Output":"=== RUN   TestPrepareStateDirRejectsFinalSameInodeSymlinkLeaf\n"}
-{"Time":"2026-10-07T20:32:08.108066+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance","Test":"TestPrepareStateDirRejectsFinalSameInodeSymlinkLeaf","Output":"    instance_test.go:170: same-inode symlink leaf accepted\n"}
-{"Time":"2026-10-07T20:32:08.10841+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance","Test":"TestPrepareStateDirRejectsFinalSameInodeSymlinkLeaf","Output":"--- FAIL: TestPrepareStateDirRejectsFinalSameInodeSymlinkLeaf (0.00s)\n"}
-{"Time":"2026-10-07T20:32:08.108416+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance","Test":"TestPrepareStateDirRejectsFinalSameInodeSymlinkLeaf","Elapsed":0}
-{"Time":"2026-10-07T20:32:08.108426+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance","Output":"FAIL\n"}
-{"Time":"2026-10-07T20:32:08.108793+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance\t0.580s\n"}
-{"Time":"2026-10-07T20:32:08.108818+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance","Elapsed":0.581}

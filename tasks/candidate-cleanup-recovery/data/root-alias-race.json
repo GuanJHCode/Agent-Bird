@@ -1,9 +1,0 @@
-{"ImportPath":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Action":"build-output","Output":"# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops\n"}
-{"ImportPath":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Action":"build-output","Output":"internal/gitops/gitops.go:1403:9: no new variables on left side of :=\n"}
-{"ImportPath":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Action":"build-fail"}
-{"Time":"2026-10-12T11:52:41.234223+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"}
-{"Time":"2026-10-12T11:52:41.234475+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops [build failed]\n"}
-{"Time":"2026-10-12T11:52:41.234483+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops","Elapsed":0,"FailedBuild":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"}
-{"Time":"2026-10-12T11:52:41.234495+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"}
-{"Time":"2026-10-12T11:52:41.234528+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker [build failed]\n"}
-{"Time":"2026-10-12T11:52:41.234538+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Elapsed":0,"FailedBuild":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"}

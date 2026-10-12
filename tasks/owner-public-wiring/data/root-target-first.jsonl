@@ -1,8 +1,0 @@
-{"Time":"2026-10-08T05:43:48.750984+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
-{"Time":"2026-10-08T05:43:49.395335+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestOwnerResumeTargetAuthenticatesAndDoesNotAdmit"}
-{"Time":"2026-10-08T05:43:49.395441+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestOwnerResumeTargetAuthenticatesAndDoesNotAdmit","Output":"=== RUN   TestOwnerResumeTargetAuthenticatesAndDoesNotAdmit\n"}
-{"Time":"2026-10-08T05:43:49.516608+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestOwnerResumeTargetAuthenticatesAndDoesNotAdmit","Output":"--- PASS: TestOwnerResumeTargetAuthenticatesAndDoesNotAdmit (0.12s)\n"}
-{"Time":"2026-10-08T05:43:49.516631+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestOwnerResumeTargetAuthenticatesAndDoesNotAdmit","Elapsed":0.12}
-{"Time":"2026-10-08T05:43:49.516665+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
-{"Time":"2026-10-08T05:43:49.517335+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.766s\n"}
-{"Time":"2026-10-08T05:43:49.517361+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.766}

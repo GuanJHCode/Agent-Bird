@@ -1,9 +1,0 @@
-=== RUN   TestOrderedComposeStoreCaptureAndPendingReplay
---- PASS: TestOrderedComposeStoreCaptureAndPendingReplay (0.25s)
-=== RUN   TestOrderedComposePreservesDecisionAuthority
-=== RUN   TestOrderedComposePreservesDecisionAuthority/pending
-=== RUN   TestOrderedComposePreservesDecisionAuthority/consumed_without_proof
---- PASS: TestOrderedComposePreservesDecisionAuthority (0.34s)
-    --- PASS: TestOrderedComposePreservesDecisionAuthority/pending (0.18s)
-    --- PASS: TestOrderedComposePreservesDecisionAuthority/consumed_without_proof (0.16s)
-PASS

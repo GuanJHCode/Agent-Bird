@@ -1,8 +1,0 @@
-{"Time":"2026-10-10T17:54:55.293888+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"}
-{"Time":"2026-10-10T17:54:58.07505+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process","Test":"TestHostPeerExpectationNativeSelf"}
-{"Time":"2026-10-10T17:54:58.075351+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process","Test":"TestHostPeerExpectationNativeSelf","Output":"=== RUN   TestHostPeerExpectationNativeSelf\n"}
-{"Time":"2026-10-10T17:54:58.076213+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process","Test":"TestHostPeerExpectationNativeSelf","Output":"    peer_host_expectation_test.go:165: native self pid=1 euid=0 raw_birth=linux:66d3d3ca-2d45-4802-b4b1-2ef8e2ed0a2b:155\n"}
-{"Time":"2026-10-10T17:54:58.076278+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process","Test":"TestHostPeerExpectationNativeSelf","Output":"--- PASS: TestHostPeerExpectationNativeSelf (0.00s)\n"}
-{"Time":"2026-10-10T17:54:58.076286+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process","Test":"TestHostPeerExpectationNativeSelf","Elapsed":0}
-{"Time":"2026-10-10T17:54:58.076292+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process","Output":"PASS\n"}
-{"Time":"2026-10-10T17:54:58.119126+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process","Elapsed":2.825}

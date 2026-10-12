@@ -1,4 +1,0 @@
-# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator.test]
-internal/coordinator/owner_successor_startup_native_test.go:190:71: state.Permit.Owner undefined (type contract.OwnerControlPermit has no field or method Owner)
-internal/coordinator/owner_successor_startup_native_test.go:190:96: verified.Permit.Owner undefined (type contract.OwnerControlPermit has no field or method Owner)
-FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator [build failed]

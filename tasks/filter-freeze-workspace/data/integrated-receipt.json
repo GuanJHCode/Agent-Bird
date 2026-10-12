@@ -1,8 +1,0 @@
-{
-  "integration_merge": "bde4ea635980478ed42f6acd369184efa470de11",
-  "go_tree": "14d842f9641028650bd4efcb0d34b77daa7b63e5",
-  "qualified_source": "a4a4d4c9b134009e4aebf46b98ae65135273d396",
-  "delivery": "b7d8ca835bef23c587dfd9446d651e3f947c9110",
-  "public_filter_admission": "closed",
-  "report": "tasks/filter-freeze-workspace/docs/final-validation.md"
-}

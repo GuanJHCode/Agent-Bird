@@ -1,8 +1,0 @@
-{"Time":"2026-10-09T10:56:49.563146+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator"}
-{"Time":"2026-10-09T10:56:50.085535+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain"}
-{"Time":"2026-10-09T10:56:50.08561+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain","Output":"=== RUN   TestOrderedComposeHostDeliveryChain\n"}
-{"Time":"2026-10-09T10:56:59.434414+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain","Output":"--- PASS: TestOrderedComposeHostDeliveryChain (9.35s)\n"}
-{"Time":"2026-10-09T10:56:59.434688+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain","Elapsed":9.35}
-{"Time":"2026-10-09T10:56:59.434728+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"PASS\n"}
-{"Time":"2026-10-09T10:56:59.436252+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator\t9.872s\n"}
-{"Time":"2026-10-09T10:56:59.436277+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Elapsed":9.873}

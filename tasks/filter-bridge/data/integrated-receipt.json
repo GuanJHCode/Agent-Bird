@@ -1,8 +1,0 @@
-{
-  "integration_merge": "b086711e69752cf261c10b28dfaf09bd803ac0bb",
-  "qualified_source": "9faf0174ba662a5dceb21c602bc85fdfceef4e5a",
-  "qualified_go_tree": "f20d145263afd53569e0dcdd4948907b5fde3437",
-  "integrated_go_tree": "f20d145263afd53569e0dcdd4948907b5fde3437",
-  "production_diff_empty": true,
-  "public_integrate_enabled": false
-}

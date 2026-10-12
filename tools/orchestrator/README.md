@@ -269,7 +269,7 @@ accepted result can be the `source_task` of a normal v1 validation, then review
 and integration. Conflicts retain the private workspace and journal and report
 `compose_conflict`; uncertain ownership reports `compose_uncertain`/UNKNOWN.
 Neither outcome automatically reruns Git or invokes a model. See the
-[validation scope](../../tasks/ordered-candidate-compose/docs/final-validation.md).
+[release support scope](../../README.md#支持范围).
 
 Opening or querying an interrupted run does not resume it. `resume` starts a
 new segment only after the old execution tree has a durable stopped/exited
@@ -294,7 +294,7 @@ provider adapter.
 ## Typed profiles and generic main agents
 
 New requests use separate protocol, Execution Profile and Provider Lock objects;
-see [configuration and recovery](../../docs/provider-runtime.md) for exact JSON,
+see [release usage](../../README.md#使用) for exact JSON,
 `provider-probe` / confirmed `provider-lock`, and the persisted concurrency policy.
 Legacy invocation fields remain accepted within their existing boundary; they are
 not a fallback for a rejected profile. Typed Codex/AGY/Grok and typed session
@@ -325,8 +325,7 @@ and transactionally maintained storage counters. Newer databases cannot be
 opened by older binaries. Spool ACK archives the confirmed prefix; it does not
 release storage quota or discard reconciliation history.
 
-See [installation](../../docs/installation.md), [support matrix](../../docs/support-matrix.md)
-and [test layers](../../docs/testing.md) before enabling a Provider in a main-agent
+See [installation, support scope and build instructions](../../README.md) before enabling a Provider in a main-agent
 workflow. The real CLI trial and synthetic protocol tests establish different
 claims and are reported separately.
 

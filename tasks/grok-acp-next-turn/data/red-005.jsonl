@@ -1,9 +1,0 @@
-{"Time":"2026-10-07T19:54:48.80833+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"}
-{"Time":"2026-10-07T19:54:49.390832+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsLoneUnicodeSurrogate"}
-{"Time":"2026-10-07T19:54:49.390889+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsLoneUnicodeSurrogate","Output":"=== RUN   TestClientRejectsLoneUnicodeSurrogate\n"}
-{"Time":"2026-10-07T19:54:49.391079+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsLoneUnicodeSurrogate","Output":"    wire_test.go:381: NewSession() error = \u003cnil\u003e, want grokacp: protocol\n"}
-{"Time":"2026-10-07T19:54:49.391104+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsLoneUnicodeSurrogate","Output":"--- FAIL: TestClientRejectsLoneUnicodeSurrogate (0.00s)\n"}
-{"Time":"2026-10-07T19:54:49.39111+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsLoneUnicodeSurrogate","Elapsed":0}
-{"Time":"2026-10-07T19:54:49.391122+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"FAIL\n"}
-{"Time":"2026-10-07T19:54:49.391475+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp\t0.583s\n"}
-{"Time":"2026-10-07T19:54:49.391484+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":0.583}

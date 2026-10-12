@@ -1,8 +1,0 @@
-{"Time":"2026-10-09T13:45:31.595035+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
-{"Time":"2026-10-09T13:45:32.270359+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseTargetReservationMatrix"}
-{"Time":"2026-10-09T13:45:32.270685+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseTargetReservationMatrix","Output":"=== RUN   TestNewBaseTargetReservationMatrix\n"}
-{"Time":"2026-10-09T13:45:32.801754+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseTargetReservationMatrix","Output":"--- PASS: TestNewBaseTargetReservationMatrix (0.53s)\n"}
-{"Time":"2026-10-09T13:45:32.801778+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseTargetReservationMatrix","Elapsed":0.53}
-{"Time":"2026-10-09T13:45:32.801932+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
-{"Time":"2026-10-09T13:45:32.802684+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t1.207s\n"}
-{"Time":"2026-10-09T13:45:32.802713+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":1.208}

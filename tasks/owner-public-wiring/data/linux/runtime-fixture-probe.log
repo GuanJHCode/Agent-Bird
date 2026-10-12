@@ -1,5 +1,0 @@
-{"exists":true,"mode":"-rwxr-xr-x","path":"/bin/sh"}
-{"exists":true,"mode":"-rwxr-xr-x","path":"/bin/sleep"}
-{"error":"stat /private/tmp: no such file or directory","exists":false,"path":"/private/tmp"}
-{"exists":true,"mode":"dtrwxrwxrwx","path":"/tmp"}
-{"shell_output":"controlled-fixture-probe","started":true}

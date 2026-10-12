@@ -1,6 +1,0 @@
-=== RUN   TestLinuxPortableFollowupNative
-    linux_followup_native_test.go:117: call=1 action=check output={"binary":"/tmp/lf-3255322396/install/versions/0.1.0-linux-followup/bin/codex-orchestrator","runtime":"collect-only","status":"ready"}
-    linux_followup_native_test.go:133: call=2 action=status output={"task_id":"task","run_id":"followup","status":"ready","work_revision":1}
-    linux_followup_native_test.go:138: unexpected task state: {"task_id":"task","run_id":"followup","status":"ready","work_revision":1}
---- FAIL: TestLinuxPortableFollowupNative (0.74s)
-FAIL

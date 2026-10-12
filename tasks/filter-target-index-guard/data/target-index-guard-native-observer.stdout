@@ -1,8 +1,0 @@
---- FAIL: TestInspectFilteredTargetNativeFixture (0.00s)
-    --- FAIL: TestInspectFilteredTargetNativeFixture/accepted_candidate_observes_rendered_target_without_mutation (0.00s)
-        filter_raw_workspace_darwin_test.go:65: stat /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tasks/filter-raw-fixture/tmp: no such file or directory
-    --- FAIL: TestInspectFilteredTargetNativeFixture/journal_callback_target_drift_returns_no_success_observer (0.00s)
-        filter_raw_workspace_darwin_test.go:65: stat /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tasks/filter-raw-fixture/tmp: no such file or directory
-FAIL
-FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops	0.477s
-FAIL

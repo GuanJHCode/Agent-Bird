@@ -1,6 +1,0 @@
-=== RUN   TestCarrierTransportSecondConnectionRevokesPending
---- PASS: TestCarrierTransportSecondConnectionRevokesPending (0.02s)
-=== RUN   TestCarrierTransportCopyAndOwnerError
---- PASS: TestCarrierTransportCopyAndOwnerError (0.01s)
-PASS
-ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter	0.710s

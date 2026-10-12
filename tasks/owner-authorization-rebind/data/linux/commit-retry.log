@@ -1,6 +1,0 @@
-=== RUN   TestACPBridgeSchema23ActualCommitFailureRollsBackAndRestores
---- PASS: TestACPBridgeSchema23ActualCommitFailureRollsBackAndRestores (3.90s)
-=== RUN   TestPendingAuthorizationRebindMigrationFailedCommitDiscardsLease
-    owner_authorization_rebind_migration_test.go:117: actual deferred FK COMMIT: external version/objects/fault=29/0/0; pool=29/0/0
---- PASS: TestPendingAuthorizationRebindMigrationFailedCommitDiscardsLease (1.45s)
-PASS
