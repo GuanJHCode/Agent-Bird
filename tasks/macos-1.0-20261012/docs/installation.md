@@ -44,7 +44,7 @@ python3 agent-bird.py start --runtime "$HOME/.bird1" --provider grok \
   --directory /absolute/project --prompt '调用 Codex 修改 answer.txt；mode=workspace-write，paths=["answer.txt"]，完成后读取确认并返回结果。'
 ```
 
-AGY 目前缺少可用账号，上述涉及 AGY 的命令尚未完成真实验收。Codex 目标通过固定 0.154.0 app-server 和 Host 文件工具读写；新调用使用兼容模型 gpt-5.4，不改变发起方或全局模型配置。
+AGY 目前缺少可用账号，上述涉及 AGY 的命令尚未完成真实验收。Codex 目标通过固定 0.154.0 app-server 和 Host 文件工具读写；新调用使用兼容模型 gpt-5.6-sol，不改变发起方或全局模型配置。
 Grok 使用本进程 ACP plugin-dir，不写全局 trusted_folders；Codex/Claude 用进程级 MCP配置，
 AGY 用私有发起工作区的 MCP 配置和指定项目附加目录。不会覆盖项目已有 MCP 配置。
 

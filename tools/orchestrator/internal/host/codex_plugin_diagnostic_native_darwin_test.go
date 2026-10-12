@@ -48,7 +48,7 @@ func TestCodexPluginNativeFailureDiagnostic(t *testing.T) {
 	if err = h.BindContinuationOwner("diagnostic-owner"); err != nil {
 		t.Fatal(err)
 	}
-	profile := adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, CLIModelDefault: true, TimeoutMS: 30000, CodexHostToolsVersion: 1}
+	profile := adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, Model: adapter.CodexPluginCompatibilityModel, TimeoutMS: 30000, CodexHostToolsVersion: 1}
 	binary := adapter.BinaryPin{Path: codexHostToolsNativePin, Version: adapter.CodexVersion, SHA256: adapter.CodexSHA256}
 	lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderCodex, Protocol: adapter.ProtocolID(adapter.ProviderCodex), Binary: binary}
 	prompt := "Read README.md using agent_bird.read_file, return the marker. No other tools."
@@ -111,12 +111,30 @@ func TestCodexPluginNativeFailureDiagnostic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if os.Getenv("BIRD_CODEX_LIST_MODELS") == "1" {
+		defer client.Close()
+		_, err = client.Call(ctx, "initialize", json.RawMessage(`{"clientInfo":{"name":"agent-bird-managed","version":"1","title":"Agent Bird"},"capabilities":{"experimentalApi":true,"requestAttestation":false}}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = client.Notify(ctx, "initialized", nil); err != nil {
+			t.Fatal(err)
+		}
+		models, err := client.Call(ctx, "model/list", json.RawMessage(`{"includeHidden":false,"limit":100}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(filepath.Join(evidence, "models.json"), models, 0600); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
 	tools, closeTools, err := openCodexReadTools(workspace)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer closeTools()
-	out, runErr := codexsession.Run(ctx, client, prepared.Projection, codexsession.Options{CWD: workspace, OwnedHome: prepared.Layout.Home.Path, PlatformFamily: "unix", PlatformOS: "macos", Prompt: prompt, HostTools: tools, OnThread: func(context.Context, codexsession.ThreadBinding) error { return nil }})
+	out, runErr := codexsession.Run(ctx, client, prepared.Projection, codexsession.Options{CWD: workspace, OwnedHome: prepared.Layout.Home.Path, PlatformFamily: "unix", PlatformOS: "macos", Prompt: prompt, HostTools: tools, ModelOverride: string(adapter.CodexPluginCompatibilityModel), OnThread: func(context.Context, codexsession.ThreadBinding) error { return nil }})
 	facts, _ := codexsession.FailureFactsOf(runErr)
 	body, _ := json.Marshal(map[string]any{"status": out.Status, "failure_facts": facts, "diagnostic_only": true})
 	if err = os.WriteFile(filepath.Join(evidence, "result.json"), body, 0600); err != nil {

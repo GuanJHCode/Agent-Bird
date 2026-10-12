@@ -100,7 +100,7 @@ func TestCodexPluginCandidateToolsArePrivateAndDurable(t *testing.T) {
 	if e != nil || !json.Valid(artifact) {
 		t.Fatal("freeze", e)
 	}
-	if e = codexCheckManagedBinding(prepared, codexsession.ThreadBinding{ThreadID: "00000000-0000-4000-8000-000000000001", Model: "gpt-5.4", ModelProvider: "openai", HistoryMode: "paginated", RolloutPath: filepath.Join(prepared.Layout.Home.Path, "sessions", "2026", "10", "12", "rollout-2026-10-12T00-00-00-00000000-0000-4000-8000-000000000001.jsonl")}); e != nil {
+	if e = codexCheckManagedBinding(prepared, codexsession.ThreadBinding{ThreadID: "00000000-0000-4000-8000-000000000001", Model: "gpt-5.6-sol", ModelProvider: "openai", HistoryMode: "paginated", RolloutPath: filepath.Join(prepared.Layout.Home.Path, "sessions", "2026", "10", "12", "rollout-2026-10-12T00-00-00-00000000-0000-4000-8000-000000000001.jsonl")}); e != nil {
 		t.Fatal("compatibility model binding", e)
 	}
 }

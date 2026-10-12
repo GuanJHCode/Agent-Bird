@@ -5,7 +5,7 @@ import "errors"
 // Fresh plugin threads have a distinct backend from the sealed M3 protocol.
 const CodexPluginBackend = "codex-app-server-plugin-read-v1"
 const CodexPluginWriteBackend = "codex-app-server-plugin-write-v1"
-const CodexPluginCompatibilityModel ModelID = "gpt-5.4"
+const CodexPluginCompatibilityModel ModelID = "gpt-5.6-sol"
 
 func BuildCodexPluginInvocation(req Request) (Invocation, error) {
 	if req.Provider != ProviderCodex || req.Profile == nil || req.Profile.CodexHostToolsVersion != 1 || req.Continuation != nil || req.Session.Kind != "" || req.Session.ID != "" {

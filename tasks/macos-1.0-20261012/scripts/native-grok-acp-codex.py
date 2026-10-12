@@ -10,7 +10,7 @@ for d in (project,locks,state):d.mkdir(mode=0o700)
 (project/'answer.txt').write_text('before\n')
 for argv in (['git','init','-q'],['git','add','.'],['git','-c','user.name=Fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false','commit','-qm','fixture']):
  subprocess.run(argv,cwd=project,check=True,capture_output=True)
-bootstrap=root/'tasks/macos-1.0-20261012/tmp/agent-bird-native8';package=root/'tasks/macos-1.0-20261012/tmp/package-native7/plugin'
+bootstrap=root/'tasks/macos-1.0-20261012/tmp/agent-bird-native9';package=root/'tasks/macos-1.0-20261012/tmp/package-native8/plugin'
 r=subprocess.run([str(bootstrap),'plugin-run','--plugin-root',str(package),'--install-root',str(fixture/'packages'),'--state-dir',str(state),'check'],check=True,capture_output=True,text=True)
 binary=json.loads(r.stdout)['binary']
 p=locks/'codex.json';p.write_text(json.dumps(json.loads((evidence/'codex-probe.json').read_text())['lock']));p.chmod(0o600)

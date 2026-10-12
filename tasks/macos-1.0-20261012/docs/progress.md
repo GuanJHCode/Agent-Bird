@@ -135,3 +135,11 @@ admission，不让新plugin thread获取旧M3恢复权限。
 - Host candidate tools use exclusive owned candidate only, SHA-bound replace/create, durable private intent/receipt, and existing original-Wait then Git freeze. Original project remains unchanged. Broker mode/create regression: 9 named race PASS. Host/session/adapter targeted race: 19 named PASS, 0 failures, 1 opt-in native diagnostic skipped (synthetic tests are not native acceptance).
 - Earlier native7 Grok→Codex reached actual MCP and target thread but failed Host binding against the source model. Host now checks the explicit plugin compatibility model; candidate integration test covers this binding. Native rerun pending.
 - AGY account unavailable confirmed by user; no more AGY model calls this stage.
+
+### Compatibility model correction
+
+The initial `gpt-5.4` assumption also failed HTTP 400. Instead of further model guesses, the same protected 0.154.0 app-server `model/list` was queried: available public models are `gpt-6-astra` (default), `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`. Fresh plugin compatibility model is now `gpt-5.6-sol`. Related 6 named tests PASS; no permission or binary/protocol pin change. Raw diagnostic evidence stays private; it is not plugin acceptance.
+
+- Public call/dispatch/capability targeted race: 51 named PASS; no failures/skips.
+- Independent Host/candidate and model boundary reviews: no blocking findings. Existing lease cancellation covers freeze; late cancellation may retain partial private candidate evidence and does not publish successful result.
+- Installer outer adapter closure independently reviewed; launcher unit 2 PASS, ACP synthetic 4 PASS. Native Grok→Codex with supported model in progress.
