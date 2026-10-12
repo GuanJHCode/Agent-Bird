@@ -103,13 +103,16 @@ def launch_args(provider, binary, state, locks, directory, prompt, session):
                           '-c', 'mcp_servers.agent_bird.args=' + json.dumps(mcp_args),
                           '-c', 'mcp_servers.agent_bird.env_vars=["AGENT_BIRD_OWNER_REQUEST"]',
                           '-c', 'mcp_servers.agent_bird.tool_timeout_sec=3600',
-                          '-c', 'mcp_servers.agent_bird.tools.agent_bird_call.approval_mode="approve"', prompt], directory, None
+                          '-c', 'mcp_servers.agent_bird.tools.agent_bird_call.approval_mode="approve"',
+                          '-c', 'mcp_servers.agent_bird.tools.agent_bird_result.approval_mode="approve"', prompt], directory, None
     config = {'mcpServers': {'agent_bird': {'command': str(binary), 'args': mcp_args}}}
     if provider == 'claude':
         config_path = session / 'mcp.json'
         private_json(config_path, config)
         return command + ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--strict-mcp-config',
-                          '--mcp-config', str(config_path), '--allowedTools', 'mcp__agent_bird__agent_bird_call'], directory, None
+                          '--mcp-config', str(config_path), '--tools', '',
+                          '--settings', json.dumps({'env': {'ENABLE_TOOL_SEARCH': 'false'}}),
+                          '--allowedTools', 'mcp__agent_bird__agent_bird_call,mcp__agent_bird__agent_bird_result'], directory, None
     if provider == 'agy':
         (session / '.agents').mkdir(mode=0o700)
         private_json(session / '.agents/mcp_config.json', config)
@@ -129,10 +132,12 @@ def start(args):
     if not shutil.which(args.provider):
         raise ValueError('source CLI is missing from PATH: ' + args.provider)
     state, locks = runtime / 'state', runtime / 'locks'
-    prompt = ('Use the Agent Bird agent_bird_call MCP tool to perform the requested delegation. '
-              'Pass the actual target Provider, task, and absolute directory. For edits use mode=workspace-write '
-              'and exact paths. Do not recursively delegate. Report the actual result, failure_reason, '
-              'changes_known, changed_files and candidate workspace. The project directory is ' + str(directory) + '.\n' + args.prompt)
+    prompt = ('Delegate once with agent_bird_call; pass target, task and directory. '
+              'For edits set mode=workspace-write and exact paths. Ask for a concise outcome, '
+              'failures and changed files; no task restatement. Fetch agent_bird_result only '
+              'when the excerpt is insufficient. Report failure_reason, changes_known, '
+              'changed_files and workspace accurately. No recursive delegation. '
+              'Project: ' + str(directory) + '.\n' + args.prompt)
     session = Path(tempfile.mkdtemp(prefix='source-', dir=runtime))
     if args.provider == 'grok':
         adapter = Path(installation['adapters']) / 'grok-plugin-acp.py'

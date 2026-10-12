@@ -77,6 +77,7 @@ func serveProviderMCP(parent context.Context, in io.ReadCloser, out io.Writer, e
 	completions := make(chan birdMCPCompletion, 1)
 	var active context.CancelFunc
 	var activeID string
+	var last *providerCallResult
 	initialized, ready := false, false
 	inputClosed := false
 	finishActive := func() {
@@ -111,7 +112,8 @@ func serveProviderMCP(parent context.Context, in io.ReadCloser, out io.Writer, e
 				completed.result.Status = "failed"
 				completed.result.FailureReason = errorCode(completed.err)
 			}
-			body, _ := json.Marshal(completed.result)
+			last = &completed.result
+			body, _ := json.Marshal(compactProviderResult(completed.result))
 			failed := completed.err != nil || completed.result.FailureReason != ""
 			result := map[string]any{"content": []any{map[string]any{"type": "text", "text": string(body)}}, "isError": failed}
 			if !inputClosed {
@@ -169,7 +171,7 @@ func serveProviderMCP(parent context.Context, in io.ReadCloser, out io.Writer, e
 					code, messageText = -32600, "Initialize first"
 					break
 				}
-				result = map[string]any{"tools": []any{map[string]any{"name": "agent_bird_call", "description": "Run one task with another Provider. Calls are serial and cannot recursively delegate. Writes require explicit relative paths and produce an isolated candidate workspace.", "inputSchema": json.RawMessage(birdCallSchema)}}}
+				result = map[string]any{"tools": []any{map[string]any{"name": "agent_bird_call", "description": "Run one serial child task. Writes require explicit paths in an isolated candidate. Returns a bounded result excerpt; use agent_bird_result only if details are needed. No recursive delegation.", "inputSchema": json.RawMessage(birdCallSchema)}, map[string]any{"name": "agent_bird_result", "description": "Read a bounded detail page from this connection’s last completed call. Does not launch a Provider. Available until the next call starts or this connection closes.", "inputSchema": json.RawMessage(birdResultSchema)}}}
 			case "tools/call":
 				if !ready {
 					code, messageText = -32600, "Initialize first"
@@ -184,7 +186,28 @@ func serveProviderMCP(parent context.Context, in io.ReadCloser, out io.Writer, e
 					Arguments json.RawMessage `json:"arguments"`
 				}
 				var req providerCallRequest
-				if json.Unmarshal(message.Params, &call) != nil || call.Name != "agent_bird_call" || decode(call.Arguments, &req) != nil || req.ProviderLock != "" {
+				if json.Unmarshal(message.Params, &call) != nil {
+					code, messageText = -32602, "Invalid tool arguments"
+					break
+				}
+				if call.Name == "agent_bird_result" {
+					var request birdResultRequest
+					var page birdResultPage
+					var err error
+					if decode(call.Arguments, &request) != nil {
+						err = codeError("call_result_request_invalid")
+					} else {
+						page, err = providerResultPage(last, request)
+					}
+					if err != nil {
+						code, messageText = -32602, errorCode(err)
+						break
+					}
+					body, _ := json.Marshal(page)
+					result = map[string]any{"content": []any{map[string]any{"type": "text", "text": string(body)}}, "isError": false}
+					break
+				}
+				if call.Name != "agent_bird_call" || decode(call.Arguments, &req) != nil || req.ProviderLock != "" {
 					code, messageText = -32602, "Invalid tool arguments"
 					break
 				}
@@ -193,6 +216,7 @@ func serveProviderMCP(parent context.Context, in io.ReadCloser, out io.Writer, e
 					code, messageText = -32602, errorCode(err)
 					break
 				}
+				last = nil
 				child, stop := context.WithCancel(ctx)
 				active = stop
 				activeID = identity

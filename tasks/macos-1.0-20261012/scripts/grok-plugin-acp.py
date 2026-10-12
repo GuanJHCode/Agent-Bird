@@ -269,6 +269,7 @@ def run(args: argparse.Namespace) -> int:
         command = [
             str(binary), "controller", "start", "--provider", "grok", "--state-dir", str(state_dir),
             "--skill-path", str(skill), "--", "--allow", "MCPTool(agent_bird__agent_bird_call)",
+            "--allow", "MCPTool(agent_bird__agent_bird_result)",
             "--no-subagents", "--disable-web-search", "agent", "--no-leader", "--plugin-dir", str(plugin_root), "stdio",
         ]
         process = subprocess.Popen(command, cwd=directory, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
