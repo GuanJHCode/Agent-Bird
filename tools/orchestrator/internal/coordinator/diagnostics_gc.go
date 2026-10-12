@@ -80,5 +80,9 @@ func (s *Server) runDiagnosticsGCRound(ctx context.Context) bool {
 	// diagnostics, while retaining its own opt-in policy and owner binding.
 	_ = s.db.RunReportGC(round, time.Now().UTC())
 	_ = s.db.RunHostGC(round, time.Now().UTC())
+	_ = s.db.RunCandidateGC(round, time.Now().UTC(), func(work context.Context, controller, token string, plan store.CandidateRetentionPlan) error {
+		_, err := s.applyCandidateRetention(work, controller, token, plan)
+		return err
+	})
 	return ctx.Err() == nil
 }

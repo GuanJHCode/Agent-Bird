@@ -27,26 +27,49 @@ func candidateRetentionKind(k ipc.Kind) bool {
 }
 
 func (s *Server) applyCandidateRetention(ctx context.Context, controller, token string, plan store.CandidateRetentionPlan) (store.CandidateRetentionApplyResult, error) {
+	if e := plan.Validate(); e != nil {
+		return store.CandidateRetentionApplyResult{}, e
+	}
+	out := store.CandidateRetentionApplyResult{Version: 1, RunID: plan.RunID, RequestID: plan.RequestID, Results: []store.CandidateMaintenanceState{}}
+	// An empty saved plan must still prove that its original owner remains
+	// authorized. Item preparation performs this check for non-empty plans.
+	if len(plan.Items) == 0 {
+		current, e := s.db.PlanCandidateRetention(ctx, controller, token, store.CandidateRetentionPlanRequest{Version: 1, RunID: plan.RunID, RequestID: plan.RequestID, Limit: 1})
+		if e != nil {
+			return out, e
+		}
+		if current.OwnerBinding != plan.OwnerBinding {
+			return out, store.CodeError("candidate_retention_owner_changed")
+		}
+		return out, nil
+	}
 	exe, e := os.Executable()
 	if e != nil {
-		return store.CandidateRetentionApplyResult{}, e
+		return out, e
 	}
 	exe, e = filepath.EvalSymlinks(exe)
 	if e != nil {
-		return store.CandidateRetentionApplyResult{}, e
+		return out, e
 	}
 	sha, e := process.ExecutableDigest(ctx, exe)
 	if e != nil {
-		return store.CandidateRetentionApplyResult{}, e
+		return out, e
 	}
-	out := store.CandidateRetentionApplyResult{Version: 1, RunID: plan.RunID, RequestID: plan.RequestID}
 	for _, i := range plan.Items {
 		state, e := s.db.PrepareCandidateMaintenance(ctx, controller, token, plan, i.ResourceID, exe, sha)
 		if e != nil {
 			return out, e
 		}
 		if state.State == "prepared" {
-			if _, e = candidatemaintenance.Run(ctx, s.db, controller, token, state.Grant); e != nil {
+			outcome, runErr := candidatemaintenance.Run(ctx, s.db, controller, token, state.Grant)
+			if runErr != nil {
+				return out, runErr
+			}
+			state.State = outcome.State
+			state.Outcome = &outcome
+		} else if state.State == "running" {
+			state, e = s.db.RecoverCandidateMaintenance(ctx, controller, token, state.Grant)
+			if e != nil {
 				return out, e
 			}
 		}

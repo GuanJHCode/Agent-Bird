@@ -216,6 +216,10 @@ func testDiagnosticsPublicCLI(t *testing.T, deleteCompleted bool, retention ...b
 		testHostRetentionPublicRequests(t, ctx, root, state, control, g.RunID, accepted.ControlToken, db, server, invoke)
 		return
 	}
+	if len(retention) > 4 && retention[4] {
+		testCandidateRetentionPublicRequests(t, ctx, root, state, control, g.RunID, accepted.ControlToken, invoke)
+		return
+	}
 	if len(retention) > 2 && retention[2] {
 		testReportRetentionPublicRequests(t, ctx, root, state, control, g.RunID, accepted.ControlToken, db, server, invoke)
 		return
