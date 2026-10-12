@@ -417,7 +417,7 @@ func agyCommittedFailure(t *testing.T, failure string) {
 		if bytes.Count(replacement, []byte(boundary)) != 1 {
 			t.Fatal("exact original Host stage boundary changed")
 		}
-		injected := fmt.Sprintf("// B05 FAULT_INJECTED_HOST_STAGE_RETURN: not an actual OS failure.\n\tif err = startHost(); err == nil { err = codeError(%q) }\n\tif err != nil {", "b05_injected_"+failure) + receiptPrefix
+		injected := fmt.Sprintf("// B05 FAULT_INJECTED_HOST_STAGE_RETURN: not an actual OS failure.\n\t_ = startHost\n\tif err = codeError(%q); err != nil {", "b05_injected_"+failure) + receiptPrefix
 		replacement = bytes.Replace(replacement, []byte(boundary), []byte(injected), 1)
 	default:
 		t.Fatal("unapproved fault mode")
