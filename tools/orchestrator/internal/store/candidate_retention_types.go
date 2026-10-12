@@ -2,6 +2,9 @@ package store
 
 import (
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
+	"path/filepath"
+	"strings"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -93,19 +96,21 @@ func (p CandidateRetentionPlan) Validate() error {
 // Immutable Store authority for exactly one fresh maintenance actor. The
 // child receives this only after its actual Identity is recorded as running.
 type CandidateMaintenanceGrant struct {
-	Version          int                            `json:"version"`
-	OperationID      string                         `json:"operation_id"`
-	RunID            string                         `json:"run_id"`
-	ResourceID       string                         `json:"resource_id"`
-	Generation       int                            `json:"generation"`
-	OwnerBinding     string                         `json:"owner_binding"`
-	FactsSHA256      string                         `json:"facts_sha256"`
-	Header           gitops.CandidateResourceHeader `json:"header"`
-	SpoolRoot        string                         `json:"spool_root"`
-	OperationJournal string                         `json:"operation_journal"`
-	Executable       string                         `json:"executable"`
-	ExecutableSHA256 string                         `json:"executable_sha256"`
-	GrantSHA256      string                         `json:"grant_sha256"`
+	Version          int                                     `json:"version"`
+	OperationID      string                                  `json:"operation_id"`
+	RunID            string                                  `json:"run_id"`
+	ResourceID       string                                  `json:"resource_id"`
+	Generation       int                                     `json:"generation"`
+	OwnerBinding     string                                  `json:"owner_binding"`
+	FactsSHA256      string                                  `json:"facts_sha256"`
+	Header           gitops.CandidateResourceHeader          `json:"header"`
+	SpoolRoot        string                                  `json:"spool_root"`
+	Root             StoreRootNodes                          `json:"root"`
+	JournalIdentity  gitopsworker.MaintenanceJournalIdentity `json:"journal_identity"`
+	OperationJournal string                                  `json:"operation_journal"`
+	Executable       string                                  `json:"executable"`
+	ExecutableSHA256 string                                  `json:"executable_sha256"`
+	GrantSHA256      string                                  `json:"grant_sha256"`
 }
 type CandidateMaintenanceState struct {
 	Grant   CandidateMaintenanceGrant    `json:"grant"`
@@ -129,14 +134,93 @@ type CandidateRetentionApplyResult struct {
 	Results   []CandidateMaintenanceState `json:"results"`
 }
 type CandidateGCRequest struct {
-	Version int    `json:"version"`
-	RunID   string `json:"run_id"`
+	Version          int    `json:"version"`
+	RunID            string `json:"run_id"`
+	ExpectedRevision int64  `json:"expected_revision"`
 }
 type CandidateGCStatus struct {
 	Version  int    `json:"version"`
 	RunID    string `json:"run_id"`
 	Enabled  bool   `json:"enabled"`
-	Revision int    `json:"revision"`
+	Revision int64  `json:"revision"`
 	LastTick string `json:"last_tick,omitempty"`
 	Stopped  string `json:"stopped,omitempty"`
+}
+
+func (g CandidateMaintenanceGrant) Validate() error {
+	bad := CodeError("candidate_maintenance_grant_invalid")
+	if g.Version != 1 || !validDigest(g.OperationID) || !validDigest(g.ResourceID) || !retentionID(g.RunID) || g.Generation < 1 || !validDigest(g.OwnerBinding) || !validDigest(g.FactsSHA256) || g.Header.Validate() != nil || g.Header.ResourceID != g.ResourceID || g.Header.Source.Binding.RunID != g.RunID || !filepath.IsAbs(g.Executable) || !validDigest(g.ExecutableSHA256) || !filepath.IsAbs(g.Root.StateRoot) || g.Root.StateInode == 0 || g.Root.DatabaseInode == 0 {
+		return bad
+	}
+	if g.SpoolRoot != filepath.Join(g.Root.StateRoot, "host-spool", g.Header.Source.HostID) || filepath.Dir(g.OperationJournal) != g.Root.StateRoot || !strings.HasPrefix(filepath.Base(g.OperationJournal), "candidate-maintenance-") || !validDigest(strings.TrimPrefix(filepath.Base(g.OperationJournal), "candidate-maintenance-")) {
+		return bad
+	}
+	if g.JournalIdentity.Directory.Inode <= 0 || g.JournalIdentity.Events.Inode <= 0 || g.JournalIdentity.Lock.Inode <= 0 {
+		return bad
+	}
+	q := g
+	q.GrantSHA256 = ""
+	b, e := json.Marshal(q)
+	if e != nil || len(b)+64 > 24576 || g.GrantSHA256 != runtimeHash(string(b)) {
+		return bad
+	}
+	return nil
+}
+func (r CandidateGCRequest) Validate() error {
+	if r.Version != 1 || !retentionID(r.RunID) || r.ExpectedRevision < 0 || r.ExpectedRevision >= 9223372036854775806 {
+		return CodeError("candidate_gc_request_invalid")
+	}
+	return nil
+}
+func (r *CandidateRetentionResolutionRequest) UnmarshalJSON(b []byte) error {
+	type plain CandidateRetentionResolutionRequest
+	var p plain
+	if e := strictDiagnosticsJSON(b, &p); e != nil {
+		return e
+	}
+	x := CandidateRetentionResolutionRequest(p)
+	if e := x.Validate(); e != nil {
+		return e
+	}
+	*r = x
+	return nil
+}
+func (r *CandidateRetentionPlanRequest) UnmarshalJSON(b []byte) error {
+	type plain CandidateRetentionPlanRequest
+	var p plain
+	if e := strictDiagnosticsJSON(b, &p); e != nil {
+		return e
+	}
+	x := CandidateRetentionPlanRequest(p)
+	if e := x.Validate(); e != nil {
+		return e
+	}
+	*r = x
+	return nil
+}
+func (r *CandidateRetentionPlan) UnmarshalJSON(b []byte) error {
+	type plain CandidateRetentionPlan
+	var p plain
+	if e := strictDiagnosticsJSON(b, &p); e != nil {
+		return e
+	}
+	x := CandidateRetentionPlan(p)
+	if e := x.Validate(); e != nil {
+		return e
+	}
+	*r = x
+	return nil
+}
+func (r *CandidateGCRequest) UnmarshalJSON(b []byte) error {
+	type plain CandidateGCRequest
+	var p plain
+	if e := strictDiagnosticsJSON(b, &p); e != nil {
+		return e
+	}
+	x := CandidateGCRequest(p)
+	if e := x.Validate(); e != nil {
+		return e
+	}
+	*r = x
+	return nil
 }
