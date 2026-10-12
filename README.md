@@ -43,7 +43,7 @@ codex plugin add agent-bird-local@agent-bird-local
 
 新开普通 Codex 会话后说：“使用 Agent Bird 调用 Claude，读取当前项目 README.md 并返回摘要。”插件技能会实际执行新 runtime 的 `call`；无需手工转交或另外启动 controller。此入口通过原生 Codex 进程祖先和当前 thread 校验身份；同时支持单个原生 CLI 祖先，以及 Codex App 0.162.1 的严格 remote-control→daemon 父子形态（同一二进制、内核参数、UID、PID 和出生时间均核对），其他多 Codex 祖先仍拒绝。目标 pin 和 runtime 摘要均固定；未配置的目标、变化的 pin 或未知身份会明确失败。安装只登记 Agent Bird 插件，不修改账号、模型或权限设置。
 
-`call --compact` 复用 4KiB 结果视图，完整结果仍保存在原任务 handle。普通会话入口使用技能和 CLI，不宣称它拥有 MCP 连接内的详情续页；截断会明确报告。升级不迁移旧任务，已有任务仍使用其原始 runtime/handle。若已有同名 marketplace，先核对来源再替换注册；保留旧 runtime 和有未完成任务的版本。
+`call --compact` 复用 4KiB 结果视图，完整结果仍保存在原任务 handle。普通会话入口使用技能和 CLI，不宣称它拥有 MCP 连接内的详情续页；截断会明确报告。升级不迁移旧任务，已有任务仍使用其原始 runtime/handle。若已有同名 marketplace，先核对来源，再执行 `codex plugin marketplace remove agent-bird-local`，然后重新执行上述 add/install 命令。插件管理器可能替换旧缓存；保留旧 runtime 和原任务 handle。Codex App 升级后请完全退出并重新打开，再新建会话，避免沿用已加载的旧技能。
 
 ## 使用
 
@@ -105,6 +105,13 @@ Codex 通过 app-server 和受约束文件工具执行，不修改 Codex 源码�
 暂不支持自动合并、递归或并发子任务、自动重试、失主自动恢复、Codex 续接、通用 filtered compose/rework/retry/continuation，以及完整 LFS/hooks/signing。超时不是完成：已有 Claude 编码尝试因超时结束，未计入成功编码验收。
 
 这是候选版本，AGY 账号及其双向真实验收尚缺；不宣称四方正式 1.0 全部验收完成。已由 Agent Bird controller 启动的会话可以继续使用本连接的 MCP；rc.4 另提供普通原生 Codex 会话的技能/CLI 入口，复用已有原生身份校验；任意外部会话的 MCP 热挂接仍未开放。
+
+## rc.4 普通 Codex 会话验证
+
+- 本机已通过 Codex 插件管理器安装 `agent-bird-local@agent-bird-local` 的 `1.0.0-rc.4`，绑定 core `b85cbf21e045bccbbeae8f42aea198ab415843c4`。账号、模型、权限和其他插件配置保持不变。
+- 独立启动的普通 Codex 0.162.1 新 CLI 会话自动加载 rc.4 技能，经缓存中的插件入口实际调用 Claude，读回项目标记；仅一次目标调用，返回 `result_ready`、`process_exited=true`，完整结果摘要及 0600 handle 已核对。发起方整次会话约 53.9 秒，未使用 controller 或权限覆盖。
+- 当前真实 Codex App 的 remote-control→daemon 执行域也通过已安装的同一入口完成 Claude 读取，结果和可信退出均成功。平台禁止自动操作 Codex App 界面，因此没有声明已验证“重启 App 后点击新会话”的 UI 流程；升级后应重启 App 以刷新技能。
+- 新入口绑定测试 4 项、紧凑输出相关 race 3 项、进程身份定向 race 19 项（含子例）、owner/Worker 回归 race 2 项通过，独立审查无阻断。额外的旧测试 `TestUnidentifiedLaunchCannotEnrollThroughNativeSubmit` 在 `local_owner_test.go:173` 返回 `host_artifact_unavailable`，未计入通过；未重复全量测试。schema 保持 41。
 
 ## rc.3 本轮验证
 
