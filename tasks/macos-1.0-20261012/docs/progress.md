@@ -143,3 +143,8 @@ The initial `gpt-5.4` assumption also failed HTTP 400. Instead of further model 
 - Public call/dispatch/capability targeted race: 51 named PASS; no failures/skips.
 - Independent Host/candidate and model boundary reviews: no blocking findings. Existing lease cancellation covers freeze; late cancellation may retain partial private candidate evidence and does not publish successful result.
 - Installer outer adapter closure independently reviewed; launcher unit 2 PASS, ACP synthetic 4 PASS. Native Grok→Codex with supported model in progress.
+
+### Native Codex coding passed; installer correction
+
+- Grok ACP → `agent_bird_call` → Codex 0.154.0 / gpt-5.6-sol passed: `call-d26844dbea1b496de5a0df0e284900a0`, result_ready, process_exited=true, changes_known=true, changed_files=[answer.txt]. Actual candidate content independently read as `CODEX_EDIT_1012\n`; original project unchanged. Native stdout evidence: `grok-acp-codex-supported-write-source.json` (private data directory).
+- Qualified rc.1 codeSHA `5ef9e516d45588d6dcb5ef510fa8d12825ecdd52` installed/check passed, but installed Grok adapter failed before Provider launch because plugin-run check does not create the state directory. Setup now creates its new private state directory with 0700; launcher regression 3 PASS. rc.1 is superseded, not deliverable. Rebuild rc.2 and repeat only the affected installed-entry short chain.

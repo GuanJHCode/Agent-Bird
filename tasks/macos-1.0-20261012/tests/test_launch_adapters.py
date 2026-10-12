@@ -3,6 +3,8 @@ import json
 import hashlib
 from pathlib import Path
 import unittest
+from unittest import mock
+from types import SimpleNamespace
 import tempfile
 
 source = Path(__file__).parents[1] / 'scripts/agent-bird.py'
@@ -32,6 +34,25 @@ class LaunchAdaptersTest(unittest.TestCase):
             (package / 'unexpected').write_text('no')
             with self.assertRaisesRegex(ValueError, 'files_mismatch'):
                 launcher.verified_candidate(package)
+
+    def test_setup_prepares_state_for_grok_before_controller(self):
+        with tempfile.TemporaryDirectory(dir='/private/tmp') as directory:
+            base = Path(directory).resolve()
+            package = base / 'package'; package.mkdir()
+            files = {}
+            for name in ('agent-bird.py', 'grok-plugin-acp.py'):
+                (package / name).write_text(name)
+                files[name] = hashlib.sha256(name.encode()).hexdigest()
+            (package / 'candidate-checksums.json').write_text(json.dumps({'version': 1, 'files': files}))
+            runtime = base / 'run'
+            args = SimpleNamespace(runtime=str(runtime), package=str(package), provider_binary=['grok=/bin/sh'])
+            with mock.patch.object(launcher, 'run_json', side_effect=[{'binary': '/installed/binary'}, {'profile_supported': False}]), mock.patch('builtins.print'):
+                launcher.setup(args)
+            self.assertTrue((runtime / 'state').is_dir())
+            self.assertEqual((runtime / 'state').stat().st_mode & 0o777, 0o700)
+            installed = json.loads((runtime / 'installation.json').read_text())
+            self.assertEqual(Path(installed['adapters']), runtime / 'adapters')
+            self.assertTrue((runtime / 'adapters/grok-plugin-acp.py').is_file())
 
     def check_adapter(self, tmp_path, provider):
         project = tmp_path / 'project'

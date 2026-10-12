@@ -53,6 +53,7 @@ def setup(args):
     package = Path(args.package).resolve(strict=True)
     files = verified_candidate(package)
     runtime.mkdir(mode=0o700)  # Never replace an existing installation or configuration.
+    (runtime / 'state').mkdir(mode=0o700)
     adapters = runtime / 'adapters'
     adapters.mkdir(mode=0o700)
     for name in ('agent-bird.py', 'grok-plugin-acp.py'):
