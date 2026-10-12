@@ -12,11 +12,20 @@ import (
 func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots int) (contract.LaunchCommand, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginRootedOwnerTransaction(ctx)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.LaunchCommand{}, err
 	}
 	defer owned.close()
+	// Generic historical Stores may use a readable parent or another database
+	// name. Only the original private runtime root can mint cleanup authority.
+	if d.hostCleanupNamespaceEnabled() {
+		authority, e := d.initialOwnerRootAuthority()
+		if e != nil {
+			return contract.LaunchCommand{}, e
+		}
+		owned.rootAuthority = &authority
+	}
 	tx := owned.tx
 	rollback := func(e error) (contract.LaunchCommand, error) { owned.close(); return contract.LaunchCommand{}, e }
 	var launchID string

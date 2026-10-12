@@ -36,7 +36,9 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 	for _, pair := range [][2]string{{terminal, "terminal"}, {progress, "progress"}} {
 		control += storedBytes(pair[0], c.RunID, c.TaskID, c.AttemptID, c.HostID, pair[1], c.SegmentID, "", scope, "reserved", stamp)
 		control += storedBytes(pair[0], c.RunID)
-		control += int64(1024 + 8192 + len(pair[0]) + len(c.RunID) + len(scope) + len(pair[1]) + len(stamp))
+		if d.hostCleanupNamespaceEnabled() {
+			control += int64(1024 + 8192 + len(pair[0]) + len(c.RunID) + len(scope) + len(pair[1]) + len(stamp))
+		}
 	}
 	control += hostArtifactManifestReservationBytes
 	if err = d.storageAdmission(ctx, tx, c.RunID, control, false); err != nil {
@@ -47,20 +49,23 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 	}
 	// Rooted dispatch owns this creation, before any grant can be delivered.
 	// The bound namespace remains available even when no artifact ever commits.
-	namespace, err := artifacts.PrepareHostSlotNamespace(ctx, filepath.Dir(d.path), c.HostID)
-	if err != nil {
-		return hostArtifactError(err)
-	}
-	namespaceJSON, err := json.Marshal(namespace)
-	if err != nil || len(namespaceJSON) > 8192 {
-		return CodeError("host_retention_state_invalid")
-	}
-	var drift int
-	if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM host_artifact_cleanup_authorities a JOIN managed_artifact_reservations r ON r.id=a.reservation_id WHERE r.producer_id=? AND a.namespace_json!=?`, c.HostID, string(namespaceJSON)).Scan(&drift); err != nil {
-		return err
-	}
-	if drift != 0 {
-		return CodeError("host_retention_namespace_changed")
+	var namespaceJSON []byte
+	if d.hostCleanupNamespaceEnabled() {
+		namespace, err := artifacts.PrepareHostSlotNamespace(ctx, filepath.Dir(d.path), c.HostID)
+		if err != nil {
+			return hostArtifactError(err)
+		}
+		namespaceJSON, err = json.Marshal(namespace)
+		if err != nil || len(namespaceJSON) > 8192 {
+			return CodeError("host_retention_state_invalid")
+		}
+		var drift int
+		if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM host_artifact_cleanup_authorities a JOIN managed_artifact_reservations r ON r.id=a.reservation_id WHERE r.producer_id=? AND a.namespace_json!=?`, c.HostID, string(namespaceJSON)).Scan(&drift); err != nil {
+			return err
+		}
+		if drift != 0 {
+			return CodeError("host_retention_namespace_changed")
+		}
 	}
 	for _, slot := range []struct {
 		id, class string
@@ -73,8 +78,10 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 		if slot.class == "progress" {
 			slots = contract.HostProgressArtifactSlots
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO host_artifact_cleanup_authorities(reservation_id,run_id,version,scope_sha256,class,slot_count,namespace_json,created_at) VALUES(?,?,1,?,?,?,?,?)`, slot.id, c.RunID, scope, slot.class, slots, string(namespaceJSON), stamp); err != nil {
-			return mapConflict(err)
+		if len(namespaceJSON) > 0 {
+			if _, err = tx.ExecContext(ctx, `INSERT INTO host_artifact_cleanup_authorities(reservation_id,run_id,version,scope_sha256,class,slot_count,namespace_json,created_at) VALUES(?,?,1,?,?,?,?,?)`, slot.id, c.RunID, scope, slot.class, slots, string(namespaceJSON), stamp); err != nil {
+				return mapConflict(err)
+			}
 		}
 		manifestBytes := int64(contract.HostArtifactManifestLimit)
 		if slot.class == "progress" {
@@ -161,4 +168,10 @@ func bindHostArtifactTarget(ctx context.Context, tx *sql.Tx, c *contract.LaunchC
 		return err
 	}
 	return nil
+}
+
+// A historical generic DB remains usable, but it does not acquire destructive
+// runtime capabilities just because its parent becomes private later.
+func (d *DB) hostCleanupNamespaceEnabled() bool {
+	return d.configIdentityError == nil && filepath.Base(d.path) == "state.db"
 }
