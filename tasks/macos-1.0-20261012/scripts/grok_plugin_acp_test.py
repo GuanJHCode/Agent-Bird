@@ -83,11 +83,13 @@ class GrokPluginACPTest(unittest.TestCase):
             observed = json.loads(trace.read_text())
             self.assertEqual(observed["args"][:4], ["controller", "start", "--provider", "grok"])
             self.assertIn("--no-leader", observed["args"])
+            self.assertIn("--no-subagents", observed["args"])
+            self.assertIn("--disable-web-search", observed["args"])
             self.assertEqual(observed["manifest"]["mcpServers"]["agent_bird"]["command"], str(controller.resolve()))
             self.assertEqual(observed["manifest"]["mcpServers"]["agent_bird"]["args"], ["mcp", "--state-dir", str(state.resolve()), "--provider-locks", str(locks.resolve())])
             self.assertEqual(observed["manifest"]["mcpServers"]["agent_bird"]["cwd"], str(workdir.resolve()))
             self.assertEqual(observed["session_new"]["mcpServers"], [])
-            self.assertEqual(observed["permission_reply"]["result"]["outcome"], "cancelled")
+            self.assertEqual(observed["permission_reply"]["result"]["outcome"]["outcome"], "cancelled")
 
     def test_timeout_terminates_controller_process_group(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -146,6 +148,28 @@ class GrokPluginACPTest(unittest.TestCase):
             pid = int(pid_file.read_text())
             with self.assertRaises(ProcessLookupError):
                 os.kill(pid, 0)
+
+    def test_oversized_acp_line_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            workdir = root / "project"; state = root / "state"; locks = root / "locks"
+            for path in (workdir, state, locks): path.mkdir()
+            skill = root / "skill.md"; skill.write_text("skill\n")
+            controller = root / "oversized-controller.py"
+            controller.write_text(textwrap.dedent("""\
+                #!/usr/bin/env python3
+                import sys
+                sys.stdin.readline()
+                sys.stdout.write("x" * (64 * 1024 + 1) + "\\n")
+                sys.stdout.flush()
+            """)); controller.chmod(0o700)
+            result = subprocess.run([
+                sys.executable, str(SCRIPT), "--binary", str(controller), "--skill-path", str(skill),
+                "--state-dir", str(state), "--provider-locks", str(locks), "--directory", str(workdir),
+                "--prompt", "never reaches model", "--timeout-seconds", "5",
+            ], text=True, capture_output=True, check=False, timeout=10)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("stdout line exceeds byte limit", result.stderr)
 
 
 if __name__ == "__main__":

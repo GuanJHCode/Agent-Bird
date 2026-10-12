@@ -16,6 +16,9 @@ from typing import Any
 
 MAX_QUEUE = 64
 MAX_UPDATES = 64
+MAX_LINE_BYTES = 64 * 1024
+MAX_PUBLIC_TEXT_BYTES = 64 * 1024
+MAX_PUBLIC_OUTPUT_BYTES = 128 * 1024
 PUBLIC_UPDATE_KINDS = {"agent_message_chunk", "tool_call", "tool_call_update"}
 
 
@@ -24,6 +27,10 @@ class ACPError(RuntimeError):
 
 
 class Cancelled(ACPError):
+    pass
+
+
+class ReaderFailure(ACPError):
     pass
 
 
@@ -72,15 +79,27 @@ def write_plugin(plugin_root: Path, binary: Path, state_dir: Path, locks: Path, 
     plugin_root.chmod(0o700)
 
 
-def collect_stdout(stream: Any, destination: queue.Queue[str | None], stop: threading.Event) -> None:
+def collect_stdout(stream: Any, destination: queue.Queue[Any], stop: threading.Event) -> None:
     try:
-        for line in iter(stream.readline, ""):
+        while not stop.is_set():
+            line = stream.readline(MAX_LINE_BYTES + 1)
+            if not line:
+                break
+            if len(line) > MAX_LINE_BYTES or not line.endswith(b"\n"):
+                item: Any = ReaderFailure("Grok ACP stdout line exceeds byte limit")
+            else:
+                try:
+                    item = line.decode("utf-8")
+                except UnicodeDecodeError:
+                    item = ReaderFailure("Grok ACP stdout is not UTF-8")
             while not stop.is_set():
                 try:
-                    destination.put(line, timeout=0.1)
+                    destination.put(item, timeout=0.1)
                     break
                 except queue.Full:
                     continue
+            if isinstance(item, ReaderFailure):
+                return
     finally:
         try:
             destination.put_nowait(None)
@@ -89,9 +108,8 @@ def collect_stdout(stream: Any, destination: queue.Queue[str | None], stop: thre
 
 
 def drain(stream: Any) -> None:
-    for _ in iter(stream.readline, ""):
+    while stream.read(8192):
         pass
-
 
 def close_and_join(process: subprocess.Popen[str], readers: list[threading.Thread], stop: threading.Event) -> None:
     stop.set()
@@ -122,14 +140,14 @@ def terminate(process: subprocess.Popen[str]) -> tuple[int | None, str]:
         return process.wait(timeout=10), "killed"
 
 
-def write_rpc(process: subprocess.Popen[str], value: dict[str, Any]) -> None:
+def write_rpc(process: subprocess.Popen[bytes], value: dict[str, Any]) -> None:
     if process.stdin is None:
         raise ACPError("Grok ACP stdin is closed")
-    process.stdin.write(json.dumps(value, separators=(",", ":")) + "\n")
+    process.stdin.write((json.dumps(value, separators=(",", ":")) + "\n").encode("utf-8"))
     process.stdin.flush()
 
 
-def public_update(params: dict[str, Any]) -> dict[str, Any] | None:
+def public_update(params: dict[str, Any], output_bytes: list[int]) -> dict[str, Any] | None:
     update = params.get("update")
     if not isinstance(update, dict):
         return None
@@ -140,28 +158,36 @@ def public_update(params: dict[str, Any]) -> dict[str, Any] | None:
     if kind == "agent_message_chunk":
         content = update.get("content")
         if isinstance(content, dict) and isinstance(content.get("text"), str):
-            public["content"] = {"type": "text", "text": content["text"]}
+            text = content["text"]
+            if len(text.encode("utf-8")) > MAX_PUBLIC_TEXT_BYTES:
+                raise ACPError("Grok ACP message text exceeds byte limit")
+            public["content"] = {"type": "text", "text": text}
     else:
         for key in ("toolCallId", "title", "kind", "status", "toolName"):
             value = update.get(key)
             if isinstance(value, (str, int, float, bool)):
                 public[key] = value
     session_id = params.get("sessionId")
-    return {"sessionId": session_id, "update": public} if isinstance(session_id, str) else {"update": public}
+    result = {"sessionId": session_id, "update": public} if isinstance(session_id, str) else {"update": public}
+    encoded_size = len(json.dumps(result, separators=(",", ":")).encode("utf-8"))
+    if output_bytes[0] + encoded_size > MAX_PUBLIC_OUTPUT_BYTES:
+        raise ACPError("Grok ACP public output exceeds byte limit")
+    output_bytes[0] += encoded_size
+    return result
 
 
 def reply_server_request(process: subprocess.Popen[str], message: dict[str, Any]) -> None:
     request_id = message.get("id")
     method = message.get("method")
     if method == "session/request_permission":
-        write_rpc(process, {"jsonrpc": "2.0", "id": request_id, "result": {"outcome": "cancelled"}})
+        write_rpc(process, {"jsonrpc": "2.0", "id": request_id, "result": {"outcome": {"outcome": "cancelled"}}})
         return
     write_rpc(process, {"jsonrpc": "2.0", "id": request_id, "error": {
         "code": -32601, "message": f"unsupported ACP server request: {method}",
     }})
 
 
-def request(process: subprocess.Popen[str], output: queue.Queue[str | None], request_id: int, method: str, params: dict[str, Any], deadline: float, updates: list[dict[str, Any]]) -> dict[str, Any]:
+def request(process: subprocess.Popen[bytes], output: queue.Queue[Any], request_id: int, method: str, params: dict[str, Any], deadline: float, updates: list[dict[str, Any]], output_bytes: list[int]) -> dict[str, Any]:
     write_rpc(process, {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
     while True:
         remaining = deadline - time.monotonic()
@@ -173,6 +199,8 @@ def request(process: subprocess.Popen[str], output: queue.Queue[str | None], req
             raise TimeoutError(f"timed out waiting for ACP {method}") from exc
         if line is None:
             raise ACPError(f"Grok ACP stdout closed while waiting for {method}")
+        if isinstance(line, ReaderFailure):
+            raise line
         try:
             message = json.loads(line)
         except json.JSONDecodeError as exc:
@@ -182,7 +210,7 @@ def request(process: subprocess.Popen[str], output: queue.Queue[str | None], req
             if inbound_method == "session/update":
                 params_value = message.get("params")
                 if isinstance(params_value, dict):
-                    published = public_update(params_value)
+                    published = public_update(params_value, output_bytes)
                     if published is not None and len(updates) < MAX_UPDATES:
                         updates.append(published)
             elif "id" in message:
@@ -209,7 +237,7 @@ def run(args: argparse.Namespace) -> int:
     directory = checked_directory(args.directory, "directory")
     skill = skill_path(binary, args.skill_path)
     plugin_root: Path | None = None
-    process: subprocess.Popen[str] | None = None
+    process: subprocess.Popen[bytes] | None = None
     readers: list[threading.Thread] = []
     stop = threading.Event()
     try:
@@ -218,12 +246,12 @@ def run(args: argparse.Namespace) -> int:
         command = [
             str(binary), "controller", "start", "--provider", "grok", "--state-dir", str(state_dir),
             "--skill-path", str(skill), "--", "--allow", "MCPTool(agent_bird__agent_bird_call)",
-            "agent", "--no-leader", "--plugin-dir", str(plugin_root), "stdio",
+            "--no-subagents", "--disable-web-search", "agent", "--no-leader", "--plugin-dir", str(plugin_root), "stdio",
         ]
         process = subprocess.Popen(command, cwd=directory, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE, text=True, start_new_session=True)
+                                   stderr=subprocess.PIPE, start_new_session=True)
         assert process.stdout is not None and process.stderr is not None
-        stdout_lines: queue.Queue[str | None] = queue.Queue(maxsize=MAX_QUEUE)
+        stdout_lines: queue.Queue[Any] = queue.Queue(maxsize=MAX_QUEUE)
         readers = [
             threading.Thread(target=collect_stdout, args=(process.stdout, stdout_lines, stop), daemon=True),
             threading.Thread(target=drain, args=(process.stderr,), daemon=True),
@@ -231,18 +259,19 @@ def run(args: argparse.Namespace) -> int:
         for reader in readers:
             reader.start()
         deadline = time.monotonic() + args.timeout_seconds
+        output_bytes = [0]
         request(process, stdout_lines, 1, "initialize", {
             "protocolVersion": 1, "clientCapabilities": {},
             "clientInfo": {"name": "agent-bird-grok-plugin-acp", "version": "1"},
-        }, deadline, [])
-        created = request(process, stdout_lines, 2, "session/new", {"cwd": str(directory), "mcpServers": []}, deadline, [])
+        }, deadline, [], output_bytes)
+        created = request(process, stdout_lines, 2, "session/new", {"cwd": str(directory), "mcpServers": []}, deadline, [], output_bytes)
         session_id = created.get("sessionId")
         if not isinstance(session_id, str) or not session_id:
             raise ACPError("ACP session/new returned no sessionId")
         updates: list[dict[str, Any]] = []
         request(process, stdout_lines, 3, "session/prompt", {
             "sessionId": session_id, "prompt": [{"type": "text", "text": args.prompt}],
-        }, deadline, updates)
+        }, deadline, updates, output_bytes)
         code, shutdown = terminate(process)
         close_and_join(process, readers, stop)
         process = None
