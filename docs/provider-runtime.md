@@ -83,3 +83,10 @@ Darwin 支持带固定 `git_filter` manifest 的首次 `kind=provider` Claude/AG
 Host 仅在本次原进程 Wait/tree 已证明后 freeze/发布结果；旧 journal、续接、返工、重试和其他未列明 filtered action 均拒绝。canonical B 与 rendered R 分别保留摘要；validator 使用新的受管工作树恢复 R，并在结束和结果记录后复验来源 private ref。真实 Provider 返回 technical question 时仍会 waiting_user，但当前 filtered answer/continuation 不可用。
 
 [验收记录](../tasks/filter-host-pipeline/docs/final-validation.md)区分受控 Store/Host 原生链、纯约束、Linux 交叉编译与尚未执行的真实模型/公开 CLI/TUI 验收。已验原生链限 Darwin arm64 上由 Claude-shaped 受控进程驱动的实际 Host：fresh producer → accepted validator → content-only readonly review → 独立 target preflight，原 review 的 Target 精确全零；AGY 在同一生产路由上仅通过准入约束测试，尚无单独原生验收。Linux 仅交叉编译，未取得 native Git/filter 资格。LFS、target-bound filtered review、compose/integrate、rework、retry/continuation 和签名不在此形状内；target preflight 只提供独立观察。当前 [F13 包](../tasks/closure-package-provenance/docs/filter-target-current-20261010.md) source `3e2f24169d79ae519eec4b72e1a3ac512221e52d` 覆盖此生产代码；最终完整 inventory oracle 只增加测试，不改变包内生产代码，Formal60 仍为 FAILED，Intel Mac/Windows native 延期。
+
+
+## 2026-10-12 显式 filtered integration
+
+`filter_integrate` 是独立 candidate action：v1、AutoDirectory、DependencyInputVersion=1、exact Target，SourceTask 指向 accepted target-bound review，并将该 review 的原 preflight 一同列为直接依赖。没有 Provider/command/profile/session/retry 路径。Host 严格读取两个 managed artifacts；helper 仅继承已验签 original-owner scope 的 executable pin，不根据现场文件自行授予执行权限。
+
+最终执行使用正常 pinned Git fast-forward、精确 C/R 转换许可和原 Handle Wait/tree。任一不确定状态均保留 UNKNOWN 与配额；只有原 carrier 已关闭并删除且 Broker 已清理，才由同一 Exited event 释放两份预约。受控原生证据与限制见[验证记录](../tasks/filter-public-integration/docs/validation.md)。Linux仍不开放此运行路径。
