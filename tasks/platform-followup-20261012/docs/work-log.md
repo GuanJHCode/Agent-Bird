@@ -9,3 +9,7 @@ AGY调查：定向原fixture复现实际为旧故障注入锚点失配，不是�
 Darwin filtered现有Broker/carrier/原Wait、转换/冻结/ff-only整合已存在。LFS/hooks/signing所需资源许可与pin、外部交互及副作用对账尚无完整合同，保持门禁。Codex固定upstream 6b9826的exec-server独立执行域接口正在核验。已有嵌套Seatbelt EPERM证据复用；不尝试删权限保护。
 
 所有者：主会话integration（共享契约/CLI/docs）；agy_resource独占外层task tmp/agy-resource；darwin_git独占tmp/darwin-git，当前只读审查与Codex调查。不递归。
+
+2026-10-12继续：用户明确不修改Codex源码，改走插件/原生dynamicTools扩展。固定0.154.0 thread/start支持experimental dynamicTools，原Host可实现Go文件工具，不需要Worker外socket。正在实施session受控tool回调与独立codextools文件broker；公共Codex门禁尚未开放。
+
+AGY两个测试锚点语义修复954ac63已独审通过；主会话解析7 named PASS。平台构建来源修复a4e559d，native查询精确返回该产品SHA及code_modified=false。普通构建不信任Go对外层仓库的VCS标记，返回unknown。
