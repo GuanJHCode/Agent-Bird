@@ -41,20 +41,6 @@ fi
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 plugin_source="$repo_root/plugins/codex-orchestrator"
 [ -f "$plugin_source/.codex-plugin/plugin.json" ] || { echo "plugin_source_missing" >&2; exit 1; }
-"$python" -B - "$repo_root" "$binary" "$python" "$kind" <<'PY'
-import os,pathlib,stat,sys
-repo,binary,interpreter,kind=sys.argv[1:]
-common=['.codex-plugin/plugin.json','defaults.json','skills/orchestrate/SKILL.md','scripts/invoke.sh','scripts/agent-bird-hook','scripts/agent-bird-agy-hook','hooks/agy-proposed-hooks.json']
-full=['scripts/native-product-bridge.py','lib/native_bridge/__init__.py','lib/native_bridge/bridge.py','lib/trial/auth_guard.py','lib/trial/auth_wire.py','lib/trial/rpc_policy.py']
-paths=[pathlib.Path(repo)/'plugins/codex-orchestrator'/p for p in common+(full if kind=='full-native-hooks' else [])]+[pathlib.Path(binary),pathlib.Path(interpreter)]
-if kind=='full-native-hooks':
-    names=['projectproxy_launchd_entrypoint','launch_activation','activation_service','proxy_transport','proxy_observer','owned_child_guard','owner_helper','auth_isolation','delivery_adapter','delivery_audit','receipt_store']
-    paths += [pathlib.Path(repo)/'runtime/native'/(name+'.py') for name in names]
-for path in paths:
-    if path.resolve()!=path:raise SystemExit('package_source_path_unsafe:'+str(path))
-    s=path.lstat()
-    if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_uid not in (0,os.geteuid()) or stat.S_IMODE(s.st_mode)&0o022:raise SystemExit('package_source_file_unsafe:'+str(path))
-PY
 "$python" -B - "$plugin_source" <<'PY'
 import json, os, pathlib, sys
 root = pathlib.Path(sys.argv[1])
@@ -86,9 +72,23 @@ try:
 except (OSError, ValueError) as error:
     raise SystemExit("plugin_skills_invalid: " + str(error))
 PY
+"$python" -B - "$repo_root" "$binary" "$python" "$kind" <<'PY'
+import os,pathlib,stat,sys
+repo,binary,interpreter,kind=sys.argv[1:]
+common=['.codex-plugin/plugin.json','defaults.json','skills/orchestrate/SKILL.md','skills/orchestrate/legacy-cli.md','scripts/invoke.sh','scripts/agent-bird-hook','scripts/agent-bird-agy-hook','hooks/agy-proposed-hooks.json']
+full=['scripts/native-product-bridge.py','lib/native_bridge/__init__.py','lib/native_bridge/bridge.py','lib/trial/auth_guard.py','lib/trial/auth_wire.py','lib/trial/rpc_policy.py']
+paths=[pathlib.Path(repo)/'plugins/codex-orchestrator'/p for p in common+(full if kind=='full-native-hooks' else [])]+[pathlib.Path(binary),pathlib.Path(interpreter)]
+if kind=='full-native-hooks':
+    names=['projectproxy_launchd_entrypoint','launch_activation','activation_service','proxy_transport','proxy_observer','owned_child_guard','owner_helper','auth_isolation','delivery_adapter','delivery_audit','receipt_store']
+    paths += [pathlib.Path(repo)/'runtime/native'/(name+'.py') for name in names]
+for path in paths:
+    if path.resolve()!=path:raise SystemExit('package_source_path_unsafe:'+str(path))
+    s=path.lstat()
+    if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_uid not in (0,os.geteuid()) or stat.S_IMODE(s.st_mode)&0o022:raise SystemExit('package_source_file_unsafe:'+str(path))
+PY
 mkdir -m 700 "$out/plugin"
 # Explicit accepted producer closure, no arbitrary source discovery.
-for rel in .codex-plugin/plugin.json defaults.json skills/orchestrate/SKILL.md scripts/invoke.sh scripts/agent-bird-hook scripts/agent-bird-agy-hook hooks/agy-proposed-hooks.json; do
+for rel in .codex-plugin/plugin.json defaults.json skills/orchestrate/SKILL.md skills/orchestrate/legacy-cli.md scripts/invoke.sh scripts/agent-bird-hook scripts/agent-bird-agy-hook hooks/agy-proposed-hooks.json; do
   [ -f "$plugin_source/$rel" ] && [ ! -L "$plugin_source/$rel" ] || { echo "plugin_source_missing:$rel" >&2; exit 1; }
   mkdir -m 700 -p "$out/plugin/$(dirname "$rel")"
   cp "$plugin_source/$rel" "$out/plugin/$rel"

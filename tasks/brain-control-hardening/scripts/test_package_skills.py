@@ -58,3 +58,6 @@ def test_package_contains_declared_skill_in_hash_manifest(tmp_path):
     paths = {item["path"] for item in manifest["files"]}
     assert "plugin/skills/orchestrate/SKILL.md" in paths
     assert (out / "plugin/skills/orchestrate/SKILL.md").read_text().startswith("---\n")
+    reference = "plugin/skills/orchestrate/legacy-cli.md"
+    assert reference in paths
+    assert (out / reference).read_bytes() == (REPO / PLUGIN / "skills/orchestrate/legacy-cli.md").read_bytes()
