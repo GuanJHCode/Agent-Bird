@@ -59,18 +59,37 @@ func openCodexCandidateTools(ctx context.Context, candidate gitops.PreparedWorks
 			return read(ctx, call)
 		}
 		fields, ok := codexWriteArguments(call.Arguments)
+		var replacement codexReplacementPlan
 		if call.Tool == "replace_text" {
-			fields, ok = codexReplacement(ctx, broker, call.Arguments)
+			var failure string
+			replacement, failure = codexReplacement(ctx, broker, call.Arguments)
+			if failure != "" {
+				return codexToolFailure(failure)
+			}
+			fields = map[string]string{"path": replacement.Path, "expectedSHA256": replacement.ExpectedSHA256, "content": replacement.Content}
+			ok = true
 		}
-		if !ok || len(fields["content"]) > codexPluginToolFileBytes {
-			return codexPluginToolFailureResult(), nil
+		if !ok {
+			return codexToolFailure("invalid_arguments")
+		}
+		if len(fields["content"]) > codexPluginToolFileBytes {
+			return codexToolFailure("file_too_large")
 		}
 		receipt, err := broker.Write(ctx, fields["path"], fields["expectedSHA256"], []byte(fields["content"]))
 		if errors.Is(err, codextools.ErrUnknown) {
 			return codexsession.ToolResult{}, err
 		}
 		if err != nil {
-			return codexPluginToolFailureResult(), nil
+			if errors.Is(err, codextools.ErrBudget) {
+				return codexToolFailure("write_budget_exhausted")
+			}
+			if errors.Is(err, codextools.ErrConflict) {
+				return codexToolFailure("write_conflict")
+			}
+			return codexToolFailure("workspace_write_failed")
+		}
+		if replacement.VerifyBytes > 0 {
+			return codexVerifiedReplacement(ctx, broker, replacement, receipt)
 		}
 		return codexPluginToolJSON(receipt)
 	}

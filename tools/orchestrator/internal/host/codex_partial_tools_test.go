@@ -3,10 +3,12 @@ package host
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codextools"
 )
@@ -76,7 +78,7 @@ func TestCodexReplacementRejectsOverlappingAndMalformedEdits(t *testing.T) {
 		`{"path":"a","expectedSHA256":"` + hash + `","old_text":"aaa","new_text":"b","new_text":"c"}`,
 		`{"path":"a","expectedSHA256":"` + hash + `","old_text":"aaa","new_text":"b","extra":true}`,
 	} {
-		if _, ok := codexReplacement(context.Background(), broker, []byte(raw)); ok {
+		if _, failure := codexReplacement(context.Background(), broker, []byte(raw)); failure == "" {
 			t.Fatal("accepted", raw)
 		}
 	}
@@ -129,5 +131,87 @@ func TestCodexSearchResultsBounded(t *testing.T) {
 	}
 	if !result.Success || json.Unmarshal([]byte(result.Text), &got) != nil || len(got.Matches) != 20 || !got.Truncated || len(result.Text) > 4096 {
 		t.Fatal(result)
+	}
+}
+
+func TestCodexSearchIncludesBoundedUTF8Context(t *testing.T) {
+	root := canonicalCodexToolRoot(t)
+	if err := os.WriteFile(filepath.Join(root, "a"), []byte("前缀\nneedle=before\n后缀"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	tools, closeTools, err := openCodexReadTools(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeTools()
+	result := callCodexReadTool(t, tools, "search_file", `{"path":"a","query":"needle","context_bytes":64}`)
+	var got struct {
+		SHA256  string
+		Matches []struct {
+			Content       string
+			Offset        int
+			ContentOffset int `json:"content_offset"`
+		}
+	}
+	if !result.Success || json.Unmarshal([]byte(result.Text), &got) != nil || len(got.Matches) != 1 || got.Matches[0].Content != "前缀\nneedle=before\n后缀" || got.Matches[0].Offset != 7 || got.Matches[0].ContentOffset != 0 {
+		t.Fatal(result)
+	}
+	for _, raw := range []string{`{"path":"a","query":"needle","context_bytes":null}`, `{"path":"a","query":"needle","context_bytes":257}`, `{"path":"a","query":"needle","context_bytes":-1}`} {
+		if result := callCodexReadTool(t, tools, "search_file", raw); result.Success {
+			t.Fatal(raw)
+		}
+	}
+}
+
+func TestCodexToolFailuresExplainRejectedInput(t *testing.T) {
+	root := canonicalCodexToolRoot(t)
+	if err := os.WriteFile(filepath.Join(root, "a"), []byte("hello"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	tools, closeTools, err := openCodexReadTools(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeTools()
+	for _, tc := range []struct{ args, code string }{
+		{`{"path":"a","unknown":true}`, "invalid_arguments"},
+		{`{"path":"a","offset":-1}`, "invalid_range"},
+		{`{"path":"a","offset":0,"expectedSHA256":"stale"}`, "file_changed"},
+	} {
+		result := callCodexReadTool(t, tools, "read_file", tc.args)
+		var failure struct {
+			Code string `json:"failure_reason"`
+		}
+		if result.Success || json.Unmarshal([]byte(result.Text), &failure) != nil || failure.Code != tc.code {
+			t.Fatal(result)
+		}
+	}
+}
+
+func TestCodexContextWindowsStayBoundedAndReadbackDetectsDrift(t *testing.T) {
+	body := []byte(strings.Repeat("中文abcd", 32))
+	for offset := range body {
+		if !utf8.RuneStart(body[offset]) {
+			continue
+		}
+		for _, limit := range []int{4, 7, 16, 256} {
+			lo, hi := codexContextWindow(body, offset, limit)
+			if lo > offset || hi-lo > limit || !utf8.Valid(body[lo:hi]) {
+				t.Fatalf("invalid window %d:%d at %d", lo, hi, offset)
+			}
+		}
+	}
+	root := canonicalCodexToolRoot(t)
+	if err := os.WriteFile(filepath.Join(root, "a"), []byte("changed after write"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	broker, err := codextools.Open(root, codextools.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer broker.Close()
+	got, err := codexVerifiedReplacement(context.Background(), broker, codexReplacementPlan{Path: "a", Content: "submitted", VerifyBytes: 64}, codextools.WriteReceipt{Path: "a", SHA256: strings.Repeat("0", 64)})
+	if !errors.Is(err, codextools.ErrUnknown) || got.Success {
+		t.Fatal("fabricated readback", got, err)
 	}
 }

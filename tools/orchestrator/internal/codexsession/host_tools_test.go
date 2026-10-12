@@ -43,8 +43,8 @@ func TestHostToolsBoundTurnAndNativeResult(t *testing.T) {
 	}{
 		{false, true, "read_file", `{"path":"README.md"}`}, {true, true, "read_file", `{"path":"README.md"}`}, {false, false, "read_file", `{"path":"README.md"}`},
 		{false, true, "read_file", `{"path":"README.md","offset":0,"limit_bytes":4096}`},
-		{false, true, "search_file", `{"path":"README.md","query":"example"}`},
-		{false, true, "replace_text", `{"path":"README.md","expectedSHA256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","old_text":"before","new_text":"after"}`},
+		{false, true, "search_file", `{"path":"README.md","query":"example","context_bytes":64}`},
+		{false, true, "replace_text", `{"path":"README.md","expectedSHA256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","old_text":"before","new_text":"after","verify_bytes":64}`},
 	} {
 		early, success := tc.early, tc.success
 		t.Run(fmt.Sprintf("early_%v_success_%v", early, success), func(t *testing.T) {

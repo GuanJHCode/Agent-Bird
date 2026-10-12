@@ -99,10 +99,24 @@ func TestCodexPluginCandidateToolsArePrivateAndDurable(t *testing.T) {
 		{"answer.txt", file.SHA256, "after", "twice twice", true},
 		{"answer.txt", file.SHA256, "twice", "stale", false},
 	} {
-		args, _ := json.Marshal(map[string]string{"path": tc.path, "expectedSHA256": tc.hash, "old_text": tc.old, "new_text": tc.replacement})
+		fields := map[string]any{"path": tc.path, "expectedSHA256": tc.hash, "old_text": tc.old, "new_text": tc.replacement}
+		if tc.want {
+			fields["verify_bytes"] = 16
+		}
+		args, _ := json.Marshal(fields)
 		result := callCodexReadTool(t, tools, "replace_text", string(args))
 		if result.Success != tc.want {
 			t.Fatalf("replace %s: %#v", tc.path, result)
+		}
+		if tc.want {
+			var view struct {
+				Verified bool
+				Content  string
+				Receipt  struct{ SHA256 string }
+			}
+			if json.Unmarshal([]byte(result.Text), &view) != nil || !view.Verified || view.Content != "twice twice\n" || len(view.Receipt.SHA256) != 64 {
+				t.Fatal("missing verified readback", result)
+			}
 		}
 	}
 	read = callCodexReadTool(t, tools, "read_file", `{"path":"answer.txt"}`)
