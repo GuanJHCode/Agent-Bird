@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"unicode/utf8"
 
 	"golang.org/x/sys/unix"
 )
@@ -23,17 +24,43 @@ import (
 type identity struct{ dev, ino uint64 }
 
 type Broker struct {
-	mu       sync.Mutex
-	root     *os.File
-	rootPath string
-	rootID   identity
-	options  Options
-	written  int64
-	unknown  bool
-	closed   bool
+	mu        sync.Mutex
+	root      *os.File
+	rootPath  string
+	rootID    identity
+	options   Options
+	written   int64
+	unknown   bool
+	closed    bool
+	exclusive map[string]struct{}
 }
 
 func Open(root string, options Options) (*Broker, error) {
+	return open(root, options, nil)
+}
+
+// OpenExclusiveCandidate opens a Host-owned, fresh candidate workspace whose
+// only permitted replacements are the exact listed files. The caller must
+// prove the workspace has no external concurrent writer; this Broker does not
+// provide a shared-worktree compare-and-swap protocol.
+func OpenExclusiveCandidate(root string, paths []string, options Options) (*Broker, error) {
+	if !options.Writable || len(paths) == 0 {
+		return nil, errors.New("codextools_exclusive_options_invalid")
+	}
+	allowed := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		if _, err := filePath(path); err != nil {
+			return nil, errors.New("codextools_exclusive_path_invalid")
+		}
+		if _, exists := allowed[path]; exists {
+			return nil, errors.New("codextools_exclusive_path_invalid")
+		}
+		allowed[path] = struct{}{}
+	}
+	return open(root, options, allowed)
+}
+
+func open(root string, options Options, exclusive map[string]struct{}) (*Broker, error) {
 	if options.Writable && (options.MaxWrittenBytes <= 0 || options.BeforeWrite == nil || options.AfterWrite == nil) {
 		return nil, errors.New("codextools_write_options_invalid")
 	}
@@ -66,7 +93,7 @@ func Open(root string, options Options) (*Broker, error) {
 		_ = f.Close()
 		return nil, errors.New("codextools_root_invalid")
 	}
-	return &Broker{root: f, rootPath: root, rootID: id, options: options}, nil
+	return &Broker{root: f, rootPath: root, rootID: id, options: options, exclusive: exclusive}, nil
 }
 
 func (b *Broker) Close() error {
@@ -173,6 +200,9 @@ func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content
 	if !b.options.Writable {
 		return WriteReceipt{}, ErrReadonly
 	}
+	if b.exclusive != nil {
+		return b.replaceExclusive(ctx, path, expectedSHA256, content)
+	}
 	parts, err := filePath(path)
 	if err != nil {
 		return WriteReceipt{}, err
@@ -263,6 +293,122 @@ func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content
 		return WriteReceipt{}, fmt.Errorf("%w: %v", ErrUnknown, err)
 	}
 	return receipt, nil
+}
+
+// replaceExclusive is deliberately separate from create-only Write. It relies
+// on OpenExclusiveCandidate's Host-only no-concurrent-writer contract while
+// retaining descriptor anchoring and expected-content verification.
+func (b *Broker) replaceExclusive(ctx context.Context, path, expectedSHA256 string, content []byte) (WriteReceipt, error) {
+	if _, ok := b.exclusive[path]; !ok {
+		return WriteReceipt{}, ErrConflict
+	}
+	if !validSHA(expectedSHA256) || !utf8.Valid(content) || int64(len(content)) > maxFileBytes {
+		return WriteReceipt{}, ErrConflict
+	}
+	frozen := append([]byte(nil), content...)
+	if b.written > b.options.MaxWrittenBytes-int64(len(frozen)) {
+		return WriteReceipt{}, ErrBudget
+	}
+	parts, err := filePath(path)
+	if err != nil {
+		return WriteReceipt{}, err
+	}
+	parent, err := b.openDir(parts[:len(parts)-1])
+	if err != nil {
+		return WriteReceipt{}, err
+	}
+	defer parent.Close()
+	name := parts[len(parts)-1]
+	if _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256); err != nil {
+		return WriteReceipt{}, err
+	}
+	intent := WriteIntent{Path: path, ExpectedSHA256: expectedSHA256, ContentSHA256: digest(frozen), Bytes: int64(len(frozen))}
+	if err = b.options.BeforeWrite(ctx, intent); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = b.ready(ctx); err != nil {
+		return WriteReceipt{}, err
+	}
+	if _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256); err != nil {
+		return WriteReceipt{}, err
+	}
+	stage, stageName, stageID, err := stageFile(parent)
+	if err != nil {
+		return WriteReceipt{}, err
+	}
+	published := false
+	defer func() {
+		if !published {
+			removeStageIfSame(parent, stageName, stageID)
+		}
+	}()
+	if _, err = stage.Write(frozen); err == nil {
+		err = stage.Sync()
+	}
+	if closeErr := stage.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = verifyStage(parent, stageName, stageID, intent.ContentSHA256); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = b.checkBinding(parts[:len(parts)-1], parent); err != nil {
+		return WriteReceipt{}, err
+	}
+	if _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = ctx.Err(); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = unix.Renameat(int(parent.Fd()), stageName, int(parent.Fd()), name); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, ErrUnknown
+	}
+	published = true
+	if _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, intent.ContentSHA256); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, ErrUnknown
+	}
+	if err = parent.Sync(); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, ErrUnknown
+	}
+	receipt := WriteReceipt{Path: path, SHA256: intent.ContentSHA256, Bytes: intent.Bytes}
+	b.written += receipt.Bytes
+	if err = b.options.AfterWrite(ctx, receipt); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, fmt.Errorf("%w: %v", ErrUnknown, err)
+	}
+	return receipt, nil
+}
+
+func (b *Broker) exclusiveCurrent(parts []string, parent *os.File, name, expectedSHA256 string) (identity, error) {
+	file, err := openFile(parent, name, unix.O_RDONLY|unix.O_NONBLOCK)
+	if err != nil {
+		return identity{}, ErrConflict
+	}
+	defer file.Close()
+	id, err := safeRegular(file)
+	if err != nil {
+		return identity{}, ErrConflict
+	}
+	if err = b.checkBinding(parts, parent); err != nil {
+		return identity{}, err
+	}
+	if err = sameAt(parent, name, file); err != nil {
+		return identity{}, ErrConflict
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxFileBytes+1))
+	if err != nil || int64(len(data)) > maxFileBytes || !utf8.Valid(data) || digest(data) != expectedSHA256 {
+		return identity{}, ErrConflict
+	}
+	if err = sameAt(parent, name, file); err != nil {
+		return identity{}, ErrConflict
+	}
+	return id, nil
 }
 
 func (b *Broker) ready(ctx context.Context) error {

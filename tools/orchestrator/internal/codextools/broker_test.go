@@ -261,3 +261,98 @@ func TestBrokerConcurrentBudgetAndFrozenContent(t *testing.T) {
 		t.Fatalf("writes=%d want 2", ok)
 	}
 }
+
+func TestExclusiveCandidateReplacesOnlyDeclaredUTF8Path(t *testing.T) {
+	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(root, "note.txt"), []byte("before"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(root, "other.txt"), []byte("other"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var intents []WriteIntent
+	var receipts []WriteReceipt
+	opts := writableOptions()
+	opts.BeforeWrite = func(_ context.Context, in WriteIntent) error { intents = append(intents, in); return nil }
+	opts.AfterWrite = func(_ context.Context, receipt WriteReceipt) error { receipts = append(receipts, receipt); return nil }
+	b, err := OpenExclusiveCandidate(root, []string{"note.txt"}, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	_, old, err := b.Read(context.Background(), "note.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := b.Write(context.Background(), "note.txt", old, []byte("after"))
+	if err != nil || receipt.SHA256 != digest([]byte("after")) || len(intents) != 1 || len(receipts) != 1 || intents[0].ExpectedSHA256 != old {
+		t.Fatalf("replace=%+v intents=%+v receipts=%+v err=%v", receipt, intents, receipts, err)
+	}
+	data, got, err := b.Read(context.Background(), "note.txt")
+	if err != nil || string(data) != "after" || got != receipt.SHA256 {
+		t.Fatalf("after=%q sha=%q err=%v", data, got, err)
+	}
+	if _, err = b.Write(context.Background(), "other.txt", digest([]byte("other")), []byte("blocked")); !errors.Is(err, ErrConflict) {
+		t.Fatalf("undeclared replacement err=%v", err)
+	}
+	if _, err = b.Write(context.Background(), "note.txt", old, []byte("stale")); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stale replacement err=%v", err)
+	}
+	if _, err = b.Write(context.Background(), "note.txt", receipt.SHA256, []byte{0xff}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("non-UTF8 replacement err=%v", err)
+	}
+}
+
+func TestExclusiveCandidateRejectsUnsafeTargetsAndUnknownReceipt(t *testing.T) {
+	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(root, "note.txt"), []byte("before"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = OpenExclusiveCandidate(root, []string{".git/config"}, writableOptions()); err == nil {
+		t.Fatal("protected exclusive path accepted")
+	}
+	if _, err = OpenExclusiveCandidate(root, []string{"note.txt", "note.txt"}, writableOptions()); err == nil {
+		t.Fatal("duplicate exclusive path accepted")
+	}
+	if err = os.Link(filepath.Join(root, "note.txt"), filepath.Join(root, "linked.txt")); err != nil {
+		t.Fatal(err)
+	}
+	b, err := OpenExclusiveCandidate(root, []string{"linked.txt"}, writableOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	if _, err = b.Write(context.Background(), "linked.txt", digest([]byte("before")), []byte("after")); !errors.Is(err, ErrConflict) {
+		t.Fatalf("hard-linked target replacement err=%v", err)
+	}
+	if err = os.Remove(filepath.Join(root, "linked.txt")); err != nil {
+		t.Fatal(err)
+	}
+	unknown := writableOptions()
+	unknown.AfterWrite = func(context.Context, WriteReceipt) error { return errors.New("receipt persistence failed") }
+	broken, err := OpenExclusiveCandidate(root, []string{"note.txt"}, unknown)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer broken.Close()
+	if _, err = broken.Write(context.Background(), "note.txt", digest([]byte("before")), []byte("after")); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("receipt failure err=%v", err)
+	}
+	if _, err = broken.Write(context.Background(), "note.txt", digest([]byte("after")), []byte("again")); !errors.Is(err, ErrUnknown) {
+		t.Fatalf("unknown broker accepted another replacement err=%v", err)
+	}
+}

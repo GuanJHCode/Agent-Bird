@@ -12,6 +12,9 @@ type Broker struct{}
 func Open(string, Options) (*Broker, error) {
 	return nil, errors.New("codextools_unsupported_platform")
 }
+func OpenExclusiveCandidate(string, []string, Options) (*Broker, error) {
+	return nil, errors.New("codextools_unsupported_platform")
+}
 func (*Broker) Read(context.Context, string) ([]byte, string, error) {
 	return nil, "", errors.New("codextools_unsupported_platform")
 }

@@ -29,9 +29,9 @@ type WriteReceipt struct {
 	Bytes  int64
 }
 
-// Options controls a Broker. Writable brokers currently provide create-only
-// writes; a non-empty expected SHA-256 is rejected until a verifiable
-// exclusive workspace write lease is part of this API.
+// Options controls a Broker. Open creates a create-only writable broker.
+// OpenExclusiveCandidate is a separate Host-only API for exact, existing
+// candidate paths under a proved-exclusive workspace contract.
 type Options struct {
 	Writable        bool
 	MaxWrittenBytes int64
