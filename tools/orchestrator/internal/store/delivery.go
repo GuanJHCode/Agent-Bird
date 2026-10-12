@@ -60,7 +60,7 @@ func (d *DB) CollectPending(ctx context.Context, taskID, cursor string, limit in
 	rows, err := d.sql.QueryContext(ctx, `SELECT o.ordinal,e.body_json,e.event_revision,e.action_slot FROM delivery_order o JOIN (
 	 SELECT event_id,body_json,event_revision,action_slot FROM runtime_events WHERE task_id=? AND delivery_status='pending'
  UNION ALL
- SELECT event_id,body_json,sequence AS event_revision,'' AS action_slot FROM host_progress WHERE task_id=? AND ?
+ SELECT event_id,body_json,sequence AS event_revision,'' AS action_slot FROM host_progress h WHERE task_id=? AND ? AND NOT EXISTS(SELECT 1 FROM managed_artifact_reservations r WHERE r.task_id=h.task_id AND r.scope_key=h.segment_id AND r.class='progress' AND r.state IN ('deleting','released'))
 	 UNION ALL
 	 SELECT e.event_id,e.body_json,e.event_revision,e.action_slot FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=? AND (e.delivery_status='pending' OR (? AND e.kind='progress'))
 	) e ON e.event_id=o.event_id WHERE o.task_id=? AND o.ordinal>? ORDER BY o.ordinal LIMIT ?`, taskID, taskID, includeDiagnostics, taskID, includeDiagnostics, taskID, ordinal, limit+1)

@@ -148,7 +148,7 @@ func hostRetentionExclusion(e error) bool {
 		return false
 	}
 	switch c {
-	case "host_artifact_unavailable", "host_retention_pinned", "host_retention_not_terminal", "host_retention_unconsumed", "host_retention_unresolved", "host_retention_not_expired", "host_retention_terminal_unverified", "host_retention_namespace_unverified":
+	case "host_artifact_unavailable", "host_retention_pinned", "host_retention_not_terminal", "host_retention_unconsumed", "host_retention_unresolved", "host_retention_not_expired", "host_retention_terminal_unverified", "host_retention_namespace_unverified", "host_retention_legacy_unsealed":
 		return true
 	}
 	return false
@@ -242,7 +242,15 @@ func loadHostTerminalFacts(ctx context.Context, tx *sql.Tx, r hostRetentionRow) 
 		return f, CodeError("host_retention_terminal_unverified")
 	}
 	f.event = *terminal
-	if outcome == contract.EventResult && exit != nil && exit.ExitCode != nil && *exit.ExitCode == 0 && taskStatus == "completed" && revision == currentRevision {
+	exitOK := exit != nil && exit.ExitCode != nil && *exit.ExitCode == 0
+	if outcome == contract.EventResult && exit != nil && exit.ExitCode == nil && revision == currentRevision {
+		target, err := filterTargetTask(ctx, tx, r.task)
+		if err != nil {
+			return f, err
+		}
+		exitOK = target && exit.GitFilterCleanup != nil && exit.GitFilterCleanup.Validate() == nil && exit.ActiveMS > 0
+	}
+	if outcome == contract.EventResult && exitOK && taskStatus == "completed" && revision == currentRevision {
 		f.success = true
 		if completion == "owner_review" {
 			var accepted int
@@ -257,6 +265,11 @@ func loadHostTerminalFacts(ctx context.Context, tx *sql.Tx, r hostRetentionRow) 
 	// its terminal outcome. Progress itself does not acquire a synthetic ACK.
 	var consumed string
 	e = tx.QueryRowContext(ctx, `SELECT d.created_at FROM runtime_events e JOIN runtime_decisions d ON d.event_id=e.event_id AND d.event_revision=e.event_revision AND d.event_hash=e.payload_hash AND d.action_slot=e.action_slot AND d.decision='handled' WHERE e.event_id=? AND e.delivery_status='acked'`, terminal.EventID).Scan(&consumed)
+	if errors.Is(e, sql.ErrNoRows) && terminal.Kind == contract.EventQuestion {
+		// waiting_user alone is a receipt, not consumption. An exact claimed
+		// continuation whose target has ended proves the answer was consumed.
+		e = tx.QueryRowContext(ctx, `SELECT max(d.created_at,c.created_at) FROM runtime_events e JOIN runtime_decisions d ON d.event_id=e.event_id AND d.event_revision=e.event_revision AND d.event_hash=e.payload_hash AND d.action_slot=e.action_slot AND d.decision='waiting_user' JOIN continuation_decisions c ON c.source_kind='host' AND c.source_event_id=e.event_id AND c.source_event_revision=e.event_revision AND c.source_event_sha256=e.payload_hash AND c.action_slot=e.action_slot AND c.source_segment_id=e.segment_id AND c.attempt_id=e.attempt_id AND c.task_id=e.task_id JOIN segment_runtime s ON s.segment_id=c.target_segment_id JOIN budget_runtime b ON b.segment_id=s.segment_id WHERE e.event_id=? AND e.delivery_status='acked' AND c.status='claimed' AND s.status IN ('exited','not_started') AND b.status='settled'`, terminal.EventID).Scan(&consumed)
+	}
 	if errors.Is(e, sql.ErrNoRows) {
 		return f, CodeError("host_retention_unconsumed")
 	}
@@ -273,6 +286,11 @@ func loadHostTerminalFacts(ctx context.Context, tx *sql.Tx, r hostRetentionRow) 
 }
 
 func hostRetentionFacts(ctx context.Context, tx *sql.Tx, r hostRetentionRow, binding string, now time.Time) (string, error) {
+	// Legacy unregistered slots have no creation authority. Do not prepare a
+	// permanent run fence before knowing every slot has a saved owned proof.
+	if r.mode == "absent_only" && len(r.refs) != r.slots {
+		return "", CodeError("host_retention_legacy_unsealed")
+	}
 	var unsafe int
 	e := tx.QueryRowContext(ctx, `SELECT
  EXISTS(SELECT 1 FROM tasks WHERE run_id=? AND status NOT IN ('completed','failed','cancelled'))

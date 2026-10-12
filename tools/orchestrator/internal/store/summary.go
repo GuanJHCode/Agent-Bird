@@ -87,7 +87,7 @@ SELECT t.run_id,t.id,t.status,r.work_revision,
  WHERE e.task_id=t.id AND json_extract(e.body_json,'$.kind')='exited'
  AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1)
  ORDER BY e.sequence ASC LIMIT 1),''),
- COALESCE((SELECT json_extract(e.body_json,'$.artifact') FROM host_progress e WHERE e.task_id=t.id AND json_extract(e.body_json,'$.work_revision')=r.work_revision AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1) AND json_extract(e.body_json,'$.kind')='progress' ORDER BY e.sequence DESC LIMIT 1),'')
+ COALESCE((SELECT json_extract(e.body_json,'$.artifact') FROM host_progress e WHERE e.task_id=t.id AND NOT EXISTS(SELECT 1 FROM managed_artifact_reservations m WHERE m.task_id=e.task_id AND m.scope_key=e.segment_id AND m.class='progress' AND m.state IN ('deleting','released')) AND json_extract(e.body_json,'$.work_revision')=r.work_revision AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1) AND json_extract(e.body_json,'$.kind')='progress' ORDER BY e.sequence DESC LIMIT 1),'')
 FROM tasks t JOIN task_runtime r ON r.task_id=t.id
 WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 	if err != nil {

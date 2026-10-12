@@ -102,7 +102,11 @@ func authorizeHostArtifact(ctx context.Context, tx *sql.Tx, database string, e c
 	}
 	bad := CodeError("host_artifact_invalid")
 	g := contract.LaunchCommand{RunID: e.RunID, TaskID: e.TaskID, AttemptID: e.AttemptID, SegmentID: e.SegmentID, HostID: e.ProducerID, CommandID: e.CommandID, WorkRevision: e.WorkRevision}
-	if err := bindHostArtifactSlots(ctx, tx, &g, false); err != nil {
+	target := "terminal"
+	if progress {
+		target = "progress"
+	}
+	if err := bindHostArtifactTarget(ctx, tx, &g, false, target); err != nil {
 		return nil, err
 	}
 	r := e.Artifact.HostArtifact

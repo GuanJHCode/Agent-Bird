@@ -201,7 +201,8 @@ func (d *DB) finishHostGCRound(ctx context.Context, p hostGCPolicy, plan HostArt
 }
 
 // Each invocation visits at most eight run policies, each scanning at most 64
-// intakes and deleting at most eight bodies. Oldest ticks prevent starvation.
+// reservations and retiring at most eight fixed slot sets (up to 21 slots each).
+// Oldest ticks prevent starvation.
 func (d *DB) RunHostGC(ctx context.Context, now time.Time) error {
 	if now.IsZero() {
 		return CodeError("host_gc_time_invalid")

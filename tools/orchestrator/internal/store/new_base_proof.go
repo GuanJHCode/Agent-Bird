@@ -329,7 +329,7 @@ func validateNewBaseProof(ctx context.Context, tx *sql.Tx, g *newBaseSource) err
 				}
 			}
 		}
-		if bindHostArtifactSlots(ctx, tx, &c, true) != nil || bindValidationTool(ctx, tx, &c, false) != nil || bindDiagnosticsForUse(ctx, tx, &c, candidateArtifactHistoricalProof) != nil || contract.ValidateDependencyInputs(c) != nil {
+		if bindHostArtifactTarget(ctx, tx, &c, true, "terminal") != nil || bindValidationTool(ctx, tx, &c, false) != nil || bindDiagnosticsForUse(ctx, tx, &c, candidateArtifactHistoricalProof) != nil || contract.ValidateDependencyInputs(c) != nil {
 			return bad
 		}
 		h, err := contract.CandidateIntentHash(c)

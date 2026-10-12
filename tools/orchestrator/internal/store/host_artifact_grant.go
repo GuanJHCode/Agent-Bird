@@ -90,6 +90,12 @@ func bindHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.LaunchComman
 // Artifact intake authenticates only an existing slot and has no full adapter
 // or plan. It must not accidentally reconstruct executable storage authority.
 func bindHostArtifactSlots(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, required bool) error {
+	return bindHostArtifactTarget(ctx, tx, c, required, "")
+}
+
+// Reads authenticate both immutable grant identities but require live storage
+// only for the requested class. Progress retirement must not hide terminal data.
+func bindHostArtifactTarget(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, required bool, target string) error {
 	rows, err := tx.QueryContext(ctx, `SELECT r.id,r.run_id,r.task_id,r.attempt_id,r.producer_id,r.class,r.scope_key,r.policy_sha256,r.namespace_sha256,r.reserved_bytes,r.retained_bytes,r.state,COALESCE(m.reserved_bytes,-1) FROM managed_artifact_reservations r LEFT JOIN managed_host_artifact_metadata m ON m.reservation_id=r.id AND m.run_id=r.run_id WHERE r.attempt_id=? AND r.scope_key=? AND r.class IN ('terminal','progress')`, c.AttemptID, c.SegmentID)
 	if err != nil {
 		return err
@@ -103,7 +109,7 @@ func bindHostArtifactSlots(ctx context.Context, tx *sql.Tx, c *contract.LaunchCo
 		if err = rows.Scan(&id, &run, &task, &attempt, &producer, &class, &key, &policy, &scope, &reserved, &retained, &state, &metadata); err != nil {
 			return err
 		}
-		if run != c.RunID || task != c.TaskID || attempt != c.AttemptID || producer != c.HostID || key != c.SegmentID || policy != "" || (state != "reserved" && state != "active") || retained < 0 || retained > reserved || count > 0 && g.ScopeSHA256 != scope {
+		if run != c.RunID || task != c.TaskID || attempt != c.AttemptID || producer != c.HostID || key != c.SegmentID || policy != "" || (state != "reserved" && state != "active" && !(target != "" && class != target && (state == "deleting" || state == "released"))) || retained < 0 || retained > reserved || count > 0 && g.ScopeSHA256 != scope {
 			return contract.ErrHostArtifactGrant
 		}
 		g.ScopeSHA256 = scope

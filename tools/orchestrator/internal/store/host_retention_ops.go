@@ -168,8 +168,8 @@ func (d *DB) planHostArtifactRetentionAt(ctx context.Context, controller, token 
 
 // Pin acquisition is an owner-authorized transaction. Future consumers must
 // call it before using the attachment; SQL also fences deletion and late pins.
-func (d *DB) PinHostArtifact(ctx context.Context, controller, token, run, intake, id, reason, releaseCondition string, release bool) error {
-	if !retentionID(run) || !retentionID(intake) || !ValidDiagnosticsToken(id) || len(reason) < 1 || len(reason) > 256 || len(releaseCondition) < 1 || len(releaseCondition) > 256 {
+func (d *DB) PinHostArtifact(ctx context.Context, controller, token, run, reservation, id, reason, releaseCondition string, release bool) error {
+	if !retentionID(run) || !retentionID(reservation) || !ValidDiagnosticsToken(id) || len(reason) < 1 || len(reason) > 256 || len(releaseCondition) < 1 || len(releaseCondition) > 256 {
 		return CodeError("host_pin_invalid")
 	}
 	if e := d.bridgeLockContext(ctx); e != nil {
@@ -191,10 +191,10 @@ func (d *DB) PinHostArtifact(ctx context.Context, controller, token, run, intake
 	if e != nil {
 		return e
 	}
-	var existingIntake, existingRun, owner, why, condition, state string
-	e = o.tx.QueryRowContext(ctx, `SELECT reservation_id,run_id,owner,reason,release_condition,state FROM host_artifact_pins WHERE id=?`, id).Scan(&existingIntake, &existingRun, &owner, &why, &condition, &state)
+	var existingReservation, existingRun, owner, why, condition, state string
+	e = o.tx.QueryRowContext(ctx, `SELECT reservation_id,run_id,owner,reason,release_condition,state FROM host_artifact_pins WHERE id=?`, id).Scan(&existingReservation, &existingRun, &owner, &why, &condition, &state)
 	if e == nil {
-		if existingIntake != intake || existingRun != run || owner != binding || why != reason || condition != releaseCondition {
+		if existingReservation != reservation || existingRun != run || owner != binding || why != reason || condition != releaseCondition {
 			return ErrConflict
 		}
 		if !release && state != "active" {
@@ -215,18 +215,18 @@ func (d *DB) PinHostArtifact(ctx context.Context, controller, token, run, intake
 	if release {
 		return ErrNotFound
 	}
-	row, e := d.loadHostRetention(ctx, o.tx, run, intake)
+	row, e := d.loadHostRetention(ctx, o.tx, run, reservation)
 	if e != nil {
 		return e
 	}
-	if row.state != "active" {
+	if row.state != "active" && row.state != "reserved" {
 		return CodeError("host_artifact_unavailable")
 	}
-	cost := int64(1024 + len(id) + len(intake) + len(run) + len(binding) + len(reason) + len(releaseCondition))
+	cost := int64(1024 + len(id) + len(reservation) + len(run) + len(binding) + len(reason) + len(releaseCondition))
 	if e = d.storageAdmission(ctx, o.tx, run, cost, false); e != nil {
 		return e
 	}
-	if _, e = o.tx.ExecContext(ctx, `INSERT INTO host_artifact_pins(id,reservation_id,run_id,owner,reason,release_condition,state) VALUES(?,?,?,?,?,?,'active')`, id, intake, run, binding, reason, releaseCondition); e != nil {
+	if _, e = o.tx.ExecContext(ctx, `INSERT INTO host_artifact_pins(id,reservation_id,run_id,owner,reason,release_condition,state) VALUES(?,?,?,?,?,?,'active')`, id, reservation, run, binding, reason, releaseCondition); e != nil {
 		return mapConflict(e)
 	}
 	return o.commit()

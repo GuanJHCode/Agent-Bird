@@ -96,6 +96,7 @@ CREATE TRIGGER quota_host_deletion_INSERT AFTER INSERT ON host_artifact_deletion
 		{"segment", "segments", "INSERT", "(SELECT t.run_id FROM attempts a JOIN tasks t ON t.id=a.task_id WHERE a.id=NEW.attempt_id)"},
 		{"task", "tasks", "INSERT", "NEW.run_id"},
 		{"task_update", "tasks", "UPDATE OF dependencies_json,status", "NEW.run_id"},
+		{"task_runtime", "task_runtime", "UPDATE OF work_revision,adapter_payload", "(SELECT run_id FROM tasks WHERE id=NEW.task_id)"},
 		{"continuation", "continuation_decisions", "INSERT", "NEW.run_id"},
 		{"retry", "retry_decisions", "INSERT", "(SELECT run_id FROM tasks WHERE id=NEW.task_id)"},
 		{"new_base", "new_base_lineage", "INSERT", "NEW.source_run_id"},
