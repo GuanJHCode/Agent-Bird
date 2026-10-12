@@ -1,0 +1,3 @@
+# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts.test]
+internal/artifacts/deletion_test.go:20:12: undefined: OpenDeletion
+internal/artifacts/deletion_test.go:49:17: undefined: OpenDeletion
