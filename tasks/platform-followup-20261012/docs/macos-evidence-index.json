@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "private_evidence_root": "tasks/macos-1.0-20261012/data",
+  "code_sha": "2605fd54bb1c9ed328214ddc1ccd81199850de7a",
+  "files": {
+    "codex-claude-source.jsonl": {
+      "sha256": "7800e0d64bd92ddd90b3c16c902ccbc0901d34e9b31a01679e7aeefc0768fdfa",
+      "bytes": 2241
+    },
+    "claude-grok-source.jsonl": {
+      "sha256": "8cbd62452970a5795b156c40ddd09606a31d769231359fa673d89422dfd6efc3",
+      "bytes": 55371
+    },
+    "codex-grok-edit-source.jsonl": {
+      "sha256": "96d24557e73211857c90284aced78206c26ed4a1414449ab8d05444ba8655429",
+      "bytes": 3413
+    },
+    "codex-claude-edit-source.jsonl": {
+      "sha256": "b9b0052c9af6114e9cdba114f5103fc67fcdcffe5c61c43cea1b8774e782ee1d",
+      "bytes": 2330
+    },
+    "claude-agy-source.jsonl": {
+      "sha256": "25d10f58dbc41d52736f775b148fbd1e7704f87e36b275e8b541323a8c2c687c",
+      "bytes": 124450
+    },
+    "agy-grok-source.jsonl": {
+      "sha256": "b59edf0a2fce96bf45c08b4a06ca537550fb17f2c58e68618aba39b262c5bfce",
+      "bytes": 367
+    },
+    "grok-acp-codex-supported-write-source.json": {
+      "sha256": "530d1eca446052e7624e86d60475545d48b003a75f161e76e070d9ffec978c6b",
+      "bytes": 2919
+    },
+    "candidate-rc2-setup.json": {
+      "sha256": "f4b6c54dc99128b28aeec74ebc0e6b6cbf8815df707e3324518c540e4757e749",
+      "bytes": 5898
+    },
+    "candidate-rc2-check.json": {
+      "sha256": "62f480216081d6bd0fe32a1ce918f9f5b6c69eb35ad7eb3acc2f8f24652d99cf",
+      "bytes": 6869
+    },
+    "codex-plugin-write-race.jsonl": {
+      "sha256": "0958075a9485776e69f5d5a60785c6d20b7ce1f3b87e2b4e4d75faaee323e1f1",
+      "bytes": 21699
+    },
+    "codex-public-write-race.jsonl": {
+      "sha256": "25cb4f41c553307917d6cda68faa9cd6c243bb57bc920fa6f4d640a019df7b3e",
+      "bytes": 54757
+    },
+    "codex-model-supported-short.jsonl": {
+      "sha256": "686bffd14099bb546495c08539ca830dba58e72a160b8750fa6c2e5ca1d8f512",
+      "bytes": 8185
+    },
+    "installed-rc2-grok-claude-source.json": {
+      "sha256": "68634b3f7c3b93c6c2f92b16a4201052bf0bc21a340e0ad77150ce914353b9f7",
+      "bytes": 2663
+    }
+  }
+}
