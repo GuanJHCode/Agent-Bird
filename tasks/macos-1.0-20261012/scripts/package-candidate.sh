@@ -7,7 +7,7 @@ umask 077
 go_tool=$1
 python=$2
 out=$3
-version=${4:-1.0.0-rc.2}
+version=${4:-1.0.0-rc.3}
 case "$go_tool:$python:$out" in /*:/*:/*) ;; *) echo absolute_paths_required >&2; exit 2 ;; esac
 [ ! -e "$out" ] && [ ! -L "$out" ] || { echo output_exists >&2; exit 2; }
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)

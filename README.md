@@ -2,7 +2,7 @@
 
 Agent Bird 让 **Codex、Claude、AGY、Grok 平等地调用彼此**。任意 Provider 都可以发起任务，通过同一个 `agent_bird_call` 插件工具启动目标 Provider，执行任务并取得结果。没有固定主脑，也不要求先运行 Codex。
 
-当前版本：**1.0.0-rc.2，macOS Apple Silicon 预发布版**。每次串行执行一个子任务，不递归委派。
+已发布版本：**1.0.0-rc.2**；本分支为 **1.0.0-rc.3 macOS Apple Silicon 候选版**，尚未更新 GitHub Release。每次串行执行一个子任务，不递归委派。
 
 ## 安装
 
@@ -58,9 +58,9 @@ python3 "$HOME/.bird1/adapters/agent-bird.py" start --runtime "$HOME/.bird1" \
 
 调用 AGY 时将任务中的目标改为 AGY，并确保 setup 已配置其目标 pin。四个入口使用同一协议：`provider`、`task`、`directory`、`mode`、`paths`、`timeout_ms`。
 
-源码分支新增（构建候选版可用）：插件结果默认返回最多 4KiB 的 UTF-8 摘录，并保留失败、退出和文件变更事实。`result_truncated` 表示是否截断，`result_bytes` / `result_sha256` 标识完整结果；需要详情时调用 `agent_bird_result`，传 `call_id`、`offset=next_offset`，可选 `limit_bytes`（默认 4096，最大 16384）。详情来自同一 MCP 连接的最近一次任务，下一任务开始或连接关闭后失效；读取详情不会重新执行任务。原始完整结果仍由任务 handle 保留。CLI `call` 的完整输出不变。
+rc.3 优化（构建候选版可用）：插件结果默认返回最多 4KiB 的 UTF-8 摘录，并保留失败、退出和文件变更事实。`result_truncated` 表示是否截断，`result_bytes` / `result_sha256` 标识完整结果；需要详情时调用 `agent_bird_result`，传 `call_id`、`offset=next_offset`，可选 `limit_bytes`（默认 4096，最大 16384）。详情来自同一 MCP 连接的最近一次任务，下一任务开始或连接关闭后失效；读取详情不会重新执行任务。原始完整结果仍由任务 handle 保留。CLI `call` 的完整输出不变。
 
-Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和工具搜索，直接调用 MCP；其余账号、模型、权限和全局配置不变。四个 Provider 统一使用简短委派指令，优先返回结论，不自动读完所有详情。这些源码优化尚未包含在已发布的 rc.2 安装包中。
+Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和工具搜索，直接调用 MCP；其余账号、模型、权限和全局配置不变。四个 Provider 统一使用简短委派指令，优先返回结论，不自动读完所有详情。这些优化尚未包含在已发布的 rc.2 安装包中；可从本分支构建 rc.3，安装到全新 runtime。
 
 只读为默认模式。写任务要求已有 Git 仓库、明确的相对文件路径；修改在隔离候选工作目录完成。结果返回 `workspace`、`changed_files`、`changes_known`、`handle` 和 `process_exited`，**不会自动覆盖原项目**。检查返回的候选目录后，通过已有任务验收/集成流程接纳修改。
 
@@ -74,8 +74,8 @@ Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和�
 |---|---|
 | Codex、Claude、Grok 发起和被调用 | 已有真实插件调用验证 |
 | AGY 入口 | 已实现；当前缺少可用账号，成功链路未验收 |
-| 已验证方向 | Codex→Claude、Claude→Grok、Codex→Grok、Grok→Codex、Grok→Claude |
-| Claude→Codex | 统一路由支持；最终模型修复后未单独重测 |
+| 已验证方向 | Codex→Claude、Claude→Grok、Codex→Grok、Grok→Codex、Grok→Claude、Claude→Codex |
+| Claude→Codex | rc.3 已通过真实读取和同一 call 的详情回读 |
 | 文件修改、失败返回、超时退出 | 已真实验证；不代表全部 12 个方向都已实测 |
 | Native TUI、Linux | 本版本不作验收声明 |
 
@@ -85,14 +85,21 @@ Codex 通过 app-server 和受约束文件工具执行，不修改 Codex 源码�
 
 暂不支持自动合并、递归或并发子任务、自动重试、失主自动恢复、Codex 续接、通用 filtered compose/rework/retry/continuation，以及完整 LFS/hooks/signing。超时不是完成：已有 Claude 编码尝试因超时结束，未计入成功编码验收。
 
-这是候选版本，AGY 账号及其双向真实验收尚缺；不宣称四方正式 1.0 全部验收完成。
+这是候选版本，AGY 账号及其双向真实验收尚缺；不宣称四方正式 1.0 全部验收完成。已由 Agent Bird controller 启动的会话可以继续使用本连接的 MCP；任意外部既有会话的热挂接需要新的身份绑定协议，本版未开放。通用片段读取与局部修改工具也未纳入本轮优化。
+
+## rc.3 本轮验证
+
+- 新包安装、依赖检查通过；Claude→Codex 通过真实插件读取项目并调用 `agent_bird_result` 回读同一任务结果，SHA 一致，未重复启动目标。Claude 初始化工具为 2 个、技能为 0 个，无 ToolSearch 轮次。
+- Claude→Grok 的完整长文本回显在 120 秒超时，返回 `call_timeout`、`process_exited=true`；发起方停止，未重试。该用例不算长结果成功验收。大结果截断、UTF-8 分页、跨连接隔离由定向测试验证。
+- 本轮有针对性的单元和 race 回归通过；原发布版的 `TestSlotFreedOnOneHostDispatchesTaskStarvingOnAnotherHost`、`TestServerRoutesControlToBoundHostAndDurablyCollects` 在本机 Host 注册阶段出现 EOF，已在未修改的 `131949c` 上复现，未计入通过。未重复全量测试或长时间压力测试。
+- 上表其他方向复用既有真实证据，不表示全部方向在 rc.3 重新实测。AGY 成功链路仍缺账号；未新增 native TUI 或 Linux 验收。
 
 ## 从源码构建
 
 需要 Go 1.26+、Python 3.10+，在 macOS arm64 的干净 checkout 执行：
 
 ```sh
-./scripts/build-release.sh 1.0.0-rc.2 "$PWD/dist/release"
+./scripts/build-release.sh 1.0.0-rc.3 "$PWD/dist/release"
 ```
 
 可用 `GO=/absolute/path/to/go` 指定 Go 工具。输出包括安装包、SHA256SUMS、README、许可证及平台能力元数据。构建会记录实际源码 SHA；不会自动发布 GitHub Release。

@@ -20,7 +20,11 @@ func TestCallTerminalWaitOfflineIsUnknown(t *testing.T) { testCallTerminalWait(t
 func TestCallTerminalWaitCancellation(t *testing.T)     { testCallTerminalWait(t, "cancel") }
 
 func testCallTerminalWait(t *testing.T, ending string) {
-	root, err := os.MkdirTemp("/private/tmp", "bird-wait-")
+	root, err := os.MkdirTemp("/tmp", "bird-wait-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err = filepath.EvalSymlinks(root)
 	if err != nil {
 		t.Fatal(err)
 	}
