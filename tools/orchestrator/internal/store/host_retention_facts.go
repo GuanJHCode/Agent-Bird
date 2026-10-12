@@ -60,14 +60,20 @@ func (d *DB) loadHostRetention(ctx context.Context, tx *sql.Tx, run, id string) 
 		return r, CodeError("host_retention_state_invalid")
 	}
 	r.root = filepath.Join(filepath.Dir(d.path), "host-spool", r.producer)
-	var authority int
-	e = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM host_artifact_cleanup_authorities WHERE reservation_id=? AND run_id=? AND version=1 AND scope_sha256=? AND class=? AND slot_count=?`, r.id, r.run, r.scope, r.class, r.slots).Scan(&authority)
-	if e != nil {
-		return
-	}
+	var authorityJSON string
+	e = tx.QueryRowContext(ctx, `SELECT namespace_json FROM host_artifact_cleanup_authorities WHERE reservation_id=? AND run_id=? AND version=1 AND scope_sha256=? AND class=? AND slot_count=?`, r.id, r.run, r.scope, r.class, r.slots).Scan(&authorityJSON)
 	r.mode = "absent_only"
-	if authority == 1 {
+	if e == nil {
+		if json.Unmarshal([]byte(authorityJSON), &r.namespace) != nil {
+			return r, CodeError("host_retention_state_invalid")
+		}
+		raw, _ := json.Marshal(r.namespace)
+		if string(raw) != authorityJSON {
+			return r, CodeError("host_retention_state_invalid")
+		}
 		r.mode = "schema40_managed"
+	} else if !errors.Is(e, sql.ErrNoRows) {
+		return r, e
 	}
 	rows, e := tx.QueryContext(ctx, `SELECT id,slot,proof_json,manifest_bytes FROM managed_artifact_refs WHERE reservation_id=? AND run_id=? AND intake_id IS NULL ORDER BY slot`, r.id, r.run)
 	if e != nil {
@@ -105,26 +111,27 @@ func (d *DB) loadHostRetention(ctx context.Context, tx *sql.Tx, run, id string) 
 	if r.state == "released" && r.retained != 0 || r.state != "released" && sum != r.retained {
 		return r, CodeError("host_retention_state_invalid")
 	}
-	// Only an immutable, registered proof can anchor an existing Host namespace.
-	// A proof from another object of the same producer may supply root/parent
-	// identity; its object identity must never be borrowed for the target slot.
-	var anchorRaw string
-	e = tx.QueryRowContext(ctx, `SELECT f.proof_json FROM managed_artifact_refs f JOIN managed_artifact_reservations r ON r.id=f.reservation_id WHERE r.producer_id=? AND r.class IN ('terminal','progress') AND f.intake_id IS NULL AND f.manifest_bytes>0 ORDER BY f.id LIMIT 1`, r.producer).Scan(&anchorRaw)
-	if errors.Is(e, sql.ErrNoRows) {
-		return r, CodeError("host_retention_namespace_unverified")
+	if r.mode == "absent_only" {
+		// Historical objects retain only their saved registered namespace proof.
+		// Migration and retention never mint creation authority for old rows.
+		var anchorRaw string
+		e = tx.QueryRowContext(ctx, `SELECT f.proof_json FROM managed_artifact_refs f JOIN managed_artifact_reservations r ON r.id=f.reservation_id WHERE r.producer_id=? AND r.class IN ('terminal','progress') AND f.intake_id IS NULL AND f.manifest_bytes>0 ORDER BY f.id LIMIT 1`, r.producer).Scan(&anchorRaw)
+		if errors.Is(e, sql.ErrNoRows) {
+			return r, CodeError("host_retention_namespace_unverified")
+		}
+		if e != nil {
+			return r, e
+		}
+		anchor, err := decodeHostRetentionRef(anchorRaw)
+		if err != nil {
+			return r, err
+		}
+		if anchor.proof.Path != filepath.Join(r.root, "managed-artifacts", anchor.id, "data.bin") {
+			return r, CodeError("host_retention_state_invalid")
+		}
+		r.namespace = artifacts.HostSlotNamespaceProof{Version: 1, RootPath: r.root, RootDevice: anchor.proof.RootDevice, RootInode: anchor.proof.RootInode, ParentDevice: anchor.proof.ParentDevice, ParentInode: anchor.proof.ParentInode}
 	}
-	if e != nil {
-		return
-	}
-	anchor, e := decodeHostRetentionRef(anchorRaw)
-	if e != nil {
-		return r, e
-	}
-	if anchor.proof.Path != filepath.Join(r.root, "managed-artifacts", anchor.id, "data.bin") {
-		return r, CodeError("host_retention_state_invalid")
-	}
-	r.namespace = artifacts.HostSlotNamespaceProof{Version: 1, RootPath: r.root, RootDevice: anchor.proof.RootDevice, RootInode: anchor.proof.RootInode, ParentDevice: anchor.proof.ParentDevice, ParentInode: anchor.proof.ParentInode}
-	if r.namespace.RootDevice == 0 || r.namespace.RootInode == 0 || r.namespace.ParentDevice == 0 || r.namespace.ParentInode == 0 {
+	if r.namespace.Version != 1 || r.namespace.RootPath != r.root || r.namespace.RootDevice == 0 || r.namespace.RootInode == 0 || r.namespace.ParentDevice == 0 || r.namespace.ParentInode == 0 {
 		return r, CodeError("host_retention_state_invalid")
 	}
 	for _, ref := range r.refs {

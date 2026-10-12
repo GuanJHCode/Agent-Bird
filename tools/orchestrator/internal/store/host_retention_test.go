@@ -372,3 +372,76 @@ func TestHostGCPolicyAndDurablePendingPlan(t *testing.T) {
 		t.Fatal(s)
 	}
 }
+
+func TestHostRetentionZeroRefAuthority(t *testing.T) {
+	for _, kind := range []string{"empty", "orphan", "namespace_replaced"} {
+		t.Run(kind, func(t *testing.T) {
+			f := &hostRetentionFixture{diagnosticsReadFixture: newDiagnosticsReadFixture(t), at: time.Now().UTC().Add(time.Second)}
+			ctx := context.Background()
+			g := f.grant
+			root := filepath.Join(filepath.Dir(f.db.path), "host-spool", g.HostID)
+			if kind == "orphan" {
+				body := []byte("written before Store ref commit")
+				d := artifacts.HostSlotDescriptor{HostSlotBinding: artifacts.HostSlotBinding{Version: 1, ReservationID: g.HostArtifacts.ProgressReservationID, ScopeSHA256: g.HostArtifacts.ScopeSHA256, Class: "progress", Index: 0}, Kind: "progress", Size: int64(len(body)), SHA256: runtimeHash(string(body))}
+				if _, err := artifacts.MaterializeHostSlot(ctx, root, d, body); err != nil {
+					t.Fatal(err)
+				}
+			}
+			failed := diagnosticOutcomeEvent(g, contract.EventFailed, 1)
+			if _, err := f.db.CommitHostEvent(ctx, failed); err != nil {
+				t.Fatal(err)
+			}
+			exited := diagnosticOutcomeEvent(g, contract.EventExited, 2)
+			code := 1
+			exited.ExitCode = &code
+			exited.ActiveMS = 1
+			if _, err := f.db.CommitHostEvent(ctx, exited); err != nil {
+				t.Fatal(err)
+			}
+			page, err := f.db.CollectPending(ctx, g.TaskID, "", 32, false)
+			if err != nil || len(page.Events) != 1 {
+				t.Fatal(page, err)
+			}
+			event := page.Events[0]
+			if err = f.db.AckDecisions(ctx, g.TaskID, "zero-ref-history", runtimeHash("history"), []AckDecision{{EventID: event.EventID, EventRevision: event.EventRevision, EventHash: event.PayloadHash, ActionSlot: event.ActionSlot, Decision: "handled", CommandID: "zero-ref-ack"}}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = f.db.sql.Exec(`UPDATE runtime_events SET created_at=?;UPDATE runtime_decisions SET created_at=?`, f.at.Format(time.RFC3339Nano), f.at.Format(time.RFC3339Nano)); err != nil {
+				t.Fatal(err)
+			}
+			var refs int
+			if err = f.db.sql.QueryRow(`SELECT count(*) FROM managed_artifact_refs WHERE intake_id IS NULL`).Scan(&refs); err != nil || refs != 0 {
+				t.Fatal("fixture gained a registered namespace anchor", refs, err)
+			}
+			f.resolve(t, g.HostArtifacts.TerminalReservationID, f.at)
+			f.resolve(t, g.HostArtifacts.ProgressReservationID, f.at)
+			now := f.at.Add(8 * 24 * time.Hour)
+			p := f.plan(t, now)
+			if len(p.Items) != 2 {
+				t.Fatal(p)
+			}
+			if kind == "namespace_replaced" {
+				if err = os.Rename(root, root+"-original"); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.MkdirAll(filepath.Join(root, "managed-artifacts"), 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			out, err := f.db.applyHostArtifactRetentionAt(ctx, "controller", f.token, p, now, openManagedHostDeletion)
+			if kind == "namespace_replaced" {
+				if err == nil || out.Deleted != 0 {
+					t.Fatal("adopted replacement namespace", out, err)
+				}
+				return
+			}
+			if err != nil || out.Deleted != 2 {
+				t.Fatal(out, err)
+			}
+			var count int
+			if err = f.db.sql.QueryRow(`SELECT count(*) FROM host_artifact_deletion_slots WHERE phase='removed'`).Scan(&count); err != nil || count != 22 {
+				t.Fatal(count, err)
+			}
+		})
+	}
+}

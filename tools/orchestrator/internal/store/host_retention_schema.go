@@ -26,7 +26,7 @@ func migrateHostRetentionSchema(tx *sql.Tx) error {
 CREATE TABLE host_artifact_cleanup_authorities(
  reservation_id TEXT PRIMARY KEY REFERENCES managed_artifact_reservations(id),run_id TEXT NOT NULL REFERENCES runs(id),
  version INTEGER NOT NULL CHECK(version=1),scope_sha256 TEXT NOT NULL CHECK(length(scope_sha256)=64),
- class TEXT NOT NULL CHECK(class IN ('terminal','progress')),slot_count INTEGER NOT NULL CHECK((class='terminal' AND slot_count=1) OR (class='progress' AND slot_count=21)),created_at TEXT NOT NULL);
+ class TEXT NOT NULL CHECK(class IN ('terminal','progress')),slot_count INTEGER NOT NULL CHECK((class='terminal' AND slot_count=1) OR (class='progress' AND slot_count=21)),namespace_json TEXT NOT NULL CHECK(length(CAST(namespace_json AS BLOB)) BETWEEN 1 AND 8192),created_at TEXT NOT NULL);
 CREATE TRIGGER host_cleanup_authority_binding BEFORE INSERT ON host_artifact_cleanup_authorities WHEN NOT EXISTS(SELECT 1 FROM managed_artifact_reservations r JOIN segment_runtime s ON s.segment_id=r.scope_key WHERE r.id=NEW.reservation_id AND r.run_id=NEW.run_id AND r.namespace_sha256=NEW.scope_sha256 AND r.class=NEW.class AND r.state='reserved' AND r.retained_bytes=0 AND s.status='launch_requested') BEGIN SELECT RAISE(ABORT,'host_cleanup_authority_invalid'); END;
 CREATE TABLE host_artifact_resolutions(
  reservation_id TEXT NOT NULL REFERENCES managed_artifact_reservations(id),run_id TEXT NOT NULL REFERENCES runs(id),
@@ -114,7 +114,7 @@ CREATE TRIGGER quota_host_deletion_INSERT AFTER INSERT ON host_artifact_deletion
 		columns []string
 		mutable bool
 	}{
-		{"host_artifact_cleanup_authorities", []string{"reservation_id", "run_id", "scope_sha256", "class", "created_at"}, false},
+		{"host_artifact_cleanup_authorities", []string{"reservation_id", "run_id", "scope_sha256", "class", "namespace_json", "created_at"}, false},
 		{"host_artifact_resolutions", []string{"reservation_id", "run_id", "controller", "token_hash", "binding_hash", "request_id", "reason", "resolution", "created_at"}, false},
 		{"host_artifact_pins", []string{"id", "reservation_id", "run_id", "owner", "reason", "release_condition"}, false},
 		{"host_gc_policies", []string{"run_id", "controller", "token_hash", "binding_hash", "plan_json"}, true},

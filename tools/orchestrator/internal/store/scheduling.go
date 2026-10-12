@@ -12,7 +12,7 @@ import (
 func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots int) (contract.LaunchCommand, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginRootedOwnerTransaction(ctx)
 	if err != nil {
 		return contract.LaunchCommand{}, err
 	}
