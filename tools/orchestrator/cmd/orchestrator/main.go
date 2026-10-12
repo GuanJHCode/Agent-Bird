@@ -54,6 +54,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
+	case "mcp":
+		return providerMCPEntry(ctx, args[1:], os.Stdin, stdout)
+	case "call":
+		return providerCallEntry(ctx, args[1:], stdout)
 	case "platform":
 		return platformCapabilities(args[1:], stdout)
 	case "filter-carrier-helper":

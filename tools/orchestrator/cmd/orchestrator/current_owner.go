@@ -45,7 +45,7 @@ func currentLocalOwner(ctx context.Context) (coordinator.OwnerBindRequest, error
 	if managed.Version != 1 || managed.Scope != "managed_process" || !strings.HasPrefix(managed.ControllerThread, "managed-"+managed.Provider+"-") || managed.LauncherPID <= 0 || managed.LauncherBirth == "" || !filepath.IsAbs(managed.LauncherPath) || len(managed.LauncherDigest) != 64 {
 		return req, codeError("current_owner_unavailable")
 	}
-	if _, _, err := taskProvider(managed.Provider); err != nil {
+	if _, _, err := controllerProvider(managed.Provider); err != nil {
 		return req, codeError("current_owner_unavailable")
 	}
 	ancestry, err := process.AncestryContext(ctx, os.Getpid())

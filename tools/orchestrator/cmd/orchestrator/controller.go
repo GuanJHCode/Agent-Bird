@@ -15,6 +15,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokorigin"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
@@ -31,7 +32,7 @@ func controllerEntry(ctx context.Context, args []string) error {
 	}
 	fs := flag.NewFlagSet("controller start", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	providerName := fs.String("provider", "", "claude, grok, or agy")
+	providerName := fs.String("provider", "", "codex, claude, grok, or agy")
 	skillPath := fs.String("skill-path", "", "optional installed Agent Bird skill path for the launched CLI")
 	stateArg := fs.String("state-dir", "", "private runtime state directory")
 	bridgePlan := fs.String("bridge-plan", "", "explicit complete private task plan")
@@ -81,7 +82,7 @@ func controllerEntry(ctx context.Context, args []string) error {
 	}
 	var cli string
 	if !acpMode {
-		_, executable, e := taskProvider(*providerName)
+		_, executable, e := controllerProvider(*providerName)
 		if e != nil {
 			return e
 		}
@@ -349,4 +350,14 @@ func foregroundGroup(fd uintptr) (int, error) {
 		return 0, syscall.ENOTTY
 	}
 	return group, nil
+}
+
+// Initiator admission is separate from target execution capability. Codex may
+// launch the plugin in an explicit managed scope even while its Worker remains
+// gated; this does not reinterpret an ambiguous native process ancestry.
+func controllerProvider(name string) (adapter.Provider, string, error) {
+	if name == "codex" {
+		return adapter.ProviderCodex, "codex", nil
+	}
+	return taskProvider(name)
 }

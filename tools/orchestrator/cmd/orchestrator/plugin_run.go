@@ -91,7 +91,7 @@ func portableRunPolicy(platform string, args ...string) error {
 
 func pluginActionAllowed(action string) bool {
 	switch action {
-	case "bridge", "config-plan", "config-apply", "config-remove", "provider", "check", "runtime-status", "preflight", "task", "routing", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
+	case "call", "mcp", "bridge", "config-plan", "config-apply", "config-remove", "provider", "check", "runtime-status", "preflight", "task", "routing", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
 		return true
 	default:
 		return false

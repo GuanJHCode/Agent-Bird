@@ -43,3 +43,30 @@ DB schema保持41；IPC版本保持1，新增查询kind，无迁移。
 
 首次原生调用在目标启动前返回 `current_codex_origin_ambiguous`：当前发起进程链有
 多个Codex；保留门禁，下一步使用显式Controller发起进程身份，不通过删改身份校验开放。
+
+## 已完成：统一串行 call / MCP 入口
+
+`call --request <0600-json> --state-dir <0700-short-path>` 使用 v1 请求：provider、task、
+directory，默认read-only；workspace-write必须有paths，默认timeout_ms=120000，最长1h，
+provider_lock为已确认pin。仅一次dispatch，不自动重试；写任务返回隔离候选Workspace与
+可信冻结receipt的changed_files。结果保留handle，业务accept仍显式执行。
+
+`mcp --provider-locks <private-dir> --state-dir <private-short-path>`提供
+`agent_bird_call`。四方复用同一协议；目标仍受实际provider profile门禁，当前Codex目标
+未开放。实现初始化、串行busy、取消通知、EOF取消并join；取消保留原终态验证，未知
+不声称退出。预提交journal已持精确dispatch handle，中断后可走现有stop/reconcile。
+本版未加自动恢复/自动清理未知journal。Codex Controller发起方单独接入managed身份，
+不修改原生身份歧义门禁，不因此开放Codex Worker。
+
+独立审查修复：journal提交后崩溃窗口、MCP JSON ID词法等价取消；两位审查者复核通过。
+CLI/MCP/发起方定向race：6top/13named PASS，fail=0、skip=0；后续journal与分页绑定
+修改后CLI定向回归：5top/12named PASS，fail=0、skip=0。不运行全量或长压力测试。
+
+真实Codex已通过临时MCP配置发现并选择`agent_bird_call`，原生记录出现mcp_tool_call；
+但第一次请求被发起CLI默认工具审批阻断（approval policy never），Claude未启动。
+这只是插件发现/调用路由证据，不能记为Codex→Claude任务通过。
+
+MCP传输/取消依据：
+https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
+https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/cancellation
+Codex进程配置与单工具策略依据：https://developers.openai.com/codex/mcp
