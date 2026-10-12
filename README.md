@@ -41,7 +41,7 @@ codex plugin marketplace add "$HOME/.bird1-rc4/codex-marketplace"
 codex plugin add agent-bird-local@agent-bird-local
 ```
 
-新开普通 Codex 会话后说：“使用 Agent Bird 调用 Claude，读取当前项目 README.md 并返回摘要。”插件技能会实际执行新 runtime 的 `call`；无需手工转交或另外启动 controller。此入口通过原生 Codex 进程祖先和当前 thread 校验身份，目标 pin 和 runtime 摘要均固定；未配置的目标、变化的 pin 或未知身份会明确失败。安装只登记 Agent Bird 插件，不修改账号、模型或权限设置。
+新开普通 Codex 会话后说：“使用 Agent Bird 调用 Claude，读取当前项目 README.md 并返回摘要。”插件技能会实际执行新 runtime 的 `call`；无需手工转交或另外启动 controller。此入口通过原生 Codex 进程祖先和当前 thread 校验身份；同时支持单个原生 CLI 祖先，以及 Codex App 0.162.1 的严格 remote-control→daemon 父子形态（同一二进制、内核参数、UID、PID 和出生时间均核对），其他多 Codex 祖先仍拒绝。目标 pin 和 runtime 摘要均固定；未配置的目标、变化的 pin 或未知身份会明确失败。安装只登记 Agent Bird 插件，不修改账号、模型或权限设置。
 
 `call --compact` 复用 4KiB 结果视图，完整结果仍保存在原任务 handle。普通会话入口使用技能和 CLI，不宣称它拥有 MCP 连接内的详情续页；截断会明确报告。升级不迁移旧任务，已有任务仍使用其原始 runtime/handle。若已有同名 marketplace，先核对来源再替换注册；保留旧 runtime 和有未完成任务的版本。
 
@@ -75,7 +75,7 @@ python3 "$HOME/.bird1/adapters/agent-bird.py" start --runtime "$HOME/.bird1" \
 
 rc.3 优化（构建候选版可用）：插件结果默认返回最多 4KiB 的 UTF-8 摘录，并保留失败、退出和文件变更事实。`result_truncated` 表示是否截断，`result_bytes` / `result_sha256` 标识完整结果；需要详情时调用 `agent_bird_result`，传 `call_id`、`offset=next_offset`，可选 `limit_bytes`（默认 4096，最大 16384）。详情来自同一 MCP 连接的最近一次任务，下一任务开始或连接关闭后失效；读取详情不会重新执行任务。原始完整结果仍由任务 handle 保留。CLI `call` 的完整输出不变。
 
-Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和工具搜索，直接调用 MCP；其余账号、模型、权限和全局配置不变。四个 Provider 统一使用简短委派指令，优先返回结论，不自动读完所有详情。这些优化尚未包含在已发布的 rc.2 安装包中；可从本分支构建 rc.3，安装到全新 runtime。
+Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和工具搜索，直接调用 MCP；其余账号、模型、权限和全局配置不变。四个 Provider 统一使用简短委派指令，优先返回结论，不自动读完所有详情。这些优化尚未包含在已发布的 rc.2 安装包中；可从本分支构建 rc.4，安装到全新 runtime。
 
 只读为默认模式。写任务要求已有 Git 仓库、明确的相对文件路径；修改在隔离候选工作目录完成。结果返回 `workspace`、`changed_files`、`changes_known`、`handle` 和 `process_exited`，**不会自动覆盖原项目**。检查返回的候选目录后，通过已有任务验收/集成流程接纳修改。
 
