@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -168,30 +169,45 @@ func prepareRecoveryPlan(ctx context.Context, req CleanupRequest, receipt cleanu
 		return p, err
 	}
 	defer admin.close()
-	// Create only empty private metadata before plan admission. A crash here
-	// cannot remove original data; an unregistered empty sink is never adopted.
-	prepare := func(path string, files map[string]FileIdentity) (CleanupTreePlan, error) {
-		tree := CleanupTreePlan{Path: path, Files: files}
-		var e error
-		if tree.Identity, e = directoryIdentity(path); e != nil {
-			return tree, e
+	if req.AfterCleanupAdminPrepared != nil {
+		if err = req.AfterCleanupAdminPrepared(admin.path); err != nil {
+			return p, err
 		}
-		if tree.ParentIdentity, e = directoryIdentity(filepath.Dir(path)); e != nil {
-			return tree, e
-		}
-		parent, e := openCleanupDirectory(filepath.Dir(path), tree.ParentIdentity)
+	}
+	// Authority stays with the original descriptors. Reopening a replaced
+	// pathname must never mint a new admin or parent identity.
+	prepare := func(path string, files map[string]FileIdentity, heldRoot, heldParent *os.File) (CleanupTreePlan, error) {
+		tree := CleanupTreePlan{Path: path, Files: files, StagePrefix: "entry-"}
+		st, e := heldRoot.Stat()
 		if e != nil {
 			return tree, e
 		}
-		defer parent.Close()
-		name, sink, e := makePrivateDirAt(int(parent.Fd()), ".g3-cleanup-")
+		tree.Identity = cleanupDirectoryInfo(st)
+		st, e = heldParent.Stat()
+		if e != nil {
+			return tree, e
+		}
+		tree.ParentIdentity = cleanupDirectoryInfo(st)
+		if e = verifyCleanupDir(heldParent, filepath.Base(path), tree.Identity); e != nil {
+			return tree, e
+		}
+		if named, e := directoryIdentity(filepath.Dir(path)); e != nil || named != tree.ParentIdentity {
+			return tree, errors.New("cleanup parent replaced")
+		}
+		current, e := snapshotCleanupFD(heldRoot)
+		if e != nil {
+			return tree, e
+		}
+		if !reflect.DeepEqual(current, files) {
+			return tree, errors.New("cleanup inventory changed")
+		}
+		name, sink, e := makePrivateDirAt(int(heldParent.Fd()), ".g3-cleanup-")
 		if e != nil {
 			return tree, e
 		}
 		defer sink.Close()
 		tree.Quarantine = name
-		tree.StagePrefix = "entry-"
-		st, e := sink.Stat()
+		st, e = sink.Stat()
 		if e != nil {
 			return tree, e
 		}
@@ -199,21 +215,32 @@ func prepareRecoveryPlan(ctx context.Context, req CleanupRequest, receipt cleanu
 		if e = sink.Sync(); e != nil {
 			return tree, e
 		}
-		return tree, parent.Sync()
+		if e = heldParent.Sync(); e != nil {
+			return tree, e
+		}
+		return tree, verifyCleanupDir(heldParent, filepath.Base(path), tree.Identity)
 	}
-	current, err := snapshot(receipt.WorktreeIdentity)
+	root, err := openCleanupDirectory(receipt.WorktreeIdentity, receipt.RootIdentity)
 	if err != nil {
 		return p, err
 	}
-	if !reflect.DeepEqual(current, receipt.Files) {
-		return p, fail(CodeIdentityChanged, "cleanup inventory", errors.New("receipt inventory changed"))
-	}
-	if p.Root, err = prepare(receipt.WorktreeIdentity, current); err != nil {
+	defer root.Close()
+	rootParentID, err := directoryIdentity(filepath.Dir(receipt.WorktreeIdentity))
+	if err != nil {
 		return p, err
 	}
-	if p.Admin, err = prepare(admin.path, admin.files); err != nil {
+	parent, err := openCleanupDirectory(filepath.Dir(receipt.WorktreeIdentity), rootParentID)
+	if err != nil {
 		return p, err
 	}
+	defer parent.Close()
+	if p.Root, err = prepare(receipt.WorktreeIdentity, receipt.Files, root, parent); err != nil {
+		return p, err
+	}
+	if p.Admin, err = prepare(admin.path, admin.files, admin.rootFD, admin.parentFD); err != nil {
+		return p, err
+	}
+
 	return p, validateRecoveryPlan(req, receipt, p)
 }
 
@@ -427,6 +454,9 @@ func executeCleanupAction(plan CleanupPlan, action cleanupAction) error {
 		return err
 	}
 	defer sink.Close()
+	if info, e := sink.Stat(); e != nil || cleanupDirectoryInfo(info) != tree.SinkIdentity {
+		return errors.New("cleanup sink handle replaced")
+	}
 	if action.kind == "sink_unlink" {
 		if err = unix.Unlinkat(int(parent.Fd()), tree.Quarantine, unix.AT_REMOVEDIR); err != nil {
 			return err
@@ -486,6 +516,9 @@ func executeCleanupAction(plan CleanupPlan, action cleanupAction) error {
 		return err
 	}
 	defer root.Close()
+	if info, e := root.Stat(); e != nil || cleanupDirectoryInfo(info) != tree.Identity {
+		return errors.New("cleanup root handle replaced")
+	}
 	stage := fmt.Sprintf("%s%08d", tree.StagePrefix, action.slot)
 	expected := tree.Files[action.path]
 	if action.kind == "unlink" {
@@ -539,4 +572,85 @@ func executeCleanupAction(plan CleanupPlan, action cleanupAction) error {
 		return err
 	}
 	return verifyCleanupEntry(sink, stage, expected)
+}
+
+// snapshotCleanupFD never walks through a reopened absolute pathname. Each
+// directory and file is opened relative to the retained parent and checked
+// again after traversal before it can contribute to deletion authority.
+func snapshotCleanupFD(root *os.File) (map[string]FileIdentity, error) {
+	result := map[string]FileIdentity{}
+	var walk func(*os.File, string) error
+	walk = func(parent *os.File, prefix string) error {
+		fd, err := unix.Openat(int(parent.Fd()), ".", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if err != nil {
+			return err
+		}
+		listing := os.NewFile(uintptr(fd), ".")
+		defer listing.Close()
+		names, err := listing.Readdirnames(-1)
+		if err != nil {
+			return err
+		}
+		for _, name := range names {
+			info, err := cleanupAt(parent, name)
+			if err != nil {
+				return err
+			}
+			id, err := identityFromInfo(info)
+			if err != nil {
+				return err
+			}
+			relative := name
+			if prefix != "" {
+				relative = prefix + "/" + name
+			}
+			result[relative] = id
+			if info.IsDir() {
+				child, err := openAtFile(parent, name, true)
+				if err != nil {
+					return err
+				}
+				held, err := child.Stat()
+				if err != nil || !os.SameFile(held, info) {
+					child.Close()
+					return errors.New("cleanup snapshot directory replaced")
+				}
+				err = walk(child, relative)
+				child.Close()
+				if err != nil {
+					return err
+				}
+			}
+			after, err := cleanupAt(parent, name)
+			if err != nil {
+				return err
+			}
+			afterID, err := identityFromInfo(after)
+			if err != nil || afterID != id {
+				return errors.New("cleanup snapshot changed")
+			}
+		}
+		return nil
+	}
+	return result, walk(root, "")
+}
+func readCleanupBinding(parent *os.File, name string) (string, error) {
+	file, err := openAtFile(parent, name, false)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 4096 {
+		return "", errors.New("cleanup git binding invalid")
+	}
+	body, err := io.ReadAll(io.LimitReader(file, 4097))
+	if err != nil || len(body) > 4096 {
+		return "", errors.New("cleanup git binding invalid")
+	}
+	after, err := cleanupAt(parent, name)
+	if err != nil || !os.SameFile(info, after) || after.ModTime() != info.ModTime() || after.Size() != info.Size() {
+		return "", errors.New("cleanup git binding changed")
+	}
+	return strings.TrimSpace(string(body)), nil
 }

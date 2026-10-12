@@ -163,3 +163,49 @@ func TestCleanupRecoveryRetainsForeignObjects(t *testing.T) {
 		})
 	}
 }
+
+func TestCleanupRecoveryRejectsAdminRebindingBeforePlan(t *testing.T) {
+	req, j := recoveryFixture(t)
+	var sentinel string
+	req.AfterCleanupAdminPrepared = func(admin string) error {
+		if err := os.Rename(admin, admin+".original"); err != nil {
+			return err
+		}
+		if err := os.Mkdir(admin, 0700); err != nil {
+			return err
+		}
+		sentinel = filepath.Join(admin, "foreign")
+		return os.WriteFile(sentinel, []byte("retain"), 0600)
+	}
+	out, err := Cleanup(context.Background(), req)
+	if err == nil || out.State != CleanupPending || j.state.Plan != nil {
+		t.Fatalf("foreign authority minted: %+v plan=%+v err=%v", out, j.state.Plan, err)
+	}
+	if _, err = os.Stat(sentinel); err != nil {
+		t.Fatal("foreign admin moved or removed")
+	}
+	if _, err = os.Stat(req.Root); err != nil {
+		t.Fatal("root changed before plan")
+	}
+}
+
+func TestCleanupRecoveryRetainsChangedRefAfterFilesystemRemoval(t *testing.T) {
+	req, j := recoveryFixture(t)
+	req.AfterQuarantine = func(string) error { return errors.New("pause") }
+	if _, err := Cleanup(context.Background(), req); err == nil {
+		t.Fatal("pause missing")
+	}
+	req.AfterQuarantine = nil
+	r := req.CandidateReceipt
+	git(t, r.RepoRoot, "update-ref", r.PrivateRef, r.BaseOID, r.CandidateOID)
+	out, err := Cleanup(context.Background(), req)
+	if err == nil || out.State != CleanupPending || !IsCode(err, CodeTargetDrift) {
+		t.Fatalf("changed ref: %+v %v", out, err)
+	}
+	if git(t, r.RepoRoot, "rev-parse", r.PrivateRef) != r.BaseOID {
+		t.Fatal("changed ref removed")
+	}
+	if j.state.Step != CleanupPlanStepCount(*j.state.Plan)-1 {
+		t.Fatal("did not reach ref checkpoint")
+	}
+}

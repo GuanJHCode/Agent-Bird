@@ -462,56 +462,83 @@ func (j *durableJournal) append(kind string, value any) error {
 		return err
 	}
 	body = append(body, '\n')
-	if len(body) > 1024*1024 {
+	if len(body) > journalRecordLimit {
 		return errors.New("gitops_journal_record_too_large")
+	}
+	var row journalRecord
+	if err = json.Unmarshal(body, &row); err != nil {
+		return err
 	}
 	return j.withLock(syscall.LOCK_EX, func() error {
 		st, err := j.validJournalFile()
 		if err != nil {
 			return err
 		}
-		if st.Size()+int64(len(body)) > 16*1024*1024 {
+		state, err := j.cleanupStateLocked(context.Background())
+		if err != nil {
+			return err
+		}
+		newPlan := kind == "cleanup_plan" && state.Plan == nil
+		changed, err := applyCleanupRecord(&state, row)
+		if err != nil {
+			return err
+		}
+		if !changed {
+			return nil
+		}
+		reserve := cleanupReservedBytes(state)
+		// Plan admission also pays for bounded Git-process observations. Those may
+		// consume this allowance, but never the remaining action/final records.
+		if newPlan {
+			reserve += 60 * 1024
+		}
+		if st.Size()+int64(len(body))+reserve > journalLimit {
 			return errors.New("gitops_journal_full")
 		}
-		if n, err := j.file.Write(body); err != nil || n != len(body) {
-			if err != nil {
-				return err
+		for written := 0; written < len(body); {
+			n, e := j.file.Write(body[written:])
+			written += n
+			if e != nil {
+				return e
 			}
-			return io.ErrShortWrite
+			if n == 0 {
+				return io.ErrShortWrite
+			}
 		}
 		if err = j.file.Sync(); err != nil {
 			return err
 		}
 		latest, err := j.validJournalFile()
-		if err != nil || latest.Size() != st.Size()+int64(len(body)) {
-			if err != nil {
-				return err
-			}
+		if err != nil {
+			return err
+		}
+		if latest.Size() != st.Size()+int64(len(body)) {
 			return errors.New("gitops_journal_changed")
 		}
 		return nil
 	})
 }
-
+func privateJournalFile(info os.FileInfo) bool {
+	if info == nil {
+		return false
+	}
+	owner, ok := info.Sys().(*syscall.Stat_t)
+	return info.Mode().IsRegular() && info.Mode().Perm() == 0600 && ok && owner.Uid == uint32(os.Geteuid()) && owner.Nlink == 1
+}
 func (j *durableJournal) validJournalFile() (os.FileInfo, error) {
 	held, err := j.file.Stat()
 	if err != nil {
 		return nil, err
 	}
-	named, err := os.Stat(j.file.Name())
-	if err != nil || !os.SameFile(held, named) {
+	named, err := os.Lstat(j.file.Name())
+	if err != nil || !os.SameFile(held, named) || !privateJournalFile(named) || !privateJournalFile(held) || held.Size() != named.Size() {
 		return nil, errors.New("gitops_journal_replaced")
 	}
-	owner, ok := held.Sys().(*syscall.Stat_t)
-	if !held.Mode().IsRegular() || held.Mode().Perm() != 0600 || !ok || owner.Uid != uint32(os.Geteuid()) || owner.Nlink != 1 || held.Size() > 16*1024*1024 {
+	if held.Size() > journalLimit {
 		return nil, errors.New("gitops_journal_unsafe")
 	}
 	return held, nil
 }
-
-// withLock is shared by append and durable readers. The separately opened
-// lock file gives every journal object and process a common flock authority;
-// lockMu covers concurrent calls through one descriptor.
 func (j *durableJournal) withLock(mode int, fn func() error) error {
 	j.lockMu.Lock()
 	defer j.lockMu.Unlock()
@@ -519,22 +546,28 @@ func (j *durableJournal) withLock(mode int, fn func() error) error {
 	if err != nil {
 		return err
 	}
-	named, err := os.Stat(j.lock.Name())
-	if err != nil || !os.SameFile(held, named) {
-		return errors.New("gitops_journal_lock_replaced")
+	valid := func() error {
+		current, e := j.lock.Stat()
+		named, namedErr := os.Lstat(j.lock.Name())
+		if e != nil || namedErr != nil || !privateJournalFile(current) || !privateJournalFile(named) || !os.SameFile(held, current) || !os.SameFile(held, named) {
+			return errors.New("gitops_journal_lock_replaced")
+		}
+		return nil
+	}
+	if err = valid(); err != nil {
+		return err
 	}
 	if err = syscall.Flock(int(j.lock.Fd()), mode|syscall.LOCK_NB); err != nil {
 		return err
 	}
 	defer syscall.Flock(int(j.lock.Fd()), syscall.LOCK_UN)
+	if err = valid(); err != nil {
+		return err
+	}
 	if err = fn(); err != nil {
 		return err
 	}
-	named, err = os.Stat(j.lock.Name())
-	if err != nil || !os.SameFile(held, named) {
-		return errors.New("gitops_journal_lock_replaced")
-	}
-	return nil
+	return valid()
 }
 func (j *durableJournal) PersistIntegrationIntent(_ context.Context, value gitops.IntegrationIntent) error {
 	return j.append("integration_intent", value)

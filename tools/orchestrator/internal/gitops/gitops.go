@@ -1200,10 +1200,22 @@ func prepareCleanupAdmin(ctx context.Context, root, expectedCommon string) (*cle
 		_ = parentFD.Close()
 		return nil, fail(CodeIdentityChanged, "cleanup admin", fmt.Errorf("admin handle changed"))
 	}
-	files, err := snapshot(adminPath)
+	// Recheck the reciprocal binding through the retained admin descriptor.
+	binding, err := readCleanupBinding(rootFD, "gitdir")
+	if err != nil || CanonicalPath(binding) != filepath.Join(CanonicalPath(root), ".git") {
+		rootFD.Close()
+		parentFD.Close()
+		return nil, fail(CodeIdentityChanged, "cleanup admin", errors.New("admin binding changed"))
+	}
+	files, err := snapshotCleanupFD(rootFD)
 	if err != nil {
 		_ = rootFD.Close()
 		_ = parentFD.Close()
+		return nil, err
+	}
+	if err = verifyCleanupDir(parentFD, filepath.Base(adminPath), cleanupDirectoryInfo(rootInfo)); err != nil {
+		rootFD.Close()
+		parentFD.Close()
 		return nil, err
 	}
 	return &cleanupAdmin{path: adminPath, name: filepath.Base(adminPath), rootFD: rootFD, parentFD: parentFD, rootInfo: rootInfo, files: files}, nil
@@ -1457,8 +1469,9 @@ type CleanupRequest struct {
 	// only to prove that descriptor-relative removal retains late replacements.
 	BeforeAnchoredRemove func(string) error `json:"-"`
 	// Recovery fault seams run immediately before/after a durable action.
-	BeforeCleanupAction func(int, string) error `json:"-"`
-	AfterCleanupAction  func(int, string) error `json:"-"`
+	AfterCleanupAdminPrepared func(string) error      `json:"-"`
+	BeforeCleanupAction       func(int, string) error `json:"-"`
+	AfterCleanupAction        func(int, string) error `json:"-"`
 }
 
 type cleanupReceiptBinding struct {
