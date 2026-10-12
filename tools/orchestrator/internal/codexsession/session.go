@@ -33,6 +33,7 @@ type Options struct {
 	RequireStdoutEOF                                                   bool
 	CWD, OwnedHome, PlatformFamily, PlatformOS, Prompt, ResumeThreadID string
 	OnThread                                                           func(context.Context, ThreadBinding) error
+	HostTools                                                          *HostTools
 }
 type Outcome struct {
 	Binding        ThreadBinding
@@ -81,6 +82,13 @@ func Run(ctx context.Context, client *codexrpc.Client, projection *codexconfig.P
 	}
 	if ctx.Err() != nil {
 		return Outcome{}, ctx.Err()
+	}
+	if options.HostTools != nil {
+		frozen := *options.HostTools
+		options.HostTools = &frozen
+		if frozen.OnTool == nil || options.ResumeThreadID != "" && frozen.ResumeContractSHA256 != HostToolContractSHA256(frozen.Writable) {
+			return Outcome{}, ErrInput
+		}
 	}
 	// Generated projection contains only nonsecret scalars; this also rejects
 	// workspace-write input before even the initialize/config-only sequence.
@@ -134,7 +142,7 @@ func Run(ctx context.Context, client *codexrpc.Client, projection *codexconfig.P
 		}()
 		return nil
 	}
-	init := map[string]any{"clientInfo": map[string]any{"name": "agent-bird-managed", "version": "1", "title": "Agent Bird"}, "capabilities": map[string]any{"experimentalApi": false, "requestAttestation": false}}
+	init := map[string]any{"clientInfo": map[string]any{"name": "agent-bird-managed", "version": "1", "title": "Agent Bird"}, "capabilities": map[string]any{"experimentalApi": options.HostTools != nil, "requestAttestation": false}}
 	if err = launch("initialize", init); err != nil {
 		return s.out, err
 	}
@@ -324,6 +332,9 @@ func Run(ctx context.Context, client *codexrpc.Client, projection *codexconfig.P
 					return s.out, err
 				}
 				s.phase = "running"
+				if err = s.flushHostTools(); err != nil {
+					return s.out, err
+				}
 			default:
 				s.failure.Branch = "phase"
 				return s.out, ErrProtocol

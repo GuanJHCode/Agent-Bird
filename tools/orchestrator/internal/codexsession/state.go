@@ -40,11 +40,14 @@ type sessionState struct {
 	requests                            map[string]bool
 	terminal                            *turnView
 	failure                             FailureFacts
+	toolCalls                           map[string]*hostToolCall
+	pendingTools                        []*codexrpc.Request
 }
 type itemView struct {
 	id, kind, phase, text string
 	hash                  [32]byte
 	completed             bool
+	dynamicFinal          bool
 }
 type turnView struct {
 	id, status, view string
@@ -54,7 +57,7 @@ type turnView struct {
 }
 
 func newSessionState(ctx context.Context, client *codexrpc.Client, shapes *nativeShapes, projection *codexconfig.Projection, options Options) *sessionState {
-	return &sessionState{ctx: ctx, client: client, shapes: shapes, projection: projection, options: options, items: make(map[string]*itemView), requests: make(map[string]bool)}
+	return &sessionState{ctx: ctx, client: client, shapes: shapes, projection: projection, options: options, items: make(map[string]*itemView), requests: make(map[string]bool), toolCalls: make(map[string]*hostToolCall)}
 }
 func (s *sessionState) initialize(value map[string]any) bool {
 	return value["codexHome"] == s.options.OwnedHome && value["platformFamily"] == s.options.PlatformFamily && value["platformOs"] == s.options.PlatformOS && validScalar(str(value["userAgent"]))
@@ -87,6 +90,9 @@ func (s *sessionState) threadParams() (string, map[string]any) {
 		return "thread/resume", params
 	}
 	params["ephemeral"] = false
+	if s.options.HostTools != nil {
+		params["dynamicTools"] = hostToolSpecs(s.options.HostTools.Writable)
+	}
 	return "thread/start", params
 }
 func (s *sessionState) turnParams(binding ThreadBinding, effort, tier any) map[string]any {
@@ -498,6 +504,8 @@ func (s *sessionState) request(request *codexrpc.Request) error {
 	}
 	var reply any
 	switch request.Method() {
+	case "item/tool/call":
+		return s.hostToolRequest(request, value)
 	case "item/commandExecution/requestApproval", "item/fileChange/requestApproval":
 		reply = map[string]any{"decision": "decline"}
 	case "item/permissions/requestApproval":
@@ -543,6 +551,12 @@ func (s *sessionState) itemView(value map[string]any) (itemView, error) {
 		return view, ErrProtocol
 	}
 	switch view.kind {
+	case "dynamicToolCall":
+		var err error
+		view.dynamicFinal, err = s.hostToolItem(value)
+		if err != nil {
+			return view, err
+		}
 	case "agentMessage":
 		if value["delivery"] != nil || len(arr(value["questions"])) != 0 {
 			return view, ErrOutput
@@ -567,6 +581,9 @@ func (s *sessionState) itemView(value map[string]any) (itemView, error) {
 	return view, nil
 }
 func (s *sessionState) item(view itemView, completed bool) error {
+	if view.kind == "dynamicToolCall" && view.dynamicFinal != completed {
+		return ErrProtocol
+	}
 	s.failureBranch("item", "lifecycle")
 	s.failureItem(view.kind)
 	existing := s.items[view.id]
@@ -643,6 +660,14 @@ func (s *sessionState) turn(value map[string]any) (turnView, error) {
 	return view, nil
 }
 func (s *sessionState) complete(view turnView) error {
+	if len(s.pendingTools) != 0 {
+		return ErrProtocol
+	}
+	for _, call := range s.toolCalls {
+		if !call.responded {
+			return ErrProtocol
+		}
+	}
 	s.failureBranch("turn", "complete")
 	if view.status == "inProgress" || view.status == "completed" && view.hasError || view.status == "failed" && !view.hasError || view.status == "interrupted" && view.hasError {
 		return ErrProtocol
@@ -694,6 +719,12 @@ func (s *sessionState) complete(view turnView) error {
 }
 func (s *sessionState) finish() (Outcome, error) {
 	s.noteFailure("finish", "terminal_binding", "")
+	for id, call := range s.toolCalls {
+		item := s.items[id]
+		if !call.responded || item == nil || !item.completed || item.kind != "dynamicToolCall" {
+			return s.out, ErrProtocol
+		}
+	}
 	if s.terminal == nil || s.out.TurnID == "" || s.terminal.id != s.out.TurnID {
 		return s.out, ErrProtocol
 	}

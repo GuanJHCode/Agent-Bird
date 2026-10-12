@@ -127,7 +127,11 @@ func loadShapes() (*nativeShapes, error) {
 	if !a || !b {
 		return nil, ErrProtocol
 	}
-	return &nativeShapes{schemas, definitions}, nil
+	s := &nativeShapes{schemas, definitions}
+	if err := s.addHostToolShapes(); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 func (s *nativeShapes) object(name string, raw json.RawMessage) (map[string]any, error) {
