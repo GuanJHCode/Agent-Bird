@@ -78,6 +78,27 @@ func continuationPayload(raw []byte) (adapter.InvocationPayload, error) {
 	return p, nil
 }
 
+// Fresh plugin threads must bind their native session before turn/start. This
+// initial binding is not a grant to continue: continuationPayload deliberately
+// retains the sealed M3-only constructor for every resume/answer path.
+func initialProviderBindingPayload(raw []byte) (adapter.InvocationPayload, error) {
+	p, err := adapter.DecodeInvocationPayload(raw)
+	if err != nil {
+		return p, CodeError("invalid_adapter_payload")
+	}
+	if p.Provider != string(adapter.ProviderCodex) || p.Profile == nil || p.Profile.CodexHostToolsVersion != 1 {
+		return continuationPayload(raw)
+	}
+	if p.Kind != "provider" || p.ProviderLock == nil || p.SessionKind != "" || p.SessionID != "" || p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" || len(p.Args) != 0 {
+		return p, CodeError("codex_plugin_binding_invalid")
+	}
+	_, err = adapter.BuildCodexPluginInvocation(adapter.Request{Provider: adapter.ProviderCodex, Binary: p.ProviderLock.Binary, Lock: p.ProviderLock, Profile: p.Profile, CWD: p.Directory, Prompt: p.Prompt, Permission: adapter.Permission{Mode: p.PermissionMode, Allow: p.Allow, Deny: p.Deny}, Workspace: p.CandidateWorkspace, Action: p.CandidateAction, ExtraArgs: p.ExtraArgs})
+	if err != nil {
+		return p, CodeError("codex_plugin_binding_invalid")
+	}
+	return p, nil
+}
+
 func readProviderBinding(ctx context.Context, tx *sql.Tx, attempt string) (providerBinding, error) {
 	b := providerBinding{}
 	err := tx.QueryRowContext(ctx, `SELECT version,run_id,task_id,attempt_id,work_revision,provider,provider_lock_json,profile_json,original_cwd,adapter_payload_sha256,controller_thread,owner_context_id,session_kind,session_id,session_event_id,workspace_source_segment_id FROM attempt_provider_bindings WHERE attempt_id=?`, attempt).Scan(&b.version, &b.run, &b.task, &b.attempt, &b.revision, &b.provider, &b.lock, &b.profile, &b.cwd, &b.payloadHash, &b.controller, &b.owner, &b.sessionKind, &b.sessionID, &b.sessionEvent, &b.workspaceSegment)
@@ -92,7 +113,7 @@ func currentProviderBinding(ctx context.Context, tx *sql.Tx, event contract.Even
 	if err != nil || run != event.RunID || revision != event.WorkRevision {
 		return b, adapter.InvocationPayload{}, ErrConflict
 	}
-	p, err := continuationPayload([]byte(raw))
+	p, err := initialProviderBindingPayload([]byte(raw))
 	if err != nil {
 		return b, p, err
 	}

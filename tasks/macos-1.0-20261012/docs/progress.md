@@ -109,3 +109,22 @@ AGY 1.3.3原生print模式使用 `--print=`：bare `--print`会将后续flag当�
 Codex→Claude写任务实际修改隔离candidate的answer.txt，但90s内未返回terminal完成，
 结果为timed_out/call_timeout，原Wait+tree退出已确认。`changes_known=false`避免误报
 失败任务未改文件。此项是超时和退出验收，不能当作完整写任务通过。
+
+
+## 真实链路补验（AGY账号暂停后）
+
+Claude→Grok（1.0.50现有登录）通过：读取README返回BIRD-GROK-1012，
+call-f643e4ffebad2890e6b27d6d3ab30597，result_ready/process_exited=true。
+Codex→Grok写任务通过：call-0c9ab143ee2271de844c4e55630d2f5b，
+changed_files=[answer.txt]、changes_known=true、process_exited=true，冻结候选实际文件
+字节为GROK_EDIT_1012\n。原项目不自动合入，调用结果明确返回candidate目录。
+两项均从真实发起CLI的MCP事件取证，未把返回命令或协议fixture当作通过。
+
+Claude写任务第二次90s超时，原进程退出已证明；此轮无工具调用，非相同Bash问题。
+不再重复此链路；未将Claude写能力记作成功验收。
+
+Claude→Codex首次未通过：Host首次session事件经Store旧continuationPayload路径
+被profile_resume_not_verified拒绝，source transport退化为durable_ack_mismatch后离线；
+本地原Wait事件未获Store提交，调用方不能据本地残留声称process_exited=true。
+新Store定向事务测试已复现该具体拒绝；修复只区分initial session binding与continuation
+admission，不让新plugin thread获取旧M3恢复权限。
