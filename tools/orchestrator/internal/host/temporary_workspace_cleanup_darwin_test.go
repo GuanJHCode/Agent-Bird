@@ -68,6 +68,11 @@ func TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate(t *testing.T
 		t.Fatal(err)
 	}
 	validationAccept(t, ctx, db, edit)
+	adminRoot := filepath.Join(repo, ".git", "worktrees")
+	adminsBefore, err := os.ReadDir(adminRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
 	grant, err := db.ClaimReady(ctx, hid, 1, 2)
 	if err != nil || grant.TaskID != "validate" {
 		t.Fatal(grant, err)
@@ -78,7 +83,10 @@ func TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate(t *testing.T
 		t.Fatal(result, err)
 	}
 	guard.pending--
-	beforeHash := result.OutputHash
+	artifact, err := os.ReadFile(result.ArtifactPath)
+	if err != nil || hashBytes(artifact) != result.OutputHash {
+		t.Fatalf("business artifact hash changed: %v", err)
+	}
 	events, err := h.Collect(ctx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID})
 	if err != nil {
 		t.Fatal(err)
@@ -107,6 +115,10 @@ func TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate(t *testing.T
 	if _, err = os.Lstat(removed.Worktree); !os.IsNotExist(err) {
 		t.Fatalf("validate workspace retained: %v", err)
 	}
+	adminsAfter, err := os.ReadDir(adminRoot)
+	if err != nil || len(adminsAfter) != len(adminsBefore) {
+		t.Fatalf("validation worktree admin retained: before=%d after=%d err=%v", len(adminsBefore), len(adminsAfter), err)
+	}
 	if _, err = os.Lstat(produced.Candidate.Worktree); err != nil {
 		t.Fatalf("producer workspace lost: %v", err)
 	}
@@ -114,8 +126,18 @@ func TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate(t *testing.T
 		t.Fatal("producer private ref lost")
 	}
 	snapshot, err := db.TaskSnapshot(ctx, grant.TaskID)
-	if err != nil || snapshot.TemporaryWorkspaceCleanup == nil || !reflect.DeepEqual(*snapshot.TemporaryWorkspaceCleanup, *removed) || result.OutputHash != beforeHash {
+	if err != nil || snapshot.TemporaryWorkspaceCleanup == nil || !reflect.DeepEqual(*snapshot.TemporaryWorkspaceCleanup, *removed) {
 		t.Fatalf("cleanup projection or business hash changed: %+v %v", snapshot, err)
+	}
+	summary, err := db.SummarizeRun(ctx, grant.TaskID, "owner", plan.ControlToken)
+	var summarized *contract.TemporaryWorkspaceCleanup
+	for i := range summary.Tasks {
+		if summary.Tasks[i].TaskID == grant.TaskID {
+			summarized = summary.Tasks[i].TemporaryWorkspaceCleanup
+		}
+	}
+	if err != nil || summarized == nil || !reflect.DeepEqual(*summarized, *removed) {
+		t.Fatalf("cleanup summary missing: %+v %v", summary, err)
 	}
 }
 
