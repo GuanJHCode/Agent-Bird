@@ -470,6 +470,14 @@ func (j *durableJournal) append(kind string, value any) error {
 		return err
 	}
 	return j.withLock(syscall.LOCK_EX, func() error {
+		// A seal is an immutable source-journal fence.  Check it while holding
+		// events.lock and before any admission or write; even a damaged seal
+		// remains fail-closed until an owner resolves the retained evidence.
+		if _, found, sealErr := readCandidateSeal(filepath.Join(filepath.Dir(j.file.Name()), "seal.json")); sealErr != nil {
+			return errCandidateSeal
+		} else if found {
+			return errCandidateSeal
+		}
 		st, err := j.validJournalFile()
 		if err != nil {
 			return err
