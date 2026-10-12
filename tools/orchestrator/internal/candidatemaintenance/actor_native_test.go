@@ -7,9 +7,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -23,6 +25,7 @@ import (
 
 type nativeStore struct {
 	marked, finished bool
+	reject           bool
 	outcome          store.CandidateMaintenanceOutcome
 }
 
@@ -43,6 +46,9 @@ func (nativePreparationJournal) RecordCleanup(context.Context, gitops.CleanupOut
 
 func (s *nativeStore) MarkCandidateMaintenanceRunning(_ context.Context, _ string, _ string, _ store.CandidateMaintenanceGrant, _ process.Identity) (store.CandidateMaintenanceState, error) {
 	s.marked = true
+	if s.reject {
+		return store.CandidateMaintenanceState{}, errors.New("mark refused")
+	}
 	return store.CandidateMaintenanceState{State: "running"}, nil
 }
 func (s *nativeStore) FinishCandidateMaintenance(_ context.Context, _ store.CandidateMaintenanceGrant, _ process.Identity, out store.CandidateMaintenanceOutcome) (store.CandidateMaintenanceState, error) {
@@ -117,7 +123,7 @@ func TestCandidateMaintenanceNativeActorRemovesFrozenWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	build := exec.Command("/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go", "build", "-o", exe, "./cmd/orchestrator")
+	build := exec.CommandContext(ctx, filepath.Join(runtime.GOROOT(), "bin", "go"), "build", "-o", exe, "./cmd/orchestrator")
 	build.Dir = module
 	if output, e := build.CombinedOutput(); e != nil {
 		t.Fatalf("build worker: %v %s", e, output)
@@ -136,6 +142,16 @@ func TestCandidateMaintenanceNativeActorRemovesFrozenWorktree(t *testing.T) {
 	admins, err := os.ReadDir(adminRoot)
 	if err != nil || len(admins) != 1 {
 		t.Fatalf("candidate admin before cleanup=%d err=%v", len(admins), err)
+	}
+	denied := &nativeStore{reject: true}
+	if _, e := Run(ctx, denied, "controller", "token", g); e == nil || !denied.marked || denied.finished {
+		t.Fatalf("denied grant lifecycle=%+v err=%v", denied, e)
+	}
+	if _, e := os.Stat(worktree); e != nil {
+		t.Fatal("ungranted child deleted worktree", e)
+	}
+	if b, e := os.ReadFile(filepath.Join(operation, "events.jsonl")); e != nil || len(b) != 0 {
+		t.Fatal("ungranted child wrote operation journal", e)
 	}
 	store := &nativeStore{}
 	out, err := Run(ctx, store, "controller", "token", g)
@@ -162,7 +178,9 @@ func TestCandidateMaintenanceNativeActorRemovesFrozenWorktree(t *testing.T) {
 func nativeHash(v string) string { s := sha256.Sum256([]byte(v)); return hex.EncodeToString(s[:]) }
 func nativeGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	out, err := exec.CommandContext(context.Background(), "/usr/bin/git", args...).CombinedOutput()
+	cmd := exec.CommandContext(context.Background(), "/usr/bin/git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v %s", args, err, out)
 	}

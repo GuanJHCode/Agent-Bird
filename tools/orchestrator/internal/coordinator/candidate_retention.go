@@ -31,7 +31,7 @@ func (s *Server) applyCandidateRetention(ctx context.Context, controller, token 
 	if e := plan.Validate(); e != nil {
 		return store.CandidateRetentionApplyResult{}, e
 	}
-	out := store.CandidateRetentionApplyResult{Version: 1, RunID: plan.RunID, RequestID: plan.RequestID, Results: []store.CandidateMaintenanceState{}}
+	out := store.CandidateRetentionApplyResult{Version: 1, RunID: plan.RunID, RequestID: plan.RequestID, Results: []store.CandidateRetentionResult{}}
 	// An empty saved plan must still prove that its original owner remains
 	// authorized. Item preparation performs this check for non-empty plans.
 	if len(plan.Items) == 0 {
@@ -74,7 +74,11 @@ func (s *Server) applyCandidateRetention(ctx context.Context, controller, token 
 				return out, e
 			}
 		}
-		out.Results = append(out.Results, state)
+		result := store.CandidateRetentionResult{ResourceID: state.Grant.ResourceID, OperationID: state.Grant.OperationID, Generation: state.Grant.Generation, State: state.State}
+		if state.Outcome != nil {
+			result.Code = state.Outcome.Code
+		}
+		out.Results = append(out.Results, result)
 	}
 	return out, nil
 }

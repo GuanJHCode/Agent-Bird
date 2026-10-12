@@ -127,11 +127,20 @@ type CandidateMaintenanceOutcome struct {
 type CandidateRetentionApplyRequest struct {
 	Plan CandidateRetentionPlan `json:"plan"`
 }
+
+// Public replies retain operation keys, never the large internal execution grant.
+type CandidateRetentionResult struct {
+	ResourceID  string `json:"resource_id"`
+	OperationID string `json:"operation_id"`
+	Generation  int    `json:"generation"`
+	State       string `json:"state"`
+	Code        string `json:"code,omitempty"`
+}
 type CandidateRetentionApplyResult struct {
-	Version   int                         `json:"version"`
-	RunID     string                      `json:"run_id"`
-	RequestID string                      `json:"request_id"`
-	Results   []CandidateMaintenanceState `json:"results"`
+	Version   int                        `json:"version"`
+	RunID     string                     `json:"run_id"`
+	RequestID string                     `json:"request_id"`
+	Results   []CandidateRetentionResult `json:"results"`
 }
 type CandidateGCRequest struct {
 	Version          int    `json:"version"`
