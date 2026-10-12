@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -256,13 +257,70 @@ func TestSourceSessionRoutesErrorToAckWaiter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload, _ := json.Marshal(map[string]any{"code": "busy"})
-	if err = ipc.Write(server, ipc.Envelope{Version: 1, Kind: ipc.Kind("error"), RequestID: request.RequestID, Epoch: 1, Payload: payload}); err != nil {
+	payload, _ := json.Marshal(map[string]any{"error": "profile_resume_not_verified"})
+	if err = ipc.Write(server, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindError, RequestID: request.RequestID, Epoch: 1, Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case sendErr := <-result:
+		if sendErr == nil || sendErr.Error() != "durable_ack_error:profile_resume_not_verified" {
+			t.Fatalf("send err=%v", sendErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ack waiter was not woken")
+	}
+}
+
+func TestSourceSessionIgnoresErrorPayloadBeforeACKIdentityMatches(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	session := &sourceSession{conn: client}
+	session.startReader()
+	result := make(chan error, 1)
+	go func() {
+		_, sendErr := session.SendEvent(context.Background(), 7, contract.Event{EventID: "p:7"})
+		result <- sendErr
+	}()
+	request, err := ipc.Read(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = ipc.Write(server, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindError, RequestID: request.RequestID, Epoch: 8, Payload: json.RawMessage(`{"error":"sensitive detail"}`)}); err != nil {
 		t.Fatal(err)
 	}
 	select {
 	case sendErr := <-result:
 		if sendErr == nil || sendErr.Error() != "durable_ack_mismatch" {
+			t.Fatalf("send err=%v", sendErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ack waiter was not woken")
+	}
+}
+
+func TestSourceSessionHashesMalformedErrorCode(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	session := &sourceSession{conn: client}
+	session.startReader()
+	result := make(chan error, 1)
+	go func() {
+		_, sendErr := session.SendEvent(context.Background(), 1, contract.Event{EventID: "p:1"})
+		result <- sendErr
+	}()
+	request, err := ipc.Read(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := json.RawMessage(`{"error":"sensitive detail"}`)
+	if err = ipc.Write(server, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindError, RequestID: request.RequestID, Epoch: 1, Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case sendErr := <-result:
+		if sendErr == nil || sendErr.Error() == "durable_ack_mismatch" || strings.Contains(sendErr.Error(), "sensitive") || !strings.HasPrefix(sendErr.Error(), "durable_ack_error_sha256:") {
 			t.Fatalf("send err=%v", sendErr)
 		}
 	case <-time.After(time.Second):

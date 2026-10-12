@@ -2,6 +2,8 @@ package host
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net"
@@ -220,7 +222,17 @@ func (s *sourceSession) SendEvent(ctx context.Context, epoch uint64, event contr
 	if err != nil {
 		return contract.DurableAck{}, err
 	}
-	if ackEnvelope.Kind != ipc.KindDurableAck || ackEnvelope.RequestID != event.EventID || ackEnvelope.Epoch != epoch {
+	// Only an envelope bound to this exact event and epoch may influence the
+	// returned error. In particular, never parse a peer error before this
+	// check: a queued or forged frame must not disclose its payload through a
+	// source failure record.
+	if ackEnvelope.RequestID != event.EventID || ackEnvelope.Epoch != epoch {
+		return contract.DurableAck{}, errors.New("durable_ack_mismatch")
+	}
+	if ackEnvelope.Kind == ipc.KindError {
+		return contract.DurableAck{}, durableACKError(ackEnvelope.Payload)
+	}
+	if ackEnvelope.Kind != ipc.KindDurableAck {
 		return contract.DurableAck{}, errors.New("durable_ack_mismatch")
 	}
 	var ack contract.DurableAck
@@ -228,4 +240,30 @@ func (s *sourceSession) SendEvent(ctx context.Context, epoch uint64, event contr
 		return contract.DurableAck{}, err
 	}
 	return ack, nil
+}
+
+// durableACKError preserves only the coordinator's compact protocol code.
+// Malformed or non-code payloads are represented by a digest so a peer's
+// arbitrary error text cannot enter Host diagnostics.
+func durableACKError(raw []byte) error {
+	var body struct {
+		Error string `json:"error"`
+	}
+	if decodePayload(raw, &body) == nil && sourceErrorCode(body.Error) {
+		return errors.New("durable_ack_error:" + body.Error)
+	}
+	digest := sha256.Sum256(raw)
+	return errors.New("durable_ack_error_sha256:" + hex.EncodeToString(digest[:]))
+}
+
+func sourceErrorCode(code string) bool {
+	if len(code) == 0 || len(code) > 128 {
+		return false
+	}
+	for _, b := range []byte(code) {
+		if (b < 'a' || b > 'z') && (b < '0' || b > '9') && b != '_' {
+			return false
+		}
+	}
+	return true
 }
