@@ -37,8 +37,14 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 	if req.Provider != adapter.ProviderCodex && req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
 		reason = "execution_profile_unsupported"
 	}
-	help, err := adapter.ProbeOutput(ctx, req.BinaryPath, "--help")
+	if err = adapter.VerifyExecutable(lock.Binary, lock.Binary.Version); err != nil {
+		return err
+	}
+	help, err := adapter.ProbeOutputPinned(ctx, lock.Binary, "--help")
 	if err != nil {
+		return err
+	}
+	if err = adapter.VerifyExecutable(lock.Binary, lock.Binary.Version); err != nil {
 		return err
 	}
 	if reason == "" {

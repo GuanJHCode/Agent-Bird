@@ -39,17 +39,18 @@ type providerCallRequest struct {
 }
 
 type providerCallResult struct {
-	Version       int      `json:"version"`
-	CallID        string   `json:"call_id"`
-	Provider      string   `json:"provider"`
-	Status        string   `json:"status"`
-	Result        string   `json:"result,omitempty"`
-	FailureReason string   `json:"failure_reason,omitempty"`
-	ChangedFiles  []string `json:"changed_files"`
-	ChangesKnown  bool     `json:"changes_known"`
-	Workspace     string   `json:"workspace,omitempty"`
-	Handle        string   `json:"handle,omitempty"`
-	ProcessExited bool     `json:"process_exited"`
+	Version       int              `json:"version"`
+	CallID        string           `json:"call_id"`
+	Provider      string           `json:"provider"`
+	Status        string           `json:"status"`
+	Result        string           `json:"result,omitempty"`
+	FailureReason string           `json:"failure_reason,omitempty"`
+	ChangedFiles  []string         `json:"changed_files"`
+	ChangesKnown  bool             `json:"changes_known"`
+	Workspace     string           `json:"workspace,omitempty"`
+	Handle        string           `json:"handle,omitempty"`
+	ProcessExited bool             `json:"process_exited"`
+	TimingsMS     map[string]int64 `json:"timings_ms,omitempty"`
 }
 
 func normalizeProviderCall(r *providerCallRequest) error {
@@ -117,6 +118,8 @@ func providerCallEntry(ctx context.Context, args []string, out io.Writer) error 
 }
 
 func executeProviderCall(parent context.Context, req providerCallRequest, stateArg string) (result providerCallResult, retErr error) {
+	metrics := newProviderCallMetrics()
+	defer func() { metrics.finish(&result, retErr) }()
 	parent = adapter.WithProbeCache(parent)
 	result = providerCallResult{Version: 1, Provider: req.Provider, ChangedFiles: []string{}}
 	if err := normalizeProviderCall(&req); err != nil {
@@ -164,10 +167,12 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 	if err = readPrivateJSON(req.ProviderLock, &pin); err != nil {
 		return result, err
 	}
+	metrics.mark("prepare")
 	if err = providerSettingsEntry(parent, []string{"enable", "--provider", req.Provider, "--provider-lock", req.ProviderLock, "--binary", pin.Binary.Path, "--state-dir", state}, io.Discard); err != nil {
 		return result, err
 	}
 	id := make([]byte, 16)
+	metrics.mark("preflight")
 	if _, err = rand.Read(id); err != nil {
 		return result, err
 	}
@@ -194,6 +199,7 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 	dispatchErr := withTaskRequest(dispatch, func(path string) error {
 		return taskDispatch(ctx, []string{"--request", path, "--state-dir", state}, &receipt)
 	})
+	metrics.mark("dispatch")
 	var submitted struct {
 		Handle string `json:"handle"`
 	}
@@ -211,7 +217,13 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 	// On timeout/cancellation, stop through the original task route and wait for
 	// its durable terminal state. A timeout is never represented as exit proof.
 	reader := func(c context.Context, kind ipc.Kind, payload any) (json.RawMessage, error) {
+		started := time.Now()
 		response, err := call(c, h.StateDir, kind, payload)
+		if kind == ipc.KindCallResult {
+			metrics.add("result_rpc", started)
+		} else {
+			metrics.add("control_rpc", started)
+		}
 		return response.Payload, err
 	}
 	terminal, err := awaitProviderCall(ctx, control, reader)
@@ -237,6 +249,7 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 	if err != nil {
 		return result, err
 	}
+	metrics.mark("wait_and_collect")
 	result.ProcessExited = terminal.ProcessExited
 	if result.Status == "" {
 		result.Status = terminal.Status
@@ -265,6 +278,7 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 	if err = os.Remove(journal); err != nil {
 		return result, err
 	}
+	metrics.mark("finalize")
 	return result, nil
 }
 

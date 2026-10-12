@@ -49,6 +49,7 @@ func compactProviderResult(result providerCallResult) birdResultView {
 	end := resultEnd(result.Result, 0, providerResultPreviewBytes)
 	view := birdResultView{providerCallResult: result, ResultTruncated: end < len(result.Result), ResultBytes: len(result.Result), ResultSHA256: resultDigest(result.Result), NextOffset: end}
 	view.Result = result.Result[:end]
+	view.TimingsMS = nil // Private diagnostics do not consume model context.
 	return view
 }
 func providerResultPage(result *providerCallResult, req birdResultRequest) (birdResultPage, error) {
