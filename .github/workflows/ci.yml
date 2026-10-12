@@ -14,14 +14,36 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Select conservative CI scope
+        id: scope
+        shell: bash
+        env:
+          CI_EVENT: ${{ github.event_name }}
+          CI_REF: ${{ github.ref }}
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! scope="$(python3 scripts/ci-scope.py classify --base "$CI_BASE" --event "$CI_EVENT" --ref "$CI_REF")"; then
+            scope='{"full":true,"go":true,"python":true,"package":true}'
+          fi
+          python3 - "$GITHUB_OUTPUT" "$scope" <<'PYCODE'
+          import json, sys
+          value = json.loads(sys.argv[2])
+          with open(sys.argv[1], "a", encoding="utf-8") as output:
+              for key in ("full", "go", "python", "package"):
+                  output.write(f"{key}={'true' if value[key] else 'false'}\n")
+          PYCODE
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        if: steps.scope.outputs.go == 'true'
         with:
           go-version: '1.26.x'
           cache-dependency-path: tools/orchestrator/go.sum
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        if: steps.scope.outputs.python == 'true' || steps.scope.outputs.package == 'true'
         with:
           python-version: '3.14'
       - name: Pin CI interpreter permissions
+        if: steps.scope.outputs.python == 'true' || steps.scope.outputs.package == 'true'
         run: |
           python - <<'PY'
           import pathlib, stat, subprocess, sys
@@ -37,6 +59,7 @@ jobs:
           print(f"CI interpreter mode after: {stat.S_IMODE(interpreter.stat().st_mode):o}")
           PY
       - name: Remove hosted-image LFS filters from the test environment
+        if: steps.scope.outputs.go == 'true'
         run: |
           # The macOS image installs LFS globally and system-wide. Candidate
           # tests deliberately reject all execution extensions. Normalize only
@@ -58,21 +81,36 @@ jobs:
               raise SystemExit("Unexpected LFS configuration remains; refusing to mask it")
           PYCODE
       - name: Go build, tests, race and vet
+        if: steps.scope.outputs.go == 'true'
+        shell: bash
+        env:
+          CI_FULL: ${{ steps.scope.outputs.full }}
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         working-directory: tools/orchestrator
         run: |
-          go build ./...
-          go test -count=1 ./...
-          go test -race -count=1 ./...
-          go vet ./...
+          if [[ "$CI_FULL" == true ]]; then
+            packages=(./...)
+          elif ! package_lines="$(python3 ../../scripts/ci-scope.py go-packages --base "$CI_BASE")" || [[ -z "$package_lines" ]]; then
+            packages=(./...)
+          else
+            mapfile -t packages <<<"$package_lines"
+          fi
+          go build "${packages[@]}"
+          go test -count=1 "${packages[@]}"
+          go test -race -count=1 "${packages[@]}"
+          go vet "${packages[@]}"
       - name: Independent probe modules
+        if: steps.scope.outputs.full == 'true'
         run: |
           (cd tools/g0-probe && go test -count=1 ./...)
           (cd tools/g0-return-lab && go test -count=1 ./...)
       - name: Python runtime, bridge and package contracts
+        if: steps.scope.outputs.python == 'true' || steps.scope.outputs.package == 'true'
         env:
           PYTHONDONTWRITEBYTECODE: '1'
         run: |
           python -m pip install 'pytest==9.1.1' 'PyYAML==6.0.3'
+          python -m unittest discover -s scripts -p 'test_ci_scope.py'
           python -m pytest -p no:cacheprovider tools/native-product-bridge tools/real-user-trial tasks/brain-control-hardening/scripts/test_package_skills.py tasks/provider-runtime-completion/scripts/test_runtime_layout.py tasks/mvp-simple-install/scripts/test_package.py -q -rs
           export G4_TEST_PYTHON="$(python -c 'import pathlib,sys; print(pathlib.Path(sys.executable).resolve())')"
           sh tasks/g1-g4-delivery/scripts/test-package-executable-modes.sh
