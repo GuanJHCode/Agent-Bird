@@ -41,10 +41,16 @@ func (s *Server) disconnectHostLocked(session *hostSession) bool {
 	if session.ownerPermit != nil {
 		err := s.db.FenceOriginalOwnerTransport(context.Background(), session.hello, s.epoch)
 		delete(s.hosts, session.id)
+		if err == nil {
+			s.notifyActionableEvent()
+		}
 		return err == nil
 	}
 	err := s.db.MarkHostOffline(context.Background(), session.id, s.epoch)
 	delete(s.hosts, session.id)
+	if err == nil {
+		s.notifyActionableEvent()
+	}
 	return err == nil
 }
 

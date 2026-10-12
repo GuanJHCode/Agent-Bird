@@ -58,13 +58,15 @@ python3 "$HOME/.bird1/adapters/agent-bird.py" start --runtime "$HOME/.bird1" \
 
 调用 AGY 时将任务中的目标改为 AGY，并确保 setup 已配置其目标 pin。四个入口使用同一协议：`provider`、`task`、`directory`、`mode`、`paths`、`timeout_ms`。
 
-源码分支新增：插件结果默认返回最多 4KiB 的 UTF-8 摘录，并保留失败、退出和文件变更事实。`result_truncated` 表示是否截断，`result_bytes` / `result_sha256` 标识完整结果；需要详情时调用 `agent_bird_result`，传 `call_id`、`offset=next_offset`，可选 `limit_bytes`（默认 4096，最大 16384）。详情来自同一 MCP 连接的最近一次任务，下一任务开始或连接关闭后失效；读取详情不会重新执行任务。原始完整结果仍由任务 handle 保留。CLI `call` 的完整输出不变。
+源码分支新增（构建候选版可用）：插件结果默认返回最多 4KiB 的 UTF-8 摘录，并保留失败、退出和文件变更事实。`result_truncated` 表示是否截断，`result_bytes` / `result_sha256` 标识完整结果；需要详情时调用 `agent_bird_result`，传 `call_id`、`offset=next_offset`，可选 `limit_bytes`（默认 4096，最大 16384）。详情来自同一 MCP 连接的最近一次任务，下一任务开始或连接关闭后失效；读取详情不会重新执行任务。原始完整结果仍由任务 handle 保留。CLI `call` 的完整输出不变。
 
-Claude 发起方仅暴露委派所需工具，关闭本进程的工具搜索，直接调用 MCP；其余账号、模型、权限和全局配置不变。四个 Provider 统一使用简短委派指令，优先返回结论，不自动读完所有详情。这些源码优化尚未包含在已发布的 rc.2 安装包中。
+Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和工具搜索，直接调用 MCP；其余账号、模型、权限和全局配置不变。四个 Provider 统一使用简短委派指令，优先返回结论，不自动读完所有详情。这些源码优化尚未包含在已发布的 rc.2 安装包中。
 
 只读为默认模式。写任务要求已有 Git 仓库、明确的相对文件路径；修改在隔离候选工作目录完成。结果返回 `workspace`、`changed_files`、`changes_known`、`handle` 和 `process_exited`，**不会自动覆盖原项目**。检查返回的候选目录后，通过已有任务验收/集成流程接纳修改。
 
 默认子任务超时 120 秒，可通过 `timeout_ms` 调整，最大 1 小时。发起方预算默认 300 秒，`--timeout-seconds` 可调至 7200 秒。Ctrl-C 取消；只有 `process_exited=true` 才表示已有可信退出证明。失败且 `changes_known=false` 时，候选目录可能已有部分修改。
+
+派发/返回优化保留原有保护：同次调用复用已验证的能力探测；新协调器通过 `wait_call_terminal_v1` 等待已提交的进程终态，旧协调器回退到原状态查询。Host 离线但尚无退出证明时返回 `call_process_unknown`；已有可信退出不会因 Host 随后断开而丢失。完整结果的续页复用最多 1MiB 的已验证内存快照，每页仍核对所有权、事件和产物有效性；从 offset 0 开始读取会重新校验磁盘。
 
 ## 支持范围
 

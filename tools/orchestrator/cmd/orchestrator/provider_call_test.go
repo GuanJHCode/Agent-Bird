@@ -55,7 +55,7 @@ func TestProviderCallReassemblesBoundResultPages(t *testing.T) {
 	for _, drift := range []bool{false, true} {
 		text := strings.Repeat("多", 4000)
 		read := func(ctx context.Context, kind ipc.Kind, request any) (json.RawMessage, error) {
-			if kind == ipc.KindStatus {
+			if kind == ipc.KindWaitCallTerminal {
 				return json.Marshal(store.TaskSnapshot{SegmentStatus: "exited"})
 			}
 			offset := request.(coordinator.CallResultRequest).Offset
@@ -81,11 +81,11 @@ func TestProviderCallReassemblesBoundResultPages(t *testing.T) {
 }
 
 func TestProviderCallUnknownAndCancellationDoNotClaimExit(t *testing.T) {
-	for _, status := range []string{"unknown", "running"} {
+	for _, status := range []string{"unknown", "running", "offline"} {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		read := func(context.Context, ipc.Kind, any) (json.RawMessage, error) {
-			return json.Marshal(store.TaskSnapshot{SegmentStatus: status})
+			return json.Marshal(store.TaskSnapshot{SegmentStatus: status, HostStatus: status})
 		}
 		got, err := awaitProviderCall(ctx, coordinator.TaskControlRequest{}, read)
 		if err == nil || got.ProcessExited {
@@ -111,5 +111,41 @@ func TestCodexPluginWriteRequiresDeclaredPaths(t *testing.T) {
 func TestProviderCallAndMCPArePluginActions(t *testing.T) {
 	if !pluginActionAllowed("call") || !pluginActionAllowed("mcp") {
 		t.Fatal("unified entry missing from plugin")
+	}
+}
+
+func TestProviderCallOlderCoordinatorUsesAuthenticatedStatusFallback(t *testing.T) {
+	waits, statuses := 0, 0
+	read := func(ctx context.Context, kind ipc.Kind, request any) (json.RawMessage, error) {
+		switch kind {
+		case ipc.KindWaitCallTerminal:
+			waits++
+			return nil, codeError("unsupported_request")
+		case ipc.KindStatus:
+			statuses++
+			return json.Marshal(store.TaskSnapshot{SegmentStatus: "exited"})
+		case ipc.KindCallResult:
+			return json.Marshal(store.CallResult{Version: 1, Status: "result_ready", ProcessExited: true, EventKind: "result", Content: "ok", NextOffset: 2, TotalBytes: 2})
+		default:
+			t.Fatalf("unexpected route %s", kind)
+			return nil, nil
+		}
+	}
+	got, err := awaitProviderCall(context.Background(), coordinator.TaskControlRequest{TaskID: "one"}, read)
+	if err != nil || got.Content != "ok" || !got.ProcessExited || waits != 1 || statuses != 1 {
+		t.Fatalf("%+v %v waits=%d statuses=%d", got, err, waits, statuses)
+	}
+}
+
+func TestProviderCallCommittedExitSurvivesHostDisconnect(t *testing.T) {
+	read := func(_ context.Context, kind ipc.Kind, _ any) (json.RawMessage, error) {
+		if kind == ipc.KindWaitCallTerminal {
+			return json.Marshal(store.TaskSnapshot{SegmentStatus: "exited", HostStatus: "offline"})
+		}
+		return json.Marshal(store.CallResult{Version: 1, Status: "result_ready", EventKind: "result", ProcessExited: true, Content: "ok", NextOffset: 2, TotalBytes: 2})
+	}
+	result, err := awaitProviderCall(context.Background(), coordinator.TaskControlRequest{TaskID: "one"}, read)
+	if err != nil || !result.ProcessExited || result.Content != "ok" {
+		t.Fatalf("committed exit lost: %+v %v", result, err)
 	}
 }

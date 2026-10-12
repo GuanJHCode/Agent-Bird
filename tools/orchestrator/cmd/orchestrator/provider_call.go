@@ -305,8 +305,19 @@ type providerCallReader func(context.Context, ipc.Kind, any) (json.RawMessage, e
 
 func awaitProviderCall(ctx context.Context, control coordinator.TaskControlRequest, read providerCallReader) (store.CallResult, error) {
 	var result store.CallResult
+	legacyWait := false
 	for {
-		raw, err := read(ctx, ipc.KindStatus, control)
+		kind, payload := ipc.KindWaitCallTerminal, any(coordinator.WaitCallTerminalRequest{TaskControlRequest: control, TimeoutMS: 30000})
+		if legacyWait {
+			kind, payload = ipc.KindStatus, control
+		}
+		raw, err := read(ctx, kind, payload)
+		// A still-running older coordinator may share IPC v1. Retain its
+		// authenticated status path rather than abandoning an active child.
+		if !legacyWait && err != nil && errorCode(err) == "unsupported_request" {
+			legacyWait = true
+			continue
+		}
 		if err != nil {
 			return result, err
 		}
@@ -314,16 +325,22 @@ func awaitProviderCall(ctx context.Context, control coordinator.TaskControlReque
 		if err = json.Unmarshal(raw, &snapshot); err != nil {
 			return result, err
 		}
-		if snapshot.SegmentStatus == "unknown" || snapshot.HostStatus == "lost" {
-			return result, codeError("call_process_unknown")
-		}
+		// An owning Host may disconnect after committing its original Wait.
+		// Durable exit evidence remains valid after that transport is gone.
 		if snapshot.SegmentStatus == "exited" || snapshot.SegmentStatus == "not_started" {
 			break
 		}
-		select {
-		case <-ctx.Done():
+		if snapshot.SegmentStatus == "unknown" || snapshot.HostStatus == "lost" || snapshot.HostStatus == "offline" {
+			return result, codeError("call_process_unknown")
+		}
+		if legacyWait {
+			select {
+			case <-ctx.Done():
+				return result, ctx.Err()
+			case <-time.After(250 * time.Millisecond):
+			}
+		} else if ctx.Err() != nil {
 			return result, ctx.Err()
-		case <-time.After(250 * time.Millisecond):
 		}
 	}
 	var content strings.Builder

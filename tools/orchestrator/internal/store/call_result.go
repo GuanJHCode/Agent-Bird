@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"time"
 	"unicode/utf8"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -12,6 +13,17 @@ const (
 	callResultArtifactLimit = 1 << 20
 	callResultPageBytes     = 8192
 )
+
+// Continuation pages use one immutable, verified in-memory snapshot. A new
+// offset-zero read always revalidates disk evidence. Authorization and terminal
+// event identity are still checked on every page; this is not a disk-proof cache.
+// Only one snapshot is retained per DB (at most 1 MiB), for at most 30 seconds
+// of reuse. Interleaving reads can evict it and safely reverify the artifact.
+type callResultSnapshot struct {
+	task, controller, event string
+	content                 []byte
+	expires                 time.Time
+}
 
 // CallResult is an authenticated, bounded view of one original terminal event.
 // Reading it neither accepts the business result nor acknowledges delivery.
@@ -53,7 +65,19 @@ func (d *DB) ReadCallResult(ctx context.Context, taskID, controller, token strin
 		return CallResult{}, CodeError("call_result_not_quiescent")
 	}
 	content := []byte(nil)
-	if event.Artifact != nil {
+	if offset == 0 {
+		d.callSnapshot = nil
+	}
+	cached := d.callSnapshot
+	if offset > 0 && cached != nil && cached.task == taskID && cached.controller == controller && cached.event == body && time.Now().Before(cached.expires) {
+		if event.Artifact != nil {
+			if _, err = committedHostArtifact(ctx, tx, event, callResultArtifactLimit); err != nil {
+				d.callSnapshot = nil
+				return CallResult{}, err
+			}
+		}
+		content = cached.content
+	} else if event.Artifact != nil {
 		content, err = readCommittedHostArtifact(ctx, tx, event, callResultArtifactLimit)
 		if err != nil {
 			return CallResult{}, err
@@ -82,5 +106,6 @@ func (d *DB) ReadCallResult(ctx context.Context, taskID, controller, token strin
 	if err := tx.Commit(); err != nil {
 		return CallResult{}, err
 	}
+	d.callSnapshot = &callResultSnapshot{task: taskID, controller: controller, event: body, content: content, expires: time.Now().Add(30 * time.Second)}
 	return out, nil
 }

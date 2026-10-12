@@ -657,7 +657,7 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		return
 	}
 	controlCtx := ctx
-	if message.Kind == ipc.KindWaitEvents {
+	if message.Kind == ipc.KindWaitEvents || message.Kind == ipc.KindWaitCallTerminal {
 		var cancel context.CancelFunc
 		controlCtx, cancel = context.WithCancel(ctx)
 		defer cancel()
@@ -760,7 +760,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 		if err == nil {
 			ctx, err = s.authorizePeer(ctx, conn)
 		}
-	case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindRebindOwnerPublished, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
+	case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindRebindOwnerPublished, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindWaitCallTerminal, ipc.KindSummary, ipc.KindStatus:
 		ctx, err = s.authorizePeer(ctx, conn)
 	}
 	if err == nil {
@@ -908,6 +908,8 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			return nil, err
 		}
 		return json.Marshal(snapshot)
+	case ipc.KindWaitCallTerminal:
+		return s.waitCallTerminal(ctx, raw)
 	case ipc.KindCallResult:
 		var request CallResultRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -1381,7 +1383,7 @@ func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (b
 		_ = sendError(session.conn, incoming.RequestID, s.epoch, err)
 		return false, nil
 	}
-	if event.Kind == contract.EventSession || event.Kind == contract.EventQuestion || event.Kind == contract.EventResult || event.Kind == contract.EventFailed || event.Kind == contract.EventLaunchRejected || event.Kind == contract.EventUnknown || event.Kind == contract.EventStopped {
+	if event.Kind == contract.EventSession || event.Kind == contract.EventQuestion || event.Kind == contract.EventResult || event.Kind == contract.EventFailed || event.Kind == contract.EventLaunchRejected || event.Kind == contract.EventUnknown || event.Kind == contract.EventStopped || event.Kind == contract.EventExited {
 		s.notifyActionableEvent()
 	}
 	body, _ := json.Marshal(ack)

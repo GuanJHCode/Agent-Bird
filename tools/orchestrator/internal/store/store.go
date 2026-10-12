@@ -31,6 +31,8 @@ const (
 )
 
 type DB struct {
+	callSnapshot *callResultSnapshot // protected by mu; at most one 1 MiB result
+
 	gcMu                sync.Mutex
 	configIdentity      contract.ConfigPreparationAuthority
 	configIdentityError error

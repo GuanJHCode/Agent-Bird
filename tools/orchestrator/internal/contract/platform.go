@@ -66,6 +66,8 @@ func CompiledPlatformContract(goos, goarch string) PlatformContract {
 		pluginGate, pluginReason = "blocked", "darwin_required"
 	}
 	add("provider_call", pluginGate, pluginReason, "installed_package", "pinned_target", "live_original_owner", "single_call", "original_wait")
+	add("provider_result_details", pluginGate, "bounded_mcp_result_view", "same_live_mcp_connection", "last_completed_call", "utf8_byte_offsets")
+	add("provider_terminal_wait", pluginGate, "wait_call_terminal_v1", "live_original_owner", "committed_terminal_state", "original_wait")
 	add("codex_worker_read", pluginGate, pluginReason, "codex_0_154_0_exact_pin", "host_tools_v1", "fresh_read_only_thread", "original_wait")
 	add("codex_worker_write", pluginGate, pluginReason, "codex_0_154_0_exact_pin", "host_tools_v1", "fresh_exclusive_candidate", "declared_paths", "original_wait", "frozen_receipt")
 	add("codex_worker", "blocked", "full_continuation_contract_not_qualified", "pinned_provider", "separate_tool_network_and_state_boundary", "native_read_write_continuation")

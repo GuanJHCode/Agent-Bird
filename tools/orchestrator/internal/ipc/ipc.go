@@ -50,6 +50,7 @@ const (
 	KindSummary                Kind = "summary"
 	KindCollect                Kind = "collect"
 	KindCallResult             Kind = "call_result_v1"
+	KindWaitCallTerminal       Kind = "wait_call_terminal_v1"
 	KindWaitEvents             Kind = "wait_events"
 	KindAck                    Kind = "ack"
 	KindDiagnosticsRead        Kind = "diagnostics_read"

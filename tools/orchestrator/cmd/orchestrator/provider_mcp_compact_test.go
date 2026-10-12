@@ -108,3 +108,26 @@ func TestProviderMCPDetailsNeverReadAnotherConnection(t *testing.T) {
 		t.Fatal("foreign connection result admitted")
 	}
 }
+
+func TestProviderMCPNextCallInvalidatesPreviousDetails(t *testing.T) {
+	calls := 0
+	rpc := mcpRoundTrip(t, func(_ context.Context, req providerCallRequest) (providerCallResult, error) {
+		calls++
+		id := "first"
+		if calls > 1 {
+			id = "second"
+		}
+		return providerCallResult{Version: 1, CallID: id, Provider: req.Provider, Status: "result_ready", Result: "done", ProcessExited: true}, nil
+	})
+	call := map[string]any{"name": "agent_bird_call", "arguments": map[string]any{"provider": "claude", "task": "read", "directory": "/private/project"}}
+	mcpToolBody(t, rpc("tools/call", call))
+	mcpToolBody(t, rpc("tools/call", call))
+	stale := rpc("tools/call", map[string]any{"name": "agent_bird_result", "arguments": map[string]any{"call_id": "first"}})
+	if stale["error"] == nil {
+		t.Fatal("previous task details survived next call")
+	}
+	page := mcpToolBody(t, rpc("tools/call", map[string]any{"name": "agent_bird_result", "arguments": map[string]any{"call_id": "second"}}))
+	if page["result"] != "done" || calls != 2 {
+		t.Fatal("wrong result or duplicate dispatch")
+	}
+}

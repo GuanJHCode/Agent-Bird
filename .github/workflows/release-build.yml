@@ -26,7 +26,7 @@ jobs:
       - name: Test release and native installer behavior
         run: |
           python3 -B -m unittest discover -s tasks/macos-1.0-20261012/tests
-          python3 -B tasks/macos-1.0-20261012/scripts/grok_plugin_acp_test.py
+          python3 -B -m unittest discover -s tasks/macos-1.0-20261012/scripts -p '*test.py'
       - name: Build versioned macOS ARM64 archive
         env:
           BIRD_RELEASE_VERSION: ${{ inputs.version }}

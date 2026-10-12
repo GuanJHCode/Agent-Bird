@@ -18,7 +18,7 @@ func TestCompiledPlatformContractGates(t *testing.T) {
 				if (c.ID == "filtered_broker_carrier" || c.ID == "filtered_conversion_freeze") && ((goos == "darwin") != (c.Gate == "internal")) {
 					t.Fatalf("wrong platform gate %+v", c)
 				}
-				if (c.ID == "provider_call" || c.ID == "codex_worker_read" || c.ID == "codex_worker_write") && ((goos == "darwin") != (c.Gate == "public")) {
+				if (c.ID == "provider_call" || c.ID == "provider_result_details" || c.ID == "provider_terminal_wait" || c.ID == "codex_worker_read" || c.ID == "codex_worker_write") && ((goos == "darwin") != (c.Gate == "public")) {
 					t.Fatalf("wrong plugin gate %+v", c)
 				}
 				if c.ID == "original_owner_supervision" && ((goos == "darwin" || goos == "linux") != (c.Gate == "public")) {

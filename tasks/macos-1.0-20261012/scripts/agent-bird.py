@@ -110,7 +110,7 @@ def launch_args(provider, binary, state, locks, directory, prompt, session):
         config_path = session / 'mcp.json'
         private_json(config_path, config)
         return command + ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--strict-mcp-config',
-                          '--mcp-config', str(config_path), '--tools', '',
+                          '--mcp-config', str(config_path), '--tools', '', '--disable-slash-commands',
                           '--settings', json.dumps({'env': {'ENABLE_TOOL_SEARCH': 'false'}}),
                           '--allowedTools', 'mcp__agent_bird__agent_bird_call,mcp__agent_bird__agent_bird_result'], directory, None
     if provider == 'agy':

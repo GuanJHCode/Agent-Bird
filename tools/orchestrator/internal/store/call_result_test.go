@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
@@ -43,6 +44,48 @@ func TestReadCallResultRequiresOwnerExitAndCommittedArtifact(t *testing.T) {
 				t.Fatalf("untrusted result accepted: %+v", out)
 			}
 		})
+	}
+}
+
+func TestReadCallResultContinuationUsesVerifiedSnapshot(t *testing.T) {
+	f := newHostRetentionFixture(t, false, false)
+	ctx := context.Background()
+	first, err := f.db.ReadCallResult(ctx, f.grant.TaskID, "controller", f.token, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A continuation reads the already verified snapshot, not a changed file.
+	if err = os.WriteFile(f.proof.Path, []byte("tampered after snapshot"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	page, err := f.db.ReadCallResult(ctx, f.grant.TaskID, "controller", f.token, 9)
+	if err != nil || page.Content != "retained body" || page.PayloadSHA256 != first.PayloadSHA256 {
+		t.Fatalf("snapshot lost: %+v %v", page, err)
+	}
+	if _, err = f.db.ReadCallResult(ctx, f.grant.TaskID, "foreign", f.token, 9); err == nil {
+		t.Fatal("cached owner check bypassed")
+	}
+	// Starting a new read always verifies current evidence again.
+	if _, err = f.db.ReadCallResult(ctx, f.grant.TaskID, "controller", f.token, 0); err == nil {
+		t.Fatal("new read hid tampering")
+	}
+	if _, err = f.db.ReadCallResult(ctx, f.grant.TaskID, "controller", f.token, 9); err == nil {
+		t.Fatal("failed restart retained stale snapshot")
+	}
+}
+
+func TestReadCallResultSnapshotStillRequiresCommittedReference(t *testing.T) {
+	f := newHostRetentionFixture(t, false, false)
+	if _, err := f.db.ReadCallResult(context.Background(), f.grant.TaskID, "controller", f.token, 0); err != nil {
+		t.Fatal(err)
+	}
+	now := f.at.Add(31 * 24 * time.Hour)
+	plan := hostPlanOnly(f.plan(t, now), f.grant.HostArtifacts.TerminalReservationID)
+	if out, err := f.db.applyHostArtifactRetentionAt(context.Background(), "controller", f.token, plan, now, openManagedHostDeletion); err != nil || out.Deleted != 1 {
+		t.Fatalf("retention: %+v %v", out, err)
+	}
+	if _, err := f.db.ReadCallResult(context.Background(), f.grant.TaskID, "controller", f.token, 9); err == nil {
+		t.Fatal("retired reference admitted from cache")
 	}
 }
 

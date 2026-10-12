@@ -15,6 +15,7 @@ class LauncherTest(unittest.TestCase):
             root = Path(temp)
             args, cwd, payload = bird.launch_args('claude', Path('/binary'), root / 'state', root / 'locks', root, 'delegate', root)
             self.assertIn('--tools', args)
+            self.assertIn('--disable-slash-commands', args)
             self.assertEqual(args[args.index('--tools') + 1], '')
             settings = json.loads(args[args.index('--settings') + 1])
             self.assertEqual(settings['env']['ENABLE_TOOL_SEARCH'], 'false')
