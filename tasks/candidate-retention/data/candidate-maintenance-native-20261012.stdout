@@ -1,0 +1,4 @@
+=== RUN   TestCandidateMaintenanceNativeActorRemovesFrozenWorktree
+--- PASS: TestCandidateMaintenanceNativeActorRemovesFrozenWorktree (2.60s)
+PASS
+ok  github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/candidatemaintenance  3.002s
