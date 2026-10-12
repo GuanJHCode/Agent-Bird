@@ -106,8 +106,16 @@ func persistACPCompletion(state string, req contract.ACPReceiveRequest) (string,
 	}
 	// Replays remain available even when an old directory is already at quota.
 	// Only a new immutable receipt consumes one entry and its complete bytes.
+	reservation := acpPromptReservationName(req.ACPBeginRequest)
+	if held, e := parent.Lstat(reservation); e == nil {
+		if !acpPrivateReceipt(held) || validateACPPromptReservation(parent, reservation) != nil {
+			return "", invalid
+		}
+	} else if !errors.Is(e, os.ErrNotExist) {
+		return "", invalid
+	}
 	if _, err = parent.Lstat(name); errors.Is(err, os.ErrNotExist) {
-		if err = admitACPCompletion(parent, int64(len(raw)+1)); err != nil {
+		if err = admitACPCompletion(parent, int64(len(raw)+1), reservation); err != nil {
 			return "", err
 		}
 	} else if err != nil {
@@ -171,6 +179,15 @@ func persistACPCompletion(state string, req contract.ACPReceiveRequest) (string,
 		if e != nil || !acpPrivateReceipt(named) || !os.SameFile(info, named) {
 			return "", invalid
 		}
+	}
+	// A reservation is retained through an UNKNOWN Prompt outcome. It is only
+	// removed after the complete immutable receipt has been synced.
+	if held, e := parent.Lstat(reservation); e == nil {
+		if !acpPrivateReceipt(held) || validateACPPromptReservation(parent, reservation) != nil || parent.Remove(reservation) != nil {
+			return "", invalid
+		}
+	} else if !errors.Is(e, os.ErrNotExist) {
+		return "", invalid
 	}
 	// Include the new directory entry and, on first creation, its state parent.
 	if !checkNamed() || !acpCompletionLockValid(parent, lock) {

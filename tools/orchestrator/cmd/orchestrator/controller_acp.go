@@ -240,6 +240,13 @@ func (s *controllerACPSession) deliver(client *grokacp.Client) error {
 		if committed.Status != "committed" {
 			return codeError("controller_acp_receipt_invalid")
 		}
+		// Reserve the maximum durable receipt before any remote Prompt write. A
+		// failed or timed-out Prompt remains reserved because its remote state is
+		// UNKNOWN; durable receipt persistence releases it.
+		_, err = reserveACPPrompt(s.state, begin)
+		if err != nil {
+			return err
+		}
 		op, done := s.operation()
 		turn, err := client.Prompt(op, s.metadata.NativeSessionID, reply.PromptText)
 		done()

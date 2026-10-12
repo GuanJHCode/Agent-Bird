@@ -1,12 +1,16 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
 	"strings"
 	"syscall"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 const (
@@ -51,7 +55,13 @@ func lockACPCompletions(parent *os.Root) (*os.File, error) {
 	return f, nil
 }
 
-func admitACPCompletion(parent *os.Root, incoming int64) error {
+func acpPromptReservationName(begin contract.ACPBeginRequest) string {
+	key, _ := json.Marshal([]any{"acp-prompt-reservation-v1", begin.BindingID, begin.OwnerEpoch, begin.NativeSessionID, begin.BatchID, begin.AttemptID, begin.RenderSHA256, begin.PromptSHA256, begin.TurnOrdinal})
+	sum := sha256.Sum256(key)
+	return "reservation-" + hex.EncodeToString(sum[:]) + ".json"
+}
+
+func admitACPCompletion(parent *os.Root, incoming int64, replacing string) error {
 	invalid := codeError("controller_acp_completion_invalid")
 	capacity := codeError("controller_acp_completion_capacity_exhausted")
 	if incoming <= 0 || incoming > bridgeMaxRequestFile {
@@ -69,13 +79,19 @@ func admitACPCompletion(parent *os.Root, incoming int64) error {
 	count, used := 0, int64(0)
 	for _, entry := range entries {
 		name := entry.Name()
-		if name == acpCompletionQuotaLock {
+		if name == acpCompletionQuotaLock || name == replacing {
 			continue
 		}
-		if len(name) != len("receipt-")+64+len(".json") || !strings.HasPrefix(name, "receipt-") || !strings.HasSuffix(name, ".json") {
+		isReceipt := len(name) == len("receipt-")+64+len(".json") && strings.HasPrefix(name, "receipt-") && strings.HasSuffix(name, ".json")
+		isReservation := len(name) == len("reservation-")+64+len(".json") && strings.HasPrefix(name, "reservation-") && strings.HasSuffix(name, ".json")
+		if !isReceipt && !isReservation {
 			return invalid
 		}
-		digest := strings.TrimSuffix(strings.TrimPrefix(name, "receipt-"), ".json")
+		prefix := "receipt-"
+		if isReservation {
+			prefix = "reservation-"
+		}
+		digest := strings.TrimSuffix(strings.TrimPrefix(name, prefix), ".json")
 		decoded, err := hex.DecodeString(digest)
 		if err != nil || hex.EncodeToString(decoded) != digest {
 			return invalid
@@ -84,8 +100,15 @@ func admitACPCompletion(parent *os.Root, incoming int64) error {
 		if err != nil || !acpPrivateReceipt(info) {
 			return invalid
 		}
+		if isReservation {
+			if err := validateACPPromptReservation(parent, name); err != nil {
+				return invalid
+			}
+			used += bridgeMaxRequestFile
+		} else {
+			used += info.Size()
+		}
 		count++
-		used += info.Size()
 		if count >= acpCompletionMaximumFiles || used > acpCompletionMaximumBytes-incoming {
 			return capacity
 		}
