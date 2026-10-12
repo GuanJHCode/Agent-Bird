@@ -1,0 +1,1 @@
+TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -json -count=1 ./internal/candidatemaintenance ./cmd/orchestrator -run '^(TestCandidateMaintenanceNativeActorRemovesFrozenWorktree|TestCandidateRetentionPublicCLI)$'

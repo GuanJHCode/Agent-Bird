@@ -1,0 +1,8 @@
+{"Time":"2026-10-12T12:41:40.260822+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-12T12:41:40.985941+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestCandidateRetentionIncludesDownstreamConsumptionAndFences"}
+{"Time":"2026-10-12T12:41:40.986044+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestCandidateRetentionIncludesDownstreamConsumptionAndFences","Output":"=== RUN   TestCandidateRetentionIncludesDownstreamConsumptionAndFences\n"}
+{"Time":"2026-10-12T12:41:47.991135+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestCandidateRetentionIncludesDownstreamConsumptionAndFences","Output":"--- PASS: TestCandidateRetentionIncludesDownstreamConsumptionAndFences (7.01s)\n"}
+{"Time":"2026-10-12T12:41:47.991236+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestCandidateRetentionIncludesDownstreamConsumptionAndFences","Elapsed":7.01}
+{"Time":"2026-10-12T12:41:47.991612+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
+{"Time":"2026-10-12T12:41:48.99656+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t8.735s\n"}
+{"Time":"2026-10-12T12:41:48.996604+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":8.736}

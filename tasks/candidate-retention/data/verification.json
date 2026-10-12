@@ -1,0 +1,201 @@
+{
+  "production_source": "7f15c9d4fb1f8807dd8e728bad25573b2867781e",
+  "runs": {
+    "root-core-focused-1": {
+      "exit": 0,
+      "stderr_bytes": 0,
+      "top_pass": [
+        "TestSealCandidateResourceExactReopenAndAppendFreeze",
+        "TestCandidateSealComposeProjectionStripsFilesAndAddsBinding",
+        "TestSealCandidateResourceRejectsUnfinishedOrOversize",
+        "TestOpenSealedCandidateResourceRejectsReplacement",
+        "TestSealCandidateJournalRejectsDirectoryReplacement",
+        "TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement",
+        "TestCandidateSealRejectsCopiedOriginAndLegacy",
+        "TestCandidateRetentionAgeResolutionAndConsumption",
+        "TestCandidateMaintenanceGenerationFenceAndJournalRecovery",
+        "TestCandidateGCConsentAndDisableDuringRound"
+      ],
+      "sub_pass": [
+        "TestSealCandidateResourceRejectsUnfinishedOrOversize/unfinished",
+        "TestSealCandidateResourceRejectsUnfinishedOrOversize/oversize",
+        "TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement/root",
+        "TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement/namespace",
+        "TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement/spool",
+        "TestCandidateSealRejectsCopiedOriginAndLegacy/legacy",
+        "TestCandidateSealRejectsCopiedOriginAndLegacy/copied",
+        "TestCandidateRetentionAgeResolutionAndConsumption/success_boundary",
+        "TestCandidateRetentionAgeResolutionAndConsumption/success_expired",
+        "TestCandidateRetentionAgeResolutionAndConsumption/failed_unresolved",
+        "TestCandidateRetentionAgeResolutionAndConsumption/failed_resolved",
+        "TestCandidateRetentionAgeResolutionAndConsumption/pending_delivery"
+      ],
+      "fail": [],
+      "skip": [],
+      "packages": [
+        {
+          "Time": "2026-10-12T12:33:07.012512+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker",
+          "Elapsed": 0.712
+        },
+        {
+          "Time": "2026-10-12T12:33:08.732922+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 2.433
+        }
+      ]
+    },
+    "root-core-race-2": {
+      "exit": 1,
+      "stderr_bytes": 0,
+      "top_pass": [
+        "TestSealCandidateResourceExactReopenAndAppendFreeze",
+        "TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement",
+        "TestCandidateSealRejectsCopiedOriginAndLegacy",
+        "TestCandidateResourceRecoveryRegistersExitedProducerResult",
+        "TestCandidateResourceRecoveryScopeExcludesIneligibleProducerGrants",
+        "TestCandidateResourceRecoveryScopeIncludesV2Compose",
+        "TestCandidateRetentionAgeResolutionAndConsumption",
+        "TestCandidateMaintenanceGenerationFenceAndJournalRecovery",
+        "TestCandidateGCConsentAndDisableDuringRound",
+        "TestCandidateRegistrationExcludesCompletedContinuation"
+      ],
+      "sub_pass": [
+        "TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement/root",
+        "TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement/namespace",
+        "TestCandidateSealAuthorityRejectsEveryNamedDirectoryReplacement/spool",
+        "TestCandidateSealRejectsCopiedOriginAndLegacy/legacy",
+        "TestCandidateSealRejectsCopiedOriginAndLegacy/copied",
+        "TestCandidateResourceRecoveryRegistersExitedProducerResult/missing_registration",
+        "TestCandidateResourceRecoveryRegistersExitedProducerResult/sealed_before_append",
+        "TestCandidateResourceRecoveryScopeExcludesIneligibleProducerGrants/continuation",
+        "TestCandidateResourceRecoveryScopeExcludesIneligibleProducerGrants/rework",
+        "TestCandidateResourceRecoveryScopeExcludesIneligibleProducerGrants/new_base_rework",
+        "TestCandidateResourceRecoveryScopeExcludesIneligibleProducerGrants/filter",
+        "TestCandidateRetentionAgeResolutionAndConsumption/success_boundary",
+        "TestCandidateRetentionAgeResolutionAndConsumption/success_expired",
+        "TestCandidateRetentionAgeResolutionAndConsumption/failed_unresolved",
+        "TestCandidateRetentionAgeResolutionAndConsumption/failed_resolved",
+        "TestCandidateRetentionAgeResolutionAndConsumption/pending_delivery"
+      ],
+      "fail": [
+        {
+          "Time": "2026-10-12T12:40:44.347383+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Test": "TestCandidateRetentionIncludesDownstreamConsumptionAndFences",
+          "Elapsed": 6.61
+        },
+        {
+          "Time": "2026-10-12T12:40:44.354914+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 59.854
+        }
+      ],
+      "skip": [],
+      "packages": [
+        {
+          "Time": "2026-10-12T12:39:46.896098+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker",
+          "Elapsed": 2.395
+        },
+        {
+          "Time": "2026-10-12T12:39:47.503312+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Elapsed": 3.002
+        }
+      ]
+    },
+    "root-downstream-race-3": {
+      "exit": 0,
+      "stderr_bytes": 0,
+      "top_pass": [
+        "TestCandidateRetentionIncludesDownstreamConsumptionAndFences"
+      ],
+      "sub_pass": [],
+      "fail": [],
+      "skip": [],
+      "packages": [
+        {
+          "Time": "2026-10-12T12:41:48.996604+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 8.736
+        }
+      ]
+    },
+    "root-migration-public-1": {
+      "exit": 0,
+      "stderr_bytes": 0,
+      "top_pass": [
+        "TestCandidateRetentionSchema40MigrationPreservesLegacy",
+        "TestCandidateRetentionPublicCLI"
+      ],
+      "sub_pass": [],
+      "fail": [],
+      "skip": [],
+      "packages": [
+        {
+          "Time": "2026-10-12T12:43:22.050611+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 0.907
+        },
+        {
+          "Time": "2026-10-12T12:43:22.616267+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "Elapsed": 1.409
+        }
+      ]
+    },
+    "root-public-final-2": {
+      "exit": 0,
+      "stderr_bytes": 0,
+      "top_pass": [
+        "TestCandidateRetentionPublicCLI"
+      ],
+      "sub_pass": [],
+      "fail": [],
+      "skip": [],
+      "packages": [
+        {
+          "Time": "2026-10-12T12:45:51.808124+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "Elapsed": 0.947
+        }
+      ]
+    },
+    "root-native-public-final-1": {
+      "exit": 0,
+      "stderr_bytes": 0,
+      "top_pass": [
+        "TestCandidateRetentionPublicCLI",
+        "TestCandidateMaintenanceNativeActorRemovesFrozenWorktree"
+      ],
+      "sub_pass": [],
+      "fail": [],
+      "skip": [],
+      "packages": [
+        {
+          "Time": "2026-10-12T12:48:14.446808+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "Elapsed": 1.139
+        },
+        {
+          "Time": "2026-10-12T12:48:14.8933+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/candidatemaintenance",
+          "Elapsed": 3.872
+        }
+      ]
+    }
+  }
+}
