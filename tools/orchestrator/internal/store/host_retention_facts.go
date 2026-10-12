@@ -197,7 +197,7 @@ func loadHostTerminalFacts(ctx context.Context, tx *sql.Tx, r hostRetentionRow) 
 			e = CodeError("host_retention_terminal_unverified")
 			break
 		}
-		if contract.ValidateTemporaryWorkspaceCleanupEvent(ev) != nil {
+		if contract.ValidateTemporaryWorkspaceCleanupEvent(ev) != nil || contract.ValidateCandidateResourceEvent(ev) != nil {
 			e = CodeError("host_retention_terminal_unverified")
 			break
 		}
@@ -222,7 +222,7 @@ func loadHostTerminalFacts(ctx context.Context, tx *sql.Tx, r hostRetentionRow) 
 			f.received = received
 		case contract.EventUnknown:
 			e = CodeError("host_retention_terminal_unverified")
-		case contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventSession, contract.EventTemporaryWorkspaceCleanup:
+		case contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventSession, contract.EventTemporaryWorkspaceCleanup, contract.EventCandidateResourceRegistered:
 		default:
 			e = CodeError("host_retention_terminal_unverified")
 		}

@@ -13,6 +13,9 @@ import (
 )
 
 func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifactGate *hostArtifactGate) (contract.DurableAck, error) {
+	if err := contract.ValidateCandidateResourceEvent(event); err != nil {
+		return contract.DurableAck{}, err
+	}
 	if err := contract.ValidateTemporaryWorkspaceCleanupEvent(event); err != nil {
 		return contract.DurableAck{}, err
 	}
@@ -156,12 +159,15 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	deliveryStatus := "pending"
-	if historical || event.Kind == contract.EventTemporaryWorkspaceCleanup || event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventSession || event.Kind == contract.EventExited {
+	if historical || event.Kind == contract.EventCandidateResourceRegistered || event.Kind == contract.EventTemporaryWorkspaceCleanup || event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventSession || event.Kind == contract.EventExited {
 		deliveryStatus = "internal"
 	}
 	actionSlot := "action-" + runtimeHash(event.ProducerID + "\x00" + event.EventID)[:32]
 	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at,host_artifact_verified,legacy_artifact_claimed) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), event.Sequence, actionSlot, deliveryStatus, now, artifactGate.verified, legacyClaimed); err != nil {
 		return rollback(mapConflict(err))
+	}
+	if err = d.registerCandidateResource(ctx, tx, event, historical, now); err != nil {
+		return rollback(err)
 	}
 	if deliveryStatus == "pending" {
 		if _, err = tx.ExecContext(ctx, `INSERT INTO delivery_order(event_id,task_id) VALUES(?,?)`, event.EventID, event.TaskID); err != nil {
@@ -246,7 +252,7 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		return nil
 	}
 	switch event.Kind {
-	case contract.EventTemporaryWorkspaceCleanup:
+	case contract.EventTemporaryWorkspaceCleanup, contract.EventCandidateResourceRegistered:
 		return nil
 	case contract.EventLaunchRejected:
 		return applyLaunchRejection(ctx, tx, event)

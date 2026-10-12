@@ -71,6 +71,11 @@ func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *con
 	if use != candidateArtifactLive && use != candidateArtifactHistoricalProof || use == candidateArtifactHistoricalProof && !replay {
 		return ErrConflict
 	}
+	if use == candidateArtifactLive {
+		if err := candidateRunRetired(ctx, tx, command.RunID); err != nil {
+			return err
+		}
+	}
 	if err := bindHostArtifacts(ctx, tx, command, use != candidateArtifactHistoricalProof); err != nil {
 		return err
 	}
