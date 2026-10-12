@@ -64,6 +64,12 @@ func (d *DB) resolveCandidateRetentionAt(ctx context.Context, controller, token 
 	return CandidateRetentionResolutionResult{1, r.RunID, r.RequestID, r.Resolution, at}, o.commit()
 }
 func authorizeCandidateRetention(ctx context.Context, tx *sql.Tx, run, controller, token string) error {
+	if p, ok := ctx.Value(candidateGCKey{}).(candidateGCPolicy); ok {
+		if run != p.run {
+			return CodeError("owner_mismatch")
+		}
+		return validateCandidateGC(ctx, tx, p)
+	}
 	if err := authorizeRetentionRun(ctx, tx, run, controller, token); err != nil {
 		return err
 	}
