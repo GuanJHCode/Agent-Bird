@@ -11,6 +11,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
@@ -27,32 +28,34 @@ import (
 const gracefulStopWindow = 10 * time.Second
 
 type Host struct {
-	db                *store.DB
-	spoolRoot         string
-	mu                sync.Mutex
-	active            map[string]*process.Handle
-	activeBySeg       map[string]*process.Handle
-	segmentCancels    map[string]context.CancelFunc
-	producerID        string
-	sequenceMu        sync.Mutex
-	sequence          int64
-	sequenceLoaded    bool
-	publishedPath     string
-	publishMu         publicationGate
-	ledgerMu          sync.Mutex
-	grantMu           sync.Mutex
-	reservations      map[string]time.Time
-	stopMu            sync.Mutex
-	stopRequested     map[string]bool
-	stopIntents       map[string]*segmentStopIntent
-	stopAllIntent     *segmentStopIntent
-	naturalGeneration uint64
-	stopping          bool
-	eventReady        chan struct{}
-	progressSink      func(context.Context, contract.Event) error
-	continuationOwner string
-	codexLeases       map[string]*codexHandleLease           // CommandID; under stopMu + mu
-	failedStarts      map[*process.Handle]*hostStopOperation // original ownership after Start error; under stopMu
+	db                     *store.DB
+	spoolRoot              string
+	mu                     sync.Mutex
+	active                 map[string]*process.Handle
+	activeBySeg            map[string]*process.Handle
+	segmentCancels         map[string]context.CancelFunc
+	producerID             string
+	sequenceMu             sync.Mutex
+	sequence               int64
+	sequenceLoaded         bool
+	publishedPath          string
+	publishMu              publicationGate
+	ledgerMu               sync.Mutex
+	grantMu                sync.Mutex
+	reservations           map[string]time.Time
+	stopMu                 sync.Mutex
+	stopRequested          map[string]bool
+	stopIntents            map[string]*segmentStopIntent
+	stopAllIntent          *segmentStopIntent
+	naturalGeneration      uint64
+	stopping               bool
+	eventReady             chan struct{}
+	progressSink           func(context.Context, contract.Event) error
+	continuationOwner      string
+	filterHelperPin        gitfilter.CarrierHelperExecutableExpectation
+	filterHelperOwnerScope string
+	codexLeases            map[string]*codexHandleLease           // CommandID; under stopMu + mu
+	failedStarts           map[*process.Handle]*hostStopOperation // original ownership after Start error; under stopMu
 	// Private observation boundary, fixed before execution starts. Production
 	// leaves it nil; tests can distinguish durable append from caller return.
 	afterSpoolAppend func(contract.Event)
@@ -133,7 +136,7 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	if err := contract.ValidateDependencyInputs(grant); err != nil {
 		return contract.Result{}, err
 	}
-	filterObservation := filtered != nil && adapter.IsFilterTargetPreflight(filterPayload)
+	filterObservation := filtered != nil && isFilterLocalAction(filterPayload)
 	if grant.ReservationID == "" || grant.AttemptID == "" || grant.SegmentID == "" || grant.RunID == "" || grant.TaskID == "" || grant.GrantedActiveMS <= 0 || inv == nil || !filterObservation && (len(inv.Args()) == 0 || inv.Args()[0] == "") {
 		return contract.Result{}, errors.New("invalid_launch_grant")
 	}
@@ -245,6 +248,9 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	}
 	if filterObservation {
 		meta.runFilterObservation = func(ctx context.Context) ([]byte, error) {
+			if adapter.IsFilterIntegrate(filterPayload) {
+				return h.integrateFilteredTarget(ctx, filtered, filterPayload)
+			}
 			return h.observeFilteredTarget(ctx, filtered, filterPayload)
 		}
 		return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
@@ -445,6 +451,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 				if meta.filter != nil {
 					var cleanupErr error
 					activeMS, fields.GitFilterCleanup, cleanupErr = meta.filter.settle()
+					fields.GitFilterCarrierCleanup = meta.filter.carrierCleanup
 					if cleanupErr != nil {
 						unknown, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventUnknown, hashText("unknown:"+a.SegmentID), identity, nil, nil, structuredEventFields{})
 						if appendErr == nil && unknown.Sequence > 0 {
@@ -533,7 +540,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if phaseErr := publishLaunchPhase(spool, "not_started", a, runID, taskID, process.Command{}, nil, safeCause); phaseErr != nil {
 				return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, phaseErr)
 			}
-			if _, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{GitFilterCleanup: cleanup, ValidationToolCleanup: toolCleanup}); appendErr != nil {
+			if _, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{GitFilterCleanup: cleanup, GitFilterCarrierCleanup: meta.filter.carrierCleanup, ValidationToolCleanup: toolCleanup}); appendErr != nil {
 				return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, appendErr)
 			}
 			eventCount++
@@ -610,7 +617,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return finalizePrelaunchRejected(context.Canceled)
 	}
 	if meta.runFilterObservation != nil {
-		if meta.filter == nil || !adapter.IsFilterTargetPreflight(filterPayloadForMetadata(meta)) {
+		if meta.filter == nil || !isFilterLocalAction(filterPayloadForMetadata(meta)) {
 			return finalizeCandidateUnknown(contract.ErrGitFilterContract, nil, -1)
 		}
 		if err = publishLaunchPhase(spool, "starting", a, runID, taskID, cmd, nil, nil); err != nil {
@@ -1186,15 +1193,16 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 }
 
 type structuredEventFields struct {
-	GitFilterCleanup      *contract.GitFilterCleanup
-	DiagnosticsFailure    *contract.DiagnosticsFailure
-	ValidationToolCleanup *contract.ValidationToolCleanup
-	Failure               *contract.FailureFacts
-	StopReason            string
-	QuestionRevision      int
-	SessionKind           string
-	SessionID             string
-	ActiveMS              int64
+	GitFilterCarrierCleanup *contract.GitFilterCarrierCleanup
+	GitFilterCleanup        *contract.GitFilterCleanup
+	DiagnosticsFailure      *contract.DiagnosticsFailure
+	ValidationToolCleanup   *contract.ValidationToolCleanup
+	Failure                 *contract.FailureFacts
+	StopReason              string
+	QuestionRevision        int
+	SessionKind             string
+	SessionID               string
+	ActiveMS                int64
 }
 
 func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef, fields structuredEventFields) (contract.Event, error) {
@@ -1210,6 +1218,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	event.DiagnosticsFailure = fields.DiagnosticsFailure
 	event.ValidationToolCleanup = fields.ValidationToolCleanup
 	event.GitFilterCleanup = fields.GitFilterCleanup
+	event.GitFilterCarrierCleanup = fields.GitFilterCarrierCleanup
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}

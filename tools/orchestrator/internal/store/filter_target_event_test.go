@@ -37,12 +37,20 @@ func filterTargetGrantSettlement(t *testing.T, outcome string, targetReview ...b
 	observer := adapter.InvocationPayload{Kind: "candidate", Directory: "/private/observe", GitFilter: producer.GitFilter, CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "filter_target_preflight", SourceTask: "review", DependencyInputVersion: 1, AutoDirectory: true, Target: adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: producer.CandidateWorkspace.BaseOID}}}
 	ids := []string{"edit", "validate", "review", "observe"}
 	payloads := []adapter.InvocationPayload{producer, validator, reviewer, observer}
-	if len(targetReview) == 1 && targetReview[0] {
+	if len(targetReview) >= 1 && targetReview[0] {
 		approval := reviewer
 		approval.Directory = "/private/target-review"
 		approval.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: "filter_target_review", SourceTask: "observe", DependencyInputVersion: 1, AutoDirectory: true, Target: observer.CandidateAction.Target}
 		ids = append(ids, "target-review")
 		payloads = append(payloads, approval)
+	}
+
+	if len(targetReview) == 2 && targetReview[1] {
+		integrate := observer
+		integrate.Directory = "/private/integrate"
+		integrate.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: "filter_integrate", SourceTask: "target-review", DependencyInputVersion: 1, AutoDirectory: true, Target: observer.CandidateAction.Target}
+		ids = append(ids, "integrate")
+		payloads = append(payloads, integrate)
 	}
 	tasks := make([]TaskSpec, len(ids))
 	for i, p := range payloads {
@@ -54,6 +62,9 @@ func filterTargetGrantSettlement(t *testing.T, outcome string, targetReview ...b
 		if i > 0 {
 			tasks[i].Dependencies = []string{ids[i-1]}
 		}
+	}
+	if len(ids) == 6 {
+		tasks[5].Dependencies = []string{"observe", "target-review"}
 	}
 	plan, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/host"}, Tasks: tasks})
 	if err != nil {
@@ -81,6 +92,16 @@ func filterTargetGrantSettlement(t *testing.T, outcome string, targetReview ...b
 		}
 		if i == 4 && (g.Input == nil || g.Input.Event.TaskID != "observe" || g.DependencyInputs == nil || len(g.DependencyInputs.Inputs) != 1 || g.ValidationTool != nil || contract.ValidateDependencyInputs(g) != nil || contract.RequireGitFilter(g) != nil) {
 			t.Fatalf("unbound target-review grant=%+v", g)
+		}
+
+		if i == 5 {
+			if g.Input == nil || g.Input.Event.TaskID != "target-review" || g.DependencyInputs == nil || len(g.DependencyInputs.Inputs) != 2 || g.GitFilterCarrier == nil {
+				t.Fatalf("unbound integrate grant=%+v", g)
+			}
+			pending, e := db.PendingLaunches(ctx, host, 1)
+			if e != nil || len(pending) != 1 || pending[0].LaunchIntentHash != g.LaunchIntentHash || *pending[0].GitFilterCarrier != *g.GitFilterCarrier {
+				t.Fatalf("integration replay err=%v", e)
+			}
 		}
 		body := []byte("opaque authenticated " + id)
 		sequence++
@@ -120,11 +141,21 @@ func filterTargetGrantSettlement(t *testing.T, outcome string, targetReview ...b
 		done.Kind = contract.EventExited
 		done.StopReason = ""
 		done.ActiveMS = 1
-		if i != 3 {
+		if i != 3 && i != 5 {
 			done.ExitCode = &zero
 		}
 		f := g.GitFilter
 		done.GitFilterCleanup = &contract.GitFilterCleanup{Version: 1, ReservationID: f.ReservationID, ScopeSHA256: f.ScopeSHA256, ManifestSHA256: f.ManifestSHA256, CleanToolSHA256: f.CleanToolSHA256, SmudgeToolSHA256: f.SmudgeToolSHA256, JournalSHA256: runtimeHash("synthetic cleanup"), RemovedBytes: 0}
+
+		if c := g.GitFilterCarrier; c != nil {
+			done.GitFilterCarrierCleanup = &contract.GitFilterCarrierCleanup{Version: 1, ReservationID: c.ReservationID, ScopeSHA256: c.ScopeSHA256, FilterReservationID: c.FilterReservationID, ManifestSHA256: c.ManifestSHA256, RuntimeNamespace: c.RuntimeNamespace, Outcome: "not_created", JournalSHA256: runtimeHash("")}
+			bad := done
+			bad.GitFilterCarrierCleanup = nil
+			before := diagnosticsBusinessSnapshot(t, db)
+			if _, e = db.CommitHostEvent(ctx, bad); e == nil || diagnosticsBusinessSnapshot(t, db) != before {
+				t.Fatalf("missing carrier receipt changed state: %v", e)
+			}
+		}
 		if v := g.ValidationTool; v != nil {
 			done.ValidationToolCleanup = &contract.ValidationToolCleanup{Version: 1, ReservationID: v.ReservationID, ScopeSHA256: v.ScopeSHA256, ToolSHA256: v.ToolSHA256, JournalSHA256: runtimeHash("synthetic validation cleanup"), RemovedBytes: 0}
 		}
@@ -183,4 +214,8 @@ func TestFilterTargetReviewGrantAndProviderExit(t *testing.T) {
 	for _, outcome := range []string{"result", "nil-provider-exit"} {
 		t.Run(outcome, func(t *testing.T) { filterTargetGrantSettlement(t, outcome, true) })
 	}
+}
+
+func TestFilterIntegrationPublicGrantAndSettlement(t *testing.T) {
+	filterTargetGrantSettlement(t, "result", true, true)
 }

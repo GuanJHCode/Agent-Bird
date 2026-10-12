@@ -17,11 +17,16 @@ func relevantAttemptDecisions(ctx context.Context, tx *sql.Tx, task string) ([]a
 	if err != nil {
 		return nil, err
 	}
-	// Only the admitted target-review stage adds a fifth predecessor. Keep
-	// the existing bound for every legacy and non-filter action.
+	// Only the admitted filter actions extend the bounded predecessor chain.
+	// Keep the existing bound for every legacy and non-filter action.
 	maximum := 4
-	if p, decodeErr := adapter.DecodeInvocationPayload([]byte(start.payload)); decodeErr == nil && adapter.IsFilterTargetReview(p) {
-		maximum = 5
+	if p, decodeErr := adapter.DecodeInvocationPayload([]byte(start.payload)); decodeErr == nil {
+		if adapter.IsFilterTargetReview(p) {
+			maximum = 5
+		}
+		if adapter.IsFilterIntegrate(p) {
+			maximum = 6
+		}
 	}
 	root, seen := start, map[string]bool{}
 	for {

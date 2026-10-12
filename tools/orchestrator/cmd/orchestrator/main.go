@@ -1170,7 +1170,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand, hostS
 			if payload.Provider != "" || payload.Profile != nil || payload.ProviderLock != nil || payload.BinaryPath != "" || len(payload.Args) != 0 || len(payload.ExtraArgs) != 0 {
 				return nil, codeError("candidate_action_invalid")
 			}
-			if adapter.IsFilterTargetPreflight(payload) {
+			if adapter.IsFilterTargetPreflight(payload) || adapter.IsFilterIntegrate(payload) {
 				return localInvocation{dir: payload.Directory, action: action}, nil
 			}
 			if action.Operation != "validate" && action.Operation != "integrate" {

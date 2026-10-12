@@ -51,7 +51,7 @@ func admitFilterLaunch(g contract.LaunchCommand) (adapter.InvocationPayload, err
 		if g.Input != nil || g.DependencyInputs != nil || g.ValidationTool != nil {
 			return p, bad
 		}
-	} else if g.Input == nil || g.Input.Event.Artifact == nil || g.Input.Event.Artifact.HostArtifact == nil || g.DependencyInputs == nil || g.DependencyInputs.Version != 1 || len(g.DependencyInputs.Inputs) != 1 || g.Input.Event.TaskID != p.CandidateAction.SourceTask {
+	} else if g.Input == nil || g.Input.Event.Artifact == nil || g.Input.Event.Artifact.HostArtifact == nil || g.DependencyInputs == nil || g.DependencyInputs.Version != 1 || len(g.DependencyInputs.Inputs) != filterDependencyCount(p) || g.Input.Event.TaskID != p.CandidateAction.SourceTask {
 		return p, bad
 	}
 	if p.Kind != "provider" {
@@ -73,7 +73,7 @@ func freezeFilterInvocation(inv contract.InvocationView, p adapter.InvocationPay
 		return out, bad
 	}
 	out.argv = append([]string(nil), inv.Args()...)
-	if !adapter.IsFilterTargetPreflight(p) && (len(out.argv) == 0 || out.argv[0] == "") {
+	if !isFilterLocalAction(p) && (len(out.argv) == 0 || out.argv[0] == "") {
 		return out, bad
 	}
 	var workspace *adapter.CandidateWorkspace
@@ -123,8 +123,18 @@ func freezeFilterInvocation(inv contract.InvocationView, p adapter.InvocationPay
 	for k, v := range inv.Environment() {
 		out.env[k] = v
 	}
-	if adapter.IsFilterTargetPreflight(p) && (len(out.argv) != 0 || len(out.stdin) != 0 || len(out.env) != 0 || out.pinPath != "" || out.pinSHA != "") {
+	if isFilterLocalAction(p) && (len(out.argv) != 0 || len(out.stdin) != 0 || len(out.env) != 0 || out.pinPath != "" || out.pinSHA != "") {
 		return out, bad
 	}
 	return out, nil
+}
+
+func isFilterLocalAction(p adapter.InvocationPayload) bool {
+	return adapter.IsFilterTargetPreflight(p) || adapter.IsFilterIntegrate(p)
+}
+func filterDependencyCount(p adapter.InvocationPayload) int {
+	if adapter.IsFilterIntegrate(p) {
+		return 2
+	}
+	return 1
 }

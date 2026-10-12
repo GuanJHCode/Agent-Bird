@@ -59,6 +59,9 @@ func newOwnerExecution(ctx context.Context, cfg ownerExecutionConfig) (*ownerExe
 	if cfg.host == nil || cfg.rpc == nil || cfg.invocation == nil || !filepath.IsAbs(cfg.reportSocket) || cfg.host.producerID != cfg.binding.Scope.ProducerID || len(cfg.privateKey) != ed25519.PrivateKeySize || !bytes.Equal(ed25519.NewKeyFromSeed(cfg.privateKey.Seed()), cfg.privateKey) || contract.VerifyOriginalOwnerBinding(cfg.binding, cfg.coordinatorKey) != nil || hex.EncodeToString(cfg.privateKey.Public().(ed25519.PublicKey)) != cfg.binding.Owner.PublicKey {
 		return nil, errors.New("owner_execution_identity_rejected")
 	}
+	if err := cfg.host.bindFilterHelper(cfg.binding); err != nil {
+		return nil, err
+	}
 	if err := cfg.host.BindContinuationOwner(cfg.binding.Scope.OriginalOriginContextID); err != nil {
 		return nil, err
 	}

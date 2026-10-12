@@ -33,6 +33,10 @@ type filterRuntime struct {
 	activeMS                                    int64
 	journal                                     filterHostJournal
 	source                                      *gitops.FilterGitContext
+	spool                                       *events.Spool
+	carrier                                     *gitfilter.CarrierExecution
+	carrierAttempted                            bool
+	carrierCleanup                              *contract.GitFilterCarrierCleanup
 }
 
 type filterHostJournal interface {
@@ -121,6 +125,7 @@ func (f *filterRuntime) open(ctx context.Context, sp *events.Spool) error {
 	}
 	err := f.freshJournal(filepath.Dir(filepath.Dir(sp.Directory())))
 	f.opened = true
+	f.spool = sp
 	if err != nil {
 		f.invalid = true
 		return err
@@ -131,6 +136,9 @@ func (f *filterRuntime) open(ctx context.Context, sp *events.Spool) error {
 
 func (f *filterRuntime) close() error {
 	var err error
+	if f.carrier != nil {
+		err = errors.Join(err, f.carrier.Close())
+	}
 	if f.source != nil {
 		err = errors.Join(err, f.source.Close())
 	}
@@ -218,6 +226,10 @@ func (f *filterRuntime) settle() (int64, *contract.GitFilterCleanup, error) {
 	}
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), gracefulStopWindow)
 	defer cancel()
+	if err := f.settleCarrier(cleanupCtx); err != nil {
+		f.invalid = true
+		return 0, nil, errors.Join(unknown, err)
+	}
 	receipt, err := f.broker.Cleanup(cleanupCtx)
 	if err != nil || receipt == nil || receipt.Validate() != nil {
 		f.invalid = true

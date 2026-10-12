@@ -14,7 +14,7 @@ func filterTargetTask(ctx context.Context, tx *sql.Tx, task string) (bool, error
 		return false, err
 	}
 	p, err := adapter.DecodeInvocationPayload(raw)
-	return err == nil && adapter.IsFilterTargetPreflight(p), nil
+	return err == nil && (adapter.IsFilterTargetPreflight(p) || adapter.IsFilterIntegrate(p)), nil
 }
 
 // Only this persisted action can report success without a Provider process.

@@ -30,7 +30,8 @@ func TestFilterReviewNativeHostAcceptedValidator(t *testing.T) {
 // filterReviewNativeChain keeps the producer, validator, and readonly review
 // acceptance chain identical for the optional target observation fixture.
 func filterReviewNativeChain(t *testing.T, includeTarget bool, targetReview ...bool) {
-	includeApproval := len(targetReview) == 1 && targetReview[0]
+	includeApproval := len(targetReview) >= 1 && targetReview[0]
+	includeIntegration := len(targetReview) == 2 && targetReview[1]
 	root, guard := filterPipelineRoot(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
@@ -97,6 +98,14 @@ func filterReviewNativeChain(t *testing.T, includeTarget bool, targetReview ...b
 		}
 		tasks = append(tasks, store.TaskSpec{ID: "target-review", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 900000, Dependencies: []string{"preflight"}, AdapterPayload: raw})
 	}
+
+	if includeIntegration {
+		integrate := targetPayload
+		integrate.Directory = filepath.Join(root, "integrate")
+		integrate.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: "filter_integrate", SourceTask: "target-review", DependencyInputVersion: 1, AutoDirectory: true, Target: targetPayload.CandidateAction.Target}
+		raw, _ := json.Marshal(integrate)
+		tasks = append(tasks, store.TaskSpec{ID: "integrate", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 900000, Dependencies: []string{"preflight", "target-review"}, AdapterPayload: raw})
+	}
 	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "filter-native-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "fixture"}, Host: store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "fixture", Executable: "/private/controlled-host"}, Tasks: tasks})
 	if err != nil {
 		t.Fatal(err)
@@ -110,6 +119,9 @@ func filterReviewNativeChain(t *testing.T, includeTarget bool, targetReview ...b
 		t.Fatal(err)
 	}
 	h.producerID = hostID
+	if includeIntegration {
+		filterIntegrationBindNativeHelper(t, ctx, h, root, guard)
+	}
 	sourceGrant, err := db.ClaimReady(ctx, hostID, 1, 2)
 	if err != nil || sourceGrant.TaskID != "edit" || sourceGrant.GitFilter == nil {
 		t.Fatalf("source grant=%+v err=%v", sourceGrant, err)
@@ -261,6 +273,9 @@ func filterReviewNativeChain(t *testing.T, includeTarget bool, targetReview ...b
 		if includeApproval {
 			filterTargetReviewNativeAcceptedPreflight(t, ctx, db, h, hostID, root, repo, guard, preflightGrant, preflight, preflightEvents)
 		}
+	}
+	if includeIntegration {
+		filterIntegrationNativeFinal(t, ctx, db, h, hostID, root, repo, guard)
 	}
 	t.Logf("controlled_filtered_readonly_review original_wait_tree=true native_structured=true actual_rendered_read=true tracked_write_permission_denied=true distinct_filter_grants=true zero_target=true root=%s", root)
 
