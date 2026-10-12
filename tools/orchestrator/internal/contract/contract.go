@@ -8,6 +8,7 @@ import (
 )
 
 type Event struct {
+	CandidateResource         json.RawMessage            `json:"candidate_resource,omitempty"`
 	TemporaryWorkspaceCleanup *TemporaryWorkspaceCleanup `json:"temporary_workspace_cleanup,omitempty"`
 	ValidationToolCleanup     *ValidationToolCleanup     `json:"validation_tool_cleanup,omitempty"`
 	GitFilterCarrierCleanup   *GitFilterCarrierCleanup   `json:"git_filter_carrier_cleanup,omitempty"`
