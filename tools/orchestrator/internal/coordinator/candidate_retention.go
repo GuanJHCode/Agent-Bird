@@ -3,9 +3,13 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/candidatemaintenance"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+	"os"
+	"path/filepath"
 )
 
 type CandidateRetentionRequest[T any] struct {
@@ -21,8 +25,47 @@ func candidateRetentionKind(k ipc.Kind) bool {
 	}
 	return false
 }
+
+func (s *Server) applyCandidateRetention(ctx context.Context, controller, token string, plan store.CandidateRetentionPlan) (store.CandidateRetentionApplyResult, error) {
+	exe, e := os.Executable()
+	if e != nil {
+		return store.CandidateRetentionApplyResult{}, e
+	}
+	exe, e = filepath.EvalSymlinks(exe)
+	if e != nil {
+		return store.CandidateRetentionApplyResult{}, e
+	}
+	sha, e := process.ExecutableDigest(ctx, exe)
+	if e != nil {
+		return store.CandidateRetentionApplyResult{}, e
+	}
+	out := store.CandidateRetentionApplyResult{Version: 1, RunID: plan.RunID, RequestID: plan.RequestID}
+	for _, i := range plan.Items {
+		state, e := s.db.PrepareCandidateMaintenance(ctx, controller, token, plan, i.ResourceID, exe, sha)
+		if e != nil {
+			return out, e
+		}
+		if state.State == "prepared" {
+			if _, e = candidatemaintenance.Run(ctx, s.db, controller, token, state.Grant); e != nil {
+				return out, e
+			}
+		}
+		out.Results = append(out.Results, state)
+	}
+	return out, nil
+}
 func (s *Server) candidateRetentionControl(ctx context.Context, k ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch k {
+	case ipc.KindCandidateRetentionApply:
+		var r CandidateRetentionRequest[store.CandidateRetentionApplyRequest]
+		if contract.DecodeBridgeStrict(raw, &r) != nil {
+			return nil, store.CodeError("candidate_retention_request_invalid")
+		}
+		x, e := s.applyCandidateRetention(ctx, r.ControllerThread, r.ControlToken, r.Request.Plan)
+		if e != nil {
+			return nil, e
+		}
+		return json.Marshal(x)
 	case ipc.KindCandidateRetentionResolve:
 		var r CandidateRetentionRequest[store.CandidateRetentionResolutionRequest]
 		if contract.DecodeBridgeStrict(raw, &r) != nil {
