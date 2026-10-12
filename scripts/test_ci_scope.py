@@ -12,9 +12,6 @@ SCRIPT = ROOT / "scripts" / "ci-scope.py"
 
 def selector(*args, cwd=ROOT):
     env = os.environ.copy()
-    go_dir = pathlib.Path("/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin")
-    if go_dir.is_dir():
-        env["PATH"] = str(go_dir) + os.pathsep + env.get("PATH", "")
     return subprocess.run([sys.executable, str(SCRIPT), *args], cwd=cwd, text=True, capture_output=True, env=env)
 
 
@@ -77,6 +74,35 @@ class ScopeSelectionTests(unittest.TestCase):
             result = selector("go-packages", "--module", str(root), "--paths-file", str(paths))
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(set(result.stdout.splitlines()), {"./base", "./user"})
+
+    def test_go_packages_include_test_only_reverse_dependency(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "go.mod").write_text("module example.test/ci\ngo 1.23\n", encoding="utf-8")
+            (root / "base").mkdir()
+            (root / "base/base.go").write_text("package base\nfunc Value() int { return 1 }\n", encoding="utf-8")
+            (root / "testonly").mkdir()
+            (root / "testonly/testonly_test.go").write_text('package testonly\nimport ("testing"; "example.test/ci/base")\nfunc TestValue(t *testing.T) { _ = base.Value() }\n', encoding="utf-8")
+            paths = root / "paths.json"
+            paths.write_text(json.dumps(["base/base.go"]), encoding="utf-8")
+            result = selector("go-packages", "--module", str(root), "--paths-file", str(paths))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(set(result.stdout.splitlines()), {"./base", "./testonly"})
+
+    def test_workflow_uses_current_go_module_and_portable_package_array(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn("go-packages --module . --base", workflow)
+        self.assertIn("while IFS= read -r package", workflow)
+        self.assertNotIn("mapfile", workflow)
+
+    def test_workflow_runs_macos_python_suites_and_sets_up_go(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn("steps.scope.outputs.go == 'true' || steps.scope.outputs.python == 'true' || steps.scope.outputs.package == 'true'", workflow)
+        self.assertIn("tasks/macos-1.0-20261012/tests", workflow)
+        self.assertIn("tasks/macos-1.0-20261012/scripts", workflow)
+
+    def test_test_runner_has_no_machine_specific_go_path(self):
+        self.assertNotIn("/" + "Users/", pathlib.Path(__file__).read_text(encoding="utf-8"))
 
     def test_go_packages_accepts_repository_relative_paths(self):
         with tempfile.TemporaryDirectory() as directory:

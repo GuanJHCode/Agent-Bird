@@ -131,9 +131,15 @@ def go_packages(module: pathlib.Path, entries: list[str]) -> list[str]:
                 touched.add(package["ImportPath"])
     if not touched:
         raise ValueError("go_scope_unmapped")
+    by_import = {package.get("ImportPath", ""): package for package in values}
     selected = []
     for package in values:
         imports = set(package.get("Deps", [])) | {package.get("ImportPath", "")}
+        for test_import in package.get("TestImports", []) + package.get("XTestImports", []):
+            imports.add(test_import)
+            imported = by_import.get(test_import)
+            if imported is not None:
+                imports.update(imported.get("Deps", []))
         if imports & touched:
             directory = pathlib.Path(package["Dir"]).resolve()
             relative = directory.relative_to(module).as_posix()
