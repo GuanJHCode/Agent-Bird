@@ -2,7 +2,7 @@
 set -eu
 umask 077
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
-version=${1:-1.0.0-rc.3}
+version=${1:-1.0.0-rc.4}
 output=${2:-"$repo_root/dist/release"}
 go_tool=${GO:-$(command -v go)}
 python=$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.executable).resolve(strict=True))')

@@ -2,7 +2,7 @@
 
 Agent Bird 让 **Codex、Claude、AGY、Grok 平等地调用彼此**。任意 Provider 都可以发起任务，通过同一个 `agent_bird_call` 插件工具启动目标 Provider，执行任务并取得结果。没有固定主脑，也不要求先运行 Codex。
 
-已发布版本：**1.0.0-rc.2**；本分支为 **1.0.0-rc.3 macOS Apple Silicon 候选版**，尚未更新 GitHub Release。每次串行执行一个子任务，不递归委派。
+已发布版本：**1.0.0-rc.2**；本分支为 **1.0.0-rc.4 macOS Apple Silicon 候选版**，尚未更新 GitHub Release。每次串行执行一个子任务，不递归委派。
 
 ## 安装
 
@@ -29,6 +29,21 @@ python3 "$HOME/.bird1/adapters/agent-bird.py" check --runtime "$HOME/.bird1"
 安装器校验包文件和所选 CLI 的版本、摘要、能力，仅为支持的目标生成私有 pin。rc.3 在创建 runtime 前校验全部参数并探测所选目标，仍可仅配置一个目标；安装时再次核对摘要。缺少 pin 的目标明确失败。rc.3 的 `check` 显示当前 pin 是否变化、平台构建身份及有上限的磁盘/残留目录统计；这些只读信息不授权自动清理，也不验证账号资格。发起方 CLI 必须在 PATH 中。
 
 安装不下载 Provider、不修改真实账号、全局配置或已有插件。启动器保存在 runtime/adapters，安装成功后无需保留解压目录。
+
+## 普通 Codex 新会话安装（rc.4）
+
+先从本分支构建 rc.4，解压并用上面的 `setup` 安装到全新 runtime（例如 `$HOME/.bird1-rc4`），配置需要调用的目标。然后在解压目录执行：
+
+```sh
+python3 codex-local-plugin.py build --runtime "$HOME/.bird1-rc4" \
+  --out "$HOME/.bird1-rc4/codex-marketplace"
+codex plugin marketplace add "$HOME/.bird1-rc4/codex-marketplace"
+codex plugin add agent-bird-local@agent-bird-local
+```
+
+新开普通 Codex 会话后说：“使用 Agent Bird 调用 Claude，读取当前项目 README.md 并返回摘要。”插件技能会实际执行新 runtime 的 `call`；无需手工转交或另外启动 controller。此入口通过原生 Codex 进程祖先和当前 thread 校验身份，目标 pin 和 runtime 摘要均固定；未配置的目标、变化的 pin 或未知身份会明确失败。安装只登记 Agent Bird 插件，不修改账号、模型或权限设置。
+
+`call --compact` 复用 4KiB 结果视图，完整结果仍保存在原任务 handle。普通会话入口使用技能和 CLI，不宣称它拥有 MCP 连接内的详情续页；截断会明确报告。升级不迁移旧任务，已有任务仍使用其原始 runtime/handle。若已有同名 marketplace，先核对来源再替换注册；保留旧 runtime 和有未完成任务的版本。
 
 ## 使用
 
@@ -89,7 +104,7 @@ Codex 通过 app-server 和受约束文件工具执行，不修改 Codex 源码�
 
 暂不支持自动合并、递归或并发子任务、自动重试、失主自动恢复、Codex 续接、通用 filtered compose/rework/retry/continuation，以及完整 LFS/hooks/signing。超时不是完成：已有 Claude 编码尝试因超时结束，未计入成功编码验收。
 
-这是候选版本，AGY 账号及其双向真实验收尚缺；不宣称四方正式 1.0 全部验收完成。已由 Agent Bird controller 启动的会话可以继续使用本连接的 MCP；任意外部既有会话的热挂接需要新的身份绑定协议，本版未开放。
+这是候选版本，AGY 账号及其双向真实验收尚缺；不宣称四方正式 1.0 全部验收完成。已由 Agent Bird controller 启动的会话可以继续使用本连接的 MCP；rc.4 另提供普通原生 Codex 会话的技能/CLI 入口，复用已有原生身份校验；任意外部会话的 MCP 热挂接仍未开放。
 
 ## rc.3 本轮验证
 
@@ -106,7 +121,7 @@ Codex 通过 app-server 和受约束文件工具执行，不修改 Codex 源码�
 需要 Go 1.26+、Python 3.10+，在 macOS arm64 的干净 checkout 执行：
 
 ```sh
-./scripts/build-release.sh 1.0.0-rc.3 "$PWD/dist/release"
+./scripts/build-release.sh 1.0.0-rc.4 "$PWD/dist/release"
 ```
 
 可用 `GO=/absolute/path/to/go` 指定 Go 工具。输出包括安装包、SHA256SUMS、README、许可证及平台能力元数据。构建会记录实际源码 SHA；不会自动发布 GitHub Release。

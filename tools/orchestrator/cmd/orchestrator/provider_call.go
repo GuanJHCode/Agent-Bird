@@ -9,6 +9,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"os/signal"
 	"syscall"
 	"time"
 
@@ -99,6 +100,7 @@ func normalizeProviderCall(r *providerCallRequest) error {
 
 func providerCallEntry(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("call", flag.ContinueOnError)
+	compact := fs.Bool("compact", false, "bounded model-facing result excerpt")
 	fs.SetOutput(io.Discard)
 	request := fs.String("request", "", "private version 1 call request")
 	stateArg := fs.String("state-dir", "", "private runtime state")
@@ -109,10 +111,15 @@ func providerCallEntry(ctx context.Context, args []string, out io.Writer) error 
 	if err := readPrivateJSON(*request, &req); err != nil {
 		return err
 	}
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 	result, err := executeProviderCall(ctx, req, *stateArg)
 	if err != nil {
 		result.Status = "failed"
 		result.FailureReason = errorCode(err)
+	}
+	if *compact {
+		return json.NewEncoder(out).Encode(compactProviderResult(result))
 	}
 	return json.NewEncoder(out).Encode(result)
 }

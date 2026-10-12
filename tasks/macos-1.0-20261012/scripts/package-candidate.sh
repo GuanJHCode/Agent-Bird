@@ -7,7 +7,7 @@ umask 077
 go_tool=$1
 python=$2
 out=$3
-version=${4:-1.0.0-rc.3}
+version=${4:-1.0.0-rc.4}
 case "$go_tool:$python:$out" in /*:/*:/*) ;; *) echo absolute_paths_required >&2; exit 2 ;; esac
 [ ! -e "$out" ] && [ ! -L "$out" ] || { echo output_exists >&2; exit 2; }
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd -P)
@@ -17,6 +17,7 @@ sh "$root/tasks/g1-g4-delivery/scripts/package-plugin.sh" --binary "$out/agent-b
 cp "$root/tasks/macos-1.0-20261012/scripts/agent-bird.py" "$out/package/agent-bird.py"
 cp "$root/tasks/macos-1.0-20261012/scripts/agent_bird_install.py" "$out/package/agent_bird_install.py"
 cp "$root/tasks/macos-1.0-20261012/scripts/grok-plugin-acp.py" "$out/package/grok-plugin-acp.py"
+cp "$root/tasks/macos-1.0-20261012/scripts/codex-local-plugin.py" "$out/package/codex-local-plugin.py"
 cp "$root/README.md" "$out/package/README.md"
 cp "$out/platform-capabilities.json" "$out/package/platform-capabilities.json"
 cp "$root/LICENSE" "$root/THIRD_PARTY_NOTICES.md" "$out/package/"
