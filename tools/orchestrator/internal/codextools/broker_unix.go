@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -114,6 +115,9 @@ func (b *Broker) Read(ctx context.Context, path string) ([]byte, string, error) 
 	if _, err = safeRegular(f); err != nil {
 		return nil, "", err
 	}
+	if err = sameAt(parent, parts[len(parts)-1], f); err != nil {
+		return nil, "", errors.New("codextools_file_changed")
+	}
 	return data, digest(data), nil
 }
 
@@ -145,7 +149,14 @@ func (b *Broker) List(ctx context.Context, path string) ([]string, error) {
 	if err = b.checkBinding(parts, dir); err != nil {
 		return nil, err
 	}
-	return names, nil
+	filtered := names[:0]
+	for _, name := range names {
+		if !protected(name) {
+			filtered = append(filtered, name)
+		}
+	}
+	sort.Strings(filtered)
+	return filtered, nil
 }
 
 func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content []byte) (WriteReceipt, error) {
@@ -165,6 +176,13 @@ func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content
 		return WriteReceipt{}, err
 	}
 	if expectedSHA256 != "" && !validSHA(expectedSHA256) {
+		return WriteReceipt{}, ErrConflict
+	}
+	// Options has no capability that proves a caller holds an exclusive
+	// workspace write lease. A replacement would require an overwrite rename,
+	// which cannot provide a compare-and-swap guarantee against another writer.
+	// Keep this path fail-closed until such a lease is part of the contract.
+	if expectedSHA256 != "" {
 		return WriteReceipt{}, ErrConflict
 	}
 	if int64(len(content)) > maxFileBytes {
@@ -187,16 +205,7 @@ func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content
 	}
 	defer parent.Close()
 	name := parts[len(parts)-1]
-	prior, exists, err := existing(parent, name)
-	if err != nil {
-		return WriteReceipt{}, err
-	}
-	if exists {
-		defer prior.file.Close()
-		if expectedSHA256 == "" || prior.hash != expectedSHA256 {
-			return WriteReceipt{}, ErrConflict
-		}
-	} else if expectedSHA256 != "" {
+	if err = requireAbsent(parent, name); err != nil {
 		return WriteReceipt{}, ErrConflict
 	}
 	stage, stageName, stageID, err := stageFile(parent)
@@ -224,11 +233,21 @@ func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content
 	if err = b.checkBinding(parts[:len(parts)-1], parent); err != nil {
 		return WriteReceipt{}, err
 	}
-	if err = confirmCurrent(parent, name, prior, exists); err != nil {
+	if err = requireAbsent(parent, name); err != nil {
 		return WriteReceipt{}, err
 	}
-	if err = unix.Renameat(int(parent.Fd()), stageName, int(parent.Fd()), name); err != nil {
+	if err = ctx.Err(); err != nil {
 		return WriteReceipt{}, err
+	}
+	if err = unix.Linkat(int(parent.Fd()), stageName, int(parent.Fd()), name, 0); err != nil {
+		if errors.Is(err, unix.EEXIST) {
+			return WriteReceipt{}, ErrConflict
+		}
+		return WriteReceipt{}, err
+	}
+	if err = unlinkStage(parent, stageName, stageID); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, ErrUnknown
 	}
 	published = true
 	if err = parent.Sync(); err != nil {
@@ -274,11 +293,14 @@ func (b *Broker) openDir(parts []string) (*os.File, error) {
 	if err := b.checkRoot(); err != nil {
 		return nil, err
 	}
-	fd, err := unix.Dup(int(b.root.Fd()))
+	current, err := openDirectory(b.root, ".")
 	if err != nil {
 		return nil, err
 	}
-	current := os.NewFile(uintptr(fd), b.rootPath)
+	if err = sameAt(b.root, ".", current); err != nil {
+		_ = current.Close()
+		return nil, errors.New("codextools_root_changed")
+	}
 	for _, part := range parts {
 		next, err := openDirectory(current, part)
 		if err != nil {
@@ -315,46 +337,9 @@ func (b *Broker) checkBinding(parts []string, held *os.File) error {
 	return nil
 }
 
-type existingFile struct {
-	file *os.File
-	id   identity
-	hash string
-}
-
-func existing(parent *os.File, name string) (existingFile, bool, error) {
-	f, err := openFile(parent, name, unix.O_RDONLY|unix.O_NONBLOCK)
-	if errors.Is(err, unix.ENOENT) {
-		return existingFile{}, false, nil
-	}
-	if err != nil {
-		return existingFile{}, false, errors.New("codextools_file_invalid")
-	}
-	id, err := safeRegular(f)
-	if err != nil {
-		f.Close()
-		return existingFile{}, false, err
-	}
-	data, err := io.ReadAll(io.LimitReader(f, maxFileBytes+1))
-	if err != nil || int64(len(data)) > maxFileBytes {
-		f.Close()
-		return existingFile{}, false, errors.New("codextools_file_invalid")
-	}
-	if _, err = f.Seek(0, io.SeekStart); err != nil {
-		f.Close()
-		return existingFile{}, false, err
-	}
-	return existingFile{file: f, id: id, hash: digest(data)}, true, nil
-}
-
-func confirmCurrent(parent *os.File, name string, prior existingFile, exists bool) error {
+func requireAbsent(parent *os.File, name string) error {
 	var named unix.Stat_t
 	err := unix.Fstatat(int(parent.Fd()), name, &named, unix.AT_SYMLINK_NOFOLLOW)
-	if exists {
-		if err != nil || !regularStat(named) || (identity{dev: uint64(named.Dev), ino: uint64(named.Ino)}) != prior.id {
-			return ErrConflict
-		}
-		return nil
-	}
 	if errors.Is(err, unix.ENOENT) {
 		return nil
 	}
@@ -410,6 +395,14 @@ func removeStageIfSame(parent *os.File, name string, want identity) {
 	}
 }
 
+func unlinkStage(parent *os.File, name string, want identity) error {
+	var named unix.Stat_t
+	if err := unix.Fstatat(int(parent.Fd()), name, &named, unix.AT_SYMLINK_NOFOLLOW); err != nil || (identity{dev: uint64(named.Dev), ino: uint64(named.Ino)}) != want {
+		return errors.New("codextools_stage_changed")
+	}
+	return unix.Unlinkat(int(parent.Fd()), name, 0)
+}
+
 func filePath(path string) ([]string, error)      { return splitPath(path, false) }
 func directoryPath(path string) ([]string, error) { return splitPath(path, true) }
 
@@ -422,7 +415,7 @@ func splitPath(path string, allowEmpty bool) ([]string, error) {
 	}
 	parts := strings.Split(path, "/")
 	for _, part := range parts {
-		if part == "" || part == "." || part == ".." || part == ".git" || part == ".codex" {
+		if part == "" || part == "." || part == ".." || protected(part) {
 			return nil, errors.New("codextools_path_invalid")
 		}
 	}
@@ -478,14 +471,17 @@ func owned(info os.FileInfo) bool {
 	return ok && st.Uid == uint32(os.Geteuid())
 }
 func fileIdentity(info os.FileInfo) (identity, bool) {
+	if info == nil {
+		return identity{}, false
+	}
 	st, ok := info.Sys().(*syscall.Stat_t)
 	return identity{uint64(st.Dev), uint64(st.Ino)}, ok
-}
-func regularStat(st unix.Stat_t) bool {
-	return st.Mode&unix.S_IFMT == unix.S_IFREG && st.Nlink == 1 && st.Uid == uint32(os.Geteuid()) && st.Size >= 0 && st.Size <= maxFileBytes
 }
 func digest(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
 func validSHA(value string) bool {
 	raw, err := hex.DecodeString(value)
 	return err == nil && len(raw) == sha256.Size && strings.ToLower(value) == value
+}
+func protected(name string) bool {
+	return strings.EqualFold(name, ".git") || strings.EqualFold(name, ".codex")
 }

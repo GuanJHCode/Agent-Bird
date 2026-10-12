@@ -35,7 +35,7 @@ func writableOptions() Options {
 	return Options{Writable: true, MaxWrittenBytes: 64, BeforeWrite: func(context.Context, WriteIntent) error { return nil }, AfterWrite: func(context.Context, WriteReceipt) error { return nil }}
 }
 
-func TestBrokerReadCreateUpdateAndCAS(t *testing.T) {
+func TestBrokerReadCreateAndFailClosedReplacement(t *testing.T) {
 	b, _ := testBroker(t, writableOptions())
 	first := []byte("first")
 	created, err := b.Write(context.Background(), "note.txt", "", first)
@@ -47,12 +47,8 @@ func TestBrokerReadCreateUpdateAndCAS(t *testing.T) {
 	if err != nil || string(read) != "first" || got != created.SHA256 {
 		t.Fatalf("read=%q sha=%q err=%v", read, got, err)
 	}
-	updated, err := b.Write(context.Background(), "note.txt", created.SHA256, []byte("second"))
-	if err != nil || updated.SHA256 != digest([]byte("second")) {
-		t.Fatalf("update=%+v err=%v", updated, err)
-	}
-	if _, err = b.Write(context.Background(), "note.txt", created.SHA256, []byte("third")); !errors.Is(err, ErrConflict) {
-		t.Fatalf("stale CAS err=%v", err)
+	if _, err = b.Write(context.Background(), "note.txt", created.SHA256, []byte("second")); !errors.Is(err, ErrConflict) {
+		t.Fatalf("replacement without exclusive lease err=%v", err)
 	}
 	if _, err = b.Write(context.Background(), "note.txt", "", []byte("third")); !errors.Is(err, ErrConflict) {
 		t.Fatalf("create-only overwrite err=%v", err)
@@ -106,6 +102,24 @@ func TestBrokerListIsBoundedAndAnchored(t *testing.T) {
 	}
 	if _, err = b.List(context.Background(), "listed"); err == nil {
 		t.Fatal("unbounded list accepted")
+	}
+	if err := os.Mkdir(filepath.Join(root, ".GIT"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = b.List(context.Background(), ".GIT"); err == nil {
+		t.Fatal("case-insensitive protected path accepted")
+	}
+	rootNames, err := b.List(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range rootNames {
+		if name == ".GIT" {
+			t.Fatal("protected entry leaked")
+		}
+	}
+	if _, err = b.List(context.Background(), ""); err != nil {
+		t.Fatal(err)
 	}
 }
 
