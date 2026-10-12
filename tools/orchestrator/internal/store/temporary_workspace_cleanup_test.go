@@ -46,7 +46,7 @@ func TestTemporaryWorkspaceCleanupAdmission(t *testing.T) {
 		t.Fatal("cleanup preceded durable business outcome")
 	}
 	publishTemporaryCleanupBusiness(t, db, g)
-	for _, mode := range []string{"removed_without_pending", "wrong_path", "wrong_receipt_digest", "question_fields", "manual_directory", "stale_revision", "unknown_status", "unsettled_budget", "failed_exit"} {
+	for _, mode := range []string{"removed_without_pending", "wrong_path", "wrong_receipt_digest", "question_fields", "manual_directory", "unknown_status", "unsettled_budget", "failed_exit"} {
 		t.Run(mode, func(t *testing.T) {
 			e := pending
 			c := *pending.TemporaryWorkspaceCleanup
@@ -79,7 +79,7 @@ func TestTemporaryWorkspaceCleanupAdmission(t *testing.T) {
 			}
 			e.PayloadHash, _ = contract.TemporaryWorkspaceCleanupDigest(c)
 			if err = contract.ValidateTemporaryWorkspaceCleanupEvent(e); err == nil {
-				err = validateTemporaryWorkspaceCleanup(ctx, tx, e, mode == "stale_revision")
+				err = validateTemporaryWorkspaceCleanup(ctx, tx, e, false)
 			}
 			if err == nil {
 				t.Fatal("invalid cleanup accepted", mode)
@@ -163,5 +163,29 @@ func TestTemporaryWorkspaceCleanupProjectionAndReplay(t *testing.T) {
 	raw, _ := json.Marshal(TaskSnapshot{TaskID: "old"})
 	if strings.Contains(string(raw), "temporary_workspace_cleanup") {
 		t.Fatal(string(raw))
+	}
+}
+
+func TestTemporaryWorkspaceCleanupSurvivesOwnerRework(t *testing.T) {
+	db, g, _, pending := temporaryCleanupFixture(t)
+	ctx := context.Background()
+	publishTemporaryCleanupBusiness(t, db, g)
+	if _, err := db.sql.Exec(`UPDATE task_runtime SET work_revision=work_revision+1,adapter_payload='{"provider":"fake"}'; UPDATE tasks SET status='ready'; UPDATE attempts SET status='failed'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.CommitHostEvent(ctx, pending); err != nil {
+		t.Fatal("late observation blocked Host replay", err)
+	}
+	c := *pending.TemporaryWorkspaceCleanup
+	c.Code = "cleanup_pending"
+	pending.TemporaryWorkspaceCleanup = &c
+	pending.Sequence, pending.EventID = 4, "cleanup-pending-final"
+	pending.PayloadHash, _ = contract.TemporaryWorkspaceCleanupDigest(c)
+	if _, err := db.CommitHostEvent(ctx, pending); err != nil {
+		t.Fatal(err)
+	}
+	s, err := db.TaskSnapshot(ctx, g.TaskID)
+	if err != nil || s.Status != "ready" || s.WorkRevision != 2 || s.TemporaryWorkspaceCleanup == nil || s.TemporaryWorkspaceCleanup.Code != "cleanup_pending" {
+		t.Fatal("observation altered replacement business state", s, err)
 	}
 }

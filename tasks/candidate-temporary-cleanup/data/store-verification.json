@@ -1,7 +1,8 @@
 {
   "command": "TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -json -race -count=1 ./internal/store -run ^TestTemporaryWorkspaceCleanup",
-  "top_level": 2,
-  "subtests": 9,
+  "evidence": "store-race-2.jsonl",
+  "top_level": 3,
+  "subtests": 8,
   "failures": 0,
   "skips": 0,
   "exit": 0,
@@ -11,11 +12,11 @@
     "TestTemporaryWorkspaceCleanupAdmission/wrong_receipt_digest",
     "TestTemporaryWorkspaceCleanupAdmission/question_fields",
     "TestTemporaryWorkspaceCleanupAdmission/manual_directory",
-    "TestTemporaryWorkspaceCleanupAdmission/stale_revision",
     "TestTemporaryWorkspaceCleanupAdmission/unknown_status",
     "TestTemporaryWorkspaceCleanupAdmission/unsettled_budget",
     "TestTemporaryWorkspaceCleanupAdmission/failed_exit",
     "TestTemporaryWorkspaceCleanupAdmission",
-    "TestTemporaryWorkspaceCleanupProjectionAndReplay"
+    "TestTemporaryWorkspaceCleanupProjectionAndReplay",
+    "TestTemporaryWorkspaceCleanupSurvivesOwnerRework"
   ]
 }

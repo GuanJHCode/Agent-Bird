@@ -36,21 +36,28 @@ func validateTemporaryWorkspaceCleanup(ctx context.Context, tx *sql.Tx, e contra
 		}
 		return nil
 	}
-	if historical || c.State != "pending" || c.Code != "" {
+	if c.State != "pending" || c.Code != "" {
 		return invalid
 	}
-	var raw, segmentStatus, outcome, budgetStatus, attemptStatus, taskStatus string
-	if err := tx.QueryRowContext(ctx, `SELECT r.adapter_payload,s.status,s.outcome,b.status,a.status,t.status FROM segment_runtime s JOIN budget_runtime b ON b.id=s.reservation_id JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN task_runtime r ON r.task_id=t.id WHERE s.segment_id=?`, e.SegmentID).Scan(&raw, &segmentStatus, &outcome, &budgetStatus, &attemptStatus, &taskStatus); err != nil {
-		return err
+	if !historical {
+		var raw, segmentStatus, outcome, budgetStatus string
+		if err := tx.QueryRowContext(ctx, `SELECT r.adapter_payload,s.status,s.outcome,b.status FROM segment_runtime s JOIN budget_runtime b ON b.id=s.reservation_id JOIN attempts a ON a.id=s.attempt_id JOIN task_runtime r ON r.task_id=a.task_id WHERE s.segment_id=?`, e.SegmentID).Scan(&raw, &segmentStatus, &outcome, &budgetStatus); err != nil {
+			return err
+		}
+		p, err := adapter.DecodeInvocationPayload([]byte(raw))
+		if err != nil || p.CandidateAction == nil || p.CandidateAction.Version != 1 || !p.CandidateAction.AutoDirectory || p.GitFilter != nil || p.CandidateWorkspace != nil || p.CandidateAction.Operation != c.Operation || segmentStatus != "exited" || outcome != contract.EventResult || budgetStatus != "settled" {
+			return invalid
+		}
+		expected := p.Directory + ".attempt-" + runtimeHash(e.RunID + "\x00" + e.TaskID + "\x00" + e.AttemptID + "\x00" + e.SegmentID)[:24]
+		if c.Worktree != expected {
+			return invalid
+		}
 	}
-	p, err := adapter.DecodeInvocationPayload([]byte(raw))
-	if err != nil || p.CandidateAction == nil || p.CandidateAction.Version != 1 || !p.CandidateAction.AutoDirectory || p.GitFilter != nil || p.CandidateWorkspace != nil || p.CandidateAction.Operation != c.Operation || segmentStatus != "exited" || outcome != contract.EventResult || budgetStatus != "settled" || attemptStatus != "result_ready" || taskStatus != "result_ready" && taskStatus != "completed" {
-		return invalid
-	}
-	expected := p.Directory + ".attempt-" + runtimeHash(e.RunID + "\x00" + e.TaskID + "\x00" + e.AttemptID + "\x00" + e.SegmentID)[:24]
-	if c.Worktree != expected {
-		return invalid
-	}
+	// An offline Host can publish after an owner rework changed the adapter
+	// payload or attempt status. Preserve its observation against the original
+	// immutable Result/Exited below; never turn it into authority to delete a
+	// path or let it mutate the replacement attempt. Current payload is not an
+	// authoritative description of a historical launch.
 	// Require the original outcome followed by a successful exit, not merely
 	// mutable status columns. Bound each event to this exact assigned segment.
 	rows, err := tx.QueryContext(ctx, `SELECT body_json FROM runtime_events WHERE segment_id=? AND json_extract(body_json,'$.kind') IN ('result','exited','failed','unknown','stopped','question','launch_rejected') ORDER BY sequence LIMIT 3`, e.SegmentID)
@@ -65,7 +72,7 @@ func validateTemporaryWorkspaceCleanup(ctx context.Context, tx *sql.Tx, e contra
 		if err = rows.Scan(&body); err != nil {
 			return err
 		}
-		if len(body) > 65536 || contract.DecodeBridgeStrict(body, &observed) != nil || observed.Version != 1 || observed.ProducerID != e.ProducerID || observed.RunID != e.RunID || observed.TaskID != e.TaskID || observed.AttemptID != e.AttemptID || observed.SegmentID != e.SegmentID || observed.CommandID != e.CommandID || observed.WorkRevision != e.WorkRevision || observed.Sequence >= e.Sequence || observed.ExecutionEpoch == 0 || observed.Failure != nil || observed.DiagnosticsFailure != nil || observed.StopReason != "" {
+		if len(body) > 65536 || contract.DecodeBridgeStrict(body, &observed) != nil || observed.Version != 1 || observed.ProducerID != e.ProducerID || observed.RunID != e.RunID || observed.TaskID != e.TaskID || observed.AttemptID != e.AttemptID || observed.SegmentID != e.SegmentID || observed.CommandID != e.CommandID || observed.WorkRevision != e.WorkRevision || observed.Sequence >= e.Sequence || observed.ExecutionEpoch == 0 || observed.Failure != nil || observed.StopReason != "" {
 			return invalid
 		}
 		if n == 0 && observed.Kind != contract.EventResult || n == 1 && (observed.Kind != contract.EventExited || observed.ExitCode == nil || *observed.ExitCode != 0) || n > 1 {
