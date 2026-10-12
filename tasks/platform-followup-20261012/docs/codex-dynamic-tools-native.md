@@ -22,5 +22,6 @@ tasks/g0-macos/data/go/bin/go test -count=1 \
 结果：1 个命名测试通过，2.01 秒；原始 Handle 已启动、原始 Wait 与 tree
 receipt 均成功、管道由 \`codexsession.Run\` 关闭并加入，未调用 Stop。受控
 metadata 见同任务 \`data/codex-host-tools-native-20261012/\`（其包含 JSON
-测试记录及 source/config/auth/workspace/control hash，不含账号或环境内容）。
+测试记录及**启动前** source/config/auth、空 workspace manifest 和控制配置
+hash；provider pin 另有启动前后 hash，不含账号或环境内容）。
 

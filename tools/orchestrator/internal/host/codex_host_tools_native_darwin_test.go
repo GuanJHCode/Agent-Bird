@@ -143,6 +143,19 @@ func TestManagedCodexHostToolsNativeHandshake(t *testing.T) {
 	if startErr != nil || handle == nil || stream == nil {
 		t.Fatal("original StartDuplex did not retain native handle and pipe", startErr)
 	}
+	naturalExit := false
+	defer func() {
+		_ = stream.Close()
+		if naturalExit {
+			return
+		}
+		// This is bounded failure cleanup only. It never establishes a natural
+		// exit receipt for the positive handshake assertion below.
+		evidence.StopInvoked = true
+		_ = handle.Stop(parent)
+		_ = handle.Wait(parent)
+		_ = handle.ConfirmTreeExited()
+	}()
 	client, err := codexrpc.New(work, stream, codexrpc.Limits{})
 	if err != nil {
 		t.Fatal("create original RPC client", err)
@@ -169,13 +182,9 @@ func TestManagedCodexHostToolsNativeHandshake(t *testing.T) {
 	evidence.OriginalWait = handle.Wait(work) == nil
 	evidence.TreeExited = handle.ConfirmTreeExited() == nil
 	if !evidence.OriginalWait || !evidence.TreeExited {
-		// Do not treat Stop as a natural exit. It is only bounded failure cleanup.
-		evidence.StopInvoked = true
-		_ = handle.Stop(parent)
-		_ = handle.Wait(parent)
-		_ = handle.ConfirmTreeExited()
 		t.Fatal("native original Wait/tree receipt missing")
 	}
+	naturalExit = true
 	after, err := process.ExecutableDigest(parent, pin)
 	if err != nil || after != adapter.CodexSHA256 || after != before {
 		t.Fatal("provider pin changed during native handshake", err)
