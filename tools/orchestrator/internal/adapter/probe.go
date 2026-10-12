@@ -47,12 +47,12 @@ func cacheableProbeArgs(args []string) bool {
 	return len(args) == 1 && (args[0] == "--version" || args[0] == "--help")
 }
 
-func probeCacheKey(path string, args []string) string {
-	return path + "\x00" + strings.Join(args, "\x00")
+func probeCacheKey(pin BinaryPin, args []string) string {
+	return pin.Path + "\x00" + pin.SHA256 + "\x00" + strings.Join(args, "\x00")
 }
 
-func cachedProbeOutput(ctx context.Context, path string, args []string) (string, bool) {
-	if !cacheableProbeArgs(args) {
+func cachedProbeOutput(ctx context.Context, pin BinaryPin, args []string) (string, bool) {
+	if ctx.Err() != nil || pin.SHA256 == "" || !cacheableProbeArgs(args) {
 		return "", false
 	}
 	cache := probeCacheFor(ctx)
@@ -61,12 +61,12 @@ func cachedProbeOutput(ctx context.Context, path string, args []string) (string,
 	}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
-	output, ok := cache.outputs[probeCacheKey(path, args)]
+	output, ok := cache.outputs[probeCacheKey(pin, args)]
 	return output, ok
 }
 
-func storeProbeOutput(ctx context.Context, path string, args []string, output string) {
-	if !cacheableProbeArgs(args) {
+func storeProbeOutput(ctx context.Context, pin BinaryPin, args []string, output string) {
+	if ctx.Err() != nil || pin.SHA256 == "" || !cacheableProbeArgs(args) {
 		return
 	}
 	cache := probeCacheFor(ctx)
@@ -75,7 +75,7 @@ func storeProbeOutput(ctx context.Context, path string, args []string, output st
 	}
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
-	cache.outputs[probeCacheKey(path, args)] = output
+	cache.outputs[probeCacheKey(pin, args)] = output
 }
 
 func ProbeFailureFacts(err error) *contract.FailureFacts {
@@ -114,13 +114,26 @@ func (b *probeBuffer) Write(data []byte) (int, error) {
 	return b.Buffer.Write(data)
 }
 
+// ProbeOutput runs an unpinned probe. It deliberately does not use the
+// context cache because it has no verified executable identity.
 func ProbeOutput(ctx context.Context, path string, args ...string) (string, error) {
-	if output, ok := cachedProbeOutput(ctx, path, args); ok {
+	return probeOutput(ctx, BinaryPin{Path: path}, args...)
+}
+
+// ProbeOutputPinned runs a probe whose caller has verified pin immediately
+// before use. Successful --version and --help output is scoped by the exact
+// pinned SHA256 in a WithProbeCache context.
+func ProbeOutputPinned(ctx context.Context, pin BinaryPin, args ...string) (string, error) {
+	return probeOutput(ctx, pin, args...)
+}
+
+func probeOutput(ctx context.Context, pin BinaryPin, args ...string) (string, error) {
+	if output, ok := cachedProbeOutput(ctx, pin, args); ok {
 		return output, nil
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	cmd := probeCommand(ctx, path, args...)
+	cmd := probeCommand(ctx, pin.Path, args...)
 	// Discovery must not trigger provider auto-updaters. These switches affect
 	// only the probe child; other providers ignore the provider-specific keys.
 	cmd.Env = append(os.Environ(), "AGY_CLI_DISABLE_AUTO_UPDATE=true", "GROK_DISABLE_AUTOUPDATER=1")
@@ -154,11 +167,11 @@ func ProbeOutput(ctx context.Context, path string, args ...string) (string, erro
 			return "", errors.New("provider_probe_too_large")
 		}
 		result := strings.TrimSpace(output.String() + "\n" + helpOutput.String())
-		storeProbeOutput(ctx, path, args, result)
+		storeProbeOutput(ctx, pin, args, result)
 		return result, nil
 	}
 	result := strings.TrimSpace(output.String())
-	storeProbeOutput(ctx, path, args, result)
+	storeProbeOutput(ctx, pin, args, result)
 	return result, nil
 }
 
@@ -185,7 +198,7 @@ func Probe(ctx context.Context, provider Provider, path string) (ProviderLock, e
 	if err = VerifyExecutable(pin, "probe"); err != nil {
 		return ProviderLock{}, err
 	}
-	version, err := ProbeOutput(ctx, path, "--version")
+	version, err := ProbeOutputPinned(ctx, pin, "--version")
 	if err != nil {
 		return ProviderLock{}, &probeFailure{code: "binary_version_probe_failed", cause: err}
 	}

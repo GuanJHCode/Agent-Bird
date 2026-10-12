@@ -380,14 +380,14 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if deferDynamicProbe {
 				continue
 			}
-			actual, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--version")
+			actual, err := adapter.ProbeOutputPinned(ctx, req.Binary, "--version")
 			if err != nil {
 				return err
 			}
 			if err = adapter.VerifyExecutable(req.Binary, strings.TrimSpace(actual)); err != nil {
 				return err
 			}
-			help, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--help")
+			help, err := adapter.ProbeOutputPinned(ctx, req.Binary, "--help")
 			if err != nil {
 				return err
 			}

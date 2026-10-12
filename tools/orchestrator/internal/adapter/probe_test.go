@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -109,7 +110,7 @@ func TestProbeAcceptsHelpOnStderrWithoutMixingVersionDiagnostics(t *testing.T) {
 	}
 }
 
-func TestProbeCacheReusesSuccessfulOutputButNotErrors(t *testing.T) {
+func TestProbeCacheReusesSuccessfulPinnedOutputButNotErrors(t *testing.T) {
 	t.Setenv("ORCHESTRATOR_PROBE_TEST_HELPER", "1")
 	path, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
@@ -123,15 +124,27 @@ func TestProbeCacheReusesSuccessfulOutputButNotErrors(t *testing.T) {
 	}
 	t.Cleanup(func() { probeCommand = original })
 
+	oldPin := BinaryPin{Path: path, SHA256: strings.Repeat("a", 64)}
 	ctx := WithProbeCache(context.Background())
 	for range 2 {
-		got, err := ProbeOutput(ctx, path, "--version")
+		got, err := ProbeOutputPinned(ctx, oldPin, "--version")
 		if err != nil || got != "1.2.0" {
-			t.Fatalf("ProbeOutput() = %q, %v", got, err)
+			t.Fatalf("ProbeOutputPinned() = %q, %v", got, err)
 		}
 	}
 	if calls != 1 {
-		t.Fatalf("successful probe executions = %d, want 1", calls)
+		t.Fatalf("successful pinned probe executions = %d, want 1", calls)
+	}
+
+	// A replacement at the same path must not reuse the old binary's help.
+	newPin := BinaryPin{Path: path, SHA256: strings.Repeat("b", 64)}
+	for _, pin := range []BinaryPin{oldPin, newPin} {
+		if _, err := ProbeOutputPinned(ctx, pin, "--help"); err != nil {
+			t.Fatalf("ProbeOutputPinned(help) = %v", err)
+		}
+	}
+	if calls != 3 {
+		t.Fatalf("same-path replacement reused a cached help probe: calls = %d, want 3", calls)
 	}
 
 	probeCommand = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
@@ -140,11 +153,69 @@ func TestProbeCacheReusesSuccessfulOutputButNotErrors(t *testing.T) {
 	}
 	failed := WithProbeCache(context.Background())
 	for range 2 {
-		if _, err := ProbeOutput(failed, path, "--help"); err == nil {
-			t.Fatal("ProbeOutput() error = nil, want probe failure")
+		if _, err := ProbeOutputPinned(failed, newPin, "--help"); err == nil {
+			t.Fatal("ProbeOutputPinned() error = nil, want probe failure")
 		}
 	}
-	if calls != 3 {
-		t.Fatalf("failed probe executions were cached: calls = %d, want 3", calls)
+	if calls != 5 {
+		t.Fatalf("failed probe executions were cached: calls = %d, want 5", calls)
+	}
+}
+
+func TestProbeOutputDoesNotCacheWithoutPinnedIdentity(t *testing.T) {
+	t.Setenv("ORCHESTRATOR_PROBE_TEST_HELPER", "1")
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := probeCommand
+	calls := 0
+	probeCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		calls++
+		return exec.CommandContext(ctx, name, args...)
+	}
+	t.Cleanup(func() { probeCommand = original })
+	ctx := WithProbeCache(context.Background())
+	for range 2 {
+		if _, err := ProbeOutput(ctx, path, "--version"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("unpinned probe executions = %d, want 2", calls)
+	}
+}
+
+func TestProbeCacheDoesNotCrossContextsOrCanceledContext(t *testing.T) {
+	t.Setenv("ORCHESTRATOR_PROBE_TEST_HELPER", "1")
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := probeCommand
+	calls := 0
+	probeCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		calls++
+		return exec.CommandContext(ctx, name, args...)
+	}
+	t.Cleanup(func() { probeCommand = original })
+	pin := BinaryPin{Path: path, SHA256: strings.Repeat("c", 64)}
+	for _, ctx := range []context.Context{WithProbeCache(context.Background()), WithProbeCache(context.Background())} {
+		if _, err := ProbeOutputPinned(ctx, pin, "--version"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("probe output crossed context boundary: calls = %d, want 2", calls)
+	}
+
+	base, cancel := context.WithCancel(context.Background())
+	cached := WithProbeCache(base)
+	if _, err := ProbeOutputPinned(cached, pin, "--help"); err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	if output, err := ProbeOutputPinned(cached, pin, "--help"); err == nil || output != "" {
+		t.Fatalf("canceled context returned cached output %q, %v", output, err)
 	}
 }
