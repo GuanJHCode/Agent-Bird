@@ -15,6 +15,7 @@ mkdir -m 700 "$out"
 sh "$root/tasks/platform-followup-20261012/scripts/build-platform.sh" "$go_tool" "$out/agent-bird-build" > "$out/platform-capabilities.json"
 sh "$root/tasks/g1-g4-delivery/scripts/package-plugin.sh" --binary "$out/agent-bird-build" --python "$python" --version "$version" --out "$out/package" --kind collect-only-hooks
 cp "$root/tasks/macos-1.0-20261012/scripts/agent-bird.py" "$out/package/agent-bird.py"
+cp "$root/tasks/macos-1.0-20261012/scripts/agent_bird_install.py" "$out/package/agent_bird_install.py"
 cp "$root/tasks/macos-1.0-20261012/scripts/grok-plugin-acp.py" "$out/package/grok-plugin-acp.py"
 cp "$root/README.md" "$out/package/README.md"
 cp "$out/platform-capabilities.json" "$out/package/platform-capabilities.json"

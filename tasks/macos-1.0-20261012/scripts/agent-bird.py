@@ -10,9 +10,11 @@ import signal
 import subprocess
 import sys
 import tempfile
+import types
 
 PROVIDERS = ('codex', 'claude', 'agy', 'grok')
 PROVIDER_IDS = dict(zip(PROVIDERS, ('codex-cli', 'claude-code', 'antigravity-cli', 'grok-build')))
+ADAPTER_FILES = ('agent-bird.py', 'grok-plugin-acp.py', 'agent_bird_install.py')
 
 
 def private_json(path, value):
@@ -40,10 +42,23 @@ def verified_candidate(package):
     for name, digest in files.items():
         if Path(name).is_absolute() or '..' in Path(name).parts or hashlib.sha256((package / name).read_bytes()).hexdigest() != digest:
             raise ValueError('candidate_checksum_mismatch')
-    for name in ('agent-bird.py', 'grok-plugin-acp.py'):
+    for name in ADAPTER_FILES:
         if name not in files:
             raise ValueError('candidate_adapter_missing')
     return files
+
+
+def load_install_helper(root, files):
+    path = Path(root) / 'agent_bird_install.py'
+    if path.is_symlink() or not path.is_file():
+        raise ValueError('installed_adapter_checksum_mismatch')
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != files.get(path.name):
+        raise ValueError('installed_adapter_checksum_mismatch')
+    module = types.ModuleType('agent_bird_install')
+    # Compile the exact bytes verified above; do not re-open during execution.
+    exec(compile(data, str(path), 'exec'), module.__dict__)
+    return module
 
 
 def setup(args):
@@ -52,11 +67,16 @@ def setup(args):
         raise ValueError('runtime must be a short canonical absolute path, e.g. /Users/you/.bird1')
     package = Path(args.package).resolve(strict=True)
     files = verified_candidate(package)
+    if runtime.exists() or runtime.is_symlink():
+        raise FileExistsError('runtime already exists')
+    plugin = package / 'plugin'
+    bootstrap = plugin / 'bin/codex-orchestrator'
+    selected = load_install_helper(package, files).preflight_providers(args.provider_binary, str(bootstrap), run_json)
     runtime.mkdir(mode=0o700)  # Never replace an existing installation or configuration.
     (runtime / 'state').mkdir(mode=0o700)
     adapters = runtime / 'adapters'
     adapters.mkdir(mode=0o700)
-    for name in ('agent-bird.py', 'grok-plugin-acp.py'):
+    for name in ADAPTER_FILES:
         data = (package / name).read_bytes()
         if hashlib.sha256(data).hexdigest() != files[name]:
             raise ValueError('candidate_adapter_changed')
@@ -65,32 +85,23 @@ def setup(args):
         (adapters / name).chmod(0o600)
         if hashlib.sha256((adapters / name).read_bytes()).hexdigest() != files[name]:
             raise ValueError('installed_adapter_checksum_mismatch')
-    plugin = package / 'plugin'
-    bootstrap = plugin / 'bin/codex-orchestrator'
     installed = run_json([str(bootstrap), 'plugin-run', '--plugin-root', str(plugin),
                           '--install-root', str(runtime / 'packages'), '--state-dir', str(runtime / 'state'), 'check'])
     binary = installed['binary']
     locks = runtime / 'locks'
     locks.mkdir(mode=0o700)
     report = {}
-    for value in args.provider_binary:
-        provider, sep, binary_path = value.partition('=')
-        if not sep or provider not in PROVIDERS or provider in report:
-            raise ValueError('use distinct --provider-binary provider=/absolute/path')
-        executable = Path(binary_path).expanduser().resolve(strict=True)
-        request = runtime / (provider + '-probe-request.json')
-        private_json(request, {'provider': PROVIDER_IDS[provider], 'binary_path': str(executable)})
-        probe = run_json([binary, 'provider-probe', '--request', str(request)])
+    for provider, executable, probe in selected:
         report[provider] = probe
-        if probe.get('profile_supported'):
-            # Explicit setup of the named executable pins its observed digest.
-            lock_request = runtime / (provider + '-lock-request.json')
-            private_json(lock_request, {'provider': PROVIDER_IDS[provider], 'binary_path': str(executable),
-                                       'lock_file': str(locks / (provider + '.json')),
-                                       'confirm_sha256': probe['lock']['binary']['sha256']})
-            run_json([binary, 'provider-lock', '--request', str(lock_request)])
+        # Re-verify and pin after installation: preflight is not authorization
+        # to trust an executable that changed while the package was installed.
+        lock_request = runtime / (provider + '-lock-request.json')
+        private_json(lock_request, {'provider': PROVIDER_IDS[provider], 'binary_path': executable,
+                                   'lock_file': str(locks / (provider + '.json')),
+                                   'confirm_sha256': probe['lock']['binary']['sha256']})
+        run_json([binary, 'provider-lock', '--request', str(lock_request)])
     private_json(runtime / 'doctor-request.json', {'destination_root': str(runtime / 'packages')})
-    private_json(runtime / 'installation.json', {'version': 1, 'binary': binary, 'package': str(package), 'adapters': str(adapters), 'adapter_sha256': {n: files[n] for n in ('agent-bird.py', 'grok-plugin-acp.py')}, 'providers': report})
+    private_json(runtime / 'installation.json', {'version': 1, 'binary': binary, 'package': str(package), 'adapters': str(adapters), 'adapter_sha256': {n: files[n] for n in ADAPTER_FILES}, 'providers': report})
     print(json.dumps({'runtime': str(runtime), 'providers': report, 'authentication': 'not_checked'}, ensure_ascii=False, indent=2))
 
 
@@ -197,6 +208,9 @@ def main():
         data = json.loads((runtime / 'installation.json').read_text())
         data['source_cli_paths'] = {p: shutil.which(p) for p in PROVIDERS}
         data['doctor'] = run_json([data['binary'], 'doctor', '--request', str(runtime / 'doctor-request.json')])
+        helper = load_install_helper(runtime / 'adapters', data['adapter_sha256'])
+        data['current'] = helper.inspect_runtime(runtime, data)
+        data['platform'] = run_json([data['binary'], 'platform', 'capabilities'])
         data['authentication'] = 'not_checked'
         print(json.dumps(data, ensure_ascii=False, indent=2))
     return 0

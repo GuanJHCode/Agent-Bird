@@ -12,7 +12,6 @@ PROVIDERS = ("codex", "claude", "agy", "grok")
 PROVIDER_IDS = dict(zip(PROVIDERS, ("codex-cli", "claude-code", "antigravity-cli", "grok-build")))
 MAX_SCAN_FILES = 4096
 MAX_SCAN_ENTRIES = 8192
-MAX_SCAN_BYTES = 64 << 20
 MAX_PIN_BYTES = 1 << 30
 
 
@@ -51,9 +50,9 @@ def _parse_provider_values(values: list[str]) -> list[tuple[str, Path]]:
         if not separator or provider not in PROVIDERS or provider in parsed:
             raise ValueError("use each provider once as provider=/absolute/path")
         parsed[provider] = _canonical_executable(binary, "provider binary")
-    if set(parsed) != set(PROVIDERS):
-        raise ValueError("all four provider binaries are required")
-    return [(provider, parsed[provider]) for provider in PROVIDERS]
+    if not parsed:
+        raise ValueError("at least one provider binary is required")
+    return list(parsed.items())
 
 
 def _valid_digest(value: object) -> bool:
@@ -79,7 +78,7 @@ def preflight_providers(values: list[str], binary: str, run_json: callable) -> l
     """Validate all target paths, then probe each from private short-lived JSON."""
     targets = _parse_provider_values(values)
     command = _canonical_executable(binary, "orchestrator binary")
-    scratch = Path(tempfile.mkdtemp(prefix="bird-p-"))
+    scratch = Path(tempfile.mkdtemp(prefix="bird-p-")).resolve(strict=True)
     scratch.chmod(0o700)
     result: list[tuple[str, str, dict]] = []
     try:
@@ -104,9 +103,25 @@ def preflight_providers(values: list[str], binary: str, run_json: callable) -> l
 
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for block in iter(lambda: stream.read(64 << 10), b""):
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, "rb") as stream:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_PIN_BYTES:
+            raise ValueError("binary_changed_during_check")
+        remaining = MAX_PIN_BYTES
+        while True:
+            block = stream.read(min(64 << 10, remaining + 1))
+            if not block:
+                break
+            remaining -= len(block)
+            if remaining < 0:
+                raise ValueError("binary_changed_during_check")
             digest.update(block)
+        after = os.fstat(stream.fileno())
+        current = path.lstat()
+        signature = lambda info: (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        if signature(before) != signature(after) or signature(after) != signature(current):
+            raise ValueError("binary_changed_during_check")
     return digest.hexdigest()
 
 
@@ -158,7 +173,11 @@ def _pin_status(runtime: Path, provider: str, expected: object) -> dict:
     if info.st_size > MAX_PIN_BYTES:
         report["status"] = "binary_too_large"
         return report
-    actual_digest = _sha256_file(current)
+    try:
+        actual_digest = _sha256_file(current)
+    except (OSError, ValueError):
+        report["status"] = "binary_changed_during_check"
+        return report
     report["expected_sha256"] = expected_digest
     report["current_sha256"] = actual_digest
     report["status"] = "ok" if actual_digest == expected_digest else "sha256_changed"
@@ -172,7 +191,6 @@ def _disk_visibility(runtime: Path) -> dict:
         "scan_truncated": False,
         "scan_file_limit": MAX_SCAN_FILES,
         "scan_entry_limit": MAX_SCAN_ENTRIES,
-        "scan_byte_limit": MAX_SCAN_BYTES,
         "skipped_symlinks": 0,
         "skipped_special_files": 0,
         "source_directories": 0,
@@ -218,14 +236,14 @@ def _disk_visibility(runtime: Path) -> dict:
                         if stat.S_ISDIR(info.st_mode):
                             if child.name.startswith("source-"):
                                 report["source_directories"] += 1
-                            if "candidate" in name or "worktree" in name:
+                            if "candidate" in name or "worktree" in name or name.startswith("workspace-"):
                                 report["suspected_candidate_or_worktree_entries"] += 1
                             pending.append(Path(child.path))
                         elif stat.S_ISREG(info.st_mode):
-                            if report["visible_files"] < MAX_SCAN_FILES and report["runtime_bytes"] < MAX_SCAN_BYTES:
+                            if report["visible_files"] < MAX_SCAN_FILES:
                                 report["visible_files"] += 1
                                 report["runtime_bytes"] += info.st_size
-                            if report["visible_files"] >= MAX_SCAN_FILES or report["runtime_bytes"] >= MAX_SCAN_BYTES:
+                            if report["visible_files"] >= MAX_SCAN_FILES:
                                 report["scan_truncated"] = True
                         else:
                             report["skipped_special_files"] += 1

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPT = Path(__file__).with_name("agent_bird_install.py")
 
@@ -27,6 +28,65 @@ def provider_values(root: Path):
 
 
 class AgentBirdInstallTest(unittest.TestCase):
+    def test_hash_read_is_bounded_and_unavailable_pin_is_reported(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            module = load_module()
+            binary = executable(root / "codex")
+            module.MAX_PIN_BYTES = 2
+            with self.assertRaisesRegex(ValueError, "binary_changed_during_check"):
+                module._sha256_file(binary)
+            module.MAX_PIN_BYTES = 1 << 30
+            locks = root / "locks"
+            locks.mkdir(mode=0o700)
+            lock = {"provider": "codex-cli", "binary": {"path": str(binary), "sha256": "a" * 64}}
+            (locks / "codex.json").write_text(json.dumps(lock))
+            (locks / "codex.json").chmod(0o600)
+            with mock.patch.object(module, "_sha256_file", side_effect=OSError("changed")):
+                report = module._pin_status(root, "codex", lock)
+            self.assertEqual(report["status"], "binary_changed_during_check")
+
+    def test_hash_rejects_file_changes_during_inspection(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            module = load_module()
+            binary = executable(root / "codex")
+            original_stat = module.os.fstat
+            calls = 0
+            def change_before_second_stat(descriptor):
+                nonlocal calls
+                calls += 1
+                if calls == 2:
+                    binary.write_bytes(b"changed-after-read")
+                return original_stat(descriptor)
+            with mock.patch.object(module.os, "fstat", side_effect=change_before_second_stat):
+                with self.assertRaisesRegex(ValueError, "binary_changed_during_check"):
+                    module._sha256_file(binary)
+
+    def test_preflight_accepts_only_the_selected_providers(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            module = load_module()
+            target = executable(root / "grok")
+            def probe(argv):
+                body = json.loads(Path(argv[-1]).read_text())
+                return {"profile_supported": True, "lock": {"provider": body["provider"], "binary": {"path": body["binary_path"], "sha256": "a" * 64}}}
+            result = module.preflight_providers([f"grok={target}"], str(executable(root / "orchestrator")), probe)
+            self.assertEqual([item[0] for item in result], ["grok"])
+
+    def test_disk_visibility_counts_large_files_without_reading_them(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            module = load_module()
+            with (root / "large").open("wb") as stream:
+                stream.truncate(128 << 20)
+            (root / "state").mkdir()
+            (root / "state/workspace-one.attempt-two").mkdir()
+            disk = module.inspect_runtime(root, {"providers": {}})["disk"]
+            self.assertFalse(disk["scan_truncated"])
+            self.assertEqual(disk["runtime_bytes"], 128 << 20)
+            self.assertEqual(disk["suspected_candidate_or_worktree_entries"], 1)
+
     def test_preflight_validates_all_arguments_before_first_probe(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp).resolve()
