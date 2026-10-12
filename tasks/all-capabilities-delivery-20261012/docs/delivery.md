@@ -11,3 +11,5 @@ ACP 容量与诊断 GC 已通过定向验证和独立审查。B2/C/Host evidence
 本候选只作本地集成。未替换用户安装、注册 Hook、推送或发布。原根用户补丁继续保留。
 
 本阶段候选包与来源已通过[独立核验](../../closure-package-provenance/docs/all-capabilities-20261012.md)，后续清理实现需重新评估包。
+
+普通非 filter AutoDirectory validate/review 的成功临时工作树清理已落地，独立状态展示，业务产物不变。补齐 Git partial-quarantine 重放保护、持久 journal 并发边界，以及真实 Host 回执在保留期检查中的严格解码兼容。最终短 native 1 top、Store race 4 top+8 sub、Git/journal race 7 top 均通过；见[本批记录](../../candidate-temporary-cleanup/docs/validation.md)。共享候选/private-ref TTL 和 Host 附件回收继续推进，当前历史包尚未包含本批与 schema39。

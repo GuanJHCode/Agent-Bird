@@ -95,3 +95,5 @@ Host 仅在本次原进程 Wait/tree 已证明后 freeze/发布结果；旧 jour
 ## Managed report 附件回收
 
 `report-artifact-retention-resolve/plan/apply` 与 `report-gc-enable/disable/status` 提供独立的原 run-control 授权链。仅删除受管 `result/failure` 附件的 `data.bin`，保留事件、ACK、原 descriptor/proof、持久删除意图和 marker。成功以精确 handled 与可信 Exited 的较晚时间起算30天；失败还需逐项明确解决/放弃，按三者较晚时间起算7天。未知执行、未消费、开放问题和活动 pin 均阻止回收。默认关闭；同 owner 可显式暂停并恢复原 pending plan，owner/rebind 漂移停止。详见[使用说明](../tasks/report-retention/docs/usage.md)与[定向验证](../tasks/report-retention/docs/validation.md)。
+
+普通非 filter 且启用 `AutoDirectory` 的 validate/review 成功退出并持久化 Result/Exited 后，会用原始材料化回执清理无下游引用的临时工作树。`status` / `inspect` 的 `temporary_workspace_cleanup` 独立展示 pending/removed；业务产物与 hash 不改写。失败、未知、手动目录及 producer/compose/private ref 保留。Git quarantine 中断后缺失原路径不代表已清理；需要原 journal 的同回执完成证明才能重放 removed。见[清理验证](../tasks/candidate-temporary-cleanup/docs/validation.md)。

@@ -49,3 +49,5 @@ Grok 候选审查由 Host 提供完整 base/candidate Git 文本树，限制为 
 
 
 2026-10-12 本地候选包已刷新为 `0.1.0-closure.855141c9739a`，source `855141c9739a95046c15bbb9657f93f7adf1c94e`；[打包与来源核验](../tasks/closure-package-provenance/docs/all-capabilities-20261012.md)覆盖本轮已实现能力。旧包记录保留为历史证据，没有替换用户安装。
+
+2026-10-12：普通 AutoDirectory validate/review 成功临时工作树清理已接入 Host 与 Store 独立状态；Darwin 受控短链和定向 race 验证见[记录](../tasks/candidate-temporary-cleanup/docs/validation.md)。这不覆盖共享 candidate/private-ref TTL 或 Host terminal/progress 回收。
