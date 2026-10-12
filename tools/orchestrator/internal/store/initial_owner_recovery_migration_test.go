@@ -17,7 +17,7 @@ func removeInitialOwnerRecoverySchema29(db *DB) error {
 	if version < 29 {
 		return nil
 	}
-	if version != 29 && version != 30 && version != 31 && version != 32 && version != 33 && version != 34 {
+	if version < 29 || version > 39 {
 		return fmt.Errorf("unsupported initial recovery schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM owner_initial_recoveries)+(SELECT COUNT(*) FROM owner_succession_authorizations WHERE initial_proof_id IS NOT NULL)`).Scan(&count); err != nil {

@@ -325,8 +325,32 @@ func stripEmptyFilterPublicationSchemasTx(tx *sql.Tx) error {
 	if version < 35 {
 		return nil
 	}
-	if version > 36 {
+	if version > 39 {
 		return fmt.Errorf("unsupported filter/publication schema %d", version)
+	}
+	if version >= 38 {
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM git_filter_carrier_reservations`).Scan(&filters); err != nil {
+			return err
+		}
+		if filters != 0 {
+			return errors.New("cannot erase filter carrier history")
+		}
+		if _, err := tx.Exec(`DROP TRIGGER git_filter_carrier_identity_immutable; DROP TRIGGER git_filter_carrier_retained; DROP TRIGGER git_filter_carrier_initial; DROP TRIGGER git_filter_carrier_release_proof; DROP TRIGGER quota_git_filter_carrier_INSERT; DROP TABLE git_filter_carrier_reservations; UPDATE schema_meta SET version=37`); err != nil {
+			return err
+		}
+		version = 37
+	}
+	if version >= 37 {
+		if err := tx.QueryRow(`SELECT (SELECT COUNT(*) FROM diagnostics_gc_policies)+(SELECT COUNT(*) FROM diagnostics_consumptions)`).Scan(&filters); err != nil {
+			return err
+		}
+		if filters != 0 {
+			return errors.New("cannot erase diagnostics GC history")
+		}
+		if _, err := tx.Exec(`DROP TRIGGER diagnostics_consumption_binding; DROP TRIGGER diagnostics_consumption_retained; DROP TRIGGER quota_diagnostics_gc_policies_INSERT; DROP TRIGGER quota_diagnostics_gc_policies_UPDATE; DROP TRIGGER quota_diagnostics_consumptions_INSERT; DROP TRIGGER quota_diagnostics_consumptions_UPDATE; DROP TABLE diagnostics_consumptions; DROP TABLE diagnostics_gc_policies; UPDATE schema_meta SET version=36`); err != nil {
+			return err
+		}
+		version = 36
 	}
 	if version == 36 {
 		if err := tx.QueryRow(`SELECT COUNT(*) FROM git_filter_resource_reservations`).Scan(&filters); err != nil {

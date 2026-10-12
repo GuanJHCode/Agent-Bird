@@ -89,11 +89,11 @@ func TestHostArtifactPendingRejectsMissingAndReleasedAuthority(t *testing.T) {
 				t.Fatal(err)
 			}
 			if mode == "released" {
-				_, err = db.sql.Exec(`UPDATE managed_artifact_reservations SET state='released' WHERE id=?`, g.HostArtifacts.TerminalReservationID)
+				_, err = db.sql.Exec(`DROP TRIGGER host_reservation_transition; UPDATE managed_artifact_reservations SET state='released' WHERE id=?`, g.HostArtifacts.TerminalReservationID)
 			} else {
 				// Simulate legacy absence/corrupt partial persistence. The public
 				// Store cannot delete these immutable reservation rows.
-				_, err = db.sql.Exec(`DROP TRIGGER artifact_reservation_retained; DROP TRIGGER host_artifact_metadata_retained; DELETE FROM managed_host_artifact_metadata`)
+				_, err = db.sql.Exec(`DROP TRIGGER host_cleanup_authority_binding; DROP TRIGGER retained_host_artifact_cleanup_authorities; DROP TRIGGER artifact_reservation_retained; DROP TRIGGER host_artifact_metadata_retained; DELETE FROM host_artifact_cleanup_authorities; DELETE FROM managed_host_artifact_metadata`)
 				if err == nil {
 					keep := ""
 					if mode == "terminal-only" {

@@ -23,6 +23,25 @@ type reportRetentionFixture struct {
 
 var reportFixtureAt = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
+func downgradeReportRetentionSchema(t *testing.T, db *DB) {
+	t.Helper()
+	tx, err := db.sql.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	var rows int
+	if err = tx.QueryRow(`SELECT (SELECT COUNT(*) FROM report_artifact_deletions)+(SELECT COUNT(*) FROM report_artifact_pins)+(SELECT COUNT(*) FROM report_artifact_resolutions)+(SELECT COUNT(*) FROM report_gc_policies)`).Scan(&rows); err != nil || rows != 0 {
+		t.Fatal(rows, err)
+	}
+	if _, err = tx.Exec(`DROP TRIGGER report_reservation_transition;DROP TRIGGER report_retention_attempt_fence;DROP TRIGGER report_retention_segment_fence;DROP TRIGGER report_retention_intake_fence;DROP TRIGGER report_resolution_immutable;DROP TRIGGER report_resolution_retained;DROP TRIGGER report_resolution_binding;DROP TRIGGER report_pin_initial;DROP TRIGGER report_pin_identity;DROP TRIGGER report_pin_transition;DROP TRIGGER report_pin_retained;DROP TRIGGER report_deletion_initial;DROP TRIGGER report_deletion_identity;DROP TRIGGER report_deletion_retained;DROP TRIGGER report_deletion_transition;DROP TRIGGER quota_report_deletion_INSERT;DROP TRIGGER quota_report_artifact_resolutions_INSERT;DROP TRIGGER quota_report_artifact_pins_INSERT;DROP TRIGGER quota_report_gc_policies_INSERT;DROP TRIGGER quota_report_gc_policies_UPDATE;DROP TABLE report_artifact_deletions;DROP TABLE report_artifact_pins;DROP TABLE report_artifact_resolutions;DROP TABLE report_gc_policies;UPDATE schema_meta SET version=38;`); err != nil {
+		t.Fatal(err)
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func newReportRetentionFixture(t *testing.T, failure bool) *reportRetentionFixture {
 	t.Helper()
 	f := &reportRetentionFixture{diagnosticsReadFixture: newDiagnosticsReadFixture(t)}
@@ -304,15 +323,14 @@ func TestReportGCPolicyAndDurablePendingPlan(t *testing.T) {
 
 func TestReportRetentionMigrationPreservesExistingIntake(t *testing.T) {
 	f := newReportRetentionFixture(t, false)
+	downgradeHostRetentionSchema(t, f.db)
 	var before string
 	if e := f.db.sql.QueryRow(`SELECT json_array(i.descriptor_json,f.proof_json,r.state,r.retained_bytes) FROM managed_artifact_intakes i JOIN managed_artifact_refs f ON f.intake_id=i.id JOIN managed_artifact_reservations r ON r.id=i.reservation_id`).Scan(&before); e != nil {
 		t.Fatal(e)
 	}
 	// Recreate the immediately preceding schema only in this owned empty-retention
 	// fixture. Original report intake, event and proof rows are left unchanged.
-	if _, e := f.db.sql.Exec(`DROP TRIGGER report_reservation_transition;DROP TRIGGER report_retention_attempt_fence;DROP TRIGGER report_retention_segment_fence;DROP TRIGGER report_retention_intake_fence;DROP TABLE report_artifact_deletions;DROP TABLE report_artifact_pins;DROP TABLE report_artifact_resolutions;DROP TABLE report_gc_policies;UPDATE schema_meta SET version=38;`); e != nil {
-		t.Fatal(e)
-	}
+	downgradeReportRetentionSchema(t, f.db)
 	path := f.db.path
 	if e := f.db.Close(); e != nil {
 		t.Fatal(e)
@@ -324,7 +342,7 @@ func TestReportRetentionMigrationPreservesExistingIntake(t *testing.T) {
 	f.db = db
 	var after string
 	var version, intents, policies int
-	if e = db.sql.QueryRow(`SELECT json_array(i.descriptor_json,f.proof_json,r.state,r.retained_bytes),(SELECT version FROM schema_meta),(SELECT count(*) FROM report_artifact_deletions),(SELECT count(*) FROM report_gc_policies) FROM managed_artifact_intakes i JOIN managed_artifact_refs f ON f.intake_id=i.id JOIN managed_artifact_reservations r ON r.id=i.reservation_id`).Scan(&after, &version, &intents, &policies); e != nil || after != before || version != 39 || intents != 0 || policies != 0 {
+	if e = db.sql.QueryRow(`SELECT json_array(i.descriptor_json,f.proof_json,r.state,r.retained_bytes),(SELECT version FROM schema_meta),(SELECT count(*) FROM report_artifact_deletions),(SELECT count(*) FROM report_gc_policies) FROM managed_artifact_intakes i JOIN managed_artifact_refs f ON f.intake_id=i.id JOIN managed_artifact_reservations r ON r.id=i.reservation_id`).Scan(&after, &version, &intents, &policies); e != nil || after != before || version != currentSchemaVersion || intents != 0 || policies != 0 {
 		t.Fatal(after, version, intents, policies, e)
 	}
 	if ack, e := db.CommitReportEvent(context.Background(), f.spec); e != nil || ack != f.ack {

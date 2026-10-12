@@ -31,6 +31,10 @@ func TestLegacyClaimRequiresOriginalIntegerSize(t *testing.T) {
 
 func downgradeLegacyArtifactSchema(t *testing.T, db *DB) {
 	t.Helper()
+	// All older fixture chains begin below v40. Remove the complete v40 shape
+	// first so they keep constructing their actual historical schema.
+	downgradeHostRetentionSchema(t, db)
+	downgradeReportRetentionSchema(t, db)
 	// Every fixture that advertises a pre-schema22 version must first remove
 	// the complete schema23 shape, not merely lower schema_meta.
 	downgradeACPBridgeSchema23(t, db)
