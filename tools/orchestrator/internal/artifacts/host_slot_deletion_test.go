@@ -239,11 +239,54 @@ func TestHostSlotBindingDeletionAbsentAndManagedDiscovery(t *testing.T) {
 		if plan.Mode != "published_orphan" || plan.Descriptor == nil || plan.Proof == nil || plan.PlannedRemovedBytes != int64(len(body)) {
 			t.Fatal("wrong managed discovery plan", plan)
 		}
+		for name, mutate := range map[string]func(*HostSlotDeletionPlan){
+			"aliased_data_name": func(p *HostSlotDeletionPlan) { p.Data.Name = "intent.json" },
+			"progress_limit":    func(p *HostSlotDeletionPlan) { p.Data.Size = uint64(HostProgressSlotBytes + 1) },
+			"descriptor_digest": func(p *HostSlotDeletionPlan) { p.Proof.DescriptorSHA256 = stringsRepeat("0", 64) },
+			"namespace_proof":   func(p *HostSlotDeletionPlan) { p.Proof.RootInode++ },
+		} {
+			t.Run(name, func(t *testing.T) {
+				bad := plan
+				descCopy, proofCopy, dataCopy := *plan.Descriptor, *plan.Proof, *plan.Data
+				bad.Descriptor, bad.Proof, bad.Data = &descCopy, &proofCopy, &dataCopy
+				mutate(&bad)
+				if err := validateHostSlotBindingPlan(bad, desc.HostSlotBinding, ns, plan.ObjectID, "request-six"); err == nil {
+					t.Fatal("canonical-but-semantic-invalid plan accepted")
+				}
+			})
+		}
 		if err = d.Remove(context.Background()); err != nil {
 			t.Fatal(err)
 		}
 		if err = d.VerifyRemoved(context.Background()); err != nil {
 			t.Fatal(err)
+		}
+	})
+	t.Run("managed-empty-replay", func(t *testing.T) {
+		root := hostSlotRoot(t)
+		if err := os.Mkdir(filepath.Join(root, "managed-artifacts"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		binding := hostSlot(t, "progress", "progress", 1, []byte("x")).HostSlotBinding
+		ns := hostNamespaceProof(t, root)
+		d, plan, err := OpenHostSlotBindingDeletion(context.Background(), root, binding, ns, HostSlotDiscoverManaged, "request-eight", nil)
+		if err != nil || plan.Mode != string(HostSlotAbsentOnly) || plan.DiscoveryMode != HostSlotDiscoverManaged {
+			t.Fatal("managed empty plan", err)
+		}
+		if err = d.Remove(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		saved := d.Plan()
+		if err = d.Close(); err != nil {
+			t.Fatal(err)
+		}
+		replay, _, err := OpenHostSlotBindingDeletion(context.Background(), root, binding, ns, HostSlotDiscoverManaged, "request-eight", saved)
+		if err != nil {
+			t.Fatal("managed empty replay", err)
+		}
+		defer replay.Close()
+		if _, _, err = OpenHostSlotBindingDeletion(context.Background(), root, binding, ns, HostSlotAbsentOnly, "request-eight", saved); err == nil {
+			t.Fatal("replay accepted different discovery mode")
 		}
 	})
 	t.Run("partial-replay", func(t *testing.T) {

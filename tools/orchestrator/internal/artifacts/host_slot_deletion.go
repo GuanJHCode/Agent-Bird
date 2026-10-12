@@ -49,6 +49,7 @@ type HostSlotDeletionPlan struct {
 	Binding             HostSlotBinding        `json:"binding"`
 	ObjectID            string                 `json:"object_id"`
 	Namespace           HostSlotNamespaceProof `json:"namespace"`
+	DiscoveryMode       HostSlotDiscoveryMode  `json:"discovery_mode"`
 	Mode                string                 `json:"mode"`
 	Descriptor          *HostSlotDescriptor    `json:"descriptor"`
 	Proof               *Proof                 `json:"proof"`
@@ -378,6 +379,21 @@ func (d *HostSlotDeletion) bindBindingPlan(ctx context.Context) error {
 	if !marked && !errors.Is(markerErr, unix.ENOENT) {
 		return markerErr
 	}
+	if p.Mode == "published_orphan" {
+		if p.Proof == nil || p.Proof.Path != d.n.path+"/data.bin" {
+			return ErrUnsafe
+		}
+		if !marked {
+			raw, err := p.Descriptor.Canonical()
+			if err != nil {
+				return err
+			}
+			actual, err := d.n.hostSlotProof(ctx, *p.Descriptor, raw, p.ObjectID)
+			if err != nil || actual != *p.Proof {
+				return errors.Join(ErrUnsafe, err)
+			}
+		}
+	}
 	for _, expected := range []*HostSlotFileSnapshot{p.Intent, p.IntentStage, p.Data, p.DataStage} {
 		if expected != nil {
 			if err := verifyHostSlotSnapshot(d.n, p.Binding, expected); err != nil && !(marked && (expected.Name == "intent.stage" || expected.Name == "data.bin" || expected.Name == "data.stage") && errors.Is(err, unix.ENOENT)) {
@@ -507,7 +523,7 @@ func OpenHostSlotBindingDeletion(ctx context.Context, root string, binding HostS
 	var replay *HostSlotDeletionPlan
 	if savedPlan != nil {
 		decoded, decodeErr := decodeHostSlotBindingPlan(savedPlan)
-		if decodeErr != nil || decoded.Binding != binding || decoded.Namespace != namespace || decoded.RequestID != requestID || decoded.Mode == "" {
+		if decodeErr != nil || decoded.Binding != binding || decoded.Namespace != namespace || decoded.RequestID != requestID || decoded.DiscoveryMode != mode || decoded.Mode == "" {
 			return nil, plan, errors.Join(ErrUnsafe, decodeErr)
 		}
 		replay = &decoded
@@ -536,9 +552,9 @@ func OpenHostSlotBindingDeletion(ctx context.Context, root string, binding HostS
 	if replay != nil {
 		plan = *replay
 	} else if !exists {
-		plan = HostSlotDeletionPlan{Version: 1, RequestID: requestID, Binding: binding, ObjectID: id, Namespace: namespace, Mode: string(HostSlotAbsentOnly), DirectoryDevice: uint64(n.ids[2].Dev), DirectoryInode: uint64(n.ids[2].Ino), LockDevice: uint64(n.lockID.Dev), LockInode: uint64(n.lockID.Ino)}
+		plan = HostSlotDeletionPlan{Version: 1, RequestID: requestID, Binding: binding, ObjectID: id, Namespace: namespace, DiscoveryMode: mode, Mode: string(HostSlotAbsentOnly), DirectoryDevice: uint64(n.ids[2].Dev), DirectoryInode: uint64(n.ids[2].Ino), LockDevice: uint64(n.lockID.Dev), LockInode: uint64(n.lockID.Ino)}
 	} else {
-		plan, err = discoverManagedHostSlotDeletion(ctx, n, binding, namespace, id, requestID)
+		plan, err = discoverManagedHostSlotDeletion(ctx, n, binding, namespace, id, requestID, mode)
 		if err != nil {
 			return nil, HostSlotDeletionPlan{}, err
 		}
@@ -561,7 +577,7 @@ func OpenHostSlotBindingDeletion(ctx context.Context, root string, binding HostS
 }
 
 func validateHostSlotBindingPlan(plan HostSlotDeletionPlan, binding HostSlotBinding, namespace HostSlotNamespaceProof, id, requestID string) error {
-	if plan.Version != 1 || plan.RequestID != requestID || plan.Binding != binding || plan.ObjectID != id || plan.Namespace != namespace ||
+	if plan.Version != 1 || plan.RequestID != requestID || plan.Binding != binding || plan.ObjectID != id || plan.Namespace != namespace || (plan.DiscoveryMode != HostSlotAbsentOnly && plan.DiscoveryMode != HostSlotDiscoverManaged) ||
 		(plan.Mode != string(HostSlotAbsentOnly) && plan.Mode != "published_orphan" && plan.Mode != "partial_orphan") ||
 		plan.DirectoryDevice == 0 || plan.DirectoryInode == 0 || plan.LockDevice == 0 || plan.LockInode == 0 {
 		return ErrUnsafe
@@ -604,14 +620,23 @@ func validateHostSlotBindingPlan(plan HostSlotDeletionPlan, binding HostSlotBind
 			return ErrUnsafe
 		}
 	case "published_orphan":
+		if plan.DiscoveryMode != HostSlotDiscoverManaged {
+			return ErrUnsafe
+		}
 		if plan.Descriptor == nil || plan.Proof == nil || plan.Intent == nil || plan.Data == nil || plan.IntentStage != nil || plan.DataStage != nil || plan.Descriptor.HostSlotBinding != binding || plan.Descriptor.Validate() != nil {
 			return ErrUnsafe
 		}
-		if plan.Proof.IntakeID != id || plan.Proof.Size != plan.Descriptor.Size || plan.Proof.SHA256 != plan.Descriptor.SHA256 || plan.Proof.Device != plan.Data.Device || plan.Proof.Inode != plan.Data.Inode || plan.Proof.IntentDevice != plan.Intent.Device || plan.Proof.IntentInode != plan.Intent.Inode || plan.Proof.DirectoryDevice != plan.DirectoryDevice || plan.Proof.DirectoryInode != plan.DirectoryInode || plan.Proof.LockDevice != plan.LockDevice || plan.Proof.LockInode != plan.LockInode {
+		raw, err := plan.Descriptor.Canonical()
+		if err != nil {
+			return ErrUnsafe
+		}
+		digest := sha256.Sum256(raw)
+		if plan.Intent.Size != uint64(len(raw)) || plan.Intent.SHA256 != hex.EncodeToString(digest[:]) || plan.Data.Size != uint64(plan.Descriptor.Size) || plan.Data.SHA256 != plan.Descriptor.SHA256 ||
+			plan.Proof.IntakeID != id || plan.Proof.DescriptorSHA256 != hex.EncodeToString(digest[:]) || plan.Proof.Size != plan.Descriptor.Size || plan.Proof.SHA256 != plan.Descriptor.SHA256 || plan.Proof.Device != plan.Data.Device || plan.Proof.Inode != plan.Data.Inode || plan.Proof.RootDevice != namespace.RootDevice || plan.Proof.RootInode != namespace.RootInode || plan.Proof.ParentDevice != namespace.ParentDevice || plan.Proof.ParentInode != namespace.ParentInode || plan.Proof.IntentDevice != plan.Intent.Device || plan.Proof.IntentInode != plan.Intent.Inode || plan.Proof.DirectoryDevice != plan.DirectoryDevice || plan.Proof.DirectoryInode != plan.DirectoryInode || plan.Proof.LockDevice != plan.LockDevice || plan.Proof.LockInode != plan.LockInode {
 			return ErrUnsafe
 		}
 	case "partial_orphan":
-		if plan.Descriptor != nil || plan.Proof != nil || (plan.Intent == nil && plan.IntentStage == nil && plan.Data == nil && plan.DataStage == nil) {
+		if plan.DiscoveryMode != HostSlotDiscoverManaged || plan.Descriptor != nil || plan.Proof != nil || (plan.Intent == nil && plan.IntentStage == nil && plan.Data == nil && plan.DataStage == nil) {
 			return ErrUnsafe
 		}
 	}
@@ -698,8 +723,8 @@ func decodeHostSlotBindingPlan(saved []byte) (HostSlotDeletionPlan, error) {
 	return plan, nil
 }
 
-func discoverManagedHostSlotDeletion(ctx context.Context, n *object, binding HostSlotBinding, namespace HostSlotNamespaceProof, id, requestID string) (HostSlotDeletionPlan, error) {
-	plan := HostSlotDeletionPlan{Version: 1, RequestID: requestID, Binding: binding, ObjectID: id, Namespace: namespace, Mode: "partial_orphan", DirectoryDevice: uint64(n.ids[2].Dev), DirectoryInode: uint64(n.ids[2].Ino), LockDevice: uint64(n.lockID.Dev), LockInode: uint64(n.lockID.Ino)}
+func discoverManagedHostSlotDeletion(ctx context.Context, n *object, binding HostSlotBinding, namespace HostSlotNamespaceProof, id, requestID string, discoveryMode HostSlotDiscoveryMode) (HostSlotDeletionPlan, error) {
+	plan := HostSlotDeletionPlan{Version: 1, RequestID: requestID, Binding: binding, ObjectID: id, Namespace: namespace, DiscoveryMode: discoveryMode, Mode: "partial_orphan", DirectoryDevice: uint64(n.ids[2].Dev), DirectoryInode: uint64(n.ids[2].Ino), LockDevice: uint64(n.lockID.Dev), LockInode: uint64(n.lockID.Ino)}
 	for _, spec := range []struct {
 		name string
 		to   **HostSlotFileSnapshot
