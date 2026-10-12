@@ -89,6 +89,12 @@ const (
 )
 
 const (
+	KindHostArtifactResolve          Kind = "host_artifact_retention_resolve"
+	KindHostArtifactRetentionPlan    Kind = "host_artifact_retention_plan"
+	KindHostArtifactRetentionApply   Kind = "host_artifact_retention_apply"
+	KindHostGCEnable                 Kind = "host_gc_enable"
+	KindHostGCDisable                Kind = "host_gc_disable"
+	KindHostGCStatus                 Kind = "host_gc_status"
 	KindReportArtifactResolve        Kind = "report_artifact_retention_resolve"
 	KindReportArtifactRetentionPlan  Kind = "report_artifact_retention_plan"
 	KindReportArtifactRetentionApply Kind = "report_artifact_retention_apply"

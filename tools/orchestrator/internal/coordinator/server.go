@@ -744,8 +744,11 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 	if reportRetentionControlKind(message.Kind) && !store.ValidDiagnosticsToken(message.RequestID) {
 		err = store.CodeError("report_retention_request_invalid")
 	}
+	if hostRetentionControlKind(message.Kind) && !store.ValidDiagnosticsToken(message.RequestID) {
+		err = store.CodeError("host_retention_request_invalid")
+	}
 	switch message.Kind {
-	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus, ipc.KindReportArtifactResolve, ipc.KindReportArtifactRetentionPlan, ipc.KindReportArtifactRetentionApply, ipc.KindReportGCEnable, ipc.KindReportGCDisable, ipc.KindReportGCStatus:
+	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus, ipc.KindReportArtifactResolve, ipc.KindReportArtifactRetentionPlan, ipc.KindReportArtifactRetentionApply, ipc.KindReportGCEnable, ipc.KindReportGCDisable, ipc.KindReportGCStatus, ipc.KindHostArtifactResolve, ipc.KindHostArtifactRetentionPlan, ipc.KindHostArtifactRetentionApply, ipc.KindHostGCEnable, ipc.KindHostGCDisable, ipc.KindHostGCStatus:
 		if err == nil {
 			ctx, err = s.authorizePeer(ctx, conn)
 		}
@@ -769,6 +772,9 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 	if reportRetentionControlKind(message.Kind) {
 		err = reportRetentionControlError(err)
 	}
+	if hostRetentionControlKind(message.Kind) {
+		err = hostRetentionControlError(err)
+	}
 	if err != nil {
 		responseKind = ipc.KindError
 		payload, _ = json.Marshal(ErrorResponse{Error: errorCode(err)})
@@ -778,12 +784,14 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
+	case ipc.KindHostArtifactResolve, ipc.KindHostArtifactRetentionPlan, ipc.KindHostArtifactRetentionApply, ipc.KindHostGCEnable, ipc.KindHostGCDisable, ipc.KindHostGCStatus:
+		return s.hostRetentionControl(ctx, kind, raw)
 	case ipc.KindReportArtifactResolve, ipc.KindReportArtifactRetentionPlan, ipc.KindReportArtifactRetentionApply, ipc.KindReportGCEnable, ipc.KindReportGCDisable, ipc.KindReportGCStatus:
 		return s.reportRetentionControl(ctx, kind, raw)
 	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus:
 		return s.diagnosticsControl(ctx, kind, raw)
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1", "diagnostics_delete_v1", "diagnostics_retention_v1", "diagnostics_gc_v1", "report_artifact_retention_v1", "report_gc_v1", "owner_rebind_publication_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1", "diagnostics_delete_v1", "diagnostics_retention_v1", "diagnostics_gc_v1", "report_artifact_retention_v1", "report_gc_v1", "host_artifact_retention_v1", "host_gc_v1", "owner_rebind_publication_v1"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:

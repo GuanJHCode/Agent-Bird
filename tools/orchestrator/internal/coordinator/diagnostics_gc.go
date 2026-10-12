@@ -79,5 +79,6 @@ func (s *Server) runDiagnosticsGCRound(ctx context.Context) bool {
 	// Report collection shares admission, idle fencing and cancellation with
 	// diagnostics, while retaining its own opt-in policy and owner binding.
 	_ = s.db.RunReportGC(round, time.Now().UTC())
+	_ = s.db.RunHostGC(round, time.Now().UTC())
 	return ctx.Err() == nil
 }

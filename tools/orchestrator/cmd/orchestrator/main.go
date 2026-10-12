@@ -139,6 +139,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return diagnosticsCLI(ctx, args[0], args[1:], stdout)
 	case "report-artifact-retention-resolve", "report-artifact-retention-plan", "report-artifact-retention-apply", "report-gc-enable", "report-gc-disable", "report-gc-status":
 		return reportRetentionCLI(ctx, args[0], args[1:], stdout)
+	case "host-artifact-retention-resolve", "host-artifact-retention-plan", "host-artifact-retention-apply", "host-gc-enable", "host-gc-disable", "host-gc-status":
+		return hostRetentionCLI(ctx, args[0], args[1:], stdout)
 	default:
 		return codeError("invalid_args")
 	}
