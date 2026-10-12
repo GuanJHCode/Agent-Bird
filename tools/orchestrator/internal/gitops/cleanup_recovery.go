@@ -22,6 +22,7 @@ type CleanupPlan struct {
 }
 
 type CleanupTreePlan struct {
+	SinkIdentity   DirectoryIdentity       `json:"sink_identity"`
 	Path           string                  `json:"path"`
 	ParentIdentity DirectoryIdentity       `json:"parent_identity"`
 	Identity       DirectoryIdentity       `json:"identity"`
@@ -59,10 +60,10 @@ func CleanupPlanDigest(plan CleanupPlan) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// Each tree has quarantine, move/unlink pairs and a final root unlink. A
+// Each tree has quarantine, move/unlink pairs, root unlink and empty sink removal. A
 // private ref (when present) is deleted last. No repeated retry records accrue.
 func CleanupPlanStepCount(plan CleanupPlan) int {
-	n := 4 + 2*(len(plan.Root.Files)+len(plan.Admin.Files))
+	n := 6 + 2*(len(plan.Root.Files)+len(plan.Admin.Files))
 	if plan.Intent.PrivateRef != "" {
 		n++
 	}
