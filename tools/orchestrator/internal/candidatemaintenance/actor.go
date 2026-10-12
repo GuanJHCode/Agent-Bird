@@ -144,6 +144,7 @@ func run(ctx context.Context, db Store, controller, token string, g store.Candid
 	out = store.CandidateMaintenanceOutcome{Version: 1, State: "pending", Code: "child_failed"}
 	if waitErr == nil && h.ExitCode() == 0 {
 		body, overflow := output.snapshot()
+		out = store.CandidateMaintenanceOutcome{}
 		if overflow || contract.DecodeBridgeStrict(body, &out) != nil || out.Version != 1 || (out.State != "pending" && out.State != "removed") || len(out.Code) > 128 || (out.State == "removed" && (out.Cleanup == nil || out.Cleanup.State != gitops.CleanupRemoved || out.Code != "")) {
 			out = store.CandidateMaintenanceOutcome{Version: 1, State: "pending", Code: "child_outcome_invalid"}
 		}
