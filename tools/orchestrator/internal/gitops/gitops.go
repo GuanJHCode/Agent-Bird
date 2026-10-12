@@ -1246,12 +1246,25 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 		}
 		out.PrivateRefState = "retained"
 	}
-	if err := noSymlinkComponents(req.Root); err != nil {
+	// Resolve the existing parent, not the removable leaf. Benign aliases
+	// must produce the same identity after quarantine has removed the leaf.
+	absolute, pathErr := filepath.Abs(req.Root)
+	if pathErr != nil {
+		return out, pathErr
+	}
+	parent, pathErr := filepath.EvalSymlinks(filepath.Dir(absolute))
+	if pathErr != nil {
+		return out, pathErr
+	}
+	canonicalRoot := filepath.Join(parent, filepath.Base(absolute))
+	if err := noSymlinkComponents(canonicalRoot); err != nil {
 		return out, err
 	}
-	if CanonicalPath(req.Root) != receipt.WorktreeIdentity {
+	if canonicalRoot != receipt.WorktreeIdentity {
 		return out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("root identity"))
 	}
+	req.Root, out.Root = canonicalRoot, canonicalRoot
+
 	receiptSHA256 := receipt.hash()
 	out.ReceiptSHA256 = receiptSHA256
 	if journal, ok := req.Journal.(CleanupRecoveryJournal); ok {

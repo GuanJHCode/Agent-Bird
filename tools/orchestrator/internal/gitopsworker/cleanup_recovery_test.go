@@ -54,7 +54,11 @@ func TestCleanupRecoveryDurableReopenAtEveryAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := gitops.CleanupRequest{Root: work, CandidateReceipt: &receipt, Journal: j, BeforeRemove: func() error { return errors.New("plan-only") }}
+	alias := filepath.Join(t.TempDir(), "parent-alias")
+	if err = os.Symlink(root, alias); err != nil {
+		t.Fatal(err)
+	}
+	req := gitops.CleanupRequest{Root: filepath.Join(alias, "work"), CandidateReceipt: &receipt, Journal: j, BeforeRemove: func() error { return errors.New("plan-only") }}
 	if _, err = gitops.Cleanup(ctx, req); err == nil {
 		t.Fatal("plan fault missing")
 	}
@@ -101,7 +105,7 @@ func TestCleanupRecoveryDurableReopenAtEveryAction(t *testing.T) {
 	}
 	reopen()
 	first, err := gitops.Cleanup(ctx, req)
-	if err != nil || first.State != gitops.CleanupRemoved {
+	if err != nil || first.State != gitops.CleanupRemoved || first.Root != receipt.WorktreeIdentity {
 		t.Fatalf("finish %+v %v", first, err)
 	}
 	reopen()
