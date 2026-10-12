@@ -340,6 +340,7 @@ func withTaskRequest(value any, fn func(string) error) error {
 }
 
 func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) error {
+	ctx = adapter.WithProbeCache(ctx)
 	for _, task := range tasks {
 		deferDynamicProbe := false
 		if task.ExecutionPolicy != nil {

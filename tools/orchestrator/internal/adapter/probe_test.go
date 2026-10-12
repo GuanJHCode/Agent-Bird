@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -105,5 +106,45 @@ func TestProbeAcceptsHelpOnStderrWithoutMixingVersionDiagnostics(t *testing.T) {
 	version, err := ProbeOutput(context.Background(), path, "--version")
 	if err != nil || version != "1.2.0" {
 		t.Fatalf("version mixed with diagnostics: %q %v", version, err)
+	}
+}
+
+func TestProbeCacheReusesSuccessfulOutputButNotErrors(t *testing.T) {
+	t.Setenv("ORCHESTRATOR_PROBE_TEST_HELPER", "1")
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := probeCommand
+	calls := 0
+	probeCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		calls++
+		return exec.CommandContext(ctx, name, args...)
+	}
+	t.Cleanup(func() { probeCommand = original })
+
+	ctx := WithProbeCache(context.Background())
+	for range 2 {
+		got, err := ProbeOutput(ctx, path, "--version")
+		if err != nil || got != "1.2.0" {
+			t.Fatalf("ProbeOutput() = %q, %v", got, err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("successful probe executions = %d, want 1", calls)
+	}
+
+	probeCommand = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
+		calls++
+		return exec.CommandContext(ctx, "/bin/false")
+	}
+	failed := WithProbeCache(context.Background())
+	for range 2 {
+		if _, err := ProbeOutput(failed, path, "--help"); err == nil {
+			t.Fatal("ProbeOutput() error = nil, want probe failure")
+		}
+	}
+	if calls != 3 {
+		t.Fatalf("failed probe executions were cached: calls = %d, want 3", calls)
 	}
 }

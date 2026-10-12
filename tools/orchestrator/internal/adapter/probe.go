@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -20,6 +21,62 @@ import (
 type probeBuffer struct{ bytes.Buffer }
 
 var probeCommand = exec.CommandContext
+
+type probeCacheContextKey struct{}
+
+type probeCache struct {
+	mu      sync.Mutex
+	outputs map[string]string
+}
+
+// WithProbeCache scopes successful, bounded probe output to one caller-owned
+// context. It never caches failures or executable identity checks.
+func WithProbeCache(ctx context.Context) context.Context {
+	if probeCacheFor(ctx) != nil {
+		return ctx
+	}
+	return context.WithValue(ctx, probeCacheContextKey{}, &probeCache{outputs: make(map[string]string)})
+}
+
+func probeCacheFor(ctx context.Context) *probeCache {
+	cache, _ := ctx.Value(probeCacheContextKey{}).(*probeCache)
+	return cache
+}
+
+func cacheableProbeArgs(args []string) bool {
+	return len(args) == 1 && (args[0] == "--version" || args[0] == "--help")
+}
+
+func probeCacheKey(path string, args []string) string {
+	return path + "\x00" + strings.Join(args, "\x00")
+}
+
+func cachedProbeOutput(ctx context.Context, path string, args []string) (string, bool) {
+	if !cacheableProbeArgs(args) {
+		return "", false
+	}
+	cache := probeCacheFor(ctx)
+	if cache == nil {
+		return "", false
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	output, ok := cache.outputs[probeCacheKey(path, args)]
+	return output, ok
+}
+
+func storeProbeOutput(ctx context.Context, path string, args []string, output string) {
+	if !cacheableProbeArgs(args) {
+		return
+	}
+	cache := probeCacheFor(ctx)
+	if cache == nil {
+		return
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	cache.outputs[probeCacheKey(path, args)] = output
+}
 
 func ProbeFailureFacts(err error) *contract.FailureFacts {
 	var failure *probeFailure
@@ -58,6 +115,9 @@ func (b *probeBuffer) Write(data []byte) (int, error) {
 }
 
 func ProbeOutput(ctx context.Context, path string, args ...string) (string, error) {
+	if output, ok := cachedProbeOutput(ctx, path, args); ok {
+		return output, nil
+	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	cmd := probeCommand(ctx, path, args...)
@@ -93,9 +153,13 @@ func ProbeOutput(ctx context.Context, path string, args ...string) (string, erro
 		if output.Len()+helpOutput.Len() > 64*1024 {
 			return "", errors.New("provider_probe_too_large")
 		}
-		return strings.TrimSpace(output.String() + "\n" + helpOutput.String()), nil
+		result := strings.TrimSpace(output.String() + "\n" + helpOutput.String())
+		storeProbeOutput(ctx, path, args, result)
+		return result, nil
 	}
-	return strings.TrimSpace(output.String()), nil
+	result := strings.TrimSpace(output.String())
+	storeProbeOutput(ctx, path, args, result)
+	return result, nil
 }
 
 func Probe(ctx context.Context, provider Provider, path string) (ProviderLock, error) {

@@ -246,3 +246,33 @@ func TestPreliminarySupportedTaskStillRequiresOriginalOwner(t *testing.T) {
 		}
 	}
 }
+
+func TestPreflightProvidersSharesSuccessfulProbesWithinOneRequest(t *testing.T) {
+	root := privateTaskTemp(t)
+	marker := filepath.Join(root, "probe-calls")
+	binary := filepath.Join(root, "provider")
+	body := []byte("#!/bin/sh\nprintf '%s\\n' \"$1\" >> '" + marker + "'\ncase \"$1\" in\n--version) printf 'fixture-v1\\n' ;;\n--help) printf '%s\\n' '--print --output-format --input-format --mode --json-schema' ;;\n*) exit 2 ;;\nesac\n")
+	if err := os.WriteFile(binary, body, 0700); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(body)
+	payload, err := json.Marshal(adapter.InvocationPayload{
+		Provider: string(adapter.ProviderAGY), Directory: root, Prompt: "review",
+		ProviderLock: &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderAGY, Protocol: adapter.ProtocolID(adapter.ProviderAGY), Binary: adapter.BinaryPin{Path: binary, Version: "fixture-v1", SHA256: hex.EncodeToString(digest[:])}},
+		Profile:      &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, CLIModelDefault: true, TimeoutMS: 1000},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tasks := []coordinator.TaskRequest{{ID: "one", AdapterPayload: payload}, {ID: "two", AdapterPayload: payload}}
+	if err := preflightProviders(context.Background(), tasks); err != nil {
+		t.Fatalf("preflightProviders() = %v", err)
+	}
+	calls, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Count(string(calls), "\n"), 2; got != want {
+		t.Fatalf("probe calls = %d (%q), want %d: one version and one help", got, calls, want)
+	}
+}
