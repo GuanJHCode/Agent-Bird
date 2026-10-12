@@ -790,3 +790,29 @@ func openSourceJournal(root string, extra int) (j *durableJournal, err error) {
 	}
 	return &durableJournal{file: f, lock: l}, nil
 }
+
+// MaintenanceProcessQuiescent does not reconstruct a missing original Wait.
+// A prior actor may have died while a Git child was in its own process group;
+// an unclosed/unknown record therefore retains the worktree for reconciliation.
+func (j *durableJournal) MaintenanceProcessQuiescent(ctx context.Context) error {
+	return j.withLock(syscall.LOCK_SH, func() error {
+		var pending *gitops.GitProcessRecord
+		completed := 0
+		if e := j.scanLocked(ctx, func(row journalRecord) error {
+			if row.Kind != "git_process" {
+				return nil
+			}
+			var p gitops.GitProcessRecord
+			if decodeJournalStrict(row.Value, &p) != nil || !sealProcess(&pending, p, &completed) {
+				return process.ErrProcessTreeUnknown
+			}
+			return nil
+		}); e != nil {
+			return e
+		}
+		if pending != nil {
+			return process.ErrProcessTreeUnknown
+		}
+		return nil
+	})
+}

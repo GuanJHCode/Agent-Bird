@@ -13,7 +13,7 @@ import (
 
 func candidateRunRetired(ctx context.Context, tx *sql.Tx, run string) error {
 	var retired int
-	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM candidate_run_retirements WHERE run_id=?)`, run).Scan(&retired); err != nil {
+	if err := tx.QueryRowContext(ctx, `WITH RECURSIVE sources(run_id) AS (SELECT ? UNION SELECT l.source_run_id FROM new_base_lineage l JOIN sources s ON l.run_id=s.run_id) SELECT EXISTS(SELECT 1 FROM candidate_run_retirements r JOIN sources s ON s.run_id=r.run_id)`, run).Scan(&retired); err != nil {
 		return err
 	}
 	if retired != 0 {
@@ -62,6 +62,13 @@ func (d *DB) registerCandidateResource(ctx context.Context, tx *sql.Tx, e contra
 			return nil
 		}
 		return err
+	}
+	var continued int
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM continuation_decisions WHERE target_segment_id=?)`, e.SegmentID).Scan(&continued); err != nil {
+		return err
+	}
+	if continued != 0 {
+		return bad
 	}
 	var payload, status, outcome, budget string
 	var plan int

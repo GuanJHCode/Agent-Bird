@@ -58,7 +58,7 @@ CREATE TRIGGER candidate_operation_transition BEFORE UPDATE OF state,child_json,
 		{"new_base", "new_base_lineage", "INSERT", "NEW.source_run_id"},
 	}
 	for _, f := range fences {
-		if _, err = tx.Exec("CREATE TRIGGER candidate_retention_" + f.name + "_fence BEFORE " + f.operation + " ON " + f.table + " WHEN EXISTS(SELECT 1 FROM candidate_run_retirements WHERE run_id=" + f.run + ") BEGIN SELECT RAISE(ABORT,'candidate_resource_retired');END;"); err != nil {
+		if _, err = tx.Exec("CREATE TRIGGER candidate_retention_" + f.name + "_fence BEFORE " + f.operation + " ON " + f.table + " WHEN EXISTS(WITH RECURSIVE sources(run_id) AS (SELECT " + f.run + " UNION SELECT l.source_run_id FROM new_base_lineage l JOIN sources s ON l.run_id=s.run_id) SELECT 1 FROM candidate_run_retirements r JOIN sources s ON s.run_id=r.run_id) BEGIN SELECT RAISE(ABORT,'candidate_resource_retired');END;"); err != nil {
 			return err
 		}
 	}

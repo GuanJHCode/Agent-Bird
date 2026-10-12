@@ -199,3 +199,93 @@ func TestCandidateGCConsentAndDisableDuringRound(t *testing.T) {
 		t.Fatal(status, e)
 	}
 }
+
+func TestCandidateRegistrationExcludesCompletedContinuation(t *testing.T) {
+	f, h := candidateRetentionFixture(t)
+	g := f.grant
+	_, e := f.db.sql.Exec(`INSERT INTO continuation_decisions(decision_id,version,run_id,task_id,attempt_id,work_revision,mode,source_kind,source_segment_id,source_event_id,source_event_revision,source_event_sha256,action_slot,command_id,question_id,answer_sha256,ref_json,target_segment_id,status,created_at) VALUES('continued',1,?,?,?,1,'interrupted','host',?,'prior-outcome',1,?,'continued-slot','continued-command','','','{}',?,'claimed',?)`, g.RunID, g.TaskID, g.AttemptID, g.SegmentID, runtimeHash("prior-outcome"), g.SegmentID, f.at.Format(time.RFC3339Nano))
+	if e != nil {
+		t.Fatal(e)
+	}
+	h.Source.ProjectionSHA256 = runtimeHash("other receipt")
+	h.ReceiptSHA256 = h.Source.ProjectionSHA256
+	h.ResourceID = gitops.CandidateResourceID(h.Source, h.ReceiptSHA256)
+	h.SealSHA256 = gitops.CandidateResourceSealDigest(h)
+	raw, _ := json.Marshal(h)
+	event := diagnosticOutcomeEvent(g, contract.EventCandidateResourceRegistered, 5)
+	event.CandidateResource = raw
+	event.PayloadHash = runtimeHash(string(raw))
+	if _, e = f.db.CommitHostEvent(context.Background(), event); e != CodeError("candidate_resource_registration_invalid") {
+		t.Fatalf("completed continuation admitted: %v", e)
+	}
+}
+func TestCandidateRetentionIncludesDownstreamConsumptionAndFences(t *testing.T) {
+	ctx := context.Background()
+	f, h := candidateRetentionFixture(t)
+	p := diagnosticsPlan(nil)
+	p.Run.ID = "downstream"
+	p.Host.HostGeneration = "downstream-generation"
+	p.Tasks[0].ID = "downstream-task"
+	p.Tasks[0].RunID = p.Run.ID
+	receipt, e := f.db.SubmitPlan(ctx, p)
+	if e != nil {
+		t.Fatal(e)
+	}
+	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: p.Run.OriginContextID, OriginPID: p.Run.OriginPID, OriginBirth: p.Run.OriginBirth, HostGeneration: p.Host.HostGeneration, PID: 102, Birth: "downstream-host", Executable: p.Host.Executable}
+	if _, e = f.db.RegisterHost(ctx, hello, 1); e != nil {
+		t.Fatal(e)
+	}
+	g, e := f.db.ClaimReady(ctx, hello.LaunchID, 1, 1)
+	if e != nil {
+		t.Fatal(e)
+	}
+	for n, kind := range []string{contract.EventPrepared, contract.EventResult, contract.EventExited} {
+		ev := diagnosticOutcomeEvent(g, kind, int64(n+1))
+		if kind == contract.EventExited {
+			zero := 0
+			ev.ExitCode = &zero
+			ev.ActiveMS = 1
+		}
+		if _, e = f.db.CommitHostEvent(ctx, ev); e != nil {
+			t.Fatal(e)
+		}
+	}
+	_, e = f.db.sql.Exec(`INSERT INTO new_base_lineage(run_id,source_run_id,source_task_id,source_event_id,source_event_revision,source_event_hash,command_id,request_sha256,context_json,launch_id,launch_token_hash,control_token_hash,created_at,admission_bytes) VALUES(?,?,?,?,?,?,'new-base-test',?,'{}',?,?,?,?,1)`, g.RunID, f.grant.RunID, f.grant.TaskID, f.event.EventID, f.event.EventRevision, f.event.PayloadHash, runtimeHash("newbase"), receipt.LaunchID, runtimeHash(receipt.LaunchToken), runtimeHash(receipt.ControlToken), f.at.Format(time.RFC3339Nano))
+	if e != nil {
+		t.Fatal(e)
+	}
+	now := f.at.Add(31 * 24 * time.Hour)
+	plan := candidatePlanAt(t, f, now, "pending-downstream")
+	if len(plan.Items) != 0 || len(plan.Excluded) != 1 || plan.Excluded[0].Reason != "candidate_retention_pinned" {
+		t.Fatalf("unconsumed downstream admitted: %+v", plan)
+	}
+	events, e := f.db.CollectPending(ctx, g.TaskID, "", 8, false)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(events.Events) != 1 {
+		t.Fatal("downstream deliveries", len(events.Events))
+	}
+	ev := events.Events[0]
+	if e = f.db.AckDecisions(ctx, g.TaskID, "downstream-history", runtimeHash("downstream-history"), []AckDecision{{EventID: ev.EventID, EventRevision: ev.EventRevision, EventHash: ev.PayloadHash, ActionSlot: ev.ActionSlot, Decision: "handled", CommandID: "downstream-ack"}}); e != nil {
+		t.Fatal(e)
+	}
+	plan = candidatePlanAt(t, f, now, "consumed-downstream")
+	if len(plan.Items) != 1 {
+		t.Fatalf("consumed downstream blocked: %+v", plan)
+	}
+	if _, e = f.db.prepareCandidateMaintenanceAt(ctx, "controller", f.token, plan, h.ResourceID, "/private/tmp/orchestrator", runtimeHash("executable"), now); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = f.db.sql.Exec(`UPDATE tasks SET status='pending' WHERE id=?`, g.TaskID); e == nil {
+		t.Fatal("downstream reopened after source retirement")
+	}
+	tx, e := f.db.sql.Begin()
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer tx.Rollback()
+	if e = candidateRunRetired(ctx, tx, g.RunID); e != CodeError("candidate_resource_retired") {
+		t.Fatal("descendant live binder bypass", e)
+	}
+}
