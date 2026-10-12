@@ -137,6 +137,7 @@ def start(args):
               'failures and changed files; no task restatement. Fetch agent_bird_result only '
               'when the excerpt is insufficient. Report failure_reason, changes_known, '
               'changed_files and workspace accurately. No recursive delegation. '
+              'On any tool failure, stop and report it; never retry or change permission mode. '
               'Project: ' + str(directory) + '.\n' + args.prompt)
     session = Path(tempfile.mkdtemp(prefix='source-', dir=runtime))
     if args.provider == 'grok':

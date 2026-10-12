@@ -102,10 +102,13 @@ func validateProfile(req Request) error {
 		return errors.New("reasoning_unsupported")
 	}
 	if req.Provider == ProviderGrok {
-		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" && req.Binary.Version != "grok 1.0.50 (c58f321264ba) [stable]" {
+		// The same verified 1.0.50 build reports its channel suffix optionally.
+		// Preserve the actual version string in the pin and VerifyExecutable.
+		grok150 := req.Binary.Version == "grok 1.0.50 (c58f321264ba) [stable]" || req.Binary.Version == "grok 1.0.50 (c58f321264ba)"
+		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" && !grok150 {
 			return errors.New("grok_version_not_verified")
 		}
-		if req.Binary.Version == "grok 1.0.50 (c58f321264ba) [stable]" && !p.GrokExistingAuthOnly {
+		if grok150 && !p.GrokExistingAuthOnly {
 			return errors.New("grok_existing_auth_required")
 		}
 		if !p.GrokSessionWrite {

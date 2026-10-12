@@ -79,25 +79,29 @@ func TestGrokImplementationRequiresExactEditRuleCapability(t *testing.T) {
 }
 
 func TestGrok150RequiresExistingAuthAndOriginalGuards(t *testing.T) {
-	req := grokProfileRequest(t)
-	req.Binary.Version = "grok 1.0.50 (c58f321264ba) [stable]"
-	req.Lock.Binary = req.Binary
-	if _, err := BuildInvocation(req); err == nil || err.Error() != "grok_existing_auth_required" {
-		t.Fatalf("new CLI auth refresh admitted: %v", err)
-	}
-	req.Profile.GrokExistingAuthOnly = true
-	invocation, err := BuildInvocation(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	args := strings.Join(invocation.Args(), " ")
-	for _, guard := range []string{"--no-subagents", "--disable-web-search", "--deny MCPTool(*)", "--permission-mode plan"} {
-		if !strings.Contains(args, guard) {
-			t.Fatalf("missing guard %s: %s", guard, args)
-		}
-	}
-	req.Profile.GrokSessionWrite = false
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("missing session-write authorization accepted")
+	for _, version := range []string{"grok 1.0.50 (c58f321264ba) [stable]", "grok 1.0.50 (c58f321264ba)"} {
+		t.Run(version, func(t *testing.T) {
+			req := grokProfileRequest(t)
+			req.Binary.Version = version
+			req.Lock.Binary = req.Binary
+			if _, err := BuildInvocation(req); err == nil || err.Error() != "grok_existing_auth_required" {
+				t.Fatalf("new CLI auth refresh admitted: %v", err)
+			}
+			req.Profile.GrokExistingAuthOnly = true
+			invocation, err := BuildInvocation(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			args := strings.Join(invocation.Args(), " ")
+			for _, guard := range []string{"--no-subagents", "--disable-web-search", "--deny MCPTool(*)", "--permission-mode plan"} {
+				if !strings.Contains(args, guard) {
+					t.Fatalf("missing guard %s: %s", guard, args)
+				}
+			}
+			req.Profile.GrokSessionWrite = false
+			if _, err := BuildInvocation(req); err == nil {
+				t.Fatal("missing session-write authorization accepted")
+			}
+		})
 	}
 }
