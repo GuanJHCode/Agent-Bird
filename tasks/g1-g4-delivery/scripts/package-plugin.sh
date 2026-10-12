@@ -50,7 +50,7 @@ try:
     if not isinstance(declared, str) or not declared.startswith("./"):
         raise ValueError("skills path must be plugin-relative")
     relative = pathlib.PurePosixPath(declared[2:])
-    if relative.is_absolute() or not relative.parts or ".." in relative.parts:
+    if relative.as_posix() != "skills" or relative.is_absolute() or not relative.parts or ".." in relative.parts:
         raise ValueError("skills path escapes plugin")
     directory = root
     for part in relative.parts:

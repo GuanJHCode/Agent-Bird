@@ -13,6 +13,7 @@ import (
 )
 
 const payloadManifestName = "payload-manifest.json"
+const skillReferencePath = "skills/orchestrate/legacy-cli.md"
 
 type payloadManifest struct {
 	SchemaVersion int           `json:"schema_version"`
@@ -149,6 +150,15 @@ func validatePayloadDirectory(root string, installed, portable bool) (string, er
 		return "", errors.New("payload_manifest_invalid")
 	}
 	paths := payloadPaths(metadata.Kind)
+	// The on-demand reference is an explicitly named optional asset, preserving
+	// old packages while retaining a closed, mode/hash-checked file inventory.
+	if paths != nil {
+		for _, file := range metadata.Files {
+			if file.Path == skillReferencePath {
+				paths[skillReferencePath] = 0600
+			}
+		}
+	}
 	if len(paths) == 0 || len(metadata.Files) != len(paths) {
 		return "", errors.New("payload_manifest_invalid")
 	}

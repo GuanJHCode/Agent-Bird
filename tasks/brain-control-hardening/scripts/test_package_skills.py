@@ -21,7 +21,7 @@ def package(root, out):
     )
 
 
-@pytest.mark.parametrize("fault", ["missing-directory", "empty-directory", "traversal", "symlink-directory", "symlink-file"])
+@pytest.mark.parametrize("fault", ["missing-directory", "empty-directory", "traversal", "symlink-directory", "symlink-file", "different-valid-directory"])
 def test_package_rejects_unusable_declared_skills(tmp_path, fault):
     root = tmp_path / "repo"
     (root / SCRIPT).parent.mkdir(parents=True)
@@ -34,6 +34,13 @@ def test_package_rejects_unusable_declared_skills(tmp_path, fault):
         shutil.rmtree(skill_root)
     elif fault == "empty-directory":
         skill.unlink()
+    elif fault == "different-valid-directory":
+        other = root / PLUGIN / "other-skills"
+        other.mkdir()
+        (other / "SKILL.md").write_text("valid but outside the explicit closure")
+        value = json.loads(manifest.read_text())
+        value["skills"] = "./other-skills"
+        manifest.write_text(json.dumps(value))
     elif fault == "traversal":
         value = json.loads(manifest.read_text())
         value["skills"] = "../../outside"

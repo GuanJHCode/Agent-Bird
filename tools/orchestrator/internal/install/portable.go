@@ -70,10 +70,14 @@ func installPortableWithPolicy(source, destination, state string, strictCollectO
 	}
 	if metadata.PayloadSchema == 1 {
 		kind, e := validatePayloadDirectory(source, false, true)
-		if e != nil || kind != "collect-only-hooks" || len(metadata.Files) != len(payloadPaths(kind))+1 {
+		paths := payloadPaths(kind)
+		if paths != nil && metadata.Files[skillReferencePath] != "" {
+			paths[skillReferencePath] = 0600
+		}
+		if e != nil || kind != "collect-only-hooks" || len(metadata.Files) != len(paths)+1 {
 			return "", errors.New("portable_payload_invalid")
 		}
-		for rel := range payloadPaths(kind) {
+		for rel := range paths {
 			if metadata.Files[rel] == "" {
 				return "", errors.New("portable_manifest_invalid")
 			}
@@ -216,7 +220,7 @@ func portableRead(path string, limit int64) ([]byte, error) {
 func portablePathAllowed(rel string, schema int) bool {
 	if schema == 1 {
 		_, ok := payloadPaths("collect-only-hooks")[rel]
-		return ok || rel == payloadManifestName
+		return ok || rel == payloadManifestName || rel == skillReferencePath
 	}
 	switch rel {
 	case "defaults.json", "bin/codex-orchestrator", ".codex-plugin/plugin.json", "runtime/g0/runtime-manifest.json", "scripts/invoke.sh", "skills/orchestrate/SKILL.md":
