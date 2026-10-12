@@ -55,7 +55,7 @@ func TestProviderProjectionFailsClosedForMissingContinuationCapability(t *testin
 		provider                        adapter.Provider
 		version, help, reason, expected string
 	}{
-		{"agy_wrong_option", adapter.ProviderAGY, "1.2.16", "--input-format --output-format --mode --conversation-cache --json-schema", "", "provider_capability_unsupported"},
+		{"agy_wrong_option", adapter.ProviderAGY, "1.2.16", "--print --input-format --output-format --mode --conversation-cache --json-schema", "", "provider_capability_unsupported"},
 		{"claude_wrong_option", adapter.ProviderClaude, "2.1.285", "--input-format --output-format --permission-mode --disallowed-tools --resume-last --json-schema", "", "provider_capability_unsupported"},
 		{"claude_old_history", adapter.ProviderClaude, "2.1.233", complete, "", "claude_history_version_unverified"},
 		{"claude_unknown_history", adapter.ProviderClaude, "development", complete, "", "claude_history_version_unverified"},

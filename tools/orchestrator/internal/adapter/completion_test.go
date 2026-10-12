@@ -29,7 +29,7 @@ func TestManagedNativeInvocationSelectsFixedCompletionSchema(t *testing.T) {
 			if !bytes.Contains(inv.Stdin(), []byte("Agent Bird managed completion v1")) {
 				t.Fatal("missing fixed segment completion instructions")
 			}
-			help := "--input-format --output-format --mode --permission-mode --disallowed-tools"
+			help := "--print --input-format --output-format --mode --permission-mode --disallowed-tools"
 			if err = CheckCapabilities(req, help); err == nil {
 				t.Fatal("managed schema capability was not required")
 			}

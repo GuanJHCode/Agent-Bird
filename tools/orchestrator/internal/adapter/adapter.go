@@ -98,6 +98,9 @@ func (i Invocation) Environment() map[string]string {
 var hex64 = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 func BuildInvocation(req Request) (Invocation, error) {
+	if req.Provider == ProviderCodex && req.Profile != nil && req.Profile.CodexHostToolsVersion == 1 {
+		return BuildCodexPluginInvocation(req)
+	}
 	if err := validateContinuation(req); err != nil {
 		return Invocation{}, err
 	}
@@ -176,7 +179,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 		}
 		input = userEvent(req.Prompt)
 	case ProviderAGY:
-		args = append(args, "--output-format", "stream-json", "--input-format", "stream-json")
+		args = append(args, "--print=", "--output-format", "stream-json", "--input-format", "stream-json")
 		if req.Session.ID != "" {
 			args = append(args, "--conversation", req.Session.ID)
 		}

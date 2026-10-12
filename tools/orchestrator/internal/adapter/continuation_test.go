@@ -27,7 +27,7 @@ func TestTypedContinuationUsesExactProviderResumeAndRejectsWeakenedRef(t *testin
 			help := "--input-format --output-format --permission-mode --disallowed-tools --resume --json-schema"
 			flag := "--resume"
 			if p == ProviderAGY {
-				help = "--input-format --output-format --mode --conversation --json-schema"
+				help = "--print --input-format --output-format --mode --conversation --json-schema"
 				flag = "--conversation"
 			}
 			inv, err := BuildInvocation(r)

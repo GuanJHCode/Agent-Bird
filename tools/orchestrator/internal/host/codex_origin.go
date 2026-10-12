@@ -250,7 +250,7 @@ func (h *Host) prepareManagedCodexState(ctx context.Context, g contract.LaunchCo
 	}
 	var empty codexPreparedState
 	descriptor, ok := adapter.ManagedCodexDescriptorFor(inv)
-	if !ok || descriptor.Backend != adapter.ManagedCodexBackend || descriptor.ResumeThreadID != "" || g.Continuation != nil || g.SessionID != "" || g.SessionKind != "" || ctx.Err() != nil {
+	if !ok || (descriptor.Backend != adapter.ManagedCodexBackend && descriptor.Backend != adapter.CodexPluginBackend) || descriptor.ResumeThreadID != "" || g.Continuation != nil || g.SessionID != "" || g.SessionKind != "" || ctx.Err() != nil {
 		return empty, errCodexStateFile
 	}
 	h.mu.Lock()

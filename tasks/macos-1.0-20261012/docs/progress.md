@@ -92,3 +92,20 @@ managed owner路径，并只为本次已授权的Agent-Bird工具设置进程级
 数据：`tasks/macos-1.0-20261012/data/codex-claude-source.jsonl`（原生MCP调用事件）
 与`codex-claude-argv.json`（进程级参数）。开发二进制`agent-bird-native2`无发布codeSHA
 声明；后续固定交付使用clean build。此证据未涵盖后续新增Codex目标或Grok接线。
+
+
+## Codex 只读目标与 AGY headless 参数修复
+
+新增固定0.154.0 pin的 `codex-app-server-plugin-read-v1` backend，fresh thread经
+app-server动态工具调用Host的read/list Broker；不执行嵌套shell、不修改Codex、不撤销
+原文件/网络/状态保护。Codex continuation/write仍门禁，旧M3不能升级获取工具。
+新增profile字段 `codex_host_tools_version=1`，不迁移schema（仍41）。独立审查通过。
+定向Codex/CLI 73 named PASS；后续Host/Call/MCP race 7top/14named PASS，0fail/0skip。
+
+AGY 1.3.3原生print模式使用 `--print=`：bare `--print`会将后续flag当作可选prompt。
+帮助探测需具备--print；已补精确argv回归。真实AGY账号返回地区不支持，用户确认暂无
+账号并要求先测其他，因此停止AGY真实调用，不修改账号/网络配置。
+
+Codex→Claude写任务实际修改隔离candidate的answer.txt，但90s内未返回terminal完成，
+结果为timed_out/call_timeout，原Wait+tree退出已确认。`changes_known=false`避免误报
+失败任务未改文件。此项是超时和退出验收，不能当作完整写任务通过。

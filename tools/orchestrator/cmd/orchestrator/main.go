@@ -1240,7 +1240,8 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand, hostS
 		}
 		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
 	}
-	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+	codexPlugin := payload.Provider == string(adapter.ProviderCodex) && payload.Kind == "provider" && payload.Profile != nil && payload.Profile.CodexHostToolsVersion == 1 && grant.Continuation == nil
+	if !codexPlugin && (payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256)) {
 		return nil, codeError("codex_trial_guard_not_ready")
 	}
 	if grant.Answer != "" && grant.Continuation == nil {

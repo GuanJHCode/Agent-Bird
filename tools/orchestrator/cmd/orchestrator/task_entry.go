@@ -57,6 +57,8 @@ func taskEntry(ctx context.Context, args []string, out io.Writer) error {
 
 func taskProvider(name string) (adapter.Provider, string, error) {
 	switch name {
+	case "codex":
+		return adapter.ProviderCodex, "codex", nil
 	case "claude", string(adapter.ProviderClaude):
 		return adapter.ProviderClaude, "claude", nil
 	case "agy", string(adapter.ProviderAGY):
@@ -361,7 +363,7 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if p.Kind == "candidate" && p.CandidateAction != nil {
 				continue
 			}
-			if (p.Kind != "" && !(p.Kind == "provider" && adapter.ValidateGitFilterPipelinePayload(p) == nil)) || p.Profile == nil || p.ProviderLock == nil {
+			if (p.Kind != "" && !(p.Kind == "provider" && (adapter.ValidateGitFilterPipelinePayload(p) == nil || p.Provider == string(adapter.ProviderCodex) && p.Profile != nil && p.Profile.CodexHostToolsVersion == 1))) || p.Profile == nil || p.ProviderLock == nil {
 				return codeError("task_typed_profile_required")
 			}
 			if p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" {

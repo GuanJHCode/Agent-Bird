@@ -60,6 +60,9 @@ func validateDispatch(req dispatchRequest) error {
 	if err != nil {
 		return err
 	}
+	if p == adapter.ProviderCodex && req.Role != adapter.Reviewer {
+		return codeError("codex_write_not_ready")
+	}
 	if req.Role != adapter.Reviewer && req.Role != adapter.Implementer {
 		return codeError("dispatch_request_invalid")
 	}
@@ -176,6 +179,10 @@ func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base st
 		profile.Model = adapter.ModelID(req.Model)
 	}
 	payload := adapter.InvocationPayload{Provider: string(provider), ProviderLock: &lock, Profile: profile, Directory: req.Directory, Prompt: req.Prompt + "\n\nAcceptance conditions:\n- " + strings.Join(req.Acceptance, "\n- ")}
+	if provider == adapter.ProviderCodex {
+		profile.CodexHostToolsVersion = 1
+		payload.Kind = "provider"
+	}
 	if req.Role == adapter.Implementer {
 		profile.Permission = adapter.WorkspaceWrite
 		payload.Directory = ""

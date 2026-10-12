@@ -22,7 +22,7 @@ func TestTaskProbeProviderSelection(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := privateTaskTemp(t)
 			binary := filepath.Join(root, "provider")
-			if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '--output-format --input-format --permission-mode --mode --disallowed-tools --json-schema';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
+			if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '--output-format --input-format --permission-mode --print --mode --disallowed-tools --json-schema';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
 				t.Fatal(err)
 			}
 			var out bytes.Buffer

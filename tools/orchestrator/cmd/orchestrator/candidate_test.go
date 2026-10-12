@@ -293,7 +293,7 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		fmt.Println("--output-format --input-format --permission-mode --mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny --allow")
+		fmt.Println("--output-format --input-format --permission-mode --print --mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny --allow")
 		os.Exit(0)
 	}
 	if grokFixture && len(os.Args) == 2 && os.Args[1] == "models" {

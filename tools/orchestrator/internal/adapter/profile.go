@@ -18,15 +18,16 @@ const (
 )
 
 type ExecutionProfile struct {
-	GrokExistingAuthOnly bool            `json:"grok_existing_auth_only,omitempty"`
-	CLIModelDefault      bool            `json:"cli_model_default,omitempty"`
-	GrokSessionWrite     bool            `json:"grok_session_write,omitempty"`
-	Version              int             `json:"version"`
-	Role                 Role            `json:"role"`
-	Model                ModelID         `json:"model,omitempty"`
-	Reasoning            ReasoningEffort `json:"reasoning,omitempty"`
-	Permission           AccessMode      `json:"permission"`
-	TimeoutMS            int64           `json:"timeout_ms"`
+	CodexHostToolsVersion int             `json:"codex_host_tools_version,omitempty"`
+	GrokExistingAuthOnly  bool            `json:"grok_existing_auth_only,omitempty"`
+	CLIModelDefault       bool            `json:"cli_model_default,omitempty"`
+	GrokSessionWrite      bool            `json:"grok_session_write,omitempty"`
+	Version               int             `json:"version"`
+	Role                  Role            `json:"role"`
+	Model                 ModelID         `json:"model,omitempty"`
+	Reasoning             ReasoningEffort `json:"reasoning,omitempty"`
+	Permission            AccessMode      `json:"permission"`
+	TimeoutMS             int64           `json:"timeout_ms"`
 }
 
 type ProviderLock struct {
@@ -69,6 +70,9 @@ func validateProfile(req Request) error {
 	if p == nil {
 		return nil
 	}
+	if p.CodexHostToolsVersion != 0 && req.Provider != ProviderCodex {
+		return errors.New("profile_provider_state_mismatch")
+	}
 	if (p.GrokSessionWrite || p.GrokExistingAuthOnly) && req.Provider != ProviderGrok {
 		return errors.New("profile_provider_state_mismatch")
 	}
@@ -79,6 +83,10 @@ func validateProfile(req Request) error {
 		return errors.New("profile_resume_not_verified")
 	}
 	if req.Provider == ProviderCodex {
+		if p.CodexHostToolsVersion == 1 {
+			_, err := BuildCodexPluginInvocation(req)
+			return err
+		}
 		return errors.New("codex_trial_guard_not_ready")
 	}
 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
@@ -139,12 +147,15 @@ func CheckCapabilities(req Request, help string) error {
 	if req.Profile == nil {
 		return nil
 	}
+	if req.Provider == ProviderCodex && req.Profile.CodexHostToolsVersion == 1 {
+		return nil
+	}
 	flags := []string{"--output-format", "--input-format", "--permission-mode"}
 	if req.Provider == ProviderClaude {
 		flags = append(flags, "--disallowed-tools")
 	}
 	if req.Provider == ProviderAGY {
-		flags = []string{"--output-format", "--input-format", "--mode"}
+		flags = []string{"--print", "--output-format", "--input-format", "--mode"}
 	}
 	if req.Provider == ProviderGrok {
 		flags = []string{"--output-format", "--permission-mode", "--no-subagents", "--disable-web-search", "--session-id", "--leader-socket", "--tools", "--deny"}

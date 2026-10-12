@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
@@ -33,9 +34,7 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 		return err
 	}
 	reason := ""
-	if req.Provider == adapter.ProviderCodex {
-		reason = "codex_trial_guard_not_ready"
-	} else if req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
+	if req.Provider != adapter.ProviderCodex && req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
 		reason = "execution_profile_unsupported"
 	}
 	help, err := adapter.ProbeOutput(ctx, req.BinaryPath, "--help")
@@ -44,6 +43,12 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 	}
 	if reason == "" {
 		check := adapter.Request{Provider: req.Provider, Binary: lock.Binary, Lock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}}
+		if req.Provider == adapter.ProviderCodex {
+			check.Profile.CLIModelDefault = true
+			check.Profile.CodexHostToolsVersion = 1
+			check.CWD = filepath.Dir(lock.Binary.Path)
+			check.Prompt = "Capability query"
+		}
 		// Capability discovery is not task write authorization. Actual requests
 		// must explicitly opt in and Host derives their fresh session directory.
 		check.Profile.GrokSessionWrite = req.Provider == adapter.ProviderGrok

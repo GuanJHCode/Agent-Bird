@@ -65,10 +65,13 @@ func codexValidateOriginRecord(o codexOriginRecord) error {
 			return errCodexStateFile
 		}
 	}
-	if o.Version != 1 || o.Scope.WorkRevision < 1 || o.Scope.PlanRevision < 1 || !codexHexDigest(o.Scope.AdapterPayloadSHA256) || o.Backend != adapter.ManagedCodexBackend || o.Lock.Version != 1 || o.Lock.Provider != adapter.ProviderCodex || o.Lock.Protocol != adapter.ProtocolID(adapter.ProviderCodex) || o.Lock.Binary.Version != adapter.CodexVersion || o.Lock.Binary.SHA256 != adapter.CodexSHA256 || !codexCanonicalPath(o.Lock.Binary.Path) || o.Lock.Binary.Path == string(filepath.Separator) {
+	if o.Version != 1 || o.Scope.WorkRevision < 1 || o.Scope.PlanRevision < 1 || !codexHexDigest(o.Scope.AdapterPayloadSHA256) || (o.Backend != adapter.ManagedCodexBackend && o.Backend != adapter.CodexPluginBackend) || o.Lock.Version != 1 || o.Lock.Provider != adapter.ProviderCodex || o.Lock.Protocol != adapter.ProtocolID(adapter.ProviderCodex) || o.Lock.Binary.Version != adapter.CodexVersion || o.Lock.Binary.SHA256 != adapter.CodexSHA256 || !codexCanonicalPath(o.Lock.Binary.Path) || o.Lock.Binary.Path == string(filepath.Separator) {
 		return errCodexStateFile
 	}
 	p := o.Profile
+	if (o.Backend == adapter.CodexPluginBackend && p.CodexHostToolsVersion != 1) || (o.Backend == adapter.ManagedCodexBackend && p.CodexHostToolsVersion != 0) {
+		return errCodexStateFile
+	}
 	if p.Version != 1 || p.Role != adapter.Reviewer || p.Permission != adapter.ReadOnly || !p.CLIModelDefault || p.Model != "" || p.Reasoning != "" || p.GrokSessionWrite || p.GrokExistingAuthOnly || p.TimeoutMS < 1 || p.TimeoutMS > 3600000 {
 		return errCodexStateFile
 	}

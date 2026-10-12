@@ -46,6 +46,7 @@ type providerCallResult struct {
 	Result        string   `json:"result,omitempty"`
 	FailureReason string   `json:"failure_reason,omitempty"`
 	ChangedFiles  []string `json:"changed_files"`
+	ChangesKnown  bool     `json:"changes_known"`
 	Workspace     string   `json:"workspace,omitempty"`
 	Handle        string   `json:"handle,omitempty"`
 	ProcessExited bool     `json:"process_exited"`
@@ -68,6 +69,9 @@ func normalizeProviderCall(r *providerCallRequest) error {
 	}
 	if r.TimeoutMS < 1 || r.TimeoutMS > 3600000 {
 		return codeError("call_timeout_invalid")
+	}
+	if r.Provider == "codex" && r.Mode == "workspace-write" {
+		return codeError("codex_write_not_ready")
 	}
 	if r.Mode != "read-only" && r.Mode != "workspace-write" {
 		return codeError("call_mode_invalid")
@@ -239,6 +243,7 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 			result.FailureReason = terminal.EventKind
 		}
 	}
+	result.ChangesKnown = req.Mode == "read-only"
 	result.Result = terminal.Content
 	if req.Mode == "workspace-write" && terminal.EventKind == contract.EventResult {
 		var artifact struct {
@@ -249,6 +254,7 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 		if json.Unmarshal([]byte(terminal.Content), &artifact) != nil || artifact.Version != 1 || artifact.Candidate.Worktree == "" {
 			return result, codeError("call_candidate_invalid")
 		}
+		result.ChangesKnown = true
 		result.Result, result.Workspace = artifact.ProviderResult, artifact.Candidate.Worktree
 		for _, change := range artifact.Candidate.Changes {
 			result.ChangedFiles = append(result.ChangedFiles, change.Path)

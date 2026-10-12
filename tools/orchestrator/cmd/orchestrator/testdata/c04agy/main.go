@@ -16,7 +16,7 @@ func main() {
 		return
 	}
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		fmt.Println("--input-format --output-format --mode --conversation --model --effort --json-schema")
+		fmt.Println("--print --input-format --output-format --mode --conversation --model --effort --json-schema")
 		return
 	}
 	cwd, err := os.Getwd()

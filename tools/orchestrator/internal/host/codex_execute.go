@@ -312,8 +312,24 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 // tests. Native phase validation and durable Host binding both precede turn.
 func (h *Host) runManagedCodexTurn(ctx context.Context, client *codexrpc.Client, p codexPreparedState, g contract.LaunchCommand, id process.Identity) (codexsession.Outcome, codexBoundThread, error) {
 	var bound codexBoundThread
+	var tools *codexsession.HostTools
+	if p.Origin.Backend == adapter.CodexPluginBackend {
+		if p.Previous != nil || p.Origin.Profile.CodexHostToolsVersion != 1 || g.Continuation != nil {
+			return codexsession.Outcome{}, bound, errCodexStateFile
+		}
+		opened, closeTools, err := openCodexReadTools(p.Origin.Workspace)
+		if err != nil {
+			return codexsession.Outcome{}, bound, err
+		}
+		defer closeTools()
+		tools = opened
+	}
 	prompt := strings.TrimSuffix(p.Descriptor.Prompt, "\n\n"+adapter.ManagedTaskInstruction())
+	if tools != nil {
+		prompt += "\nUse agent_bird.read_file and agent_bird.list_files for all project inspection. Shell execution is unavailable. Do not invoke other tools or delegate."
+	}
 	out, err := codexsession.Run(ctx, client, p.Projection, codexsession.Options{
+		HostTools:        tools,
 		RequireStdoutEOF: g.Diagnostics != nil,
 		CWD:              p.Origin.Workspace, OwnedHome: p.Layout.Home.Path,
 		PlatformFamily: "unix", PlatformOS: "macos", Prompt: prompt, ResumeThreadID: p.Descriptor.ResumeThreadID,

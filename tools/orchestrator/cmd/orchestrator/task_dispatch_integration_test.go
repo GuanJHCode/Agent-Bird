@@ -44,7 +44,7 @@ func testManagedDispatchCheckpoint(t *testing.T, checkpoint string) {
 set -eu
 case "${1-}" in
 --version) printf '%s\n' '1.2.5';;
---help) printf '%s\n' '--input-format --output-format --mode --model --json-schema';;
+--help) printf '%s\n' '--print --input-format --output-format --mode --model --json-schema';;
 --driver)
  "$AGENT_BIRD_COMMAND" task dispatch --request "$BIRD_FIXTURE/request.json" --state-dir "$BIRD_FIXTURE/state" > "$BIRD_FIXTURE/first.json"
  handle=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["handle"])' "$BIRD_FIXTURE/first.json")

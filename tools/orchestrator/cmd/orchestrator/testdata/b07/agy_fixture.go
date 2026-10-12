@@ -108,7 +108,7 @@ func main() {
 		return
 	}
 	if len(os.Args) > 1 && os.Args[1] == "--help" {
-		fmt.Println("--output-format --input-format --mode --model --effort")
+		fmt.Println("--print --output-format --input-format --mode --model --effort")
 		return
 	}
 	for _, arg := range os.Args[1:] {
