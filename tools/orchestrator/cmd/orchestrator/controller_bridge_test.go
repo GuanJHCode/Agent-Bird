@@ -740,7 +740,7 @@ func testControllerBridgeCommittedFailure(t *testing.T, failure string) {
 	case "submit_uncertain":
 		replacement = bytes.Replace(replacement, []byte(needle), []byte(needle+"\n\t// B05 FAULT_INJECTED_RESPONSE_DISCARD: real server call committed.\n\tif err == nil { err = ipc.ErrInvalidMessage }"), 1)
 	case "source_host_start_failed", "source_host_start_timeout":
-		boundary := "if err = startSourceHost(executable, state, bootstrap); err != nil {"
+		boundary := "if err = startHost(); err != nil {"
 		if failure == "source_host_start_timeout" {
 			boundary = "if err = waitForHost(ctx, state, receipt.LaunchID, receipt.LaunchToken); err != nil {"
 		}
@@ -751,7 +751,7 @@ func testControllerBridgeCommittedFailure(t *testing.T, failure string) {
 		if bytes.Count(replacement, []byte(boundary)) != 1 {
 			t.Fatal("exact original Host stage boundary changed")
 		}
-		injected := fmt.Sprintf("// B05 FAULT_INJECTED_HOST_STAGE_RETURN: not an actual OS failure.\n\tif err = codeError(%q); err != nil {", "b05_injected_"+failure) + receiptPrefix
+		injected := fmt.Sprintf("// B05 FAULT_INJECTED_HOST_STAGE_RETURN: not an actual OS failure.\n\tif err = startHost(); err == nil { err = codeError(%q) }\n\tif err != nil {", "b05_injected_"+failure) + receiptPrefix
 		replacement = bytes.Replace(replacement, []byte(boundary), []byte(injected), 1)
 	default:
 		t.Fatal("unapproved fault mode")
