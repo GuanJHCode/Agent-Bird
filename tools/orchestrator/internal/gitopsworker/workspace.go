@@ -11,57 +11,72 @@ import (
 )
 
 func (j *durableJournal) readBoundedRecord(ctx context.Context, kind string, value any) (bool, error) {
-	f, err := os.OpenFile(j.file.Name(), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return false, err
-	}
-	defer f.Close()
-	st, err := f.Stat()
-	if err != nil {
-		return false, err
-	}
-	owner, owned := st.Sys().(*syscall.Stat_t)
-	if !st.Mode().IsRegular() || st.Mode().Perm() != 0600 || !owned || owner.Uid != uint32(os.Geteuid()) || st.Size() > 16*1024*1024 {
-		return false, errors.New("gitops_journal_unsafe")
-	}
-	dec := json.NewDecoder(io.LimitReader(f, 16*1024*1024+1))
-	dec.DisallowUnknownFields()
-	var body []byte
-	for {
-		if err = ctx.Err(); err != nil {
-			return false, err
+	var found bool
+	err := j.withLock(syscall.LOCK_SH, func() error {
+		if err := j.file.Sync(); err != nil {
+			return err
 		}
-		var r struct {
-			Version int             `json:"version"`
-			Kind    string          `json:"kind"`
-			Value   json.RawMessage `json:"value"`
+		st, err := j.validJournalFile()
+		if err != nil {
+			return err
 		}
-		var raw json.RawMessage
-		err = dec.Decode(&raw)
-		if err == io.EOF {
-			break
+		f, err := os.OpenFile(j.file.Name(), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+		if err != nil {
+			return err
 		}
-		if err != nil || decodeJournalStrict(raw, &r) != nil || r.Version != 1 {
-			return false, errors.New("gitops_journal_invalid")
+		defer f.Close()
+		opened, err := f.Stat()
+		if err != nil || !os.SameFile(st, opened) {
+			return errors.New("gitops_journal_replaced")
 		}
-		if r.Kind != kind {
-			continue
+		initial := st.Size()
+		dec := json.NewDecoder(io.NewSectionReader(f, 0, initial))
+		dec.DisallowUnknownFields()
+		var body []byte
+		for {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			var raw json.RawMessage
+			err := dec.Decode(&raw)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return errors.New("gitops_journal_invalid")
+			}
+			var r struct {
+				Version int             `json:"version"`
+				Kind    string          `json:"kind"`
+				Value   json.RawMessage `json:"value"`
+			}
+			if decodeJournalStrict(raw, &r) != nil || r.Version != 1 || len(r.Value) > 1024*1024 {
+				return errors.New("gitops_journal_invalid")
+			}
+			if r.Kind == kind {
+				if body != nil && string(body) != string(r.Value) {
+					return errors.New("gitops_journal_binding_conflict")
+				}
+				body = append([]byte(nil), r.Value...)
+			}
 		}
-		if len(r.Value) > 1024*1024 {
-			return false, errors.New("gitops_journal_limit")
+		latest, err := j.validJournalFile()
+		if err != nil || latest.Size() != initial {
+			if err != nil {
+				return err
+			}
+			return errors.New("gitops_journal_changed")
 		}
-		if body != nil && string(body) != string(r.Value) {
-			return false, errors.New("gitops_journal_binding_conflict")
+		if body == nil {
+			return nil
 		}
-		body = append([]byte(nil), r.Value...)
-	}
-	if body == nil {
-		return false, nil
-	}
-	if err = decodeJournalStrict(body, value); err != nil {
-		return false, err
-	}
-	return true, nil
+		if err := decodeJournalStrict(body, value); err != nil {
+			return err
+		}
+		found = true
+		return nil
+	})
+	return found, err
 }
 
 func (j *durableJournal) LoadWorkspacePrepared(ctx context.Context) (gitops.PreparedWorkspace, error) {
@@ -177,7 +192,7 @@ func (j *durableJournal) LoadCleanupRecovery(ctx context.Context, receipt string
 				if decodeJournalStrict(r.Value, &v) != nil || v.ReceiptSHA256 != receipt {
 					return errors.New("gitops_journal_invalid")
 				}
-				if state.Outcome.ReceiptSHA256 != "" && state.Outcome != v {
+				if state.Outcome.ReceiptSHA256 != "" && state.Outcome != v && !(state.Outcome.State == gitops.CleanupPending && v.State == gitops.CleanupRemoved) {
 					return errors.New("gitops_journal_binding_conflict")
 				}
 				if v.State == gitops.CleanupRemoved {
@@ -205,11 +220,8 @@ func (j *durableJournal) LoadCleanupRecovery(ctx context.Context, receipt string
 // still name the inode held by this journal; otherwise a replacement could
 // fabricate a completion proof during replay.
 func (j *durableJournal) LoadCleanup(ctx context.Context, receiptSHA256 string) (intent gitops.CleanupIntent, outcome gitops.CleanupOutcome, found bool, err error) {
-	err = j.withLock(syscall.LOCK_SH, func() error {
-		intent, outcome, found, err = j.loadCleanupLocked(ctx, receiptSHA256)
-		return err
-	})
-	return intent, outcome, found, err
+	state, err := j.LoadCleanupRecovery(ctx, receiptSHA256)
+	return state.Intent, state.Outcome, state.Found, err
 }
 
 func (j *durableJournal) loadCleanupLocked(ctx context.Context, receiptSHA256 string) (gitops.CleanupIntent, gitops.CleanupOutcome, bool, error) {
