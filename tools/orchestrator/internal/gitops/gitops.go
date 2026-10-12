@@ -1242,6 +1242,9 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	}
 	receiptSHA256 := receipt.hash()
 	out.ReceiptSHA256 = receiptSHA256
+	if journal, ok := req.Journal.(CleanupRecoveryJournal); ok {
+		return cleanupWithRecovery(ctx, req, receipt, journal, out)
+	}
 	if history, ok := req.Journal.(CleanupHistory); ok {
 		intent, prior, found, err := history.LoadCleanup(ctx, receiptSHA256)
 		if err != nil {
@@ -1453,6 +1456,9 @@ type CleanupRequest struct {
 	// BeforeAnchoredRemove runs after the final pathname-based checks. It exists
 	// only to prove that descriptor-relative removal retains late replacements.
 	BeforeAnchoredRemove func(string) error `json:"-"`
+	// Recovery fault seams run immediately before/after a durable action.
+	BeforeCleanupAction func(int, string) error `json:"-"`
+	AfterCleanupAction  func(int, string) error `json:"-"`
 }
 
 type cleanupReceiptBinding struct {
