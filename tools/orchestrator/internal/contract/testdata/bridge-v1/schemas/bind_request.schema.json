@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-bird-bridge-v1/bind_request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 0,
+      "const": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_pid": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "native_birth": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_executable_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "minLength": 1
+    },
+    "transport_mode": {
+      "type": "string",
+      "enum": [
+        "hook_pull"
+      ],
+      "minLength": 1
+    },
+    "owner_mode": {
+      "type": "string",
+      "enum": [
+        "managed",
+        "local",
+        "native"
+      ],
+      "minLength": 1
+    },
+    "owner_capability_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "control_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "run_id",
+    "provider_id",
+    "native_pid",
+    "native_birth",
+    "native_executable_sha256",
+    "transport_mode",
+    "owner_mode",
+    "owner_capability_file",
+    "control_file",
+    "manifest_sha256"
+  ]
+}

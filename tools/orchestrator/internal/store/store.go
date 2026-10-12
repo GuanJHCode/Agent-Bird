@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -30,6 +31,9 @@ const (
 )
 
 type DB struct {
+	gcMu                sync.Mutex
+	configIdentity      contract.ConfigPreparationAuthority
+	configIdentityError error
 	sql                 *sql.DB
 	path                string
 	mu                  sync.Mutex
@@ -37,6 +41,7 @@ type DB struct {
 	userControlLimit    int64
 	runProgressLimit    int64
 	userProgressLimit   int64
+	artifactLimit       int64
 	reportControlLimit  int64
 	reportProgressLimit int64
 	minFreeBytes        uint64
@@ -54,6 +59,8 @@ type RunSpec struct {
 	OriginBirth          string
 }
 type TaskSpec struct {
+	Diagnostics            *contract.DiagnosticsPolicy `json:"diagnostics,omitempty"`
+	ExecutionPolicy        *contract.ExecutionPolicy   `json:"execution_policy,omitempty"`
 	ID, RunID              string
 	Dependencies           []string
 	MaxAttempts            int
@@ -86,8 +93,11 @@ func Open(path string) (*DB, error) {
 	} else if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !storeOwned(info) {
 		return nil, CodeError("untrusted_database")
 	}
+	identity, identityErr := configStoreNodes(path)
 	u := &url.URL{Scheme: "file", Path: path}
-	u.RawQuery = "_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
+	// Open created the private file explicitly. Reconnecting a discarded pool
+	// lease may reopen it, but must never silently recreate a missing database.
+	u.RawQuery = "mode=rw&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
 	d, err := sql.Open("sqlite", u.String())
 	if err != nil {
 		return nil, err
@@ -95,9 +105,10 @@ func Open(path string) (*DB, error) {
 	d.SetMaxOpenConns(1)
 	d.SetMaxIdleConns(1)
 	out := &DB{
-		sql: d, path: path,
+		sql: d, path: path, configIdentity: identity, configIdentityError: identityErr,
 		runControlLimit: 16 * 1024 * 1024, userControlLimit: 128 * 1024 * 1024,
 		runProgressLimit: 12 * 1024 * 1024, userProgressLimit: 96 * 1024 * 1024,
+		artifactLimit:      2 * 1024 * 1024 * 1024,
 		reportControlLimit: 20 * 1024 * 1024, reportProgressLimit: 16 * 1024 * 1024,
 		minFreeBytes: 64 * 1024 * 1024, criticalDiskReserve: 1024 * 1024, sqliteWriteOverhead: 4 * 1024 * 1024,
 		storageAvailable: filesystemAvailable,
@@ -109,6 +120,13 @@ func Open(path string) (*DB, error) {
 	if err := out.migrateRuntime(); err != nil {
 		d.Close()
 		return nil, err
+	}
+	if identityErr == nil {
+		now, e := configStoreNodes(path)
+		if e != nil || now != identity {
+			out.Close()
+			return nil, CodeError("untrusted_database")
+		}
 	}
 	return out, nil
 }
@@ -195,6 +213,12 @@ func (d *DB) CreateRun(ctx context.Context, s RunSpec) error {
 	return nil
 }
 func (d *DB) CreateTask(ctx context.Context, s TaskSpec) error {
+	if s.Diagnostics != nil {
+		return CodeError("diagnostics_managed_task_required")
+	}
+	if s.ExecutionPolicy != nil {
+		return CodeError("execution_policy_managed_task_required")
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if s.ID == "" || s.RunID == "" || s.MaxAttempts < 1 || s.MaxAttempts > 3 {
@@ -216,11 +240,20 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 	if taskID == "" || segmentID == "" {
 		return Attempt{}, CodeError("invalid_attempt")
 	}
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return Attempt{}, err
 	}
-	rollback := func(e error) (Attempt, error) { _ = tx.Rollback(); return Attempt{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (Attempt, error) { owned.close(); return Attempt{}, e }
+	var managed int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM task_runtime WHERE task_id=?`, taskID).Scan(&managed); err != nil {
+		return rollback(err)
+	}
+	if managed != 0 {
+		return rollback(CodeError("managed_attempt_requires_claim"))
+	}
 	var status string
 	var depsJSON string
 	var max int
@@ -253,12 +286,16 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 	if count >= max || count >= 3 {
 		return rollback(ErrAttemptLimit)
 	}
+	nextOrdinal, err := nextTaskAttemptOrdinal(ctx, tx, taskID)
+	if err != nil {
+		return rollback(err)
+	}
 	id, err := newID("attempt")
 	if err != nil {
 		return rollback(err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err = tx.ExecContext(ctx, `INSERT INTO attempts(id,task_id,attempt_no,status,created_at) VALUES(?,?,?,?,?)`, id, taskID, count+1, "running", now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO attempts(id,task_id,attempt_no,status,created_at) VALUES(?,?,?,?,?)`, id, taskID, nextOrdinal, "running", now); err != nil {
 		return rollback(err)
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO segments(id,attempt_id,segment_no,status,created_at) VALUES(?,?,?,?,?)`, segmentID, id, 1, "running", now); err != nil {
@@ -267,19 +304,21 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='running' WHERE id=?`, taskID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return Attempt{}, err
 	}
-	return Attempt{ID: id, TaskID: taskID, SegmentID: segmentID, AttemptNo: count + 1, Status: "running"}, nil
+	return Attempt{ID: id, TaskID: taskID, SegmentID: segmentID, AttemptNo: nextOrdinal, Status: "running"}, nil
 }
 func (d *DB) StartSegment(ctx context.Context, attemptID, segmentID string) (Attempt, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return Attempt{}, err
 	}
-	rollback := func(e error) (Attempt, error) { _ = tx.Rollback(); return Attempt{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (Attempt, error) { owned.close(); return Attempt{}, e }
 	var taskID, status string
 	var attemptNo int
 	if err = tx.QueryRowContext(ctx, `SELECT task_id,status,attempt_no FROM attempts WHERE id=?`, attemptID).Scan(&taskID, &status, &attemptNo); err != nil {
@@ -302,7 +341,7 @@ func (d *DB) StartSegment(ctx context.Context, attemptID, segmentID string) (Att
 	if _, err = tx.ExecContext(ctx, `UPDATE attempts SET status='running' WHERE id=?`, attemptID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return Attempt{}, err
 	}
 	return Attempt{ID: attemptID, TaskID: taskID, SegmentID: segmentID, AttemptNo: attemptNo, Status: "running"}, nil

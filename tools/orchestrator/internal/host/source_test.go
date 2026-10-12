@@ -1,19 +1,20 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"io"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -72,7 +73,7 @@ func TestRunSourceStopsWhenOriginOwnerExits(t *testing.T) {
 			serverDone <- errors.New("host_reconciled_missing")
 			return
 		}
-		grant := contract.LaunchCommand{CommandID: "origin-command", ReservationID: "origin-reservation", RunID: "origin-run", TaskID: "origin-task", AttemptID: "origin-attempt", SegmentID: "origin-segment", GrantedActiveMS: 10_000}
+		grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "origin-command", ReservationID: "origin-reservation", RunID: "origin-run", TaskID: "origin-task", AttemptID: "origin-attempt", SegmentID: "origin-segment", HostID: "origin-launch", WorkRevision: 1, GrantedActiveMS: 10_000})
 		grantPayload, _ := json.Marshal(grant)
 		if writeErr := ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindLaunch, RequestID: grant.CommandID, Epoch: 11, Payload: grantPayload}); writeErr != nil {
 			serverDone <- writeErr
@@ -82,7 +83,7 @@ func TestRunSourceStopsWhenOriginOwnerExits(t *testing.T) {
 		for len(kinds) < 5 {
 			eventEnvelope, eventErr := ipc.Read(conn)
 			if eventErr != nil {
-				serverDone <- eventErr
+				serverDone <- fmt.Errorf("owner-loss events=%v: %w", kinds, eventErr)
 				return
 			}
 			var event contract.Event
@@ -187,7 +188,7 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 			serverDone <- errors.New("host_reconciled_missing")
 			return
 		}
-		grant := contract.LaunchCommand{CommandID: "command-1", ReservationID: "reservation-1", RunID: "run-1", TaskID: "task-1", AttemptID: "attempt-1", SegmentID: "segment-1", GrantedActiveMS: 1500}
+		grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command-1", ReservationID: "reservation-1", RunID: "run-1", TaskID: "task-1", AttemptID: "attempt-1", SegmentID: "segment-1", HostID: "launch-1", WorkRevision: 1, GrantedActiveMS: 1500})
 		grantPayload, _ := json.Marshal(grant)
 		if err = ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindLaunch, RequestID: grant.CommandID, Epoch: 7, Payload: grantPayload}); err != nil {
 			serverDone <- err
@@ -220,7 +221,8 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 				return
 			}
 		}
-		serverDone <- nil
+		disposition, _ := json.Marshal(contract.NewHostDisposition(hello, 7, "host_retired"))
+		serverDone <- ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostDisposition, RequestID: "retired", Epoch: 7, Payload: disposition})
 	}()
 	birth, err := process.Birth(os.Getpid())
 	if err != nil {
@@ -231,7 +233,7 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 	defer cancel()
 	inv := launchInvocation{args: []string{serverPath, "-test.run=TestRunSourceUDSLaunchAndDurableEventAck"}, env: map[string]string{"G1_HOST_HELPER": "1", "G1_HOST_EXIT_MARKER": exitMarker}}
 	runErr := RunSource(ctx, SourceConfig{SocketPath: socket, SpoolRoot: filepath.Join(t.TempDir(), "spool"), ProducerID: "launch-1", Hello: hello, InvocationProvider: func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) { return inv, nil }})
-	if !errors.Is(runErr, io.EOF) {
+	if runErr != nil {
 		t.Fatalf("run err=%v", runErr)
 	}
 	if err = <-serverDone; err != nil {
@@ -255,13 +257,70 @@ func TestSourceSessionRoutesErrorToAckWaiter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payload, _ := json.Marshal(map[string]any{"code": "busy"})
-	if err = ipc.Write(server, ipc.Envelope{Version: 1, Kind: ipc.Kind("error"), RequestID: request.RequestID, Epoch: 1, Payload: payload}); err != nil {
+	payload, _ := json.Marshal(map[string]any{"error": "profile_resume_not_verified"})
+	if err = ipc.Write(server, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindError, RequestID: request.RequestID, Epoch: 1, Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case sendErr := <-result:
+		if sendErr == nil || sendErr.Error() != "durable_ack_error:profile_resume_not_verified" {
+			t.Fatalf("send err=%v", sendErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ack waiter was not woken")
+	}
+}
+
+func TestSourceSessionIgnoresErrorPayloadBeforeACKIdentityMatches(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	session := &sourceSession{conn: client}
+	session.startReader()
+	result := make(chan error, 1)
+	go func() {
+		_, sendErr := session.SendEvent(context.Background(), 7, contract.Event{EventID: "p:7"})
+		result <- sendErr
+	}()
+	request, err := ipc.Read(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = ipc.Write(server, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindError, RequestID: request.RequestID, Epoch: 8, Payload: json.RawMessage(`{"error":"sensitive detail"}`)}); err != nil {
 		t.Fatal(err)
 	}
 	select {
 	case sendErr := <-result:
 		if sendErr == nil || sendErr.Error() != "durable_ack_mismatch" {
+			t.Fatalf("send err=%v", sendErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ack waiter was not woken")
+	}
+}
+
+func TestSourceSessionHashesMalformedErrorCode(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	session := &sourceSession{conn: client}
+	session.startReader()
+	result := make(chan error, 1)
+	go func() {
+		_, sendErr := session.SendEvent(context.Background(), 1, contract.Event{EventID: "p:1"})
+		result <- sendErr
+	}()
+	request, err := ipc.Read(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := json.RawMessage(`{"error":"sensitive detail"}`)
+	if err = ipc.Write(server, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindError, RequestID: request.RequestID, Epoch: 1, Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case sendErr := <-result:
+		if sendErr == nil || sendErr.Error() == "durable_ack_mismatch" || strings.Contains(sendErr.Error(), "sensitive") || !strings.HasPrefix(sendErr.Error(), "durable_ack_error_sha256:") {
 			t.Fatalf("send err=%v", sendErr)
 		}
 	case <-time.After(time.Second):
@@ -276,7 +335,7 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "attempt-replay", TaskID: "task-replay", SegmentID: "segment-replay"}
-	if err = h.recordLaunchFailed(a, "run-replay", a.TaskID, launchMetadata{commandID: "command-replay", workRevision: 2, executionEpoch: 1}, errors.New("unspawned")); err != nil {
+	if err = h.recordLaunchFailed(a, "run-replay", a.TaskID, metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "run-replay", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "command-replay", WorkRevision: 2, ExecutionEpoch: 1})), errors.New("unspawned")); err != nil {
 		t.Fatal(err)
 	}
 	socket := fmt.Sprintf("/tmp/g1-host-replay-%d.sock", os.Getpid())
@@ -300,12 +359,17 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 			serverDone <- readErr
 			return
 		}
+		var hello contract.HostHello
+		if err := json.Unmarshal(helloEnvelope.Payload, &hello); err != nil {
+			serverDone <- err
+			return
+		}
 		readyPayload, _ := json.Marshal(contract.HostReady{HostID: "launch-replay", CoordinatorEpoch: 8})
 		if err = ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindHostReady, RequestID: helloEnvelope.RequestID, Epoch: 8, Payload: readyPayload}); err != nil {
 			serverDone <- err
 			return
 		}
-		for sequence := int64(1); sequence <= 2; sequence++ {
+		for sequence := int64(1); sequence <= 1; sequence++ {
 			envelope, readErr := ipc.Read(conn)
 			if readErr != nil {
 				serverDone <- readErr
@@ -328,11 +392,12 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 			return
 		}
 		var state contract.HostReconciled
-		if json.Unmarshal(reconciled.Payload, &state) != nil || state.ProducerID != "launch-replay" || state.PublishedThrough != 2 {
+		if json.Unmarshal(reconciled.Payload, &state) != nil || state.ProducerID != "launch-replay" || state.PublishedThrough != 1 {
 			serverDone <- errors.New("host_reconciled_mismatch")
 			return
 		}
-		serverDone <- nil
+		disposition, _ := json.Marshal(contract.NewHostDisposition(hello, 8, "host_retired"))
+		serverDone <- ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostDisposition, RequestID: "retired", Epoch: 8, Payload: disposition})
 	}()
 	binary, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
@@ -348,7 +413,7 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 	runErr := RunSource(ctx, SourceConfig{SocketPath: socket, SpoolRoot: root, ProducerID: "launch-replay", Hello: hello, InvocationProvider: func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
 		return nil, errors.New("unexpected launch")
 	}})
-	if !errors.Is(runErr, io.EOF) {
+	if runErr != nil {
 		t.Fatalf("run err=%v", runErr)
 	}
 	if err = <-serverDone; err != nil {

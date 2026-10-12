@@ -20,6 +20,7 @@ type ReworkEvent struct {
 }
 
 type ReworkSpec struct {
+	Version            int         `json:"version,omitempty"`
 	TaskID             string      `json:"task_id"`
 	WorkRevision       int         `json:"work_revision"`
 	Candidate          ReworkEvent `json:"candidate"`
@@ -34,6 +35,8 @@ type ReworkSpec struct {
 }
 
 type ReworkReceipt struct {
+	Version        int            `json:"version,omitempty"`
+	ClosureSHA256  string         `json:"closure_sha256,omitempty"`
 	Status         string         `json:"status"`
 	TaskID         string         `json:"task_id"`
 	WorkRevision   int            `json:"work_revision"`
@@ -54,6 +57,9 @@ type reworkDecision struct {
 
 func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, error) {
 	empty := ReworkReceipt{}
+	if spec.Version < 0 || spec.Version > 1 {
+		return empty, CodeError("invalid_rework_version")
+	}
 	if spec.TaskID == "" || spec.WorkRevision < 1 || spec.ReviewTaskID == "" || spec.ReviewWorkRevision < 1 || spec.ActionSlot == "" || spec.CommandID == "" || len(spec.CommandID) > 128 || !reworkOID(spec.CandidateOID) || strings.TrimSpace(spec.Feedback) == "" || strings.TrimSpace(spec.Acceptance) == "" || len(spec.Feedback) > 16*1024 || len(spec.Acceptance) > 16*1024 || strings.ContainsRune(spec.Feedback+spec.Acceptance, 0) {
 		return empty, CodeError("invalid_rework")
 	}
@@ -66,13 +72,20 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	spec.Review.EventHash = strings.ToLower(spec.Review.EventHash)
 	canonical := spec
 	canonical.CommandID = ""
+	if spec.Version == 1 {
+		return d.queueDAGRework(ctx, spec, canonical)
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return empty, err
+	}
 	var previous string
 	err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previous)
 	if err == nil {
@@ -131,6 +144,11 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	if validationEvent.RunID != run || !reworkBindingMatches(&validation.Binding, validationEvent, plan) || validation.Stage != "validate" || validation.Validation == nil || !validation.Validation.Passed || validation.InputEventID != oldEvent.EventID || validation.InputSHA256 != oldEvent.PayloadHash || feedback.InputSHA256 != validationEvent.PayloadHash || validation.ValidationDigest != feedback.ValidationDigest || !reflect.DeepEqual(validation.Candidate, old.Candidate) {
 		return empty, CodeError("rework_validation_mismatch")
 	}
+	// A later legacy decision cannot occupy a target already promised by an
+	// explicit DAG decision. With no v1 reservation the legacy path is unchanged.
+	if err = admitLegacyReworkTarget(ctx, tx, feedback, validate.action.Target, plan); err != nil {
+		return empty, err
+	}
 	context := adapter.ReworkContext{Version: 1, RunID: run, TaskID: edit.id, PreviousWorkRevision: edit.revision, PreviousCandidateOID: spec.CandidateOID, CandidateEventID: oldEvent.EventID, CandidateSHA256: oldEvent.PayloadHash, ReviewEventID: feedbackEvent.EventID, ReviewSHA256: feedbackEvent.PayloadHash, ReviewSummary: feedback.Review.Summary, Feedback: spec.Feedback, Acceptance: spec.Acceptance}
 	receipt := ReworkReceipt{Status: "rework_queued", TaskID: edit.id, WorkRevision: edit.revision + 1, CandidateOID: spec.CandidateOID, ReviewEventID: feedbackEvent.EventID, RevisionSHA256: context.Digest(), TaskRevisions: map[string]int{}}
 	decision := reworkDecision{Spec: canonical, Receipt: receipt, Context: context, Adapters: map[string]json.RawMessage{}}
@@ -171,15 +189,24 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	if len(encoded) > 256*1024 {
 		return empty, CodeError("rework_payload_too_large")
 	}
-	if err = d.storageAdmission(ctx, tx, run, int64(len(encoded)), false); err != nil {
+	var bindings []decisionAttemptBinding
+	cost := int64(len(encoded))
+	for _, task := range chain {
+		bindings = append(bindings, decisionAttemptBinding{slot: spec.ActionSlot, task: task.id, revision: receipt.TaskRevisions[task.id]})
+		cost += decisionBindingBytes(spec.ActionSlot, task.id, "")
+	}
+	if err = d.storageAdmission(ctx, tx, run, cost, false); err != nil {
 		return empty, err
 	}
-	var attempts int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, edit.group).Scan(&attempts); err != nil {
+	nextOrdinal, err := nextTaskAttemptOrdinal(ctx, tx, edit.id)
+	if err != nil {
 		return empty, err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload) VALUES(?,?,?,?,?,?,?,?,0,?,?,?)`, spec.ActionSlot, edit.id, edit.revision, spec.Review.EventID, spec.Review.EventRevision, spec.Review.EventHash, feedbackEvent.SegmentID, attempts+1, spec.CommandID, time.Now().UTC().Format(time.RFC3339Nano), string(encoded)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload) VALUES(?,?,?,?,?,?,?,?,0,?,?,?)`, spec.ActionSlot, edit.id, edit.revision, spec.Review.EventID, spec.Review.EventRevision, spec.Review.EventHash, feedbackEvent.SegmentID, nextOrdinal, spec.CommandID, time.Now().UTC().Format(time.RFC3339Nano), string(encoded)); err != nil {
 		return empty, mapConflict(err)
+	}
+	if err = d.reserveDecisionBindings(ctx, tx, bindings); err != nil {
+		return empty, err
 	}
 	for _, task := range chain {
 		status := "queued"
@@ -201,7 +228,7 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 			return empty, err
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return receipt, nil

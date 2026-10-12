@@ -28,6 +28,7 @@ type reworkTask struct {
 }
 
 type reworkArtifact struct {
+	Target           gitops.ReviewBinding    `json:"target"`
 	Stage            string                  `json:"stage"`
 	Binding          gitops.CandidateBinding `json:"binding"`
 	Candidate        gitops.CandidateReceipt `json:"candidate"`
@@ -44,11 +45,21 @@ type reworkArtifact struct {
 }
 
 func readReworkEvent(ctx context.Context, tx *sql.Tx, task *reworkTask, expected ReworkEvent, accepted bool) (contract.Event, reworkArtifact, error) {
+	return readReworkEventScope(ctx, tx, task, expected, accepted, true)
+}
+
+// Only a strict immutable decision may request historical scope; ordinary
+// QueueRework admission retains the original latest-attempt requirement.
+func readReworkEventScope(ctx context.Context, tx *sql.Tx, task *reworkTask, expected ReworkEvent, accepted, latest bool) (contract.Event, reworkArtifact, error) {
 	var e contract.Event
 	var artifact reworkArtifact
 	var body, slot, status, outcome, decision string
 	var rev int64
-	err := tx.QueryRowContext(ctx, `SELECT e.body_json,e.event_revision,e.action_slot,s.status,s.outcome,COALESCE(d.decision,'') FROM runtime_events e JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id LEFT JOIN review_decisions d ON d.event_id=e.event_id AND d.event_revision=e.event_revision AND d.event_hash=e.payload_hash WHERE e.event_id=? AND e.task_id=? AND e.payload_hash=? AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=e.task_id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1)`, expected.EventID, task.id, expected.EventHash).Scan(&body, &rev, &slot, &status, &outcome, &decision)
+	query := `SELECT e.body_json,e.event_revision,e.action_slot,s.status,s.outcome,COALESCE(d.decision,'') FROM runtime_events e JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id LEFT JOIN review_decisions d ON d.event_id=e.event_id AND d.event_revision=e.event_revision AND d.event_hash=e.payload_hash WHERE e.event_id=? AND e.task_id=? AND e.payload_hash=?`
+	if latest {
+		query += ` AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=e.task_id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1)`
+	}
+	err := tx.QueryRowContext(ctx, query, expected.EventID, task.id, expected.EventHash).Scan(&body, &rev, &slot, &status, &outcome, &decision)
 	if err != nil || rev != expected.EventRevision || status != "exited" || json.Unmarshal([]byte(body), &e) != nil || e.WorkRevision != task.revision || e.TaskID != task.id || e.PayloadHash != expected.EventHash {
 		return e, artifact, CodeError("rework_evidence_stale")
 	}
@@ -60,24 +71,37 @@ func readReworkEvent(ctx context.Context, tx *sql.Tx, task *reworkTask, expected
 		return e, artifact, CodeError("rework_review_not_rejected")
 	}
 	e.EventRevision, e.ActionSlot = rev, slot
+	artifact, err = readReworkArtifact(ctx, tx, e)
+	return e, artifact, err
+}
+
+func readReworkArtifact(ctx context.Context, tx *sql.Tx, e contract.Event) (reworkArtifact, error) {
+	var artifact reworkArtifact
 	ref := e.Artifact
 	if ref == nil || !filepath.IsAbs(ref.Path) || ref.Size < 1 || ref.Size > 1024*1024 || ref.SHA256 != e.PayloadHash {
-		return e, artifact, CodeError("rework_artifact_invalid")
+		return artifact, CodeError("rework_artifact_invalid")
+	}
+	if e.Artifact.HostArtifact != nil {
+		body, err := readCommittedHostArtifact(ctx, tx, e, 1024*1024)
+		if err != nil || json.Unmarshal(body, &artifact) != nil {
+			return artifact, CodeError("rework_artifact_invalid")
+		}
+		return artifact, nil
 	}
 	f, err := os.OpenFile(ref.Path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
-		return e, artifact, CodeError("rework_artifact_invalid")
+		return artifact, CodeError("rework_artifact_invalid")
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() || info.Size() != ref.Size {
-		return e, artifact, CodeError("rework_artifact_invalid")
+		return artifact, CodeError("rework_artifact_invalid")
 	}
 	data, err := io.ReadAll(io.LimitReader(f, 1024*1024+1))
 	if err != nil || int64(len(data)) != ref.Size || runtimeHash(string(data)) != ref.SHA256 || json.Unmarshal(data, &artifact) != nil {
-		return e, artifact, CodeError("rework_artifact_invalid")
+		return artifact, CodeError("rework_artifact_invalid")
 	}
-	return e, artifact, nil
+	return artifact, nil
 }
 
 func loadReworkChain(ctx context.Context, tx *sql.Tx, taskID, reviewID string) ([]*reworkTask, string, int, error) {
@@ -163,6 +187,7 @@ func loadReworkChain(ctx context.Context, tx *sql.Tx, taskID, reviewID string) (
 func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkTask) error {
 	groupNeeds := map[string]int{}
 	groupLimits := map[string]int{}
+	groupTimes := map[string]int64{}
 	for _, v := range chain {
 		var active, attempts, ready, questions int
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, v.id).Scan(&active); err != nil {
@@ -190,10 +215,18 @@ func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkT
 			return ErrConflict
 		}
 		groupNeeds[v.group]++
-		limit := v.maxAttempts
-		if limit > 3 {
-			limit = 3
+		budget, e := readExecutionBudget(ctx, tx, v.id)
+		if e != nil {
+			return e
 		}
+		if e = executionCapacity(ctx, tx, v.id, nil); e != nil {
+			return e
+		}
+		if _, e = executionGrant(ctx, tx, v.id, ""); e != nil {
+			return e
+		}
+		limit := budget.groupAttempts
+		groupTimes[v.group] = budget.groupMS
 		if old, ok := groupLimits[v.group]; !ok || limit < old {
 			groupLimits[v.group] = limit
 		}
@@ -204,13 +237,17 @@ func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkT
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, group).Scan(&attempts); err != nil {
 			return err
 		}
-		if attempts+need > groupLimits[group] {
+		var pending int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL AND b.retired=0 AND b.reserved_active_ms>0`, group).Scan(&pending); err != nil {
+			return err
+		}
+		if attempts+pending+need > groupLimits[group] {
 			return ErrAttemptLimit
 		}
 		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, group).Scan(&charged); err != nil {
 			return err
 		}
-		if charged >= defaultGroupActiveMS {
+		if charged >= groupTimes[group] {
 			return CodeError("budget_exhausted")
 		}
 	}
@@ -238,7 +275,8 @@ func rejectSubmittedRework(payload json.RawMessage) error {
 	}
 	var p struct {
 		Workspace *struct {
-			Rework json.RawMessage `json:"rework"`
+			Rework        json.RawMessage `json:"rework"`
+			NewBaseRework json.RawMessage `json:"new_base_rework"`
 		} `json:"candidate_workspace"`
 	}
 	if json.Unmarshal(payload, &p) != nil {
@@ -247,5 +285,9 @@ func rejectSubmittedRework(payload json.RawMessage) error {
 	if p.Workspace != nil && len(p.Workspace.Rework) > 0 && string(p.Workspace.Rework) != "null" {
 		return CodeError("rework_requires_owner_decision")
 	}
+	if p.Workspace != nil && len(p.Workspace.NewBaseRework) > 0 && string(p.Workspace.NewBaseRework) != "null" {
+		return CodeError("new_base_requires_owner_submit")
+	}
+
 	return nil
 }

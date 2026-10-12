@@ -19,10 +19,14 @@ func TestReworkLedgerAccountsPayloadAndReleasesQuota(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global'`).Scan(&after)
-	if bytes < 1 || after-before != bytes {
+	var bindingBytes int64
+	if err := f.db.sql.QueryRow(`SELECT SUM(16+length(CAST(action_slot AS BLOB))+length(CAST(task_id AS BLOB))) FROM decision_attempt_bindings`).Scan(&bindingBytes); err != nil {
+		t.Fatal(err)
+	}
+	if bytes < 1 || bindingBytes < 1 || after-before != bytes+bindingBytes {
 		t.Fatalf("quota before=%d after=%d payload=%d", before, after, bytes)
 	}
-	if _, err := f.db.sql.Exec(`DELETE FROM retry_decisions`); err != nil {
+	if _, err := f.db.sql.Exec(`DELETE FROM decision_attempt_bindings; DELETE FROM retry_decisions`); err != nil {
 		t.Fatal(err)
 	}
 	f.db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global'`).Scan(&after)
@@ -42,7 +46,8 @@ func TestReworkMigrationFromFiveRollsBackOnFailure(t *testing.T) {
 		t.Fatalf("missing rework ledger column: %d %v", cols, err)
 	}
 	// Recreate the exact old ledger layout, then cause the new trigger DDL to fail.
-	_, err = db.sql.Exec(`DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; UPDATE schema_meta SET version=5; CREATE TRIGGER quota_rework_INSERT AFTER INSERT ON retry_decisions BEGIN SELECT 1; END`)
+	downgradePolicySchema(t, db)
+	_, err = db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; ALTER TABLE owner_rebinds DROP COLUMN old_host_generation; DROP TABLE continuation_decisions; DROP TABLE attempt_provider_bindings; DROP TABLE bridge_delivery_attempts; DROP TABLE bridge_batch_items; DROP TABLE bridge_batches; DROP TABLE bridge_ingress; DROP TABLE bridge_bindings; ALTER TABLE schema_meta DROP COLUMN bridge_cutover_at; DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; UPDATE schema_meta SET version=5; CREATE TRIGGER quota_rework_INSERT AFTER INSERT ON retry_decisions BEGIN SELECT 1; END`)
 	if err != nil {
 		t.Fatal(err)
 	}

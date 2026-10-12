@@ -1,7 +1,6 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -9,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,6 +16,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func (d *DB) RegisterReportCapability(ctx context.Context, registration contract.ReportCapabilityRegistration) (contract.DurableAck, error) {
@@ -29,25 +31,44 @@ func (d *DB) RegisterReportCapability(ctx context.Context, registration contract
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	ownerTx, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.DurableAck{}, err
 	}
-	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
+	defer ownerTx.close()
+	tx := ownerTx.tx
+	rollback := func(e error) (contract.DurableAck, error) { ownerTx.close(); return contract.DurableAck{}, e }
 	var segmentID, producerID, runID, taskID, attemptID, tokenHash, capabilityDir, status string
 	var revision int
 	var hostEpoch uint64
 	if err = tx.QueryRowContext(ctx, `SELECT c.segment_id,c.producer_id,c.run_id,c.task_id,c.attempt_id,c.work_revision,c.token_hash,c.capability_dir,c.status,h.coordinator_epoch FROM report_capabilities c JOIN runtime_hosts h ON h.id=c.producer_id WHERE c.capability_id=? AND h.status IN ('ready','reconciling')`, registration.CapabilityID).Scan(&segmentID, &producerID, &runID, &taskID, &attemptID, &revision, &tokenHash, &capabilityDir, &status, &hostEpoch); err != nil || segmentID != registration.SegmentID || producerID != registration.ProducerID || runID != registration.RunID || taskID != registration.TaskID || attemptID != registration.AttemptID || revision != registration.WorkRevision || hostEpoch != registration.ExecutionEpoch {
 		return rollback(ErrConflict)
 	}
-	if status == "registered" {
+	if status == "revoked" && tokenHash == "" && capabilityDir == "" {
+		// A prelaunch rejection can revoke a never-registered pending row after
+		// the Host remembered its request. Bind only that empty/no-history row
+		// for reconcile ACKs; it remains revoked and grants no report authority.
+		result, bindErr := tx.ExecContext(ctx, `UPDATE report_capabilities SET token_hash=?,capability_dir=?,execution_epoch=? WHERE capability_id=? AND status='revoked' AND token_hash='' AND capability_dir='' AND used_bytes=0 AND NOT EXISTS(SELECT 1 FROM report_events e WHERE e.capability_id=report_capabilities.capability_id)`, strings.ToLower(registration.TokenHash), registration.CapabilityDir, registration.ExecutionEpoch, registration.CapabilityID)
+		if bindErr != nil {
+			return rollback(bindErr)
+		}
+		rows, rowsErr := result.RowsAffected()
+		if rowsErr != nil {
+			return rollback(rowsErr)
+		}
+		if rows != 1 {
+			return rollback(ErrConflict)
+		}
+		tokenHash, capabilityDir = strings.ToLower(registration.TokenHash), registration.CapabilityDir
+	}
+	if status == "registered" || status == "revoked" {
 		if tokenHash != strings.ToLower(registration.TokenHash) || capabilityDir != registration.CapabilityDir {
 			return rollback(ErrConflict)
 		}
 		if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET execution_epoch=? WHERE capability_id=?`, registration.ExecutionEpoch, registration.CapabilityID); err != nil {
 			return rollback(err)
 		}
-		if err = tx.Commit(); err != nil {
+		if err = ownerTx.commit(); err != nil {
 			return contract.DurableAck{}, err
 		}
 		return contract.DurableAck{ProducerID: producerID, EventID: registration.CapabilityID, PayloadHash: tokenHash, Status: "durable"}, nil
@@ -58,7 +79,7 @@ func (d *DB) RegisterReportCapability(ctx context.Context, registration contract
 	if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET token_hash=?,capability_dir=?,execution_epoch=?,status='registered' WHERE capability_id=?`, strings.ToLower(registration.TokenHash), registration.CapabilityDir, registration.ExecutionEpoch, registration.CapabilityID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = ownerTx.commit(); err != nil {
 		return contract.DurableAck{}, err
 	}
 	return contract.DurableAck{ProducerID: producerID, EventID: registration.CapabilityID, PayloadHash: strings.ToLower(registration.TokenHash), Status: "durable"}, nil
@@ -83,20 +104,18 @@ type ReportEventSpec struct {
 
 var reportIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
-func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contract.DurableAck, error) {
-	if spec.CapabilityID == "" || spec.Token == "" || !reportIDPattern.MatchString(spec.EventID) || spec.Sequence < 1 || len(spec.Payload) == 0 || len(spec.Payload) > 60*1024 || !json.Valid(spec.Payload) {
-		return contract.DurableAck{}, CodeError("invalid_report_event")
+func (d *DB) commitReportEventPrepared(ctx context.Context, spec ReportEventSpec, intake *reportIntake) (contract.DurableAck, error) {
+	if err := d.bridgeLockContext(ctx); err != nil {
+		return contract.DurableAck{}, err
 	}
-	if spec.Kind != "progress" && spec.Kind != "question" && spec.Kind != "result" && spec.Kind != "failure" {
-		return contract.DurableAck{}, CodeError("invalid_report_kind")
-	}
-	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.DurableAck{}, err
 	}
-	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (contract.DurableAck, error) { owned.close(); return contract.DurableAck{}, e }
 	var tokenHash, capabilityDir, runID, taskID, attemptID, segmentID, producerID, status string
 	var revision int
 	var epoch uint64
@@ -130,14 +149,23 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 			return rollback(ErrEventSequence)
 		}
 	}
-	var event contract.Event
-	if duplicate {
-		event, err = decodeReportPayload(spec.Kind, canonicalPayload)
-	} else {
-		event, err = validateReportPayload(spec.Kind, canonicalPayload, capabilityDir)
-	}
+	event, err := decodeReportPayload(spec.Kind, canonicalPayload)
 	if err != nil {
 		return rollback(err)
+	}
+	var intakeControl int64
+	if duplicate {
+		if err = d.restoreManagedReportArtifact(ctx, tx, spec, &event); err != nil {
+			return rollback(err)
+		}
+	} else if event.Artifact != nil {
+		if intake == nil {
+			return rollback(CodeError("artifact_intake_invalid"))
+		}
+		if intakeControl, err = d.validateReportIntakeCompletion(ctx, tx, spec, intake); err != nil {
+			return rollback(err)
+		}
+		event.Artifact.Path, event.Artifact.SHA256 = intake.proof.Path, intake.proof.SHA256
 	}
 	event.Version, event.ProducerID, event.EventID = 1, spec.CapabilityID, spec.EventID
 	event.RunID, event.TaskID, event.AttemptID, event.SegmentID = runID, taskID, attemptID, segmentID
@@ -159,18 +187,18 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 		if oldErr != nil || newErr != nil || subtle.ConstantTimeCompare(oldCanonical, newCanonical) != 1 {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return contract.DurableAck{ProducerID: spec.CapabilityID, AckedThrough: spec.Sequence, EventID: spec.EventID, PayloadHash: payloadHash, Status: "durable"}, nil
 	}
 	diagnostic := spec.Kind == "progress"
 	accountedBytes := int64(len(body))
-	if event.Artifact != nil {
+	if event.Artifact != nil && intake == nil {
 		accountedBytes += event.Artifact.Size
 	}
 	if spec.Kind == "question" && event.SessionID == "" {
 		accountedBytes += 4096
 	}
-	if err = d.storageAdmission(ctx, tx, runID, accountedBytes, diagnostic); err != nil {
+	if err = d.storageAdmission(ctx, tx, runID, accountedBytes+intakeControl, diagnostic); err != nil {
 		return rollback(err)
 	}
 	delivery := "pending"
@@ -185,7 +213,7 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 	}
 	if spec.Kind == "question" {
 		var openQuestions int
-		if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM runtime_questions WHERE task_id=? AND status IN ('open','resume_queued','resume_started')) + (SELECT COUNT(*) FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=? AND e.kind='question' AND e.delivery_status='pending_session')`, taskID, taskID).Scan(&openQuestions); err != nil || openQuestions != 0 {
+		if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM runtime_questions q WHERE q.task_id=? AND q.status IN ('open','resume_queued','resume_started') AND NOT (q.status='resume_started' AND EXISTS(SELECT 1 FROM continuation_decisions d WHERE d.target_segment_id=? AND d.target_segment_id!=q.segment_id AND d.task_id=q.task_id AND d.attempt_id=q.attempt_id AND d.work_revision=q.work_revision AND d.question_id=q.question_id AND d.mode='question' AND d.status='claimed'))) + (SELECT COUNT(*) FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=? AND e.kind='question' AND e.delivery_status='pending_session')`, taskID, segmentID, taskID).Scan(&openQuestions); err != nil || openQuestions != 0 {
 			if err == nil {
 				err = CodeError("question_already_open")
 			}
@@ -211,7 +239,12 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 			return rollback(err)
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if intake != nil {
+		if err = commitReportIntake(ctx, tx, intake); err != nil {
+			return rollback(err)
+		}
+	}
+	if err = owned.commit(); err != nil {
 		return contract.DurableAck{}, err
 	}
 	return contract.DurableAck{ProducerID: spec.CapabilityID, AckedThrough: spec.Sequence, EventID: spec.EventID, PayloadHash: payloadHash, Status: "durable"}, nil
@@ -270,19 +303,19 @@ func validateReportPayload(kind string, raw json.RawMessage, capabilityDir strin
 		return contract.Event{}, CodeError("unsafe_report_artifact")
 	}
 	defer file.Close()
-	info, err := file.Stat()
-	stat, owned := infoSyscall(info)
-	if err != nil || !owned || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 || info.Size() != value.Size {
+	var stat unix.Stat_t
+	statErr := unix.Fstat(int(file.Fd()), &stat)
+	if statErr != nil || stat.Mode&unix.S_IFMT != unix.S_IFREG || stat.Mode&0777 != 0600 || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 || stat.Size != value.Size {
 		return contract.Event{}, CodeError("unsafe_report_artifact")
 	}
-	if info.Size() > 1024*1024 {
+	if stat.Size > 1024*1024 {
 		return contract.Event{}, CodeError("report_artifact_too_large")
 	}
 	hash := sha256.New()
 	n, err := io.Copy(hash, io.LimitReader(file, 1024*1024+1))
-	after, statErr := file.Stat()
-	afterStat, ok := infoSyscall(after)
-	if err != nil || statErr != nil || !ok || n != value.Size || after.Size() != info.Size() || after.Mode() != info.Mode() || afterStat.Mtimespec != stat.Mtimespec || afterStat.Ctimespec != stat.Ctimespec || hex.EncodeToString(hash.Sum(nil)) != strings.ToLower(value.SHA256) {
+	var afterStat unix.Stat_t
+	statErr = unix.Fstat(int(file.Fd()), &afterStat)
+	if err != nil || statErr != nil || n != value.Size || afterStat.Size != stat.Size || afterStat.Mode != stat.Mode || afterStat.Mtim != stat.Mtim || afterStat.Ctim != stat.Ctim || hex.EncodeToString(hash.Sum(nil)) != strings.ToLower(value.SHA256) {
 		return contract.Event{}, CodeError("report_artifact_hash_mismatch")
 	}
 	return event, nil

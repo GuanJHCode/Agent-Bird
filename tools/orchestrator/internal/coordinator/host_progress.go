@@ -8,6 +8,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
 
 type HostProgressRequest struct {
@@ -20,6 +21,10 @@ func (s *Server) hostProgress(ctx context.Context, conn net.Conn, message ipc.En
 	var req HostProgressRequest
 	if strictJSON(message.Payload, &req) != nil {
 		_ = sendError(conn, message.RequestID, s.epoch, ipc.ErrInvalidMessage)
+		return
+	}
+	if mode, err := s.db.ExecutionOwnerMode(ctx, req.LaunchID); err != nil || mode != "legacy" {
+		_ = sendError(conn, message.RequestID, s.epoch, store.ErrHostRejected)
 		return
 	}
 	pid, err := ipc.PeerPID(conn)

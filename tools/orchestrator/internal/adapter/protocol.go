@@ -24,11 +24,14 @@ const (
 
 // Event is intentionally a projection. Raw provider JSON is never retained.
 type Event struct {
-	Kind           EventKind
-	SessionID      string
-	Status         string
-	Text           string
-	StructuredText string
+	NativeFailure          bool
+	NativePermissionDenied bool
+	NativeMetadataInvalid  bool
+	Kind                   EventKind
+	SessionID              string
+	Status                 string
+	Text                   string
+	StructuredText         string
 }
 
 type StreamParser struct {
@@ -93,7 +96,11 @@ func ParseEvent(provider Provider, line string, maxBytes int) (Event, error) {
 	}
 	switch provider {
 	case ProviderClaude:
-		return parseClaude(object)
+		event, err := parseClaude(object)
+		if event.Kind == EventResult {
+			projectClaudeNativeMetadata(&event, object, line)
+		}
+		return event, err
 	case ProviderAGY:
 		return parseAGY(object)
 	case ProviderGrok:
@@ -308,6 +315,9 @@ func parseGrok(object map[string]json.RawMessage) (Event, error) {
 	case "text":
 		text, err := stringFieldOptional(object, "data")
 		return Event{Kind: EventMessage, SessionID: session, Text: text}, err
+	case "tool_started", "tool_completed":
+		// Message boundary; tool names and outcomes stay provider-private.
+		return Event{Kind: EventProgress, SessionID: session, Status: typeName}, nil
 	case "end":
 		status, err := stringFieldOptional(object, "stopReason")
 		if err != nil {
@@ -403,4 +413,51 @@ func objectFieldOptional(object map[string]json.RawMessage, name string) (string
 		return "", fmt.Errorf("event_%s_invalid", name)
 	}
 	return string(value), nil
+}
+
+// These are native result facts, not prose-derived permission decisions.
+// Existing candidate/legacy routing ignores the new projection flags.
+func projectClaudeNativeMetadata(event *Event, object map[string]json.RawMessage, line string) {
+	seen := map[string]bool{}
+	decoder := json.NewDecoder(strings.NewReader(line))
+	_, _ = decoder.Token() // ParseEvent already established one object.
+	for decoder.More() {
+		key, err := decoder.Token()
+		if err != nil {
+			event.NativeMetadataInvalid = true
+			return
+		}
+		name, ok := key.(string)
+		if !ok {
+			event.NativeMetadataInvalid = true
+			return
+		}
+		var raw json.RawMessage
+		if decoder.Decode(&raw) != nil {
+			event.NativeMetadataInvalid = true
+			return
+		}
+		if name == "is_error" || name == "permission_denials" {
+			if seen[name] {
+				event.NativeMetadataInvalid = true
+			}
+			seen[name] = true
+		}
+	}
+	if raw, present := object["is_error"]; present {
+		var value *bool
+		if json.Unmarshal(raw, &value) != nil || value == nil {
+			event.NativeMetadataInvalid = true
+		} else {
+			event.NativeFailure = *value
+		}
+	}
+	if raw, present := object["permission_denials"]; present {
+		var value []json.RawMessage
+		if json.Unmarshal(raw, &value) != nil || value == nil {
+			event.NativeMetadataInvalid = true
+		} else {
+			event.NativePermissionDenied = len(value) > 0
+		}
+	}
 }

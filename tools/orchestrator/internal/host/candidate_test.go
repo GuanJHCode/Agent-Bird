@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -81,9 +83,16 @@ func TestCandidateFailureClassifiesActionWithoutErrorText(t *testing.T) {
 		{"candidate_action_artifact_too_large", "candidate_action_artifact_too_large"},
 		{"PRIVATE_SENTINEL", "candidate_freeze_failed"},
 	} {
-		var result map[string]string
+		var result map[string]any
 		if err := json.Unmarshal(candidateFailure(errors.New(tc.message)), &result); err != nil {
 			t.Fatal(err)
+		}
+		if tc.code == "candidate_review_invalid" {
+			if result["writer_version"] != float64(2) {
+				t.Fatal("review diagnostic lacks integer v2", result)
+			}
+		} else if _, ok := result["writer_version"]; ok {
+			t.Fatal("other diagnostic changed legacy format", result)
 		}
 		if result["code"] != tc.code {
 			t.Fatalf("classification=%v, want code=%s", result, tc.code)
@@ -158,6 +167,7 @@ func TestCancellationCannotEraseIntegratedResult(t *testing.T) {
 	defer cancel()
 	body, _ := json.Marshal(CandidateDelivery{Version: 1, Stage: "integrate", Integration: &gitops.IntegrationOutcome{State: gitops.IntegrationIntegrated, TargetHEAD: "accepted-candidate"}})
 	meta := launchMetadata{commandID: "command", workRevision: 1, integrationAction: true, finalizeAction: func(context.Context, string, int, bool) ([]byte, error) { cancel(); return body, nil }}
+	meta.artifactGrant = metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", CommandID: "command", WorkRevision: 1})).artifactGrant
 	result, err := h.execute(ctx, store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", process.Command{Path: "/usr/bin/true"}, false, meta)
 	if result.Status != "unknown" || !errors.Is(err, gitops.ErrIntegrationUncertain) {
 		t.Fatalf("cancellation erased landed result: %+v %v", result, err)
@@ -166,4 +176,204 @@ func TestCancellationCannotEraseIntegratedResult(t *testing.T) {
 	if err != nil || string(actual) != string(body) {
 		t.Fatal("integrated artifact not preserved")
 	}
+}
+
+func TestCandidateReviewInvalidWorkerEmitsV2Lifecycle(t *testing.T) {
+	if mode := os.Getenv("F01_V2_LOCAL_WORKER"); mode != "" {
+		switch mode {
+		case "silent":
+		case "session":
+			_, _ = os.Stdout.WriteString(`{"type":"system","subtype":"init","session_id":"review-session"}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"type":"result","subtype":"success","session_id":"review-session","result":"ignored prose","structured_output":{"decision":"approve"}}` + "\n")
+		default:
+			t.Fatalf("invalid controlled worker mode %q", mode)
+		}
+		os.Exit(0)
+	}
+	for _, session := range []bool{false, true} {
+		t.Run(fmt.Sprint("session=", session), func(t *testing.T) { testCandidateReviewInvalidWorkerLifecycle(t, session) })
+	}
+}
+
+func testCandidateReviewInvalidWorkerLifecycle(t *testing.T, session bool) {
+	db, h, grant := managedReviewFailureFixture(t)
+	defer db.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	meta := metadataForLaunch(grant)
+	meta.finalizeAction = func(_ context.Context, text string, _ int, _ bool) ([]byte, error) {
+		_, err := decodeCandidateReview(text)
+		return nil, err
+	}
+	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+	cmd := reviewFailureWorkerCommand(t, session)
+	if session {
+		meta.outputProvider = string(adapter.ProviderClaude)
+		meta.structuredReview = true
+	}
+	result, err := h.execute(ctx, a, grant.RunID, grant.TaskID, cmd, false, meta)
+	if err != nil || result.Status != "failed" || result.ExitCode != 0 {
+		t.Fatal("invalid review worker outcome", result, err)
+	}
+	body, err := os.ReadFile(result.ArtifactPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var diagnostic map[string]any
+	if err := json.Unmarshal(body, &diagnostic); err != nil {
+		t.Fatal(err)
+	}
+	if diagnostic["writer_version"] != float64(2) || diagnostic["code"] != "candidate_review_invalid" {
+		t.Fatalf("missing v2 diagnostic: %s", body)
+	}
+	records, err := h.Collect(ctx, a)
+	want := []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventFailed, contract.EventExited}
+	if session {
+		want = []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventSession, contract.EventFailed, contract.EventExited}
+	}
+	if err != nil || !reflect.DeepEqual(eventKinds(records), want) {
+		t.Fatal("invalid actual worker lifecycle", records, err)
+	}
+	if records[0].Process != nil {
+		t.Fatal("Prepared acquired process before Start")
+	}
+	for i, e := range records {
+		if i > 0 && (e.Sequence <= records[i-1].Sequence || !reflect.DeepEqual(e.Process, records[1].Process)) {
+			t.Fatal("unordered/incoherent actual worker", records)
+		}
+		if e.ProducerID != grant.HostID || e.RunID != grant.RunID || e.TaskID != grant.TaskID || e.AttemptID != grant.AttemptID || e.SegmentID != grant.SegmentID || e.CommandID != grant.CommandID || e.WorkRevision != grant.WorkRevision {
+			t.Fatal("worker identity changed", e)
+		}
+		if _, err := db.CommitHostEvent(ctx, e); err != nil {
+			t.Fatal("Store rejected actual Host event", e.Kind, err)
+		}
+	}
+	failed, exited := records[len(records)-2], records[len(records)-1]
+	if failed.ExitCode == nil || exited.ExitCode == nil || *failed.ExitCode != 0 || *exited.ExitCode != 0 || !reflect.DeepEqual(failed.Artifact, exited.Artifact) || failed.PayloadHash != hashBytes(body) || exited.PayloadHash != hashText("exited:"+grant.SegmentID) {
+		t.Fatal("Host terminal evidence changed", failed, exited)
+	}
+	page, err := db.CollectPending(ctx, grant.TaskID, "", 0, false)
+	if err != nil || len(page.Events) != 1 || page.Events[0].Kind != contract.EventFailed || !reflect.DeepEqual(page.Events[0].Artifact, failed.Artifact) {
+		t.Fatal("Store lost actual Host failure", page, err)
+	}
+	e := page.Events[0]
+	if _, err := db.QueueRetry(ctx, store.RetrySpec{TaskID: grant.TaskID, WorkRevision: grant.WorkRevision, EventID: e.EventID, EventRevision: e.EventRevision, EventHash: e.PayloadHash, ActionSlot: e.ActionSlot, SegmentID: grant.SegmentID, NextAttemptNo: 2, CommandID: "actual-review-retry"}); err != nil {
+		t.Fatal("actual Host failure blocked owner retry", err)
+	}
+	next, err := db.ClaimReady(ctx, grant.HostID, 1, 2)
+	if err != nil || next.AttemptID == grant.AttemptID || next.SegmentID == grant.SegmentID || !reflect.DeepEqual(next.Input, grant.Input) || !reflect.DeepEqual(next.DependencyInputs, grant.DependencyInputs) {
+		t.Fatal("actual Host retry lost frozen input", next, err)
+	}
+}
+
+// Every F01 worker uses this test executable with a fixed helper mode; no
+// system utility or installed Provider binary is required.
+func reviewFailureWorkerCommand(t *testing.T, session bool) process.Command {
+	t.Helper()
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	mode := "silent"
+	if session {
+		mode = "session"
+	}
+	return process.Command{Path: binary, Args: []string{"-test.run=^TestCandidateReviewInvalidWorkerEmitsV2Lifecycle$"}, Env: []string{"F01_V2_LOCAL_WORKER=" + mode}}
+}
+
+// Dependency artifacts and the invalid review are produced by actual local
+// workers. This exercises Store grants and retry without Provider/network calls.
+func managedReviewFailureFixture(t *testing.T) (*store.DB, *Host, contract.LaunchCommand) {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(filepath.Join(root, "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	ctx := context.Background()
+	worker := reviewFailureWorkerCommand(t, false)
+	pinBody, err := os.ReadFile(worker.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// This pin authenticates the controlled worker, not a qualified Claude CLI.
+	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: worker.Path, Version: "controlled-test-worker", SHA256: hashBytes(pinBody)}}
+	var tasks []store.TaskSpec
+	for i, id := range []string{"edit", "validate", "review"} {
+		payload := adapter.InvocationPayload{Directory: filepath.Join(root, id)}
+		task := store.TaskSpec{ID: id, RunID: "review-v2-run", MaxAttempts: 3, MaxActiveMS: 5000}
+		if i == 0 {
+			payload.CandidateWorkspace = &adapter.CandidateWorkspace{Version: 1}
+		} else {
+			task.Dependencies = []string{"edit"}
+			if id == "review" {
+				task.Dependencies = []string{"validate", "edit"}
+			}
+			payload.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: id, SourceTask: task.Dependencies[0]}
+			if id == "review" {
+				payload.CandidateAction.DependencyInputVersion = 1
+				payload.Provider = string(adapter.ProviderClaude)
+				payload.ProviderLock = lock
+				payload.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}
+				payload.Prompt = "controlled readonly review"
+			} else {
+				payload.Kind = "candidate"
+				payload.CandidateAction.Command = append([]string{worker.Path}, worker.Args...)
+			}
+		}
+		task.AdapterPayload, _ = json.Marshal(payload)
+		tasks = append(tasks, task)
+	}
+	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "review-v2-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}, Host: store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "generation", Executable: "/private/fixture/host"}, Tasks: tasks})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host", Executable: "/private/fixture/host"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := New(db, filepath.Join(root, "host-spool", hostID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.producerID = hostID
+	for _, id := range []string{"edit", "validate"} {
+		grant, err := db.ClaimReady(ctx, hostID, 1, 1)
+		if err != nil || grant.TaskID != id {
+			t.Fatal("dependency grant", grant, err)
+		}
+		meta := metadataForLaunch(grant)
+		body, _ := json.Marshal(map[string]any{"stage": id, "validation": map[string]any{"passed": true}, "candidate": map[string]any{"candidate_oid": strings.Repeat("b", 40)}})
+		meta.finalizeAction = func(context.Context, string, int, bool) ([]byte, error) { return body, nil }
+		a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+		if result, err := h.execute(ctx, a, grant.RunID, grant.TaskID, worker, false, meta); err != nil || result.Status != "result_ready" {
+			t.Fatal("dependency worker", result, err)
+		}
+		events, err := h.Collect(ctx, a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range events {
+			if _, err := db.CommitHostEvent(ctx, e); err != nil {
+				t.Fatal("dependency event", err)
+			}
+		}
+		page, err := db.CollectPending(ctx, id, "", 0, false)
+		if err != nil || len(page.Events) != 1 {
+			t.Fatal("dependency result", page, err)
+		}
+		e := page.Events[0]
+		if _, err := db.ReviewResult(ctx, store.ReviewSpec{TaskID: id, WorkRevision: grant.WorkRevision, EventID: e.EventID, EventRevision: e.EventRevision, EventHash: e.PayloadHash, ActionSlot: e.ActionSlot, Decision: "accept", CommandID: "accept-" + id}); err != nil {
+			t.Fatal("dependency acceptance", err)
+		}
+	}
+	grant, err := db.ClaimReady(ctx, hostID, 1, 1)
+	if err != nil || grant.TaskID != "review" {
+		t.Fatal("review grant", grant, err)
+	}
+	return db, h, grant
 }

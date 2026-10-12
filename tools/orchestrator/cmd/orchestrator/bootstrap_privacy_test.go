@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -215,45 +218,232 @@ func TestBootstrapControlReconstructionAndLegacyReadOnly(t *testing.T) {
 	}
 }
 
-func TestBootstrapSourceLaunchPipeExcludesSecretsFromArgumentsEnvironmentAndLog(t *testing.T) {
+// bootstrapObserverScript renders the transport observer helper used by the
+// source-launch privacy tests. Every mode first publishes an atomic ready
+// marker (mode and pid only, never the token) before reading FD 3. It then
+// reads the bootstrap record and checks the launch token
+// never reached argv or the environment, and reports whether the descriptor
+// was actually closed. The modes differ only in how (or whether) the
+// observation is published, so a half-written or missing file can never be
+// read as "the pipe was closed".
+func bootstrapObserverScript(t *testing.T, python, observedPath, readyPath, mode string) string {
+	t.Helper()
+	keepOpen := "False"
+	if mode == "leak-fd" {
+		keepOpen = "True"
+	}
+	body := "#!" + python + "\nimport os,json,sys,time\n" +
+		"ready = " + strconv.Quote(readyPath) + "\n" +
+		"handle = open(ready + '.partial', 'w')\n" +
+		"json.dump({'mode': " + strconv.Quote(mode) + ", 'pid': os.getpid()}, handle)\n" +
+		"handle.flush()\nos.fsync(handle.fileno())\nhandle.close()\nos.replace(ready + '.partial', ready)\n" +
+		"keep_open = " + keepOpen + "\n" +
+		"reader = os.fdopen(3)\n" +
+		"bootstrap = json.load(reader)\n" +
+		"if not keep_open: reader.close()\n" +
+		"token = bootstrap['hello']['launch_token']\n" +
+		"assert token not in '\\0'.join(sys.argv)\n" +
+		"assert token not in '\\0'.join(os.environ.values())\n" +
+		"assert sys.argv[-2:] == ['--bootstrap-fd', '3']\n" +
+		"try:\n    os.fstat(3)\n    closed = False\nexcept OSError:\n    closed = True\n" +
+		"path = " + strconv.Quote(observedPath) + "\n" +
+		"def publish(record):\n    handle = open(path + '.partial', 'w')\n    json.dump(record, handle)\n    handle.flush()\n    os.fsync(handle.fileno())\n    handle.close()\n    os.replace(path + '.partial', path)\n"
+	record := "publish({'pipe_closed': closed, 'argv': sys.argv[1:]})\n"
+	switch mode {
+	case "atomic":
+		return body + record
+	case "delayed":
+		return body + "time.sleep(0.3)\n" + record
+	case "partial-first":
+		// 先创建空的最终路径文件，再延迟原子发布：文件存在不等于记录完整。
+		return body + "open(path, 'w').close()\ntime.sleep(0.3)\n" + record
+	case "empty-record":
+		return body + "publish({})\n"
+	case "tampered-argv":
+		return body + "publish({'pipe_closed': closed, 'argv': ['--bootstrap-fd', '4']})\n"
+	case "leak-fd":
+		return body + record
+	case "never":
+		return body + "os._exit(0)\n"
+	}
+	t.Fatalf("unknown observer mode %q", mode)
+	return ""
+}
+
+type bootstrapObservation struct {
+	Closed *bool    `json:"pipe_closed"`
+	Args   []string `json:"argv"`
+}
+
+// awaitBootstrapObservation judges the transport observer only after a complete
+// record has been published, and separates I/O, JSON decoding, descriptor-closed
+// and content diagnostics. A partially published file therefore keeps the
+// caller waiting instead of being read as a closed descriptor, and an omitted
+// field can never be masked by a Go zero value. deadline is the caller's
+// existing budget: this waits within it, never beyond it.
+func awaitBootstrapObservation(path string, deadline time.Time, wantArgs []string) (bootstrapObservation, error) {
+	var lastErr error = errors.New("no publish attempt observed")
+	for {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			lastErr = fmt.Errorf("read published observation: %w", readErr)
+		} else if !json.Valid(data) {
+			lastErr = fmt.Errorf("decode observation published as %d bytes: %s", len(data), bytes.TrimSpace(data))
+		} else {
+			var observation bootstrapObservation
+			if decodeErr := json.Unmarshal(data, &observation); decodeErr != nil {
+				lastErr = fmt.Errorf("decode observation published as %d bytes: %w", len(data), decodeErr)
+			} else if observation.Closed == nil {
+				lastErr = fmt.Errorf("observation omits pipe_closed, so a default value would mask the descriptor state: %s", bytes.TrimSpace(data))
+			} else if !*observation.Closed {
+				return observation, fmt.Errorf("bootstrap descriptor still open in the transport observer: %s", bytes.TrimSpace(data))
+			} else if !slices.Equal(observation.Args, wantArgs) {
+				return observation, fmt.Errorf("observation argv mismatch: got %q want %q", observation.Args, wantArgs)
+			} else {
+				return observation, nil
+			}
+		}
+		if !time.Now().Before(deadline) {
+			return bootstrapObservation{}, fmt.Errorf("observation incomplete before its deadline: %w", lastErr)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// observerReadyFileName is the handshake marker the observer helper publishes
+// before touching FD 3. observerReadyBudget bounds the launch preparation
+// phase on its own, so interpreter startup latency can never masquerade as a
+// "never published" or wrong-content refusal inside the judgement window.
+const (
+	observerReadyFileName = "observer.ready.json"
+	observerReadyBudget   = 5 * time.Second
+)
+
+func awaitObserverReady(path string, deadline time.Time) error {
+	var lastErr error = errors.New("ready marker missing")
+	for {
+		data, readErr := os.ReadFile(path)
+		if readErr == nil && json.Valid(data) {
+			return nil
+		}
+		if readErr != nil {
+			lastErr = readErr
+		} else {
+			lastErr = fmt.Errorf("ready marker published as invalid JSON: %d bytes", len(data))
+		}
+		if !time.Now().Before(deadline) {
+			return lastErr
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// runBootstrapObserver starts the transport observer in the given publish mode,
+// waits for the ready handshake within its own bounded preparation budget, and
+// returns the state directory, the observation path, the argv the source launch
+// must carry, and the measured preparation wait. Every caller's judgement
+// window therefore starts after a demonstrably launched observer, so
+// interpreter cold-start can never masquerade as a missing or late publish —
+// in the Refuses negative controls nor in the partial/delayed/atomic positive
+// budgets.
+func runBootstrapObserver(t *testing.T, mode string) (string, string, []string, time.Duration) {
+	t.Helper()
 	state := t.TempDir()
 	python, err := exec.LookPath("python3")
 	if err != nil {
 		t.Fatal(err)
 	}
+	observedPath := filepath.Join(state, "observed.json")
+	readyPath := filepath.Join(state, observerReadyFileName)
 	script := filepath.Join(state, "capture-source")
-	// This helper is only the subprocess transport test. It reads and closes the
-	// pipe, then persists booleans and public argv; it never writes the secret.
-	body := "#!" + python + "\nimport os,json,sys\nwith os.fdopen(3) as f: b=json.load(f)\nt=b['hello']['launch_token']\nassert t not in '\\0'.join(sys.argv)\nassert t not in '\\0'.join(os.environ.values())\nassert sys.argv[-2:]==['--bootstrap-fd','3']\ntry: os.fstat(3); closed=False\nexcept OSError: closed=True\nwith open(" + strconv.Quote(filepath.Join(state, "observed.json")) + ",'w') as f: json.dump({'pipe_closed':closed,'argv':sys.argv[1:]},f)\n"
-	if err = os.WriteFile(script, []byte(body), 0700); err != nil {
+	if err = os.WriteFile(script, []byte(bootstrapObserverScript(t, python, observedPath, readyPath, mode)), 0700); err != nil {
 		t.Fatal(err)
 	}
 	b := hostBootstrap{Version: 2, SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "spool"), ProducerID: "launch", Hello: contract.HostHello{LaunchID: "launch", LaunchToken: "transport-secret-sentinel"}}
 	if err = startSourceHost(script, state, b); err != nil {
 		t.Fatal(err)
 	}
-	deadline := time.Now().Add(5 * time.Second)
-	var observed []byte
-	for time.Now().Before(deadline) {
-		observed, err = os.ReadFile(filepath.Join(state, "observed.json"))
-		if err == nil {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
+	prepareStart := time.Now()
+	if err = awaitObserverReady(readyPath, prepareStart.Add(observerReadyBudget)); err != nil {
+		t.Fatalf("observer not ready within its bounded preparation budget: %v", err)
 	}
-	var result struct {
-		Closed bool     `json:"pipe_closed"`
-		Args   []string `json:"argv"`
+	return state, observedPath, []string{"source-host", "--state-dir", state, "--bootstrap-fd", "3"}, time.Since(prepareStart)
+}
+
+func TestBootstrapSourceLaunchPipeExcludesSecretsFromArgumentsEnvironmentAndLog(t *testing.T) {
+	state, observedPath, wantArgs, _ := runBootstrapObserver(t, "atomic")
+	observation, err := awaitBootstrapObservation(observedPath, time.Now().Add(5*time.Second), wantArgs)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err != nil || json.Unmarshal(observed, &result) != nil || !result.Closed {
-		t.Fatalf("transport observer incomplete: %v", err)
+	if observation.Closed == nil || !*observation.Closed {
+		t.Fatalf("observer reported the bootstrap descriptor not closed: %+v", observation)
 	}
 	log, err := os.ReadFile(filepath.Join(state, "source-host.log"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Contains(log, []byte(b.Hello.LaunchToken)) || len(log) != 0 {
+	if bytes.Contains(log, []byte("transport-secret-sentinel")) || len(log) != 0 {
 		t.Fatalf("transport helper wrote unexpected log (%d bytes)", len(log))
+	}
+}
+
+// TestBootstrapObservationPartialPublishIsNotJudgedComplete exercises an empty
+// final-path file followed by an atomic complete record. File existence alone
+// must not finish observation before the complete JSON is published.
+func TestBootstrapObservationPartialPublishIsNotJudgedComplete(t *testing.T) {
+	state, observedPath, wantArgs, _ := runBootstrapObserver(t, "partial-first")
+	if _, err := awaitBootstrapObservation(observedPath, time.Now().Add(5*time.Second), wantArgs); err != nil {
+		t.Fatalf("partial publish must not be judged complete: %v", err)
+	}
+	readyInfo, err := os.Stat(filepath.Join(state, observerReadyFileName))
+	if err != nil {
+		t.Fatalf("ready marker missing from the observer's private temp dir: %v", err)
+	}
+	// 半发布→完整发布的延迟以观察者自身 ready 发布时刻为锚：解释器冷启动与
+	// 父端轮询粒度都不能冒充或被计入这 300ms 注入延迟窗。
+	if delay := time.Since(readyInfo.ModTime()); delay < 300*time.Millisecond || delay > 5*time.Second {
+		t.Fatalf("expected to wait for the complete publish after the ready handshake, delay=%s", delay)
+	}
+}
+
+func TestBootstrapObservationDelayedAtomicPublishCompletesWithinDeadline(t *testing.T) {
+	_, observedPath, wantArgs, _ := runBootstrapObserver(t, "delayed")
+	start := time.Now()
+	if _, err := awaitBootstrapObservation(observedPath, time.Now().Add(5*time.Second), wantArgs); err != nil {
+		t.Fatalf("delayed atomic publish: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("waited beyond the original deadline, elapsed=%s", elapsed)
+	}
+}
+
+func TestBootstrapObservationRefusesIncompleteOrFalseReports(t *testing.T) {
+	for _, tc := range []struct{ mode, wantError string }{
+		{"leak-fd", "still open"},
+		{"never", "read published observation"},
+		{"empty-record", "omits pipe_closed"},
+		{"tampered-argv", "argv mismatch"},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			_, observedPath, wantArgs, readyWait := runBootstrapObserver(t, tc.mode)
+			start := time.Now()
+			// 负控制使用比正向路径更短的自有截止：证明拒绝来自诊断，而不是超时被拉长。
+			// 判定窗从 runBootstrapObserver 的有界 ready 握手之后才起算。
+			if _, err := awaitBootstrapObservation(observedPath, time.Now().Add(1500*time.Millisecond), wantArgs); err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("%s must be refused with %q: %v", tc.mode, tc.wantError, err)
+			}
+			judgement := time.Since(start)
+			if judgement > 5*time.Second {
+				t.Fatalf("refusal exceeded the original deadline, elapsed=%s", judgement)
+			}
+			if tc.mode == "never" {
+				if _, statErr := os.Stat(observedPath); !errors.Is(statErr, os.ErrNotExist) {
+					t.Fatalf("mode %s must not publish anything: %v", tc.mode, statErr)
+				}
+			}
+			t.Logf("phases: ready_wait=%s judgement=%s want=%q", readyWait.Round(time.Millisecond), judgement.Round(time.Millisecond), tc.wantError)
+		})
 	}
 }
 

@@ -1,14 +1,17 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -19,11 +22,13 @@ func (d *DB) BeginCoordinatorEpoch(ctx context.Context, epoch uint64) error {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if _, err = tx.ExecContext(ctx, `INSERT INTO coordinator(id,epoch,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET epoch=excluded.epoch,updated_at=excluded.updated_at`, epoch, now); err != nil {
 		return rollback(err)
@@ -34,11 +39,22 @@ func (d *DB) BeginCoordinatorEpoch(ctx context.Context, epoch uint64) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='offline' WHERE status='ready'`); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func validateInvocationPayload(raw json.RawMessage) error {
 	if len(raw) == 0 {
+		return nil
+	}
+	filter, filterErr := contract.GitFilterManifestFromPayload(raw)
+	if filterErr != nil {
+		return CodeError("invalid_adapter_payload")
+	}
+	if filter != nil {
+		payload, err := adapter.DecodeInvocationPayload(raw)
+		if err != nil || runtime.GOOS != "darwin" || adapter.ValidateGitFilterPipelinePayload(payload) != nil {
+			return CodeError("git_filter_pipeline_unsupported")
+		}
 		return nil
 	}
 	var kind struct {
@@ -75,14 +91,31 @@ func validatePlan(p PlanSpec) error {
 	groupAttempts := make(map[string]int)
 	groupTasks := make(map[string]int)
 	groupActive := make(map[string]int64)
+	groupPolicy := make(map[string]bool)
 	for _, task := range p.Tasks {
+		if task.Diagnostics != nil {
+			if err := task.Diagnostics.Validate(); err != nil {
+				return err
+			}
+			if task.Diagnostics.Mode == "detailed" {
+				body, _ := task.Diagnostics.CanonicalJSON()
+				if _, err := (diagnostics.Scope{Version: 1, RunID: p.Run.ID, TaskID: task.ID, AttemptID: "admission", ProducerID: "admission", PolicySHA256: runtimeHash(string(body))}).Hash(); err != nil {
+					return err
+				}
+			}
+		}
+		var err error
+		task, err = normalizeExecutionTask(task)
+		if err != nil {
+			return err
+		}
 		if err := validateInvocationPayload(task.AdapterPayload); err != nil {
 			return err
 		}
 		if err := rejectSubmittedRework(task.AdapterPayload); err != nil {
 			return err
 		}
-		if task.ID == "" || task.RunID != p.Run.ID || task.MaxAttempts < 1 || task.MaxAttempts > 3 {
+		if task.ID == "" || task.RunID != p.Run.ID || task.MaxAttempts < 1 || (task.ExecutionPolicy == nil && task.MaxAttempts > 3) {
 			return ErrInvalidDAG
 		}
 		if _, exists := byID[task.ID]; exists {
@@ -120,19 +153,27 @@ func validatePlan(p PlanSpec) error {
 		if group == "" {
 			group = task.ID
 		}
-		if existing, ok := groupAttempts[group]; ok && existing != task.MaxAttempts {
-			return ErrInvalidDAG
+		policy := task.ExecutionPolicy != nil
+		if old, ok := groupPolicy[group]; ok && old != policy {
+			return CodeError("execution_policy_group_mixed")
 		}
-		groupAttempts[group] = task.MaxAttempts
-		groupTasks[group]++
-		if groupTasks[group] > task.MaxAttempts {
-			return CodeError("budget_group_attempts_insufficient")
-		}
-		active := task.MaxActiveMS
-		if active <= 0 || active > defaultSegmentActiveMS {
+		groupPolicy[group] = policy
+		capacity, active := task.MaxAttempts, task.MaxActiveMS
+		if policy {
+			capacity = task.ExecutionPolicy.GroupMaxAttempts
+			active = task.ExecutionPolicy.GroupMaxActiveMS
+		} else if active <= 0 || active > defaultSegmentActiveMS {
 			active = defaultSegmentActiveMS
 		}
-		if existing, ok := groupActive[group]; ok && existing != active {
+		if old, ok := groupAttempts[group]; ok && old != capacity {
+			return ErrInvalidDAG
+		}
+		groupAttempts[group] = capacity
+		groupTasks[group]++
+		if groupTasks[group] > capacity {
+			return CodeError("budget_group_attempts_insufficient")
+		}
+		if old, ok := groupActive[group]; ok && old != active {
 			return ErrInvalidDAG
 		}
 		groupActive[group] = active
@@ -174,6 +215,28 @@ func validatePlan(p PlanSpec) error {
 }
 
 func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) {
+	tasks, paired, e := configPlanTasks(p)
+	if e != nil {
+		return SubmitReceipt{}, e
+	}
+	if !paired {
+		return d.submitPlan(ctx, p, nil)
+	}
+	var receipt SubmitReceipt
+	e = p.ConfigSubmission.WithSubmission(p.Host.Executable, p.Run.ID, tasks, func(a contract.ConfigPreparationAuthority) error {
+		var err error
+		receipt, err = d.submitPlan(ctx, p, &a)
+		return err
+	})
+	return receipt, e
+}
+func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.ConfigPreparationAuthority) (SubmitReceipt, error) {
+	if p.Host.ExecutionOwnerMode == "" {
+		p.Host.ExecutionOwnerMode = "legacy"
+	}
+	if p.Host.ExecutionOwnerMode != "legacy" && p.Host.ExecutionOwnerMode != "supervised-v1" {
+		return SubmitReceipt{}, CodeError("execution_owner_mode_invalid")
+	}
 	if p.Run.DeliveryMode == "" {
 		p.Run.DeliveryMode = "native"
 	}
@@ -184,8 +247,18 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 	if err := validatePlan(p); err != nil {
 		return SubmitReceipt{}, err
 	}
+	source, err := d.prepareNewBaseSource(ctx, p)
+	if err != nil {
+		return SubmitReceipt{}, err
+	}
+	if source != nil {
+		available, e := d.storageAvailable(filepath.Dir(d.path))
+		if e != nil {
+			return SubmitReceipt{}, CodeError("storage_blocked")
+		}
+		ctx = context.WithValue(ctx, admissionStorageAvailableKey{}, available)
+	}
 	launchID, token, controlToken := p.LaunchID, p.LaunchToken, p.ControlToken
-	var err error
 	if launchID == "" {
 		launchID, err = newID("host-launch")
 		if err != nil {
@@ -206,11 +279,36 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return SubmitReceipt{}, err
 	}
-	rollback := func(e error) (SubmitReceipt, error) { _ = tx.Rollback(); return SubmitReceipt{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (SubmitReceipt, error) { owned.close(); return SubmitReceipt{}, e }
+	derived, replay, e := d.admitNewBase(ctx, tx, &p, source)
+	if e != nil {
+		return rollback(e)
+	}
+	if replay != nil {
+		owned.close()
+		return *replay, nil
+	}
+	var abandoned int
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM config_preparation_abandons WHERE run_id=?)`, p.Run.ID).Scan(&abandoned); err != nil {
+		return rollback(err)
+	}
+	if abandoned != 0 {
+		return rollback(CodeError("config_preparation_abandoned"))
+	}
+	if authority != nil {
+		if err = d.validateConfigAdmission(ctx, tx, p, *authority); err != nil {
+			return rollback(err)
+		}
+	}
+	if err = validateExistingPolicyGroups(ctx, tx, p.Tasks); err != nil {
+		return rollback(err)
+	}
 	for _, task := range p.Tasks {
 		for _, raw := range append([]json.RawMessage{task.AdapterPayload}, task.FallbackPayloads...) {
 			if err = checkProviderEnabled(ctx, tx, p.Run.ControllerThread, raw); err != nil {
@@ -229,13 +327,17 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 	if _, err = tx.ExecContext(ctx, `INSERT INTO runs(id,controller_thread,plan_revision,origin_context_id,origin_pid,origin_birth,status,created_at,delivery_mode) VALUES(?,?,?,?,?,?,?,?,?)`, p.Run.ID, p.Run.ControllerThread, p.Run.PlanRevision, p.Run.OriginContextID, p.Run.OriginPID, p.Run.OriginBirth, "queued", now, p.Run.DeliveryMode); err != nil {
 		return rollback(mapConflict(err))
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO host_launches(id,token_hash,origin_context_id,host_generation,executable,status,created_at) VALUES(?,?,?,?,?,'reserved',?)`, launchID, runtimeHash(token), p.Host.OriginContextID, p.Host.HostGeneration, p.Host.Executable, now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO host_launches(id,token_hash,origin_context_id,host_generation,executable,status,created_at,execution_owner_mode) VALUES(?,?,?,?,?,'reserved',?,?)`, launchID, runtimeHash(token), p.Host.OriginContextID, p.Host.HostGeneration, p.Host.Executable, now, p.Host.ExecutionOwnerMode); err != nil {
 		return rollback(err)
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO run_control(run_id,token_hash) VALUES(?,?)`, p.Run.ID, runtimeHash(controlToken)); err != nil {
 		return rollback(err)
 	}
 	for _, task := range p.Tasks {
+		task, err = normalizeExecutionTask(task)
+		if err != nil {
+			return rollback(err)
+		}
 		deps, _ := json.Marshal(task.Dependencies)
 		status := "queued"
 		var ready any
@@ -259,7 +361,7 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 			group = task.ID
 		}
 		active := task.MaxActiveMS
-		if active <= 0 || active > defaultSegmentActiveMS {
+		if task.ExecutionPolicy == nil && (active <= 0 || active > defaultSegmentActiveMS) {
 			active = defaultSegmentActiveMS
 		}
 		payload := task.AdapterPayload
@@ -277,8 +379,37 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 		if _, err = tx.ExecContext(ctx, `INSERT INTO task_runtime(task_id,host_launch_id,work_revision,budget_group_id,max_active_ms,ready_sequence,adapter_payload,fallback_payloads,fallback_index,completion_policy,expected_artifact_sha256) VALUES(?,?,?,?,?,?,?,?,0,?,?)`, task.ID, launchID, revision, group, active, ready, string(payload), string(fallbacks), policy, strings.ToLower(task.ExpectedArtifactSHA256)); err != nil {
 			return rollback(err)
 		}
+		if task.ExecutionPolicy != nil {
+			body, e := task.ExecutionPolicy.CanonicalJSON()
+			if e != nil {
+				return rollback(e)
+			}
+			hash := runtimeHash(string(body))
+			if e = d.storageAdmission(ctx, tx, p.Run.ID, int64(16+len(task.ID)+len(p.Run.ID)+len(body)+len(hash)), false); e != nil {
+				return rollback(e)
+			}
+			if _, e = tx.ExecContext(ctx, `INSERT INTO task_execution_policies(task_id,run_id,body_json,policy_sha256) VALUES(?,?,?,?)`, task.ID, p.Run.ID, string(body), hash); e != nil {
+				return rollback(e)
+			}
+		}
+		if task.Diagnostics != nil {
+			body, e := task.Diagnostics.CanonicalJSON()
+			if e != nil {
+				return rollback(e)
+			}
+			hash := runtimeHash(string(body))
+			if e = d.storageAdmission(ctx, tx, p.Run.ID, int64(64+len(task.ID)+len(p.Run.ID)+len(body)+len(hash)), false); e != nil {
+				return rollback(e)
+			}
+			if _, e = tx.ExecContext(ctx, `INSERT INTO task_diagnostics_policies(task_id,run_id,body_json,policy_sha256) VALUES(?,?,?,?)`, task.ID, p.Run.ID, string(body), hash); e != nil {
+				return rollback(e)
+			}
+		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = d.retainNewBase(ctx, tx, p, derived); err != nil {
+		return rollback(err)
+	}
+	if err = owned.commit(); err != nil {
 		return SubmitReceipt{}, err
 	}
 	return SubmitReceipt{LaunchID: launchID, LaunchToken: token, ControlToken: controlToken}, nil
@@ -316,24 +447,29 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return "", err
 	}
-	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
-	var tokenHash, origin, generation, executable string
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (string, error) { owned.close(); return "", e }
+	var tokenHash, origin, generation, executable, ownerMode string
 	var existing sql.NullString
-	if err = tx.QueryRowContext(ctx, `SELECT token_hash,origin_context_id,host_generation,executable,host_id FROM host_launches WHERE id=?`, hello.LaunchID).Scan(&tokenHash, &origin, &generation, &executable, &existing); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT token_hash,origin_context_id,host_generation,executable,host_id,execution_owner_mode FROM host_launches WHERE id=?`, hello.LaunchID).Scan(&tokenHash, &origin, &generation, &executable, &existing, &ownerMode); err != nil {
 		return rollback(ErrHostRejected)
 	}
 	want := runtimeHash(hello.LaunchToken)
 	if subtle.ConstantTimeCompare([]byte(tokenHash), []byte(want)) != 1 || origin != hello.OriginContextID || generation != hello.HostGeneration || executable != hello.Executable {
 		return rollback(ErrHostRejected)
 	}
+	var runID, originBirth string
 	var originPID int
-	var originBirth string
-	if err = tx.QueryRowContext(ctx, `SELECT r.origin_pid,r.origin_birth FROM runs r JOIN tasks t ON t.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id WHERE tr.host_launch_id=? LIMIT 1`, hello.LaunchID).Scan(&originPID, &originBirth); err != nil || originPID != hello.OriginPID || originBirth != hello.OriginBirth {
+	if err = tx.QueryRowContext(ctx, `SELECT r.id,r.origin_pid,r.origin_birth FROM runs r JOIN tasks t ON t.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id WHERE tr.host_launch_id=? LIMIT 1`, hello.LaunchID).Scan(&runID, &originPID, &originBirth); err != nil || originPID != hello.OriginPID || originBirth != hello.OriginBirth {
 		return rollback(ErrHostRejected)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return rollback(err)
 	}
 	hostID := existing.String
 	if !existing.Valid || hostID == "" {
@@ -345,20 +481,31 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 			return rollback(ErrHostRejected)
 		}
 		if pid != hello.PID || birth != hello.Birth {
+			if ownerMode == "supervised-v1" {
+				return rollback(ErrHostRejected)
+			}
 			var active int
 			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime WHERE host_id=? AND status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, hostID).Scan(&active); err != nil || (active != 0 && hostStatus != "reconcile_authorized") {
 				return rollback(ErrHostRejected)
 			}
 		}
 	}
+	status := "ready"
+	if ownerMode == "supervised-v1" {
+		status = "reconciling"
+		var actualEpoch uint64
+		if err = tx.QueryRowContext(ctx, `SELECT epoch FROM coordinator WHERE id=1`).Scan(&actualEpoch); err != nil || actualEpoch != epoch {
+			return rollback(ErrHostRejected)
+		}
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_hosts(id,launch_id,origin_context_id,host_generation,pid,birth,executable,coordinator_epoch,status,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET pid=excluded.pid,birth=excluded.birth,executable=excluded.executable,coordinator_epoch=excluded.coordinator_epoch,status='ready',updated_at=excluded.updated_at`, hostID, hello.LaunchID, hello.OriginContextID, hello.HostGeneration, hello.PID, hello.Birth, hello.Executable, epoch, "ready", now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_hosts(id,launch_id,origin_context_id,host_generation,pid,birth,executable,coordinator_epoch,status,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET pid=excluded.pid,birth=excluded.birth,executable=excluded.executable,coordinator_epoch=excluded.coordinator_epoch,status=excluded.status,updated_at=excluded.updated_at`, hostID, hello.LaunchID, hello.OriginContextID, hello.HostGeneration, hello.PID, hello.Birth, hello.Executable, epoch, status, now); err != nil {
 		return rollback(err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET host_id=?,status='ready' WHERE id=?`, hostID, hello.LaunchID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET host_id=?,status=? WHERE id=?`, hostID, status, hello.LaunchID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return "", err
 	}
 	return hostID, nil
@@ -376,7 +523,19 @@ func (d *DB) HostBinding(ctx context.Context, launchID string) (HostBinding, err
 func (d *DB) AuthorizeHostRebind(ctx context.Context, launchID string, pid int, birth string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	result, err := d.sql.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconcile_authorized',updated_at=? WHERE launch_id=? AND pid=? AND birth=? AND status='offline'`, time.Now().UTC().Format(time.RFC3339Nano), launchID, pid, birth)
+	owned, err := d.beginOwnerTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	defer owned.close()
+	var runID string
+	if err = owned.tx.QueryRowContext(ctx, `SELECT t.run_id FROM task_runtime tr JOIN tasks t ON t.id=tr.task_id WHERE tr.host_launch_id=? LIMIT 1`, launchID).Scan(&runID); err != nil {
+		return ErrHostRejected
+	}
+	if err = requirePublishedOwnerTx(ctx, owned.tx, runID); err != nil {
+		return err
+	}
+	result, err := owned.tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconcile_authorized',updated_at=? WHERE launch_id=? AND pid=? AND birth=? AND status='offline'`, time.Now().UTC().Format(time.RFC3339Nano), launchID, pid, birth)
 	if err != nil {
 		return err
 	}
@@ -384,41 +543,66 @@ func (d *DB) AuthorizeHostRebind(ctx context.Context, launchID string, pid int, 
 	if changed != 1 {
 		return ErrHostRejected
 	}
-	return nil
+	return owned.commit()
 }
 
 func (d *DB) BeginHostReconcile(ctx context.Context, hostID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
+	var runID string
+	if err = tx.QueryRowContext(ctx, `SELECT t.run_id FROM runtime_hosts h JOIN task_runtime tr ON tr.host_launch_id=h.launch_id JOIN tasks t ON t.id=tr.task_id WHERE h.id=? LIMIT 1`, hostID).Scan(&runID); err != nil {
+		return rollback(ErrHostRejected)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return rollback(err)
+	}
 	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconciling' WHERE id=?`, hostID); err != nil {
 		return rollback(err)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='reconciling' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) FinishHostReconcile(ctx context.Context, hostID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='ready' WHERE id=? AND status='reconciling'`, hostID); err != nil {
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
+	var runID string
+	if err = tx.QueryRowContext(ctx, `SELECT t.run_id FROM runtime_hosts h JOIN task_runtime tr ON tr.host_launch_id=h.launch_id JOIN tasks t ON t.id=tr.task_id WHERE h.id=? LIMIT 1`, hostID).Scan(&runID); err != nil {
+		return rollback(ErrHostRejected)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
 		return rollback(err)
+	}
+	// Keep the first statement a write, so SQLite waits for an existing writer
+	// instead of attempting to upgrade a stale read snapshot. The predicate
+	// still excludes supervised Hosts atomically, before any readiness change.
+	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='ready' WHERE id=? AND status IN ('reconciling','ready') AND EXISTS(SELECT 1 FROM host_launches l WHERE l.id=runtime_hosts.launch_id AND l.execution_owner_mode='legacy')`, hostID)
+	if err != nil {
+		return rollback(err)
+	}
+	if n, e := result.RowsAffected(); e != nil || n != 1 {
+		return rollback(ErrHostRejected)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='ready' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) HostLaunchStatus(ctx context.Context, launchID, token string) (string, error) {
@@ -438,11 +622,13 @@ func (d *DB) HostLaunchStatus(ctx context.Context, launchID, token string) (stri
 func (d *DB) MarkHostOffline(ctx context.Context, hostID string, epoch uint64) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='offline',updated_at=? WHERE id=? AND coordinator_epoch=? AND status='ready'`, time.Now().UTC().Format(time.RFC3339Nano), hostID, epoch)
 	if err != nil {
 		return rollback(err)
@@ -453,5 +639,5 @@ func (d *DB) MarkHostOffline(ctx context.Context, hostID string, epoch uint64) e
 			return rollback(err)
 		}
 	}
-	return tx.Commit()
+	return owned.commit()
 }

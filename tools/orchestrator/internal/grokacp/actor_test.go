@@ -1,0 +1,143 @@
+package grokacp
+
+import (
+	"bufio"
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+	"time"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+)
+
+// TestGrokACPActor is an owned, no-account ACP v1 fixture. It only executes
+// when the parent native test starts this same test binary with the marker.
+func TestGrokACPActor(t *testing.T) {
+	if os.Getenv("GROKACP_NATIVE_ACTOR") != "1" {
+		return
+	}
+	reader := bufio.NewScanner(os.Stdin)
+	reader.Buffer(make([]byte, 4096), MaxFrameBytes)
+	for reader.Scan() {
+		var request struct {
+			ID     json.RawMessage `json:"id"`
+			Method string          `json:"method"`
+			Params json.RawMessage `json:"params"`
+		}
+		if json.Unmarshal(reader.Bytes(), &request) != nil {
+			os.Exit(21)
+		}
+		var result any
+		switch request.Method {
+		case "initialize":
+			result = map[string]any{"protocolVersion": 1, "agentCapabilities": map[string]any{}}
+		case "session/new":
+			result = map[string]any{"sessionId": "fixture-session"}
+		case "session/prompt":
+			result = map[string]any{"stopReason": "end_turn"}
+		default:
+			os.Exit(22)
+		}
+		body, _ := json.Marshal(struct {
+			JSONRPC string          `json:"jsonrpc"`
+			ID      json.RawMessage `json:"id"`
+			Result  any             `json:"result"`
+		}{"2.0", request.ID, result})
+		if _, err := os.Stdout.Write(append(body, '\n')); err != nil {
+			os.Exit(23)
+		}
+	}
+	if reader.Err() != nil {
+		os.Exit(24)
+	}
+}
+
+// This is intentionally opt-in: it proves only the existing StartDuplex
+// hookup retains its original Handle across two ACP turns and Close/Wait. It
+// never starts Grok and is not included in the pure transport acceptance.
+func TestGrokACPStartDuplexOwnedActor(t *testing.T) {
+	if os.Getenv("GROKACP_NATIVE") != "1" {
+		t.Skip("native process token required")
+	}
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("StartDuplex unsupported")
+	}
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	handle, stream, err := process.StartDuplex(ctx, process.Command{Path: binary, Args: []string{"-test.run=^TestGrokACPActor$"}, ExactEnv: true, Env: []string{"GROKACP_NATIVE_ACTOR=1"}})
+	if err != nil || handle == nil || stream == nil {
+		if stream != nil {
+			_ = stream.Close()
+		}
+		if handle != nil {
+			cleanupCtx, cleanup := context.WithTimeout(context.Background(), time.Second)
+			_ = handle.Stop(cleanupCtx)
+			_ = handle.Wait(cleanupCtx)
+			cleanup()
+		}
+		t.Fatalf("StartDuplex handle=%v stream=%v err=%v", handle, stream, err)
+	}
+	t.Cleanup(func() {
+		_ = stream.Close()
+		cleanupCtx, cleanup := context.WithTimeout(context.Background(), time.Second)
+		defer cleanup()
+		_ = handle.Stop(cleanupCtx)
+		_ = handle.Wait(cleanupCtx)
+	})
+	client, err := New(ctx, stream, Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.Initialize(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sessionID, err := client.NewSession(ctx, "/private/work")
+	if err != nil || sessionID != "fixture-session" {
+		t.Fatalf("NewSession id=%q err=%v", sessionID, err)
+	}
+	originalIdentity := handle.Identity()
+	for i, text := range []string{"one", "two"} {
+		turn, err := client.Prompt(ctx, sessionID, text)
+		wantID := uint64(i + 3)
+		wantResponse := fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"result":{"stopReason":"end_turn"}}`, wantID)
+		if err != nil || turn.StopReason != "end_turn" || turn.SessionID != sessionID || turn.RPCRequestID != wantID || turn.PromptSHA256 != fmt.Sprintf("%x", sha256.Sum256([]byte(text))) || turn.ResponseSHA256 != fmt.Sprintf("%x", sha256.Sum256([]byte(wantResponse))) {
+			t.Fatalf("Prompt(%q) turn=%#v err=%v", text, turn, err)
+		}
+		if handle.Identity() != originalIdentity {
+			t.Fatal("original process identity changed between ACP turns")
+		}
+		t.Logf("native_actor_receipt session=%q rpc_id=%d prompt_sha256=%s response_sha256=%s", turn.SessionID, turn.RPCRequestID, turn.PromptSHA256, turn.ResponseSHA256)
+	}
+	closer, ok := stream.(interface{ CloseWrite() error })
+	if !ok {
+		t.Fatal("duplex stream lacks CloseWrite")
+	}
+	if err := closer.CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-client.Done():
+	case <-ctx.Done():
+		t.Fatal("same ACP reader did not reach EOF after CloseWrite")
+	}
+	if err := handle.Wait(ctx); err != nil || handle.ExitCode() != 0 {
+		t.Fatalf("original Wait error=%v exit=%d", err, handle.ExitCode())
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := handle.ConfirmTreeExited(); err != nil {
+		t.Fatalf("original process tree = %v", err)
+	}
+	identity := handle.Identity()
+	t.Logf("native_actor_terminal session=%q pid=%d pgid=%d birth_known=%t exit=%d wait=true tree_exited=true", sessionID, identity.PID, identity.PGID, identity.BirthKnown, handle.ExitCode())
+}

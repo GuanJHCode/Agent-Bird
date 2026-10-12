@@ -27,7 +27,9 @@ for directory in (
 import activation_service  # noqa: E402
 import proxy_transport  # noqa: E402
 from test_activation_service import digest, policy, private_json  # noqa: E402
-from test_owner_helper_production_pipeline import _line, _wait_process, _write_client  # noqa: E402
+from test_owner_helper_production_pipeline import (  # noqa: E402
+    SCENARIO_WATCHDOG_S, _line, _wait_process, _write_client, _durable_owner_ready_bound,
+    observe_owner_ready_line)
 
 
 ENTRY = ROOT / "plugins" / "codex-orchestrator" / "scripts" / "native-product-bridge.py"
@@ -106,6 +108,8 @@ async def read_json(process):
 
 def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
     async def scenario():
+        loop = asyncio.get_running_loop()
+        origin = loop.time()
         with tempfile.TemporaryDirectory(prefix="g1-native-bridge-", dir="/private/tmp") as raw, ExitStack() as roots:
             root = Path(raw)
             public = root / "public.sock"
@@ -144,7 +148,11 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                     "profile_id": "a",
                 })
                 owner.stdin.write(b"go\n"); await owner.stdin.drain()
-                assert await _line(owner) == "owner-ready"
+                observation = await observe_owner_ready_line(
+                    owner, service, owner_pid=owner.pid, origin=origin, loop=loop,
+                    scenario_watchdog_s=SCENARIO_WATCHDOG_S)
+                assert observation.accepted is True
+                assert _durable_owner_ready_bound(service, owner_pid=owner.pid) is True
                 for _ in range(100):
                     if service._owner_leases:
                         break

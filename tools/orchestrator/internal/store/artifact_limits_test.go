@@ -55,7 +55,11 @@ func TestAcceptedArtifactsConsumeTransactionalQuota(t *testing.T) {
 		t.Fatal(err)
 	}
 	var accounted, body int64
-	if err = db.sql.QueryRow(`SELECT accounted_bytes,length(CAST(body_json AS BLOB)) FROM report_events WHERE event_id='result'`).Scan(&accounted, &body); err != nil || accounted != body+1024 {
-		t.Fatalf("artifact unaccounted: %d body=%d %v", accounted, body, err)
+	if err = db.sql.QueryRow(`SELECT accounted_bytes,length(CAST(body_json AS BLOB)) FROM report_events WHERE event_id='result'`).Scan(&accounted, &body); err != nil || accounted != body {
+		t.Fatalf("managed raw was charged as control: %d body=%d %v", accounted, body, err)
+	}
+	var reserved, retained, objects int64
+	if err = db.sql.QueryRow(`SELECT reserved_bytes,retained_bytes,(SELECT COUNT(*) FROM managed_artifact_refs) FROM managed_artifact_reservations WHERE class='report' AND state='active'`).Scan(&reserved, &retained, &objects); err != nil || reserved != 1024 || retained != 1024 || objects != 1 {
+		t.Fatalf("managed artifact missing from its own allowance: reserved=%d retained=%d objects=%d err=%v", reserved, retained, objects, err)
 	}
 }

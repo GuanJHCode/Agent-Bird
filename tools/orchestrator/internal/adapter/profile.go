@@ -18,14 +18,16 @@ const (
 )
 
 type ExecutionProfile struct {
-	CLIModelDefault  bool            `json:"cli_model_default,omitempty"`
-	GrokSessionWrite bool            `json:"grok_session_write,omitempty"`
-	Version          int             `json:"version"`
-	Role             Role            `json:"role"`
-	Model            ModelID         `json:"model,omitempty"`
-	Reasoning        ReasoningEffort `json:"reasoning,omitempty"`
-	Permission       AccessMode      `json:"permission"`
-	TimeoutMS        int64           `json:"timeout_ms"`
+	CodexHostToolsVersion int             `json:"codex_host_tools_version,omitempty"`
+	GrokExistingAuthOnly  bool            `json:"grok_existing_auth_only,omitempty"`
+	CLIModelDefault       bool            `json:"cli_model_default,omitempty"`
+	GrokSessionWrite      bool            `json:"grok_session_write,omitempty"`
+	Version               int             `json:"version"`
+	Role                  Role            `json:"role"`
+	Model                 ModelID         `json:"model,omitempty"`
+	Reasoning             ReasoningEffort `json:"reasoning,omitempty"`
+	Permission            AccessMode      `json:"permission"`
+	TimeoutMS             int64           `json:"timeout_ms"`
 }
 
 type ProviderLock struct {
@@ -55,6 +57,9 @@ func ValidModelID(value string) bool { return value == "" || modelID.MatchString
 var modelID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
 
 func validateProfile(req Request) error {
+	if req.Action != nil && req.Action.Operation == "filter_target_review" && (req.Provider != ProviderClaude && req.Provider != ProviderAGY || req.Profile == nil || req.Profile.Role != Reviewer || req.Profile.Permission != ReadOnly) {
+		return errors.New("candidate_review_provider_unsupported")
+	}
 	if req.Action != nil && req.Action.Operation == "review" && req.Provider != ProviderClaude && req.Provider != ProviderAGY && req.Provider != ProviderGrok {
 		return errors.New("candidate_review_provider_unsupported")
 	}
@@ -65,16 +70,23 @@ func validateProfile(req Request) error {
 	if p == nil {
 		return nil
 	}
-	if p.GrokSessionWrite && req.Provider != ProviderGrok {
+	if p.CodexHostToolsVersion != 0 && req.Provider != ProviderCodex {
+		return errors.New("profile_provider_state_mismatch")
+	}
+	if (p.GrokSessionWrite || p.GrokExistingAuthOnly) && req.Provider != ProviderGrok {
 		return errors.New("profile_provider_state_mismatch")
 	}
 	if req.Lock == nil {
 		return errors.New("provider_lock_invalid")
 	}
-	if req.Session.ID != "" {
+	if req.Session.ID != "" && req.Continuation == nil {
 		return errors.New("profile_resume_not_verified")
 	}
 	if req.Provider == ProviderCodex {
+		if p.CodexHostToolsVersion == 1 {
+			_, err := BuildCodexPluginInvocation(req)
+			return err
+		}
 		return errors.New("codex_trial_guard_not_ready")
 	}
 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
@@ -90,8 +102,11 @@ func validateProfile(req Request) error {
 		return errors.New("reasoning_unsupported")
 	}
 	if req.Provider == ProviderGrok {
-		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
+		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" && req.Binary.Version != "grok 1.0.50 (c58f321264ba) [stable]" {
 			return errors.New("grok_version_not_verified")
+		}
+		if req.Binary.Version == "grok 1.0.50 (c58f321264ba) [stable]" && !p.GrokExistingAuthOnly {
+			return errors.New("grok_existing_auth_required")
 		}
 		if !p.GrokSessionWrite {
 			return errors.New("grok_session_write_required")
@@ -123,10 +138,16 @@ func (i Invocation) ExecutionProfile() *ExecutionProfile {
 // CheckCapabilities checks only the flags needed by this exact request. Missing
 // flags are rejected, including versions whose capabilities are not established.
 func CheckCapabilities(req Request, help string) error {
+	if err := validateContinuation(req); err != nil {
+		return err
+	}
 	if err := validateProfile(req); err != nil {
 		return err
 	}
 	if req.Profile == nil {
+		return nil
+	}
+	if req.Provider == ProviderCodex && req.Profile.CodexHostToolsVersion == 1 {
 		return nil
 	}
 	flags := []string{"--output-format", "--input-format", "--permission-mode"}
@@ -134,7 +155,7 @@ func CheckCapabilities(req Request, help string) error {
 		flags = append(flags, "--disallowed-tools")
 	}
 	if req.Provider == ProviderAGY {
-		flags = []string{"--output-format", "--input-format", "--mode"}
+		flags = []string{"--print", "--output-format", "--input-format", "--mode"}
 	}
 	if req.Provider == ProviderGrok {
 		flags = []string{"--output-format", "--permission-mode", "--no-subagents", "--disable-web-search", "--session-id", "--leader-socket", "--tools", "--deny"}
@@ -144,6 +165,9 @@ func CheckCapabilities(req Request, help string) error {
 	}
 	if req.Provider == ProviderCodex {
 		return errors.New("codex_trial_guard_not_ready")
+	}
+	if usesManagedTaskSchema(req) {
+		flags = append(flags, "--json-schema")
 	}
 	if usesCandidateReviewSchema(req) {
 		flags = append(flags, "--json-schema")
@@ -158,7 +182,11 @@ func CheckCapabilities(req Request, help string) error {
 		flags = append(flags, "--effort")
 	}
 	if req.Session.ID != "" {
-		flags = append(flags, "--resume")
+		if req.Provider == ProviderAGY {
+			flags = append(flags, "--conversation")
+		} else {
+			flags = append(flags, "--resume")
+		}
 	}
 	for _, flag := range flags {
 		// Match a whole option: --model must not establish support for --mode.

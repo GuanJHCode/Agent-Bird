@@ -16,6 +16,7 @@ import (
 )
 
 type candidateRunnerKey struct{}
+type trackedIntegrationRunnerKey struct{}
 type candidateJournalKey struct{}
 
 type GitProcessRecord struct {
@@ -50,6 +51,21 @@ func (out *candidateOutput) Write(p []byte) (int, error) {
 }
 
 func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...string) (CommandResult, error) {
+	filter := filterGitFromContext(ctx)
+	if filter != nil {
+		if err := filter.verifyDirectory(dir); err != nil {
+			return CommandResult{}, err
+		}
+		if err := filter.Verify(ctx); err != nil {
+			return CommandResult{}, err
+		}
+		result, err := candidateGitWithStart(ctx, dir, stdin, process.Start, args...)
+		return result, filter.verifyAfter(err)
+	}
+	return candidateGitWithStart(ctx, dir, stdin, process.Start, args...)
+}
+
+func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, start func(context.Context, process.Command) (*process.Handle, error), args ...string) (CommandResult, error) {
 	var input []byte
 	var err error
 	if stdin != nil {
@@ -58,6 +74,13 @@ func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...stri
 			return CommandResult{}, fail(CodeInvalidInput, "candidate git", fmt.Errorf("source file exceeds freeze limit"))
 		}
 	}
+	return candidateGitBytesWithStart(ctx, dir, input, false, start, args...)
+}
+
+// input is already bounded and remains owned by this synchronous call through
+// the original Wait/tree. In particular the filter blob bridge is not copied.
+func candidateGitBytesWithStart(ctx context.Context, dir string, input []byte, owned bool, start func(context.Context, process.Command) (*process.Handle, error), args ...string) (CommandResult, error) {
+	var err error
 	env := []string{}
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
@@ -66,21 +89,49 @@ func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...stri
 		}
 	}
 	env = append(env, "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
+	gitPath := "/usr/bin/git"
+	pinnedPath, pinnedSHA := "", ""
 	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
+	if filter := filterGitFromContext(ctx); filter != nil {
+		if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
+			return CommandResult{}, fail(CodeInvalidInput, "filter git", fmt.Errorf("tracked integration unsupported"))
+		}
+		gitPath, pinnedPath, pinnedSHA, env, argv = filter.git.path, filter.git.path, filter.git.sha256, filterGitEnv(), append(filterGitConfigArgs(filter.manifest.DriverID), append([]string{"-C", dir}, args...)...)
+	}
+	if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
+		// Final integration retains the normal Git configuration/environment,
+		// including environment-provided hooks and signing. Share only process
+		// ownership, bounded output and journal handling with candidate Git.
+		env = os.Environ()
+		argv = append([]string{"-C", dir}, args...)
+	}
 	commandDigest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
 	journal, _ := ctx.Value(candidateJournalKey{}).(GitProcessJournal)
 	record := func(phase string, identity *process.Identity, exit int) error {
-		if journal == nil {
-			return nil
+		if journal != nil {
+			if err := journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: commandDigest, Process: identity, ExitCode: exit}); err != nil {
+				return err
+			}
 		}
-		return journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: commandDigest, Process: identity, ExitCode: exit})
+		return verifyCandidateTargetIndex(ctx)
 	}
 	if err = record("intent", nil, -1); err != nil {
 		return CommandResult{}, err
 	}
 	out := &candidateOutput{}
-	p, err := process.Start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
+	spec := process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out}
+	if owned {
+		spec.Stdin = nil
+		spec.OwnedStdin = input
+	}
+	p, err := start(ctx, spec)
 	if err != nil {
+		if p != nil {
+			identity := p.Identity()
+			_ = record("unknown", &identity, p.ExitCode())
+			cleanupErr := process.CleanupFailedStart(ctx, p, 10*time.Second)
+			return CommandResult{PID: p.PID(), ExitCode: p.ExitCode()}, errors.Join(process.ErrProcessTreeUnknown, cleanupErr)
+		}
 		return CommandResult{}, candidateStartFailure(err)
 	}
 	identity := p.Identity()
@@ -128,6 +179,127 @@ func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...stri
 func freezeGit(ctx context.Context, dir string, stdin io.Reader, args ...string) (string, error) {
 	result, err := candidateGit(ctx, dir, stdin, args...)
 	return result.Stdout, err
+}
+
+// candidateGitStream keeps Git object bytes out of the command-result cache.
+// process retains its existing bounded diagnostic capture while the supplied
+// writer consumes data incrementally under the same process/journal contract.
+func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...string) error {
+	return candidateGitInputStream(ctx, dir, nil, out, args...)
+}
+
+// Input stays bounded while stdout is consumed incrementally by the caller.
+func candidateGitInputStream(ctx context.Context, dir string, input []byte, out io.Writer, args ...string) error {
+	if len(input) > 256<<10 {
+		return fail(CodeInvalidInput, "candidate stream input", nil)
+	}
+	filter := filterGitFromContext(ctx)
+	if filter != nil {
+		if err := filter.verifyDirectory(dir); err != nil {
+			return err
+		}
+		if err := filter.Verify(ctx); err != nil {
+			return err
+		}
+		err := candidateGitInputStreamWithStart(ctx, dir, input, out, process.Start, args...)
+		return filter.verifyAfter(err)
+	}
+	return candidateGitInputStreamWithStart(ctx, dir, input, out, process.Start, args...)
+}
+
+func candidateGitStreamWithStart(ctx context.Context, dir string, out io.Writer, start func(context.Context, process.Command) (*process.Handle, error), args ...string) error {
+	return candidateGitInputStreamWithStart(ctx, dir, nil, out, start, args...)
+}
+
+func candidateGitInputStreamWithStart(ctx context.Context, dir string, input []byte, out io.Writer, start func(context.Context, process.Command) (*process.Handle, error), args ...string) error {
+	env := []string{}
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		if !strings.HasPrefix(key, "GIT_") {
+			env = append(env, entry)
+		}
+	}
+	env = append(env, "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
+	gitPath := "/usr/bin/git"
+	pinnedPath, pinnedSHA := "", ""
+	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
+	if filter := filterGitFromContext(ctx); filter != nil {
+		if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
+			return fail(CodeInvalidInput, "filter git", fmt.Errorf("tracked integration unsupported"))
+		}
+		gitPath, pinnedPath, pinnedSHA, env, argv = filter.git.path, filter.git.path, filter.git.sha256, filterGitEnv(), append(filterGitConfigArgs(filter.manifest.DriverID), append([]string{"-C", dir}, args...)...)
+	}
+	digest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
+	journal, _ := ctx.Value(candidateJournalKey{}).(GitProcessJournal)
+	record := func(phase string, identity *process.Identity, exit int) error {
+		if journal != nil {
+			if err := journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: digest, Process: identity, ExitCode: exit}); err != nil {
+				return err
+			}
+		}
+		return verifyCandidateTargetIndex(ctx)
+	}
+	if err := record("intent", nil, -1); err != nil {
+		return err
+	}
+	p, err := start(ctx, process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
+	if err != nil {
+		if p != nil {
+			identity := p.Identity()
+			_ = record("unknown", &identity, p.ExitCode())
+			cleanupErr := process.CleanupFailedStart(ctx, p, 10*time.Second)
+			return errors.Join(process.ErrProcessTreeUnknown, cleanupErr)
+		}
+		return candidateStartFailure(err)
+	}
+	return finishCandidateGitStream(ctx, p, record)
+}
+
+// The production caller always supplies the original process.Handle. The
+// narrow interface lets fault tests exercise uncertain Stop and Wait outcomes
+// without manufacturing process identities or signaling unrelated processes.
+type candidateStreamProcess interface {
+	Identity() process.Identity
+	ExitCode() int
+	Wait(context.Context) error
+	Stop(context.Context) error
+	ConfirmTreeExited() error
+}
+
+func finishCandidateGitStream(ctx context.Context, p candidateStreamProcess, record func(string, *process.Identity, int) error) error {
+	identity := p.Identity()
+	if err := record("spawned", &identity, -1); err != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if stopErr := p.Stop(stopCtx); stopErr != nil {
+			_ = record("unknown", &identity, p.ExitCode())
+			return process.ErrProcessTreeUnknown
+		}
+		return err
+	}
+	waitErr := p.Wait(ctx)
+	if waitErr != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if stopErr := p.Stop(stopCtx); stopErr != nil {
+			_ = record("unknown", &identity, p.ExitCode())
+			return process.ErrProcessTreeUnknown
+		}
+	}
+	if err := p.ConfirmTreeExited(); err != nil {
+		_ = record("unknown", &identity, p.ExitCode())
+		return process.ErrProcessTreeUnknown
+	}
+	if err := record("exited", &identity, p.ExitCode()); err != nil {
+		return err
+	}
+	if waitErr != nil {
+		return waitErr
+	}
+	if p.ExitCode() != 0 {
+		return fail(CodeGitFailure, "candidate git", fmt.Errorf("git command failed"))
+	}
+	return nil
 }
 
 // Git extensions can execute code supplied by the worker with Host permissions.
@@ -204,4 +376,17 @@ func candidateStartFailure(err error) error {
 		return err
 	}
 	return fmt.Errorf("%w: candidate start failed", process.ErrProcessTreeUnknown)
+}
+
+// Recheck after every journal callback, including the last exited record.
+// No Git command is issued by this original-source, held-FD guard.
+func verifyCandidateTargetIndex(ctx context.Context) error {
+	filter := filterGitFromContext(ctx)
+	if filter == nil {
+		return nil
+	}
+	if private, _ := ctx.Value(filterGitPrivateKey{}).(bool); private {
+		return filter.verifyTargetIndexGuardHeld()
+	}
+	return filter.verifyTargetIndexGuard()
 }

@@ -21,7 +21,7 @@ from typing import Any, Callable, Iterator, Mapping
 
 _HASH = re.compile(r"^[0-9a-f]{64}$")
 _SAFE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
-_DELIVERABLE = {"question", "result", "failed", "unknown", "stopped"}
+_DELIVERABLE = {"question", "result", "failed", "launch_rejected", "unknown", "stopped"}
 _DECISIONS = {"handled", "waiting_user", "stale", "rejected"}
 _SLOT_BLOCKING = {"pending", "sending", "transport_accepted", "delivery_uncertain"}
 
@@ -416,6 +416,41 @@ class DeliveryLedger:
         _require(stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode) and info.st_uid == os.getuid() and stat.S_IMODE(info.st_mode) == 0o700, "ledger_root")
         self._lock_path = self.root / ".bridge.lock"
 
+    @classmethod
+    def read_status(cls, root: str | os.PathLike[str], delivery_id: str) -> dict[str, object]:
+        """Read original ledger evidence without creating a directory, lock or send.
+
+        This is a persisted observation, not a fresh thread/read confirmation or
+        permission to retry. Immutable intent/source checks remain the original
+        loader's responsibility; only fixed public fields leave this adapter.
+        """
+        path = Path(root)
+        _require(path.is_absolute() and re.fullmatch(r"d_[0-9a-f]{40}", delivery_id), "ledger_status_selector")
+        try:
+            info = path.lstat()
+            _require(path.resolve(strict=True) == path and stat.S_ISDIR(info.st_mode)
+                     and not stat.S_ISLNK(info.st_mode) and info.st_uid == os.getuid()
+                     and stat.S_IMODE(info.st_mode) == 0o700, "ledger_root")
+        except OSError as exc:
+            raise BridgeError("ledger_root") from exc
+        reader = cls.__new__(cls)
+        reader.root = path
+        batch = reader._load_unlocked(delivery_id)
+        if batch.status in {"history_confirmed", "controller_acked"}:
+            _require(_hash(batch.history_proof_sha256), "history_not_confirmed")
+        return {
+            "version": 1,
+            "transport_mode": "attached_push",
+            "delivery_id": delivery_id,
+            "status": batch.status,
+            "history_confirmed": batch.status in {"history_confirmed", "controller_acked"},
+            "controller_acked": batch.status == "controller_acked",
+            "automatic_resend": False,
+            "evidence_kind": "original_durable_ledger_observation",
+            "audit_references": ["batch-intent.json", "batch-send-claim.json", "batch-status.json", "original thread/read exact history proof"],
+            "limitations": ["no_fresh_native_history_query", "ack_is_distinct_from_business_acceptance"],
+        }
+
     @contextmanager
     def _locked(self) -> Iterator[None]:
         try:
@@ -696,6 +731,17 @@ class ControlPlaneClient:
         _require(isinstance(response, dict), "control_output")
         return response
 
+    @staticmethod
+    def _require_native_page(response: Mapping[str, Any]) -> None:
+        # The original coordinator publishes a collection receipt for collect
+        # runs. Never discard that proof and then send it through the native
+        # ledger: Hook and explicit collect pages have a different ACK contract.
+        delivery_id = response.get("delivery_id", "")
+        _require(response.get("collection_proof_sha256", "") == ""
+                 and type(delivery_id) is str
+                 and not delivery_id.startswith("collection-"),
+                 "native_collect_mode_mismatch")
+
     def collect_page(
         self, task_id: str, *, control_file: Path, cursor: str = ""
     ) -> tuple[list[dict[str, Any]], str]:
@@ -718,6 +764,7 @@ class ControlPlaneClient:
         if cursor:
             args.extend(["--cursor", cursor])
         response = self._call(args)
+        self._require_native_page(response)
         events = response.get("events")
         next_cursor = response.get("next_cursor", "")
         _require(
@@ -823,6 +870,7 @@ class ControlPlaneClient:
         if cursor:
             args.extend(["--cursor", cursor])
         response = self._call(args, timeout=max(10, timeout_ms // 1000 + 5))
+        self._require_native_page(response)
         status, events = response.get("status"), response.get("events")
         next_cursor = response.get("next_cursor", "")
         _require(

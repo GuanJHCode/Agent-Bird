@@ -2,14 +2,13 @@ package host
 
 import (
 	"bytes"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"net"
 	"os"
 	"path/filepath"
@@ -19,6 +18,33 @@ import (
 	"sync"
 	"time"
 )
+
+// A publisher can be stuck in a local write or a non-returning sink. Waiting
+// for its serialization token must still obey shutdown's original deadline.
+// No helper goroutine outlives a cancelled waiter. The zero value is ready.
+type publicationGate struct {
+	once  sync.Once
+	token chan struct{}
+}
+
+func (g *publicationGate) lock(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	g.once.Do(func() { g.token = make(chan struct{}, 1) })
+	select {
+	case g.token <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			g.unlock()
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (g *publicationGate) unlock() { <-g.token }
 
 // EventSink is the control-plane half of the source Host protocol. SendEvent
 // must return only after the coordinator has durably committed the event.
@@ -76,8 +102,10 @@ func (h *Host) PublishAll(ctx context.Context, sink EventSink, epoch uint64) err
 	if h.producerID == "" || sink == nil {
 		return errors.New("ipc_sink_required")
 	}
-	h.publishMu.Lock()
-	defer h.publishMu.Unlock()
+	if err := h.publishMu.lock(ctx); err != nil {
+		return err
+	}
+	defer h.publishMu.unlock()
 	entries, err := h.spoolEntries()
 	if err != nil {
 		return err
@@ -238,6 +266,9 @@ type SourceConfig struct {
 	ProducerID         string
 	Hello              contract.HostHello
 	InvocationProvider func(context.Context, contract.LaunchCommand) (contract.InvocationView, error)
+	// EnsureCoordinator may restore only the sanitized coordinator process.
+	// It must honor ctx; nil relies on an externally restored socket.
+	EnsureCoordinator func(context.Context) error
 }
 
 // RunSource owns the source Host IPC loop. It does not open the coordinator
@@ -260,311 +291,10 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 	if err != nil {
 		return err
 	}
-	conn, err := (&net.Dialer{}).DialContext(ctx, "unix", cfg.SocketPath)
-	if err != nil {
+	if err = h.BindContinuationOwner(cfg.Hello.OriginContextID); err != nil {
 		return err
 	}
-	defer conn.Close()
-	session := &sourceSession{conn: conn, epoch: 0}
-	payload, _ := json.Marshal(cfg.Hello)
-	if err = session.writeEnvelope(ctx, ipc.KindHostHello, cfg.Hello.LaunchID, payload); err != nil {
-		return err
-	}
-	ready, err := session.readEnvelope(ctx)
-	if err != nil {
-		return err
-	}
-	if ready.Kind != ipc.KindHostReady || ready.RequestID != cfg.Hello.LaunchID {
-		return errors.New("host_ready_mismatch")
-	}
-	var hostReady contract.HostReady
-	if err = decodePayload(ready.Payload, &hostReady); err != nil || hostReady.HostID == "" || hostReady.HostID != producerID {
-		return errors.New("invalid_host_ready")
-	}
-	session.epoch = ready.Epoch
-	session.startReader()
-	runCtx, cancelRun := context.WithCancel(ctx)
-	// Reconcile the durable source spool before accepting another grant. This
-	// closes the disconnect window without automatically resuming work.
-	if err = h.PublishAll(runCtx, session, session.epoch); err != nil {
-		cancelRun()
-		return err
-	}
-	publishedThrough, err := h.readPublished()
-	if err != nil {
-		cancelRun()
-		return err
-	}
-	reconciledBody, _ := json.Marshal(contract.HostReconciled{ProducerID: producerID, PublishedThrough: publishedThrough})
-	if err = session.writeEnvelope(runCtx, ipc.KindHostReconciled, producerID+":reconciled", reconciledBody); err != nil {
-		cancelRun()
-		return err
-	}
-	h.progressSink = func(_ context.Context, event contract.Event) error {
-		progressCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		event.ExecutionEpoch = session.epoch
-		payload, err := json.Marshal(struct {
-			LaunchID    string         `json:"launch_id"`
-			LaunchToken string         `json:"launch_token"`
-			Event       contract.Event `json:"event"`
-		}{cfg.Hello.LaunchID, cfg.Hello.LaunchToken, event})
-		if err != nil {
-			return err
-		}
-		response, err := ipc.Call(progressCtx, cfg.SocketPath, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostProgress, RequestID: event.EventID, Payload: payload})
-		if err != nil {
-			return err
-		}
-		if response.Kind != ipc.KindResponse {
-			return errors.New("progress_not_recorded")
-		}
-		return nil
-	}
-	var workers sync.WaitGroup
-	workerErrors := make(chan error, 2)
-	publisherErrors := make(chan error, 1)
-	publisherDone := make(chan struct{})
-	go func() {
-		defer close(publisherDone)
-		for {
-			select {
-			case <-h.eventReady:
-				if publishErr := h.PublishAll(runCtx, session, session.epoch); publishErr != nil {
-					publisherErrors <- publishErr
-					return
-				}
-			case <-runCtx.Done():
-				return
-			}
-		}
-	}()
-	defer func() {
-		stopCtx, cancelStop := context.WithTimeout(context.Background(), 2*time.Second)
-		h.StopAll(stopCtx)
-		cancelStop()
-		done := make(chan struct{})
-		go func() { workers.Wait(); close(done) }()
-		select {
-		case <-done:
-		case <-time.After(2 * time.Second):
-		}
-		// Workers append stopped/exited only after their process groups are
-		// settled. Flush those records before tearing down the sole publisher.
-		_ = h.PublishAll(runCtx, session, session.epoch)
-		cancelRun()
-		<-publisherDone
-	}()
-	originTicker := time.NewTicker(200 * time.Millisecond)
-	defer originTicker.Stop()
-	for {
-		var envelope ipc.Envelope
-		var readErr error
-		select {
-		case frame := <-session.frames:
-			envelope, readErr = frame.envelope, frame.err
-		case workerErr := <-workerErrors:
-			return workerErr
-		case publisherErr := <-publisherErrors:
-			return publisherErr
-		case <-originTicker.C:
-			birth, ownerErr := process.Birth(cfg.Hello.OriginPID)
-			if ownerErr != nil || birth != cfg.Hello.OriginBirth {
-				return errors.New("origin_owner_lost")
-			}
-			continue
-		case <-runCtx.Done():
-			return runCtx.Err()
-		}
-		if readErr != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			return readErr
-		}
-		switch envelope.Kind {
-		case ipc.KindLaunch:
-			var grant contract.LaunchCommand
-			if err = decodePayload(envelope.Payload, &grant); err != nil || grant.CommandID == "" {
-				return errors.New("invalid_launch_command")
-			}
-			grant.ExecutionEpoch = session.epoch
-			duplicate, acceptErr := h.acceptGrant(grant)
-			if acceptErr != nil {
-				return acceptErr
-			}
-			workers.Add(1)
-			go func() {
-				defer workers.Done()
-				reportError := func(err error) {
-					if err != nil {
-						select {
-						case workerErrors <- err:
-						case <-runCtx.Done():
-						}
-					}
-				}
-				if duplicate {
-					reportError(h.recoverDuplicateGrant(grant, session.epoch))
-					return
-				}
-				inv, invokeErr := cfg.InvocationProvider(runCtx, grant)
-				a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-				if invokeErr != nil || inv == nil {
-					if invokeErr == nil {
-						invokeErr = errors.New("invocation_unavailable")
-					}
-					if recordErr := h.recordLaunchFailed(a, grant.RunID, grant.TaskID, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}, invokeErr); recordErr != nil {
-						reportError(recordErr)
-						return
-					}
-					return
-				}
-				if grant.ReportCapabilityID != "" {
-					reportPath, capabilityErr := h.prepareReportCapability(runCtx, cfg, grant, session)
-					if capabilityErr != nil {
-						reportError(capabilityErr)
-						return
-					}
-					inv = reportInvocation{base: inv, reportPath: reportPath, reportExecutable: cfg.Hello.Executable}
-				}
-				result, executeErr := h.ExecuteLaunch(runCtx, grant, inv)
-				if executeErr != nil {
-					meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}
-					var terminalErr error
-					switch result.Status {
-					case "interrupted":
-						// ExecuteLaunch already wrote stopped followed by exited.
-					case "unknown":
-						terminalErr = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, executeErr)
-					default:
-						terminalErr = h.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, executeErr)
-					}
-					if terminalErr != nil {
-						reportError(terminalErr)
-						return
-					}
-				}
-			}()
-		case ipc.KindStop:
-			var stop contract.StopCommand
-			if err = decodePayload(envelope.Payload, &stop); err != nil || stop.SegmentID == "" {
-				return errors.New("invalid_stop_command")
-			}
-			stopCtx := runCtx
-			if stop.DeadlineUnixMS > 0 {
-				var cancel context.CancelFunc
-				stopCtx, cancel = context.WithDeadline(runCtx, time.UnixMilli(stop.DeadlineUnixMS))
-				defer cancel()
-			}
-			_ = h.StopSegment(stopCtx, stop.SegmentID)
-		default:
-			return errors.New("unsupported_host_message")
-		}
-	}
-}
-
-type sourceSession struct {
-	conn   net.Conn
-	mu     sync.Mutex
-	epoch  uint64
-	frames chan frameResult
-	ackMu  sync.Mutex
-	acks   map[string]chan frameResult
-}
-
-type frameResult struct {
-	envelope ipc.Envelope
-	err      error
-}
-
-func (s *sourceSession) writeEnvelope(ctx context.Context, kind ipc.Kind, requestID string, payload []byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := setConnDeadline(s.conn, ctx); err != nil {
-		return err
-	}
-	return ipc.Write(s.conn, ipc.Envelope{Version: ipc.Version, Kind: kind, RequestID: requestID, Epoch: s.epoch, Payload: payload})
-}
-
-func (s *sourceSession) startReader() {
-	s.frames = make(chan frameResult, 8)
-	s.acks = make(map[string]chan frameResult)
-	go func() {
-		for {
-			envelope, err := ipc.Read(s.conn)
-			frame := frameResult{envelope: envelope, err: err}
-			if err == nil {
-				s.ackMu.Lock()
-				ackChannel := s.acks[envelope.RequestID]
-				if ackChannel != nil {
-					ackChannel <- frame
-					s.ackMu.Unlock()
-					continue
-				}
-				s.ackMu.Unlock()
-			}
-			s.frames <- frame
-			if err != nil {
-				return
-			}
-		}
-	}()
-}
-
-func (s *sourceSession) nextEnvelope(ctx context.Context) (ipc.Envelope, error) {
-	select {
-	case frame := <-s.frames:
-		return frame.envelope, frame.err
-	case <-ctx.Done():
-		return ipc.Envelope{}, ctx.Err()
-	}
-}
-
-func (s *sourceSession) readEnvelope(ctx context.Context) (ipc.Envelope, error) {
-	if err := setConnDeadline(s.conn, ctx); err != nil {
-		return ipc.Envelope{}, err
-	}
-	return ipc.Read(s.conn)
-}
-
-func (s *sourceSession) SendEvent(ctx context.Context, epoch uint64, event contract.Event) (contract.DurableAck, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	requestID := event.EventID
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return contract.DurableAck{}, err
-	}
-	if err = setConnDeadline(s.conn, ctx); err != nil {
-		return contract.DurableAck{}, err
-	}
-	ackChannel := make(chan frameResult, 1)
-	s.ackMu.Lock()
-	s.acks[requestID] = ackChannel
-	s.ackMu.Unlock()
-	defer func() { s.ackMu.Lock(); delete(s.acks, requestID); s.ackMu.Unlock() }()
-	if err = ipc.Write(s.conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindEvent, RequestID: requestID, Epoch: epoch, Payload: payload}); err != nil {
-		return contract.DurableAck{}, err
-	}
-	var frame frameResult
-	select {
-	case frame = <-ackChannel:
-	case <-ctx.Done():
-		return contract.DurableAck{}, ctx.Err()
-	}
-	ackEnvelope, err := frame.envelope, frame.err
-	if err != nil {
-		return contract.DurableAck{}, err
-	}
-	if ackEnvelope.Kind != ipc.KindDurableAck || ackEnvelope.RequestID != requestID {
-		return contract.DurableAck{}, errors.New("durable_ack_mismatch")
-	}
-	var ack contract.DurableAck
-	if err = decodePayload(ackEnvelope.Payload, &ack); err != nil {
-		return contract.DurableAck{}, err
-	}
-	return ack, nil
+	return runLivingSource(ctx, cfg, h)
 }
 
 func setConnDeadline(conn net.Conn, ctx context.Context) error {

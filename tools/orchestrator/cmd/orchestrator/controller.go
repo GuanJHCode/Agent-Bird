@@ -9,14 +9,18 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokorigin"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
 
 // controller start creates one managed process scope. It remains alive for the
@@ -28,28 +32,68 @@ func controllerEntry(ctx context.Context, args []string) error {
 	}
 	fs := flag.NewFlagSet("controller start", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	providerName := fs.String("provider", "", "claude, grok, or agy")
+	providerName := fs.String("provider", "", "codex, claude, grok, or agy")
 	skillPath := fs.String("skill-path", "", "optional installed Agent Bird skill path for the launched CLI")
 	stateArg := fs.String("state-dir", "", "private runtime state directory")
+	bridgePlan := fs.String("bridge-plan", "", "explicit complete private task plan")
+	bridgeHandle := fs.String("bridge-handle", "", "new persistent private task handle")
+	grokSessionWrite := fs.Bool("grok-session-write", false, "explicit controlled ACP session-write consent")
+	grokACPRequest := fs.String("grok-acp-request", "", "private pinned ACP origin request")
 	if fs.Parse(args[1:]) != nil || *providerName == "" {
 		return codeError("invalid_args")
+	}
+	acpMode, err := controllerACPMode(*providerName, *bridgePlan, *bridgeHandle, *grokSessionWrite, *grokACPRequest, fs.Args())
+	if err != nil {
+		return err
+	}
+	var acpRequest grokorigin.Request
+	if acpMode {
+		acpRequest, err = grokorigin.ReadRequest(*grokACPRequest)
+		if err != nil {
+			return err
+		}
+		if runtime.GOOS != "darwin" {
+			return codeError("grokorigin_unsupported_platform")
+		}
+		if *skillPath != "" {
+			return codeError("controller_acp_skill_unsupported")
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(acpRequest.TotalTimeoutMS)*time.Millisecond)
+		defer cancel()
+	}
+	var plan taskPlan
+	if *bridgePlan != "" {
+		var err error
+		plan, err = readControllerBridgePlan(*bridgePlan, *bridgeHandle)
+		if err != nil {
+			return err
+		}
+		if !acpMode {
+			if err = preflightProviders(ctx, plan.Tasks); err != nil {
+				return err
+			}
+		}
 	}
 	if *skillPath != "" {
 		if err := validateControllerSkill(*skillPath); err != nil {
 			return err
 		}
 	}
-	_, executable, err := taskProvider(*providerName)
-	if err != nil {
-		return err
-	}
-	cli, err := exec.LookPath(executable)
-	if err != nil {
-		return codeError("provider_binary_not_found")
-	}
-	cli, err = filepath.EvalSymlinks(cli)
-	if err != nil || !filepath.IsAbs(cli) {
-		return codeError("provider_binary_not_found")
+	var cli string
+	if !acpMode {
+		_, executable, e := controllerProvider(*providerName)
+		if e != nil {
+			return e
+		}
+		cli, err = exec.LookPath(executable)
+		if err != nil {
+			return codeError("provider_binary_not_found")
+		}
+		cli, err = filepath.EvalSymlinks(cli)
+		if err != nil || !filepath.IsAbs(cli) {
+			return codeError("provider_binary_not_found")
+		}
 	}
 	launcherPath, err := process.ExecutablePath(os.Getpid())
 	if err != nil {
@@ -63,11 +107,13 @@ func controllerEntry(ctx context.Context, args []string) error {
 	if err != nil {
 		return codeError("controller_origin_unverified")
 	}
-	if *skillPath == "" {
+	if !acpMode && *skillPath == "" {
 		*skillPath = filepath.Join(filepath.Dir(filepath.Dir(launcherPath)), "skills", "orchestrate", "SKILL.md")
 	}
-	if err := validateControllerSkill(*skillPath); err != nil {
-		return err
+	if !acpMode {
+		if err := validateControllerSkill(*skillPath); err != nil {
+			return err
+		}
 	}
 	scope, err := randomValue("managed-process")
 	if err != nil {
@@ -85,8 +131,23 @@ func controllerEntry(ctx context.Context, args []string) error {
 	if _, err = ensureServer(lifetime, state); err != nil {
 		return err
 	}
-	if _, err = call(lifetime, state, ipc.KindOwnerBind, coordinator.OwnerBindRequest{ControllerThread: "managed-" + *providerName + "-" + scope, OriginPID: os.Getpid(), OriginBirth: launcherBirth}); err != nil {
+	ownerResponse, err := call(lifetime, state, ipc.KindOwnerBind, coordinator.OwnerBindRequest{ControllerThread: "managed-" + *providerName + "-" + scope, OriginPID: os.Getpid(), OriginBirth: launcherBirth})
+	if err != nil {
 		return err
+	}
+	var owner controllerOwnerGrant
+	if err = decode(ownerResponse.Payload, &owner); err != nil || owner.Version != 1 || owner.OwnerMode != "local" || owner.ControllerThread != "managed-"+*providerName+"-"+scope || owner.OriginPID != os.Getpid() || owner.OriginBirth != launcherBirth || owner.OwnerCapability == "" || owner.OriginContextID == "" || owner.HostGeneration == "" {
+		return codeError("controller_owner_receipt_invalid")
+	}
+	if acpMode {
+		return runControllerACP(lifetime, state, *bridgeHandle, plan, owner, acpRequest)
+	}
+	var handle taskHandle
+	if *bridgePlan != "" {
+		handle, err = submitControllerBridge(lifetime, state, *bridgeHandle, plan, owner, *providerName)
+		if err != nil {
+			return err
+		}
 	}
 	dir, err := os.MkdirTemp(state, "controller-")
 	if err != nil {
@@ -105,11 +166,22 @@ func controllerEntry(ctx context.Context, args []string) error {
 	}
 	cmd := exec.Command(cli, fs.Args()...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	cmd.Env = environmentWith(environmentWithout(os.Environ(), "CODEX_THREAD_ID"), managedOwnerRequestEnv, requestPath)
+	cmd.Env = environmentWith(environmentWithout(controllerBridgeEnvironment(os.Environ()), "CODEX_THREAD_ID"), managedOwnerRequestEnv, requestPath)
 	cmd.Env = environmentWith(cmd.Env, "AGENT_BIRD_COMMAND", launcherPath)
 	cmd.Env = environmentWithout(cmd.Env, "AGENT_BIRD_SKILL")
 	cmd.Env = environmentWith(cmd.Env, "AGENT_BIRD_SKILL", *skillPath)
-	err = runControllerCLI(lifetime, cmd)
+	if *bridgePlan != "" {
+		cmd.Env = environmentWith(cmd.Env, bridgeBindingEnv, store.BridgeCapabilityPath(state, plan.RunID))
+		cmd.Env = environmentWith(cmd.Env, bridgeHandleEnv, *bridgeHandle)
+		err = runControllerCLI(lifetime, cmd, func(pid int, birth string) error {
+			return bindControllerBridge(lifetime, state, *bridgeHandle, handle, owner, pid, birth, *providerName)
+		})
+	} else {
+		err = runControllerCLI(lifetime, cmd)
+	}
+	if *bridgePlan != "" && err != nil {
+		controllerBridgeRecoveryNotice(*bridgeHandle, handle)
+	}
 	preserve = errors.Is(err, codeError("controller_process_tree_unknown"))
 	return err
 }
@@ -152,7 +224,10 @@ func environmentWithout(environment []string, key string) []string {
 	return result
 }
 
-func runControllerCLI(ctx context.Context, cmd *exec.Cmd) error {
+func runControllerCLI(ctx context.Context, cmd *exec.Cmd, afterStart ...func(int, string) error) error {
+	if len(afterStart) > 1 {
+		return codeError("invalid_args")
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		return err
@@ -161,6 +236,17 @@ func runControllerCLI(ctx context.Context, cmd *exec.Cmd) error {
 	if err != nil {
 		go func() { _ = cmd.Wait() }()
 		return codeError("controller_process_tree_unknown")
+	}
+	// Registration runs after the actual Start and verified birth, before Wait.
+	if len(afterStart) == 1 {
+		if registrationErr := afterStart[0](cmd.Process.Pid, birth); registrationErr != nil {
+			done := make(chan error, 1)
+			go func() { done <- cmd.Wait() }()
+			if stopErr := stopControllerCLI(cmd.Process.Pid, birth, done); stopErr != nil {
+				return stopErr
+			}
+			return registrationErr
+		}
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
@@ -264,4 +350,14 @@ func foregroundGroup(fd uintptr) (int, error) {
 		return 0, syscall.ENOTTY
 	}
 	return group, nil
+}
+
+// Initiator admission is separate from target execution capability. Codex may
+// launch the plugin in an explicit managed scope even while its Worker remains
+// gated; this does not reinterpret an ambiguous native process ancestry.
+func controllerProvider(name string) (adapter.Provider, string, error) {
+	if name == "codex" {
+		return adapter.ProviderCodex, "codex", nil
+	}
+	return taskProvider(name)
 }

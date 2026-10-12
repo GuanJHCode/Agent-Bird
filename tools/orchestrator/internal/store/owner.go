@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/subtle"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/hostbootstrap"
 	"strings"
-	"time"
 )
 
 func (d *DB) ValidateTaskOwner(ctx context.Context, taskID, controller, controlToken string) error {
@@ -54,41 +55,119 @@ type RebindOwnerSpec struct {
 	OriginBirth           string
 	HostGeneration        string
 	AttachmentProofSHA256 string
+	// Coordinator-only observation: the current origin is still alive. This
+	// permits an exact existing receipt lookup, never a new transition.
+	ReplayOnly bool
 }
 
 func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
+	return d.rebindOwner(ctx, spec, originalOwnerNow)
+}
+
+func (d *DB) rebindOwner(ctx context.Context, spec RebindOwnerSpec, now func() string) error {
+	return d.rebindOwnerWithPublication(ctx, spec, now, nil)
+}
+
+func (d *DB) rebindOwnerWithPublication(ctx context.Context, spec RebindOwnerSpec, now func() string, publication *OwnerRebindPublication) error {
 	if spec.RunID == "" || spec.OriginContextID == "" || spec.OriginPID <= 0 || spec.OriginBirth == "" || spec.HostGeneration == "" || !validDigest(spec.AttachmentProofSHA256) {
 		return CodeError("invalid_owner_rebind")
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "run", spec.RunID, publication != nil)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	var origin, oldGeneration string
-	if err = tx.QueryRowContext(ctx, `SELECT r.origin_context_id,h.host_generation FROM runs r JOIN tasks t ON t.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id JOIN host_launches h ON h.id=tr.host_launch_id WHERE r.id=? LIMIT 1`, spec.RunID).Scan(&origin, &oldGeneration); err != nil || origin != spec.OriginContextID {
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
+	if publication == nil {
+		if err = requirePublishedOwnerTx(ctx, tx, spec.RunID); err != nil {
+			return rollback(err)
+		}
+	} else if publication.Facts.Root != owned.rootAuthority.Nodes() {
 		return rollback(ErrConflict)
 	}
-	var proof string
-	err = tx.QueryRowContext(ctx, `SELECT attachment_proof_sha256 FROM owner_rebinds WHERE run_id=? AND host_generation=?`, spec.RunID, spec.HostGeneration).Scan(&proof)
-	if err == nil {
-		if proof != strings.ToLower(spec.AttachmentProofSHA256) {
-			return rollback(ErrConflict)
-		}
-		_ = tx.Rollback()
-		return nil
+	origin, oldGeneration, err := ownerRebindTargetTx(ctx, tx, spec.RunID)
+	if err != nil || origin.OriginContextID != spec.OriginContextID {
+		return rollback(ErrConflict)
 	}
-	if !errors.Is(err, sql.ErrNoRows) || oldGeneration == spec.HostGeneration {
+	row := ownerRebindRow{RunID: spec.RunID, Generation: spec.HostGeneration}
+	err = tx.QueryRowContext(ctx, `SELECT old_host_generation,origin_pid,origin_birth,attachment_proof_sha256,created_at FROM owner_rebinds WHERE run_id=? AND host_generation=?`, spec.RunID, spec.HostGeneration).Scan(&row.OldGeneration, &row.PID, &row.Birth, &row.Proof, &row.Created)
+	if err == nil {
+		if err = ownerRebindReplayTx(ctx, tx, spec, origin, oldGeneration, row); err != nil {
+			return rollback(err)
+		}
+		if publication != nil {
+			if err = verifyOwnerRebindPublicationTx(ctx, tx, *publication); err != nil {
+				return rollback(err)
+			}
+		}
+		return owned.finishInitialRead()
+	}
+	if !errors.Is(err, sql.ErrNoRows) || spec.ReplayOnly || oldGeneration == spec.HostGeneration {
+		return rollback(ErrConflict)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, spec.RunID); err != nil {
+		return rollback(err)
+	}
+	var blocked int
+	if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM owner_initial_recoveries WHERE run_id=? AND phase='prepared')+(SELECT COUNT(*) FROM execution_owners WHERE run_id=? AND is_current=1 AND (phase='intended' OR (phase='bound' AND (applied_control_revision=0 OR applied_control_revision!=control_revision))))`, spec.RunID, spec.RunID).Scan(&blocked); err != nil {
+		return rollback(err)
+	}
+	if blocked != 0 {
 		return rollback(ErrConflict)
 	}
 	var active int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, spec.RunID).Scan(&active); err != nil || active != 0 {
 		return rollback(ErrConflict)
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebinds(run_id,host_generation,origin_pid,origin_birth,attachment_proof_sha256,created_at) VALUES(?,?,?,?,?,?)`, spec.RunID, spec.HostGeneration, spec.OriginPID, spec.OriginBirth, strings.ToLower(spec.AttachmentProofSHA256), time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	a, err := pendingOwnerAuthorizationTx(ctx, tx, spec.RunID)
+	if err != nil {
+		return rollback(err)
+	}
+	row = ownerRebindRow{RunID: spec.RunID, Generation: spec.HostGeneration, OldGeneration: oldGeneration, PID: spec.OriginPID, Birth: spec.OriginBirth, Proof: strings.ToLower(spec.AttachmentProofSHA256), Created: now()}
+	incoming := row.bytes()
+	if publication != nil {
+		if err = publication.validate(spec); err != nil {
+			return rollback(err)
+		}
+		launch, executable, e := publicationLaunchTx(ctx, tx, spec.RunID)
+		if e != nil || launch != publication.LaunchID || publication.Facts.OldPID != origin.OriginPID || publication.Facts.OldBirth != origin.OriginBirth || publication.Facts.OldGeneration != oldGeneration {
+			return rollback(ErrConflict)
+		}
+		var metadata hostbootstrap.MetadataV2
+		if json.Unmarshal(publication.BootstrapJSON, &metadata) != nil || metadata.Hello.Executable != executable {
+			return rollback(ErrConflict)
+		}
+		publication.CreatedAt = row.Created
+		publication.ScratchBytes = int64(len(publication.BootstrapJSON))
+		incoming += publication.bytes() + publication.ScratchBytes
+	}
+	var derived ownerAuthorizationRebindProof
+	if a != nil {
+		derived, err = ownerAuthorizationRebindPlanTx(ctx, tx, *a, origin, oldGeneration, row)
+		if err != nil {
+			return rollback(err)
+		}
+		incoming += derived.bytes()
+	}
+	if err = d.storageAdmission(ctx, tx, spec.RunID, incoming, false); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebinds(run_id,host_generation,old_host_generation,origin_pid,origin_birth,attachment_proof_sha256,created_at) VALUES(?,?,?,?,?,?,?)`, row.RunID, row.Generation, row.OldGeneration, row.PID, row.Birth, row.Proof, row.Created); err != nil {
 		return rollback(mapConflict(err))
+	}
+	if publication != nil {
+		publication.CreatedAt = row.Created
+		if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebind_publications(run_id,host_generation,launch_id,prior_sha256,expected_sha256,bootstrap_json,facts_json,state,created_at,scratch_bytes) VALUES(?,?,?,?,?,?,?,'pending',?,?)`, publication.RunID, publication.HostGeneration, publication.LaunchID, publication.PriorSHA256, publication.ExpectedSHA256, string(publication.BootstrapJSON), publication.factsJSON(), publication.CreatedAt, publication.ScratchBytes); err != nil {
+			return rollback(mapConflict(err))
+		}
+	}
+	if a != nil {
+		if err = insertOwnerAuthorizationRebindProof(ctx, tx, derived); err != nil {
+			return rollback(err)
+		}
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE runs SET origin_pid=?,origin_birth=? WHERE id=?`, spec.OriginPID, spec.OriginBirth, spec.RunID); err != nil {
 		return rollback(err)
@@ -99,5 +178,19 @@ func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET host_generation=?,status='offline' WHERE launch_id IN (SELECT host_launch_id FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE t.run_id=?)`, spec.HostGeneration, spec.RunID); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	// The business-owner transition and bridge revocation share this transaction.
+	// A CLAIMED attempt has not obtained output permission; EMITTING and later
+	// states remain conservative history and cannot gain a new permit once stale.
+	if _, err = tx.ExecContext(ctx, `UPDATE bridge_delivery_attempts SET state='STALE' WHERE binding_id IN (SELECT binding_id FROM bridge_bindings WHERE run_id=?) AND state='CLAIMED'`, spec.RunID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE bridge_bindings SET status='STALE',hook_token_hash='' WHERE run_id=? AND status!='STALE'`, spec.RunID); err != nil {
+		return rollback(err)
+	}
+	if publication != nil {
+		if err = owned.rootAuthority.Validate(); err != nil {
+			return rollback(err)
+		}
+	}
+	return owned.commit()
 }

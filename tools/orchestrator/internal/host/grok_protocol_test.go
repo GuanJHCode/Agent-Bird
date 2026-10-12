@@ -91,3 +91,61 @@ func TestGrokNativeStructuredReviewField(t *testing.T) {
 		})
 	}
 }
+
+// Real Grok 1.0.34 transcripts interleave tool_started/tool_completed events
+// between assistant messages; only text after the last tool boundary is the
+// final answer. mvp-grok-readonly delivered the full concatenation instead.
+func TestGrokToolBoundaryKeepsFinalAnswerOnly(t *testing.T) {
+	p, err := newProtocolCollector("grok-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = p.Write([]byte(`{"type":"text","data":"I'll read INPUT.txt and return it."}` + "\n" +
+		`{"type":"tool_started","tool_name":"read_file"}` + "\n" +
+		`{"type":"thought","data":"PRIVATE"}` + "\n" +
+		`{"type":"tool_completed","tool_name":"read_file","outcome":"success"}` + "\n" +
+		`{"type":"text","data":"GROK_READ_final"}` + "\n" +
+		"{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n"))
+	event, session, err := p.Finish()
+	if err != nil || session != "grok-1" || event.Text != "GROK_READ_final" {
+		t.Fatalf("unexpected result: %+v %q %v", event, session, err)
+	}
+}
+
+func TestGrokKeepsTextAfterLastToolBoundary(t *testing.T) {
+	p, _ := newProtocolCollector("grok-build")
+	_, _ = p.Write([]byte(`{"type":"text","data":"first "}` + "\n" +
+		`{"type":"tool_started","tool_name":"list_dir"}` + "\n" +
+		`{"type":"tool_completed","tool_name":"list_dir","outcome":"success"}` + "\n" +
+		`{"type":"text","data":"middle"}` + "\n" +
+		`{"type":"tool_started","tool_name":"read_file"}` + "\n" +
+		`{"type":"tool_completed","tool_name":"read_file","outcome":"success"}` + "\n" +
+		`{"type":"text","data":"final"}` + "\n" +
+		"{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n"))
+	event, session, err := p.Finish()
+	if err != nil || session != "grok-1" || event.Text != "final" {
+		t.Fatalf("unexpected result: %+v %q %v", event, session, err)
+	}
+}
+
+func TestGrokRejectsToolEventAfterTerminal(t *testing.T) {
+	p, _ := newProtocolCollector("grok-build")
+	_, _ = p.Write([]byte("{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n" +
+		`{"type":"tool_started","tool_name":"read_file"}` + "\n"))
+	if _, _, err := p.Finish(); err == nil || err.Error() != "provider_event_after_terminal" {
+		t.Fatalf("accepted late tool event: %v", err)
+	}
+}
+
+// Boundary events now carry their session field, so a granted-session mismatch
+// on a tool event is rejected instead of silently discarded.
+func TestGrokRejectsToolEventWithDifferentGrantedSession(t *testing.T) {
+	p, _ := newProtocolCollector("grok-build")
+	p.expectedSessionID = "expected-session"
+	_, _ = p.Write([]byte(`{"type":"tool_started","sessionId":"different-session","tool_name":"read_file"}` + "\n" +
+		`{"type":"text","data":"final"}` + "\n" +
+		"{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"expected-session\"}\n"))
+	if _, _, err := p.Finish(); err == nil || err.Error() != "provider_session_changed" {
+		t.Fatalf("mismatched tool session: %v", err)
+	}
+}

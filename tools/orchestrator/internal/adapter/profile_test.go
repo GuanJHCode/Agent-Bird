@@ -31,7 +31,10 @@ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
 	req := profileRequest(t, `{"version":1,"role":"reviewer","model":"gemini-3.8-flash-low","reasoning":"low","permission":"read-only","timeout_ms":9000}`)
 	req.Provider = ProviderAGY
 	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
-	help := "--input-format --output-format --mode --model --effort"
+	help := "--print --input-format --output-format --mode --model --effort --json-schema"
+	if err := CheckCapabilities(req, strings.ReplaceAll(help, "--print ", "")); err == nil {
+		t.Fatal("accepted stream mode without headless entry")
+	}
 	if err := CheckCapabilities(req, help); err != nil {
 		t.Fatal(err)
 	}
@@ -40,12 +43,12 @@ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := strings.Join(inv.Args(), " ")
-	for _, want := range []string{"--mode plan", "--model gemini-3.8-flash-low", "--effort low"} {
+	for _, want := range []string{"--print=", "--mode plan", "--model gemini-3.8-flash-low", "--effort low"} {
 		if !strings.Contains(args, want) {
 			t.Fatalf("missing %q: %s", want, args)
 		}
 	}
-	if err := CheckCapabilities(req, "--input-format --output-format --model --effort"); err == nil {
+	if err := CheckCapabilities(req, "--print --input-format --output-format --model --effort"); err == nil {
 		t.Fatal("accepted CLI without native plan capability")
 	}
 	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
@@ -136,10 +139,10 @@ func TestCandidateReviewRequiresVerifiedStructuredProvider(t *testing.T) {
 	if !strings.Contains(strings.Join(inv.Args(), " "), "--json-schema") {
 		t.Fatal("AGY candidate review lacks native schema")
 	}
-	if err := CheckCapabilities(req, "--input-format --output-format --mode"); err == nil {
+	if err := CheckCapabilities(req, "--print --input-format --output-format --mode"); err == nil {
 		t.Fatal("AGY candidate review accepted missing native schema capability")
 	}
-	if err := CheckCapabilities(req, "--input-format --output-format --mode --json-schema"); err != nil {
+	if err := CheckCapabilities(req, "--print --input-format --output-format --mode --json-schema"); err != nil {
 		t.Fatalf("AGY candidate review capability rejected: %v", err)
 	}
 	req.Action = nil
@@ -213,7 +216,7 @@ func TestClaudeTypedProfilesDenyNativeDelegation(t *testing.T) {
 
 func TestClaudeTypedProfileRequiresNativeDelegationDenyCapability(t *testing.T) {
 	req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
-	base := "--input-format --output-format --permission-mode"
+	base := "--input-format --output-format --permission-mode --json-schema"
 	for _, help := range []string{base, base + " --disallowed-tools-extra"} {
 		if err := CheckCapabilities(req, help); err == nil {
 			t.Fatal("typed Claude accepted without native delegation deny capability")

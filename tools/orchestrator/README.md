@@ -8,7 +8,54 @@ The default state directory is
 `~/Library/Application Support/OpenAI/Codex Orchestrator`. Tests and isolated
 runs may pass an existing owner-only `0700` directory with `--state-dir`; the
 program rejects an existing directory with broader permissions instead of
-changing it.
+changing it. Existing ancestor aliases such as macOS `/tmp` are resolved before
+deriving runtime paths; the state directory itself must not be a symlink.
+
+## Controlled Grok ACP origin
+
+On macOS, a new pinned ACP origin can receive protocol deliveries from an
+explicit task plan. Both flags are required; no native trailing arguments or
+`--skill-path` are accepted in this mode:
+
+```text
+orchestrator controller start --provider grok --state-dir /private/runtime \
+  --bridge-plan /private/plan.json --bridge-handle /private/new-handle.json \
+  --grok-session-write --grok-acp-request /private/origin-request.json
+```
+
+The request is a current-user, single-link regular `0600` file under canonical
+paths. Its ten required fields are `schema_version` (1), `binary`,
+`binary_sha256`, `binary_version`, `workspace`, `initial_prompt`,
+`operation_timeout_ms` (100–300000), `total_timeout_ms` (at least the operation
+timeout, at most 3600000), `origin_profile` (`readonly`), and `auth_mode`
+(`none` or `xai_api_key_env`). The initial prompt is at most 8192 UTF-8 bytes.
+The binary is verified before execution and launched with fixed
+`agent --no-leader stdio` arguments. Explicit API-key mode copies only
+`XAI_API_KEY`; the private origin does not inherit the caller's HOME/config.
+
+This origin owns a new session, not an attachment to an existing TUI. Its
+readonly sandbox seals workspace capability sources, denies process forks and
+workspace writes, and isolates private HOME/GROK_HOME/TMPDIR. Account-free mode
+also denies networking. Real Grok version/tool compatibility still requires
+separate qualification; current public acceptance uses owned offline actors.
+
+The original controller grant, process identity and session remain fixed.
+Begin commits before a single Prompt. A private durable completion precedes
+Receive; a lost Receive ACK permits one identical data-only replay. Protocol
+receipt never automatically accepts results or answers business questions.
+Public output contains bounded statuses; `.acp-origin.json` contains identity
+and recovery references, while claim tokens remain in protected runtime state.
+
+The total timeout bounds active work. Cancellation, broken output or protocol
+failure enters cleanup. If two bounded cleanup stages cannot prove the
+original process tree exited, `cleanup_pending` keeps the lifecycle owner alive
+past that timeout and waits without sending more RPCs or prompts. Forced
+external termination cannot provide that guarantee. Final metadata reports
+original exit/tree evidence; a failed metadata write is explicitly reported
+as `metadata_persisted=false`. Incomplete or uncertain sessions do not authorize
+automatic resend. Completion-file retention/GC is not implemented yet.
+
+## Task submission
 
 Submit an owner-only `0600` JSON file:
 
@@ -49,6 +96,8 @@ orchestrator collect --task-id <id> --control-file <path> \
 orchestrator wait-events --task-id <id> --control-file <path> \
   [--cursor <opaque>] [--timeout-ms <1..30000>]
 orchestrator ack     --request <absolute-0600-delivery-ack.json>
+orchestrator diagnostics-read --control-file <path> --request <absolute-0600-read.json>
+orchestrator diagnostics-ack  --control-file <path> --request <absolute-0600-receipt.json>
 orchestrator accept  --task-id <id> --work-revision <n> --control-file <path> \
   --event-id <id> --event-revision <n> --event-hash <sha256> \
   --action-slot <slot> --decision accept|reject --command-id <stable-id>
@@ -57,6 +106,8 @@ orchestrator retry   --task-id <id> --work-revision <n> --control-file <path> \
   --event-id <failure-or-rejected-result-id> --event-revision <n> \
   --event-hash <sha256> --action-slot <slot> --segment-id <id> \
   --next-attempt <n> --command-id <stable-id> [--use-next-fallback]
+orchestrator budget-revise --task-id <anchor-in-group> --control-file <path> \
+  --request <absolute-0600-budget-revision.json>
 orchestrator stop    --task-id <id> --work-revision <n> --control-file <path>
 orchestrator resume  --task-id <id> --work-revision <n> --control-file <path>
 ```
@@ -80,8 +131,51 @@ Codex JSONL currently uses the pinned 0.154.0 contract. Structured records above
 `provider_critical_event_too_large`; earlier messages are never used as the final
 answer after that failure. This conservatively includes oversized structured
 diagnostics whose content cannot be safely classified. Raw diagnostics may be
-dropped. No large raw provider transcript is retained. Synthetic protocol and
+dropped by default. Explicit version1 `diagnostics: {"version":1,"mode":"detailed"}`
+on a submitted task enables bounded private stdout/stderr capture; omitted or
+summary policy does not retain a raw transcript. Synthetic protocol and
 multi-process tests do not establish live Codex or native TUI compatibility.
+
+Detailed logs use a separate read/ACK cursor, independent of business delivery
+and acceptance. Save this first-read request as an owner-only0600 file using the
+original task and attempt IDs:
+
+```json
+{"version":1,"task_id":"task-a","attempt_id":"attempt-original","request_id":"read-1","expected_revision":1}
+```
+
+`diagnostics-read` returns a persisted `body` and `receipt`. Records contain base64
+`data`; they remain untrusted provider output. Save the complete `receipt` object
+to a0600 file for `diagnostics-ack`. Exact read retries return identical pending
+bytes, and retrying the latest ACK returns the same acknowledgement. After ACK,
+the next request uses the returned `next_revision`, a new request ID, and the
+receipt's `next` object as `cursor`. Even an EOF read with an unchanged cursor
+needs the new revision. A different request cannot replace an outstanding read.
+
+An `unavailable` page is a durable observation with no raw records and no cursor
+advance; ACK it before trying a new read. A canceled operation or failed commit
+can be resumed with its exact original request. Reads and ACKs remain available
+after the execution Host exits and do not restart workers, accept results or
+release artifact reservations. The matching handle commands are
+`task diagnostics-read --handle <path> --request <read.json>` and
+`task diagnostics-ack --handle <path> --request <receipt.json>`. All top-level
+commands also accept `--state-dir` for the original private runtime.
+
+Each page retains at most32KiB raw data; escaped metadata is paginated so the
+persisted envelope is at most60KiB and the complete IPC response at most64KiB.
+Rolling loss is explicit in the receipt's `gap`. Public deletion, Host artifact
+slots and the complete managed-artifact allowance remain under implementation.
+
+Worker `report` question/result/failure artifacts are limited to1MiB and copied
+from the registered private capability directory into private managed storage
+before durable ACK. The source remains worker-owned. An exact report replay
+returns the original ACK even after the source is removed; collection refers to
+the retained copy. Each intake reserves raw bytes once, separately from control
+metadata, and revalidates current authority and the original copy before commit.
+An interrupted intake retains its reservation for the same request to recover.
+Progress reports retain their existing control quota and cannot consume the
+critical disk reserve. Historical reports keep their previous accounting; this
+does not yet establish coverage of every writer by the2GiB artifact allowance.
 
 `collect` returns bounded pages of owner-facing question/result/failure/unknown/stop
 events. Follow `next_cursor` until it is absent; the cursor remains valid if an
@@ -119,6 +213,34 @@ resets the shared budget group. `answer` binds the exact question revision and
 resumes the same attempt in a new segment; repeating the same answer is
 idempotent.
 
+Tasks submitted with `execution_policy` expose an `effective_budget` object in
+`status` and `summary`: the group ID, current budget revision (initially zero),
+group attempt/time caps, and task attempt/attempt-time/task-time/segment-time
+caps. The summary's `execution_policy` remains the immutable original policy.
+Legacy tasks do not support budget revisions.
+
+`budget-revise` takes a complete absolute group snapshot, not increments. Its
+JSON fields are `budget_group_id`, explicit `expected_revision`, `command_id`,
+`group_max_attempts`, `group_max_active_ms`, and `tasks`. Include every group
+member with its current `task_id`, `work_revision`, `max_attempts`,
+`attempt_max_active_ms`, `task_max_active_ms`, and `segment_max_active_ms`.
+Obtain current values from `summary`; repeat unchanged caps and raise at least
+one within the admission limits. The request must be an owner-only regular file
+of at most 64 KiB, with no symlinks, hard links, unknown fields or duplicate keys.
+Controller credentials come only from `--control-file`. Repeating the same
+budget command and snapshot returns its original receipt, including after a
+later revision; changing that command's payload conflicts.
+
+An increase affects future grants and does not reset usage, pending reservations
+or active deadlines. It does not revive UNKNOWN or blocked dependencies or
+start a failed task. For a policy-failed task, retain its pending failure while
+deciding whether to increase the budget. Run `budget-revise`, then explicit
+`retry` on that failure slot, then ACK. Any earlier ACK (`handled`,
+`waiting_user`, `stale` or `rejected`) closes that slot for a first retry.
+An already recorded retry remains replayable by the same business tuple,
+including a duplicate delivery with a new command ID. Interrupted tasks still
+require explicit `resume`, which retains the attempt and its prior charges.
+
 Workers receive a segment-scoped report capability in
 `ORCHESTRATOR_REPORT_CAPABILITY` and the pinned binary path in
 `ORCHESTRATOR_REPORT_EXECUTABLE`. They submit bounded structured events with
@@ -132,6 +254,22 @@ Git compose/materialize/integrate/cleanup requests use adapter kind `gitops`;
 the Source Host materializes a private request and invokes the same binary's
 internal `gitops-worker`. Package administration uses owner-only request files
 with `install`, `doctor`, `uninstall`, `pin`, and `unpin`.
+
+An owner-reviewed DAG can compose 2..63 accepted producer candidates from the
+same repository and base. The task's direct dependencies must equal the declared
+source set; the action preserves order rather than sorting it:
+
+```json
+{"kind":"candidate","directory":"/owned/compose","candidate_action":{"version":2,"dependency_input_version":2,"operation":"compose","ordered_source_tasks":["B","A"]}}
+```
+
+Each source requires a current Host receipt with complete repository/common-dir
+and workspace identities. Composition has no provider lock of its own. Its
+accepted result can be the `source_task` of a normal v1 validation, then review
+and integration. Conflicts retain the private workspace and journal and report
+`compose_conflict`; uncertain ownership reports `compose_uncertain`/UNKNOWN.
+Neither outcome automatically reruns Git or invokes a model. See the
+[release support scope](../../README.md#支持范围).
 
 Opening or querying an interrupted run does not resume it. `resume` starts a
 new segment only after the old execution tree has a durable stopped/exited
@@ -156,7 +294,7 @@ provider adapter.
 ## Typed profiles and generic main agents
 
 New requests use separate protocol, Execution Profile and Provider Lock objects;
-see [configuration and recovery](../../docs/provider-runtime.md) for exact JSON,
+see [release usage](../../README.md#使用) for exact JSON,
 `provider-probe` / confirmed `provider-lock`, and the persisted concurrency policy.
 Legacy invocation fields remain accepted within their existing boundary; they are
 not a fallback for a rejected profile. Typed Codex/AGY/Grok and typed session
@@ -187,7 +325,21 @@ and transactionally maintained storage counters. Newer databases cannot be
 opened by older binaries. Spool ACK archives the confirmed prefix; it does not
 release storage quota or discard reconciliation history.
 
-See [installation](../../docs/installation.md), [support matrix](../../docs/support-matrix.md)
-and [test layers](../../docs/testing.md) before enabling a Provider in a main-agent
+See [installation, support scope and build instructions](../../README.md) before enabling a Provider in a main-agent
 workflow. The real CLI trial and synthetic protocol tests establish different
 claims and are reported separately.
+
+
+### Explicit detailed-log deletion
+
+`diagnostics-delete --state-dir <state> --control-file <control.json> --request <delete.json>` and `task diagnostics-delete --handle <handle.json> --request <delete.json>` dispose of a completed attempt's managed detailed logs. The request must be a private regular 0600 file at a canonical absolute path:
+
+```json
+{"version":1,"task_id":"task","attempt_id":"attempt-id","request_id":"delete-1","expected_revision":1}
+```
+
+Use the current diagnostics revision; a pending read must first be acknowledged. Only the latest completed attempt with at most64 exited segments is eligible. Keep the same request for recovery after interruption or a lost reply. Deletion releases its reserved capacity only after verified file removal and a committed receipt. It retains a charged marker and lock directory, and later reads return `diagnostics_expired`. The result distinguishes removed logical file lengths from released reservation capacity; it does not report reclaimed filesystem blocks. Failed/uncertain execution, automatic retention and other artifact classes are not deleted by this command.
+
+`diagnostics-retention-plan --state-dir <state> --control-file <run-control.json> --request <selection.json>` returns a bounded dry plan for detailed logs. The private 0600 JSON request has `version:1`, `run_id`, `request_id`, a canonical UTC `terminal_received_before`, `limit` 1–8, and optional `after_task_id`. The cutoff compares the latest **Store-received Exited timestamp** over every required segment; it is not task-completion TTL or a background timer. At most 64 tasks are examined per page; use `next_after_task_id`, and check exclusion counts.
+
+Save the exact JSON output as a private 0600 file, then use `diagnostics-retention-apply --state-dir <state> --control-file <run-control.json> --request <saved-plan.json>`. The plan's hash checks self-consistency; run control and each original delete remain required. Source/event/revision changes reject fresh admission before removal. Each item uses the existing durable delete intent, physical lease and VerifyRemoved refund; a partial apply can be retried with the same exact plan. The shared five-second connection lifetime may expire or disconnect before an aggregate reply; there is no durable batch report or global rollback. These commands are run-control only, with no task-handle or automatic GC entry.

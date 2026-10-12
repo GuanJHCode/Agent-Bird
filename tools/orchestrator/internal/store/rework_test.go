@@ -22,6 +22,14 @@ type reworkFixture struct {
 // Use actual admission, scheduling, durable Host events and owner acceptance.
 // Only the Provider/Git receipt is a fixture in this store-level test.
 func newReworkFixture(t *testing.T) reworkFixture {
+	return newReworkFixtureWithConfig(t, nil)
+}
+
+func newReworkFixtureWithConfig(t *testing.T, ref *contract.ConfigGenerationRef) reworkFixture {
+	return newReworkFixtureWithTasks(t, ref, nil)
+}
+
+func newReworkFixtureWithTasks(t *testing.T, ref *contract.ConfigGenerationRef, configure func([]TaskSpec)) reworkFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -52,6 +60,12 @@ func newReworkFixture(t *testing.T) reworkFixture {
 				p["directory"] = "/private/repo"
 			}
 		}
+		if ref != nil {
+			p["config_generation"], p["config_model_source"] = ref, "not-applicable"
+			if profile, ok := p["profile"].(map[string]any); ok {
+				p["config_model_source"], profile["model"] = "saved-default", "a"
+			}
+		}
 		b, _ := json.Marshal(p)
 		return b
 	}
@@ -66,7 +80,10 @@ func newReworkFixture(t *testing.T) reworkFixture {
 		}
 		tasks = append(tasks, TaskSpec{ID: s, RunID: "run", MaxAttempts: 3, Dependencies: deps, AdapterPayload: payload(s, source)})
 	}
-	plan, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
+	if configure != nil {
+		configure(tasks)
+	}
+	plan, err := submitExistingConfigHistory(t, db, ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,12 +123,8 @@ func newReworkFixture(t *testing.T) reworkFixture {
 			kind = contract.EventFailed
 		}
 		b, _ := json.Marshal(artifact)
-		path := filepath.Join(dir, stage+".json")
-		if err = os.WriteFile(path, b, 0600); err != nil {
-			t.Fatal(err)
-		}
 		seq++
-		e := contract.Event{Version: 1, ProducerID: h, EventID: stage + "-result", RunID: "run", TaskID: stage, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: seq, Kind: kind, PayloadHash: runtimeHash(string(b)), Artifact: &contract.ArtifactRef{ID: stage, Path: path, Size: int64(len(b)), SHA256: runtimeHash(string(b))}}
+		e := contract.Event{Version: 1, ProducerID: h, EventID: stage + "-result", RunID: "run", TaskID: stage, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: seq, Kind: kind, PayloadHash: runtimeHash(string(b)), Artifact: managedHostArtifactForTest(t, db, grant, "terminal", 0, b)}
 		if _, err = db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatal(err)
 		}

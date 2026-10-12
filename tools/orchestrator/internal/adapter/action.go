@@ -3,12 +3,25 @@ package adapter
 // CandidateAction is an owner-declared step in the existing DAG. SourceTask is
 // resolved only from the coordinator's accepted Host result, never raw prompt.
 type CandidateAction struct {
-	AutoDirectory bool            `json:"auto_directory,omitempty"`
-	Version       int             `json:"version"`
-	Operation     string          `json:"operation"`
-	SourceTask    string          `json:"source_task"`
-	Command       []string        `json:"command,omitempty"`
-	Target        CandidateTarget `json:"target"`
+	AutoDirectory          bool            `json:"auto_directory,omitempty"`
+	Version                int             `json:"version"`
+	DependencyInputVersion int             `json:"dependency_input_version,omitempty"`
+	Operation              string          `json:"operation"`
+	SourceTask             string          `json:"source_task"`
+	OrderedSourceTasks     []string        `json:"ordered_source_tasks,omitempty"`
+	CommandSHA256          string          `json:"command_sha256,omitempty"`
+	Command                []string        `json:"command,omitempty"`
+	Target                 CandidateTarget `json:"target"`
+	ReviewIndex            *ReviewIndex    `json:"review_index,omitempty"`
+}
+
+// ReviewIndex is an explicit finite review assignment. Legacy review actions
+// intentionally leave it nil and retain their existing byte-limited path.
+type ReviewIndex struct {
+	Version       int    `json:"version"`
+	Mode          string `json:"mode"`
+	Shards        int    `json:"shards"`
+	ReviewOrdinal int    `json:"review_ordinal"`
 }
 
 type CandidateTarget struct {
@@ -23,6 +36,11 @@ func (i Invocation) CandidateAction() *CandidateAction {
 	}
 	copy := *i.action
 	copy.Command = append([]string(nil), i.action.Command...)
+	copy.OrderedSourceTasks = append([]string(nil), i.action.OrderedSourceTasks...)
+	if i.action.ReviewIndex != nil {
+		index := *i.action.ReviewIndex
+		copy.ReviewIndex = &index
+	}
 	return &copy
 }
 
@@ -31,5 +49,5 @@ func (i Invocation) CandidateAction() *CandidateAction {
 const candidateReviewSchema = `{"type":"object","properties":{"decision":{"type":"string","enum":["approve","reject"]},"summary":{"type":"string","minLength":1,"maxLength":65536}},"required":["decision","summary"],"additionalProperties":false}`
 
 func usesCandidateReviewSchema(req Request) bool {
-	return (req.Provider == ProviderClaude || req.Provider == ProviderAGY || req.Provider == ProviderGrok) && req.Profile != nil && req.Profile.Role == Reviewer && req.Action != nil && req.Action.Version == 1 && req.Action.Operation == "review"
+	return (req.Provider == ProviderClaude || req.Provider == ProviderAGY || req.Provider == ProviderGrok) && req.Profile != nil && req.Profile.Role == Reviewer && req.Action != nil && req.Action.Version == 1 && (req.Action.Operation == "review" || req.Action.Operation == "filter_target_review" && req.Provider != ProviderGrok && req.Profile.Permission == ReadOnly)
 }

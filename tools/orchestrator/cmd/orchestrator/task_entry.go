@@ -17,14 +17,11 @@ import (
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
 
 // Task plans contain business scope, never owner/process or transport identity.
-type taskPlan struct {
-	RunID        string                    `json:"run_id"`
-	PlanRevision int                       `json:"plan_revision"`
-	Tasks        []coordinator.TaskRequest `json:"tasks"`
-}
+type taskPlan = coordinator.ConfigTaskPlan
 
 // A handle is routing metadata, not authority. The underlying CLI/service still
 // validates the control capability and owner for every operation. It is never
@@ -43,6 +40,8 @@ func taskEntry(ctx context.Context, args []string, out io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
+	case "diagnostics-read", "diagnostics-ack", "diagnostics-delete":
+		return taskDiagnosticsCLI(ctx, args[0], args[1:], out)
 	case "dispatch":
 		return taskDispatch(ctx, args[1:], out)
 	case "run", "submit":
@@ -58,6 +57,8 @@ func taskEntry(ctx context.Context, args []string, out io.Writer) error {
 
 func taskProvider(name string) (adapter.Provider, string, error) {
 	switch name {
+	case "codex":
+		return adapter.ProviderCodex, "codex", nil
 	case "claude", string(adapter.ProviderClaude):
 		return adapter.ProviderClaude, "claude", nil
 	case "agy", string(adapter.ProviderAGY):
@@ -106,6 +107,10 @@ func taskSubmit(ctx context.Context, action string, args []string, out io.Writer
 
 // reusePreparing is internal to a locked, hash-verified dispatch reservation.
 func taskSubmitPrepared(ctx context.Context, action string, args []string, out io.Writer, reusePreparing bool) error {
+	return taskSubmitWithConfigPreparation(ctx, action, args, out, reusePreparing, configPreparationOptions{Legacy: reusePreparing})
+}
+
+func taskSubmitWithConfigPreparation(ctx context.Context, action string, args []string, out io.Writer, reusePreparing bool, options configPreparationOptions) error {
 	fs := flag.NewFlagSet("task "+action, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	handle := fs.String("handle", "", "new private handle file; never reused")
@@ -200,13 +205,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	if plan.RunID == "" || plan.PlanRevision < 1 {
 		return codeError("invalid_submit")
 	}
-	if err := prepareTaskWorkspaces(*handle, plan.Tasks); err != nil {
-		return err
-	}
-	if err := preflightTasks(plan.Tasks); err != nil {
-		return err
-	}
-	if err := preflightProviders(ctx, plan.Tasks); err != nil {
+	if err := preflightTaskPlanBeforeOwner(ctx, *handle, plan); err != nil {
 		return err
 	}
 	// Observe identity before reserving anything; never fall back to a shell PID.
@@ -225,7 +224,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	}
 	h := taskHandle{Version: 1, RunID: plan.RunID, StateDir: state, Status: "submitting", TaskIDs: []string{}}
 	for _, task := range plan.Tasks {
-		if task.ID == "" || slices.Contains(h.TaskIDs, task.ID) || task.MaxAttempts < 1 || task.MaxActiveMS < 1 {
+		if task.ID == "" || slices.Contains(h.TaskIDs, task.ID) || (task.ExecutionPolicy == nil && (task.MaxAttempts < 1 || task.MaxActiveMS < 1)) || task.MaxAttempts < 0 || task.MaxActiveMS < 0 {
 			return codeError("invalid_task_plan")
 		}
 		h.TaskIDs = append(h.TaskIDs, task.ID)
@@ -234,25 +233,15 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	if err = ownerBind(ctx, []string{"--current", "--state-dir", state}, &ownerOut); err != nil {
 		return err
 	}
-	var owner struct {
-		Version          int    `json:"version"`
-		OwnerMode        string `json:"owner_mode"`
-		OwnerCapability  string `json:"owner_capability"`
-		ControllerThread string `json:"controller_thread"`
-		OriginContextID  string `json:"origin_context_id"`
-		OriginPID        int    `json:"origin_pid"`
-		OriginBirth      string `json:"origin_birth"`
-		HostGeneration   string `json:"host_generation"`
-	}
+	var owner controllerOwnerGrant
 	if err = decode(ownerOut.Bytes(), &owner); err != nil {
 		return err
 	}
-	if err = resolveTaskModels(ctx, state, owner.OwnerCapability, plan.Tasks); err != nil {
+	prepared, err := prepareTaskPlanForOwner(ctx, state, *handle, plan, owner, options)
+	if err != nil {
 		return err
 	}
-	if err = preflightProviders(ctx, plan.Tasks); err != nil {
-		return err
-	}
+	plan = prepared.ResolvedPlan
 	// An interrupted submission leaves this reservation in place. Never infer
 	// from missing receipt/control that no launch happened, or silently resubmit.
 	if reusePreparing {
@@ -276,10 +265,8 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	})
 	var rejected remoteError
 	if errors.As(submitErr, &rejected) {
-		h.Status = "rejected"
-		h.ControlFile = ""
-		if err = replacePrivateJSON(*handle, h); err != nil {
-			return err
+		if rejectedErr := recordRejectedConfigSubmission(*handle, &h, prepared); rejectedErr != nil {
+			return errors.Join(submitErr, rejectedErr)
 		}
 	}
 	var r struct {
@@ -354,6 +341,20 @@ func withTaskRequest(value any, fn func(string) error) error {
 
 func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) error {
 	for _, task := range tasks {
+		deferDynamicProbe := false
+		if task.ExecutionPolicy != nil {
+			normalized, err := store.NormalizeExecutionTask(store.TaskSpec{
+				ExecutionPolicy:  task.ExecutionPolicy,
+				MaxAttempts:      task.MaxAttempts,
+				MaxActiveMS:      task.MaxActiveMS,
+				AdapterPayload:   task.AdapterPayload,
+				FallbackPayloads: task.Fallbacks,
+			})
+			if err != nil {
+				return err
+			}
+			deferDynamicProbe = normalized.ExecutionPolicy.Retry != nil
+		}
 		for _, raw := range append([]json.RawMessage{task.AdapterPayload}, task.Fallbacks...) {
 			p, err := adapter.DecodeInvocationPayload(raw)
 			if err != nil {
@@ -362,7 +363,7 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if p.Kind == "candidate" && p.CandidateAction != nil {
 				continue
 			}
-			if p.Kind != "" || p.Profile == nil || p.ProviderLock == nil {
+			if (p.Kind != "" && !(p.Kind == "provider" && (adapter.ValidateGitFilterPipelinePayload(p) == nil || p.Provider == string(adapter.ProviderCodex) && p.Profile != nil && p.Profile.CodexHostToolsVersion == 1))) || p.Profile == nil || p.ProviderLock == nil {
 				return codeError("task_typed_profile_required")
 			}
 			if p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" {
@@ -374,6 +375,9 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			}
 			if err = adapter.VerifyExecutable(req.Binary, req.Binary.Version); err != nil {
 				return err
+			}
+			if deferDynamicProbe {
+				continue
 			}
 			actual, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--version")
 			if err != nil {
@@ -395,6 +399,10 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 }
 
 func taskFollowup(ctx context.Context, action string, args []string, out io.Writer) error {
+	return taskFollowupWithRunner(ctx, action, args, out, run)
+}
+
+func taskFollowupWithRunner(ctx context.Context, action string, args []string, out io.Writer, runner func(context.Context, []string, io.Writer, io.Writer) error) error {
 	fs := flag.NewFlagSet("task "+action, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	path := fs.String("handle", "", "original task handle")
@@ -402,7 +410,20 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	includeDiagnostics := false
 	timeoutMS := 30000
 	revision := 0
+	commandID := ""
 	mutation := action == "accept" || action == "ack" || action == "answer" || action == "rework" || action == "recover-host"
+	// Typed resume has an explicit source decision; the observed-revision
+	// legacy form remains available through its original guarded branch.
+	typedResume := false
+	if action == "resume" {
+		for _, arg := range args {
+			if arg == "--request" || strings.HasPrefix(arg, "--request=") {
+				typedResume = true
+				mutation = true
+				break
+			}
+		}
+	}
 	if mutation {
 		fs.StringVar(&request, "request", "", "explicit owner decision JSON")
 	} else {
@@ -417,8 +438,20 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 		if action == "resume" || action == "stop" {
 			fs.IntVar(&revision, "work-revision", 0, "observed revision")
 		}
+		if action == "resume" {
+			fs.StringVar(&commandID, "command-id", "", "stable owner Resume command id")
+		}
 	}
 	if fs.Parse(args) != nil || fs.NArg() != 0 || *path == "" || (mutation && request == "") || timeoutMS < 1 || timeoutMS > 30000 || (action == "wait" && includeDiagnostics) {
+		return codeError("invalid_args")
+	}
+	explicitCommand := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "command-id" {
+			explicitCommand = true
+		}
+	})
+	if explicitCommand && !validResumeJournalCommandID(commandID) {
 		return codeError("invalid_args")
 	}
 	if err := privateHandleParent(*path); err != nil {
@@ -464,14 +497,17 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	if cap.RunID != h.RunID {
 		return codeError("task_handle_scope_mismatch")
 	}
-	// Bind the route to its original runtime as well as its run; never guess a
-	// default state directory when continuing from another conversation.
-	b, err := loadHostBootstrap(cap)
-	if err != nil {
-		return err
-	}
-	if b.SocketPath != filepath.Join(h.StateDir, "coordinator.sock") {
-		return codeError("task_handle_scope_mismatch")
+	// Ordinary Resume authenticates against the handle's exact runtime and
+	// validates the immutable receipt's launch scope. Existing-owner replay
+	// must not depend on mutable bootstrap availability.
+	if action != "resume" || typedResume {
+		b, err := loadHostBootstrap(cap)
+		if err != nil {
+			return err
+		}
+		if b.SocketPath != filepath.Join(h.StateDir, "coordinator.sock") {
+			return codeError("task_handle_scope_mismatch")
+		}
 	}
 	if action == "reconcile" {
 		return reconcileTaskHandle(ctx, *path, h, cap, out)
@@ -479,7 +515,10 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	if mutation {
 		decision["control_file"], _ = json.Marshal(h.ControlFile)
 		return withTaskRequest(decision, func(p string) error {
-			return run(ctx, []string{action, "--state-dir", h.StateDir, "--request", p}, out, io.Discard)
+			if typedResume {
+				return resumeContinuation(ctx, []string{"--state-dir", h.StateDir, "--request", p}, out)
+			}
+			return runner(ctx, []string{action, "--state-dir", h.StateDir, "--request", p}, out, io.Discard)
 		})
 	}
 	if action == "inspect" {
@@ -501,5 +540,8 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	if revision != 0 {
 		forwarded = append(forwarded, "--work-revision", strconv.Itoa(revision))
 	}
-	return run(ctx, forwarded, out, io.Discard)
+	if explicitCommand {
+		forwarded = append(forwarded, "--command-id", commandID)
+	}
+	return runner(ctx, forwarded, out, io.Discard)
 }

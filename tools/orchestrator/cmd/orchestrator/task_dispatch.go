@@ -17,24 +17,27 @@ import (
 	"unicode/utf8"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance"
 )
 
 type dispatchRequest struct {
-	Version          int          `json:"version"`
-	RequestID        string       `json:"request_id"`
-	Provider         string       `json:"provider"`
-	ProviderLock     string       `json:"provider_lock"`
-	Directory        string       `json:"directory"`
-	Prompt           string       `json:"prompt"`
-	Role             adapter.Role `json:"role"`
-	Paths            []string     `json:"paths,omitempty"`
-	Acceptance       []string     `json:"acceptance"`
-	Model            string       `json:"model,omitempty"`
-	MaxAttempts      int          `json:"max_attempts"`
-	MaxActiveMS      int64        `json:"max_active_ms"`
-	GrokSessionWrite bool         `json:"grok_session_write,omitempty"`
+	GrokExistingAuthOnly bool                      `json:"grok_existing_auth_only,omitempty"`
+	ExecutionPolicy      *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
+	Version              int                       `json:"version"`
+	RequestID            string                    `json:"request_id"`
+	Provider             string                    `json:"provider"`
+	ProviderLock         string                    `json:"provider_lock"`
+	Directory            string                    `json:"directory"`
+	Prompt               string                    `json:"prompt"`
+	Role                 adapter.Role              `json:"role"`
+	Paths                []string                  `json:"paths,omitempty"`
+	Acceptance           []string                  `json:"acceptance"`
+	Model                string                    `json:"model,omitempty"`
+	MaxAttempts          int                       `json:"max_attempts"`
+	MaxActiveMS          int64                     `json:"max_active_ms"`
+	GrokSessionWrite     bool                      `json:"grok_session_write,omitempty"`
 }
 
 type dispatchReservation struct {
@@ -50,7 +53,7 @@ var dispatchID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$`)
 var dispatchOID = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
 func validateDispatch(req dispatchRequest) error {
-	if req.Version != 1 || !dispatchID.MatchString(req.RequestID) || req.ProviderLock == "" || req.Directory == "" || strings.TrimSpace(req.Prompt) == "" || !utf8.ValidString(req.Prompt) || strings.ContainsRune(req.Prompt, 0) || len(req.Prompt) > 256*1024 || req.MaxAttempts < 1 || req.MaxAttempts > 64 || req.MaxActiveMS < 1 || req.MaxActiveMS > 3600000 || len(req.Acceptance) < 1 || len(req.Acceptance) > 64 {
+	if req.Version != 1 || !dispatchID.MatchString(req.RequestID) || req.ProviderLock == "" || req.Directory == "" || strings.TrimSpace(req.Prompt) == "" || !utf8.ValidString(req.Prompt) || strings.ContainsRune(req.Prompt, 0) || len(req.Prompt) > 256*1024 || (req.ExecutionPolicy == nil && (req.MaxAttempts < 1 || req.MaxActiveMS < 1 || req.MaxActiveMS > 3_600_000)) || req.MaxAttempts < 0 || req.MaxAttempts > 64 || req.MaxActiveMS < 0 || req.MaxActiveMS > 86_400_000 || len(req.Acceptance) < 1 || len(req.Acceptance) > 64 {
 		return codeError("dispatch_request_invalid")
 	}
 	p, _, err := taskProvider(req.Provider)
@@ -59,6 +62,9 @@ func validateDispatch(req dispatchRequest) error {
 	}
 	if req.Role != adapter.Reviewer && req.Role != adapter.Implementer {
 		return codeError("dispatch_request_invalid")
+	}
+	if req.Role == adapter.Implementer && req.ExecutionPolicy != nil && req.ExecutionPolicy.Retry != nil {
+		return codeError("execution_policy_retry_stage_unsupported")
 	}
 	if req.Role == adapter.Implementer && (len(req.Paths) == 0 || len(req.Paths) > 256) {
 		return codeError("dispatch_paths_required")
@@ -94,7 +100,7 @@ func validateDispatch(req dispatchRequest) error {
 	if p == adapter.ProviderGrok && !req.GrokSessionWrite {
 		return codeError("grok_session_write_required")
 	}
-	if p != adapter.ProviderGrok && req.GrokSessionWrite {
+	if p != adapter.ProviderGrok && (req.GrokSessionWrite || req.GrokExistingAuthOnly) {
 		return codeError("profile_provider_state_mismatch")
 	}
 	return nil
@@ -144,17 +150,36 @@ func dispatchHash(value string) string {
 }
 
 func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base string) (taskPlan, error) {
+	if req.ExecutionPolicy != nil {
+		if req.MaxAttempts == 0 {
+			req.MaxAttempts = 3
+		}
+		if req.MaxActiveMS == 0 {
+			req.MaxActiveMS = 3600000
+		}
+	}
 	provider, _, err := taskProvider(req.Provider)
 	if err != nil {
 		return taskPlan{}, err
 	}
-	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: req.MaxActiveMS, GrokSessionWrite: req.GrokSessionWrite}
+	profileTimeout := req.MaxActiveMS
+	if req.ExecutionPolicy != nil {
+		profileTimeout = min(profileTimeout, 3_600_000)
+		if req.ExecutionPolicy.SegmentMaxActiveMS > 0 {
+			profileTimeout = min(profileTimeout, req.ExecutionPolicy.SegmentMaxActiveMS)
+		}
+	}
+	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: profileTimeout, GrokSessionWrite: req.GrokSessionWrite, GrokExistingAuthOnly: req.GrokExistingAuthOnly}
 	if req.Model == "cli-default" {
 		profile.CLIModelDefault = true
 	} else {
 		profile.Model = adapter.ModelID(req.Model)
 	}
 	payload := adapter.InvocationPayload{Provider: string(provider), ProviderLock: &lock, Profile: profile, Directory: req.Directory, Prompt: req.Prompt + "\n\nAcceptance conditions:\n- " + strings.Join(req.Acceptance, "\n- ")}
+	if provider == adapter.ProviderCodex {
+		profile.CodexHostToolsVersion = 1
+		payload.Kind = "provider"
+	}
 	if req.Role == adapter.Implementer {
 		profile.Permission = adapter.WorkspaceWrite
 		payload.Directory = ""
@@ -164,7 +189,7 @@ func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base st
 	if err != nil {
 		return taskPlan{}, err
 	}
-	return taskPlan{RunID: runID, PlanRevision: 1, Tasks: []coordinator.TaskRequest{{ID: runID + "-work", MaxAttempts: req.MaxAttempts, MaxActiveMS: req.MaxActiveMS, BudgetGroupID: runID + "-budget", CompletionPolicy: "owner_review", AdapterPayload: raw}}}, nil
+	return taskPlan{RunID: runID, PlanRevision: 1, Tasks: []coordinator.TaskRequest{{ID: runID + "-work", ExecutionPolicy: req.ExecutionPolicy, MaxAttempts: req.MaxAttempts, MaxActiveMS: req.MaxActiveMS, BudgetGroupID: runID + "-budget", CompletionPolicy: "owner_review", AdapterPayload: raw}}}, nil
 }
 
 func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
@@ -244,21 +269,16 @@ func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	runID := "bird-" + dispatchHash(ownerKey + "\x00" + req.RequestID)[:24]
-	expected := dispatchReservation{Version: 1, RequestSHA256: dispatchHash(string(raw)), ControllerThread: owner.ControllerThread, RunID: runID}
+	expected := dispatchReservation{Version: 2, RequestSHA256: dispatchHash(string(raw)), ControllerThread: owner.ControllerThread, RunID: runID}
 	record := filepath.Join(directory, "reservation.json")
 	handle := filepath.Join(directory, "handle.json")
 	checkpoint, h, err := loadDispatchCheckpoint(directory, state, expected)
 	if err != nil {
 		return err
 	}
-	if h != nil && (h.ControlFile != "" || h.Status != "submitting") {
-		if h.Status == "submitting" {
-			if err = taskFollowup(ctx, "reconcile", []string{"--handle", handle}, io.Discard); err != nil {
-				_ = json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "submitting", "handle": handle, "run_id": runID, "existing": true})
-				return err
-			}
-		}
-		return json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "existing", "handle": handle, "run_id": runID, "task_ids": h.TaskIDs, "existing": true})
+	handled, err := handleExistingDispatch(ctx, out, handle, runID, h, func() error { return taskFollowup(ctx, "reconcile", []string{"--handle", handle}, io.Discard) })
+	if handled || err != nil {
+		return err
 	}
 	planPath := filepath.Join(directory, "plan.json")
 	if checkpoint.Phase == "preparing" {
@@ -288,14 +308,19 @@ func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err = prepareTaskWorkspaces(handle, plan.Tasks); err != nil {
-			return err
-		}
-		if err = preflightTasks(plan.Tasks); err != nil {
-			return err
-		}
-		if err = preflightProviders(ctx, plan.Tasks); err != nil {
-			return err
+		// Only legacy v1 reservations retain their already established preparation
+		// behavior. New v2 plans remain original inputs until the authenticated
+		// task consumer has published its durable install preparation-use hold.
+		if checkpoint.Version == 1 {
+			if err = prepareTaskWorkspaces(handle, plan.Tasks); err != nil {
+				return err
+			}
+			if err = preflightTasks(plan.Tasks); err != nil {
+				return err
+			}
+			if err = preflightProviders(ctx, plan.Tasks); err != nil {
+				return err
+			}
 		}
 		if _, err = os.Lstat(planPath); os.IsNotExist(err) {
 			err = writeExclusiveJSON(planPath, plan)
@@ -315,10 +340,25 @@ func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
 			return err
 		}
 	}
-	// No handle, or a handle without a prepared control path, proves this v1
+	// No handle, or a handle without a prepared control path, proves this locked
 	// dispatch never crossed the durable pre-RPC barrier. Only this locked
 	// reservation can continue preparation; submitted/unknown work cannot.
-	return taskSubmitPrepared(ctx, "submit", []string{"--request", planPath, "--handle", handle, "--state-dir", state}, out, h != nil)
+	return taskSubmitWithConfigPreparation(ctx, "submit", []string{"--request", planPath, "--handle", handle, "--state-dir", state}, out, h != nil, configPreparationOptions{RequestSHA256: checkpoint.RequestSHA256, Legacy: checkpoint.Version == 1})
+}
+
+// A private preparation checkpoint is not authorization to submit again. The
+// original control route wins before any package/ref/pin preparation reads.
+func handleExistingDispatch(ctx context.Context, out io.Writer, handle, runID string, h *taskHandle, reconcile func() error) (bool, error) {
+	if h == nil || h.ControlFile == "" && h.Status == "submitting" {
+		return false, nil
+	}
+	if h.Status == "submitting" {
+		if err := reconcile(); err != nil {
+			_ = json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "submitting", "handle": handle, "run_id": runID, "existing": true})
+			return true, err
+		}
+	}
+	return true, json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "existing", "handle": handle, "run_id": runID, "task_ids": h.TaskIDs, "existing": true})
 }
 
 func loadDispatchCheckpoint(directory, state string, expected dispatchReservation) (dispatchReservation, *taskHandle, error) {
@@ -333,7 +373,7 @@ func loadDispatchCheckpoint(directory, state string, expected dispatchReservatio
 	if err := readPrivateJSON(record, &current); err != nil {
 		return current, nil, err
 	}
-	if current.Version != expected.Version || current.RequestSHA256 != expected.RequestSHA256 || current.ControllerThread != expected.ControllerThread || current.RunID != expected.RunID {
+	if (current.Version != expected.Version && current.Version != 1) || current.RequestSHA256 != expected.RequestSHA256 || current.ControllerThread != expected.ControllerThread || current.RunID != expected.RunID {
 		return current, nil, codeError("dispatch_request_conflict")
 	}
 	if current.Phase != "preparing" && current.Phase != "prepared" {

@@ -20,6 +20,25 @@ type memoryJournal struct {
 	candidateReceipts   []CandidateReceipt
 }
 
+// replayJournal models the only history Cleanup is allowed to trust: the
+// exact intent and terminal outcome that this journal durably retained.
+type replayJournal struct{ memoryJournal }
+
+func (j *replayJournal) LoadCleanup(_ context.Context, receiptSHA256 string) (CleanupIntent, CleanupOutcome, bool, error) {
+	for i := range j.cleanupIntents {
+		if j.cleanupIntents[i].ReceiptSHA256 != receiptSHA256 {
+			continue
+		}
+		for k := range j.cleanupOutcomes {
+			if j.cleanupOutcomes[k].ReceiptSHA256 == receiptSHA256 {
+				return j.cleanupIntents[i], j.cleanupOutcomes[k], true, nil
+			}
+		}
+		return j.cleanupIntents[i], CleanupOutcome{}, false, nil
+	}
+	return CleanupIntent{}, CleanupOutcome{}, false, nil
+}
+
 type failingFreezeJournal struct{ memoryJournal }
 
 func (j *failingFreezeJournal) RecordCandidateFreeze(context.Context, CandidateReceipt) error {
@@ -318,6 +337,33 @@ func TestComposeCandidateMergesIndependentBranchesIntoFrozenCommit(t *testing.T)
 	}
 }
 
+func TestComposeCandidateClassifiesRealMergeConflictAndRetainsWorktree(t *testing.T) {
+	d, base := repo(t)
+	g := func(args ...string) string { return git(t, d, args...) }
+	g("switch", "-c", "conflict-a")
+	if err := os.WriteFile(filepath.Join(d, "README"), []byte("a\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	g("add", "README")
+	g("commit", "-qm", "a")
+	a := g("rev-parse", "HEAD")
+	g("switch", "-c", "conflict-b", base)
+	if err := os.WriteFile(filepath.Join(d, "README"), []byte("b\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	g("add", "README")
+	g("commit", "-qm", "b")
+	b := g("rev-parse", "HEAD")
+	work := filepath.Join(t.TempDir(), "conflicted-compose")
+	_, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "conflict", BaseOID: base, OrderedInputOIDs: []string{a, b}, PlanRevision: 1, PrivateRef: "refs/orchestrator/g3/conflict"}, &memoryJournal{})
+	if err == nil || !IsCode(err, CodeComposeConflict) {
+		t.Fatalf("got %v", err)
+	}
+	if _, statErr := os.Stat(work); statErr != nil {
+		t.Fatalf("conflict worktree removed: %v", statErr)
+	}
+}
+
 func TestPrivateRefRequiresManagedNamespaceAndCompareAndSwap(t *testing.T) {
 	d, base := repo(t)
 	candidateOID, _ := candidate(t, d)
@@ -336,6 +382,39 @@ func TestPrivateRefRequiresManagedNamespaceAndCompareAndSwap(t *testing.T) {
 	}
 	if err := DeletePrivateRef(context.Background(), d, managed, candidateOID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestValidateCandidatePrivateRefRequiresExactPinnedOID(t *testing.T) {
+	d, oid := repo(t)
+	ref := "refs/orchestrator/g3/validate-private-ref"
+	if err := PrivateRef(context.Background(), d, ref, "", oid); err != nil {
+		t.Fatal(err)
+	}
+	root, common, err := validateRepo(context.Background(), d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootIdentity, err := directoryIdentity(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commonIdentity, err := directoryIdentity(common)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := CandidateReceipt{RepoRoot: root, CommonDir: common, Worktree: root, WorktreeIdentity: root, BaseOID: oid, CandidateOID: oid, TreeOID: git(t, d, "rev-parse", "HEAD^{tree}"), RootIdentity: rootIdentity, RepoRootIdentity: rootIdentity, CommonDirIdentity: commonIdentity, PrivateRef: ref, PrivateRefExpectedOID: oid}
+	if err := ValidateCandidatePrivateRef(context.Background(), receipt); err != nil {
+		t.Fatalf("pinned ref rejected: %v", err)
+	}
+	replaced := receipt
+	replaced.CommonDirIdentity.Inode++
+	if err := ValidateCandidatePrivateRef(context.Background(), replaced); err == nil || !IsCode(err, CodeIdentityChanged) {
+		t.Fatalf("replaced common directory identity accepted: %v", err)
+	}
+	receipt.PrivateRefExpectedOID = strings.Repeat("f", 40)
+	if err := ValidateCandidatePrivateRef(context.Background(), receipt); err == nil {
+		t.Fatal("drifted ref accepted")
 	}
 }
 
@@ -430,7 +509,7 @@ func TestMissingWorktreeCannotRedirectPrivateRefCleanupToAnotherRepository(t *te
 	}
 }
 
-func TestMissingComposedWorktreeDeletesExpectedRefAfterDurableIntent(t *testing.T) {
+func TestMissingComposedWorktreeWithoutCompletionKeepsExpectedRef(t *testing.T) {
 	d, base := repo(t)
 	candidateOID, _ := candidate(t, d)
 	work := filepath.Join(t.TempDir(), "missing-compose-worktree")
@@ -445,11 +524,11 @@ func TestMissingComposedWorktreeDeletesExpectedRefAfterDurableIntent(t *testing.
 	git(t, d, "worktree", "remove", "--force", work)
 	journal := &memoryJournal{}
 	out, err := Cleanup(context.Background(), CleanupRequest{Root: receipt.Worktree, CandidateReceipt: &receipt, Journal: journal})
-	if err != nil || out.State != CleanupRemoved || out.PrivateRefState != "deleted" || len(journal.cleanupIntents) != 1 || len(journal.cleanupOutcomes) != 1 {
-		t.Fatalf("missing root recovery failed: out=%+v intents=%+v outcomes=%+v err=%v", out, journal.cleanupIntents, journal.cleanupOutcomes, err)
+	if err != nil || out.State != CleanupPending || out.PrivateRefState != "retained" || len(journal.cleanupIntents) != 0 || len(journal.cleanupOutcomes) != 0 {
+		t.Fatalf("missing root was treated as complete: out=%+v intents=%+v outcomes=%+v err=%v", out, journal.cleanupIntents, journal.cleanupOutcomes, err)
 	}
-	if _, exists, refErr := privateRefOID(context.Background(), d, privateRef); refErr != nil || exists {
-		t.Fatalf("private ref remains after recovery: exists=%v err=%v", exists, refErr)
+	if got := git(t, d, "rev-parse", privateRef); got != candidateOID {
+		t.Fatalf("private ref was not retained: got=%s", got)
 	}
 }
 
@@ -560,6 +639,92 @@ func TestCleanupNeverLetsGitTouchRecreatedOriginalPath(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(work, "foreign")); err != nil {
 		t.Fatal("recreated foreign object was removed")
+	}
+}
+
+func TestCleanupReplayAfterQuarantineFailureKeepsOriginalPrivateRef(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	work := filepath.Join(t.TempDir(), "replay-after-quarantine")
+	ref := "refs/orchestrator/g3/replay-after-quarantine"
+	receipt, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "replay-after-quarantine", BaseOID: base, OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1, PrivateRef: ref}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := &replayJournal{}
+	_, err = Cleanup(context.Background(), CleanupRequest{Root: work, CandidateReceipt: &receipt, Journal: j, AfterQuarantine: func(string) error { return errors.New("interrupted") }})
+	if err == nil {
+		t.Fatal("cleanup unexpectedly completed")
+	}
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: work, CandidateReceipt: &receipt, Journal: j})
+	if err != nil || out.State != CleanupPending || out.PrivateRefState != "retained" {
+		t.Fatalf("out=%+v err=%v", out, err)
+	}
+	if got := git(t, d, "rev-parse", ref); got != candidateOID {
+		t.Fatalf("private ref lost: %s", got)
+	}
+}
+
+func TestCleanupExactCompletedReplayReturnsDurableOutcome(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	work := filepath.Join(t.TempDir(), "exact-cleanup-replay")
+	receipt, err := Materialize(context.Background(), MaterializeRequest{RepoRoot: d, Worktree: work, AttemptID: "exact-cleanup-replay", BaseOID: base, CandidateOID: candidateOID, OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := &replayJournal{}
+	first, err := Cleanup(context.Background(), CleanupRequest{Root: work, Receipt: receipt, Journal: j})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := Cleanup(context.Background(), CleanupRequest{Root: work, Receipt: receipt, Journal: j})
+	if err != nil || second != first || len(j.cleanupIntents) != 1 || len(j.cleanupOutcomes) != 1 {
+		t.Fatalf("first=%+v second=%+v err=%v", first, second, err)
+	}
+}
+
+func TestCleanupCompletedReplayRejectsRebuiltRoot(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	work := filepath.Join(t.TempDir(), "rebuilt-cleanup-root")
+	receipt, err := Materialize(context.Background(), MaterializeRequest{RepoRoot: d, Worktree: work, AttemptID: "rebuilt-cleanup-root", BaseOID: base, CandidateOID: candidateOID, OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := &replayJournal{}
+	if _, err = Cleanup(context.Background(), CleanupRequest{Root: work, Receipt: receipt, Journal: j}); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Mkdir(work, 0700); err != nil {
+		t.Fatal(err)
+	}
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: work, Receipt: receipt, Journal: j})
+	if err == nil || !IsCode(err, CodeIdentityChanged) || out.State != CleanupPending {
+		t.Fatalf("out=%+v err=%v", out, err)
+	}
+}
+
+func TestCleanupCompletedReplayRejectsRebuiltPrivateRef(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	work := filepath.Join(t.TempDir(), "rebuilt-cleanup-ref")
+	ref := "refs/orchestrator/g3/rebuilt-cleanup-ref"
+	receipt, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "rebuilt-cleanup-ref", BaseOID: base, OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1, PrivateRef: ref}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := &replayJournal{}
+	if _, err = Cleanup(context.Background(), CleanupRequest{Root: work, CandidateReceipt: &receipt, Journal: j}); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "update-ref", ref, candidateOID, "")
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: work, CandidateReceipt: &receipt, Journal: j})
+	if err == nil || !IsCode(err, CodeTargetDrift) || out.State != CleanupPending {
+		t.Fatalf("out=%+v err=%v", out, err)
+	}
+	if got := git(t, d, "rev-parse", ref); got != candidateOID {
+		t.Fatalf("rebuilt ref was changed: %s", got)
 	}
 }
 

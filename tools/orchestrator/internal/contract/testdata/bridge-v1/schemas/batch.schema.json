@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-bird-bridge-v1/batch",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 0,
+      "const": 1
+    },
+    "batch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "binding_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner_epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "transport_mode": {
+      "type": "string",
+      "enum": [
+        "hook_pull"
+      ]
+    },
+    "render_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "event_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "event_hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "action_slot": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "work_revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 512,
+            "x-maxUtf8Bytes": 512
+          },
+          "artifact_ref": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "id",
+                  "sha256"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "event_id",
+          "event_revision",
+          "event_hash",
+          "action_slot",
+          "task_id",
+          "work_revision",
+          "kind",
+          "summary",
+          "artifact_ref"
+        ]
+      },
+      "maxItems": 8,
+      "minItems": 1
+    },
+    "delivery_receipts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "delivery_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "proof_mode": {
+            "type": "string",
+            "enum": [
+              "collect"
+            ]
+          },
+          "proof_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "event_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "task_id",
+          "delivery_id",
+          "proof_mode",
+          "proof_sha256",
+          "event_ids"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "batch_id",
+    "attempt_id",
+    "binding_id",
+    "owner_epoch",
+    "transport_mode",
+    "render_sha256",
+    "events",
+    "delivery_receipts"
+  ],
+  "x-maxEncodedBytes": 8192,
+  "x-encodedScope": "complete provider hookSpecificOutput wrapper or AGY injectSteps wrapper, including JSON escaping"
+}

@@ -1,0 +1,280 @@
+//go:build darwin
+
+package gitfilter
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+)
+
+func carrierJournalFixture(t *testing.T) (contract.LaunchCommand, *events.Spool) {
+	t.Helper()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sp, err := events.Open(filepath.Join(root, "attempt", "segment"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := strings.Repeat("a", 64)
+	m := contract.GitFilterManifestV1{Version: 1, DriverID: "fixture", Paths: []string{"file"}, Git: contract.GitFilterGitPin{Path: "/usr/bin/git", Version: "fixture", SHA256: h}, Clean: contract.GitFilterToolPin{Path: "/private/clean", SHA256: h, Args: []string{}}, Smudge: contract.GitFilterToolPin{Path: "/private/smudge", SHA256: h, Args: []string{}}, Attributes: []contract.GitFilterAttributePin{}, ConfigSHA256: h}
+	c := contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", HostID: "host", CommandID: "command", WorkRevision: 1, PlanRevision: 1}
+	c.AdapterPayload, _ = json.Marshal(map[string]any{"kind": "candidate", "candidate_action": map[string]any{"version": 1, "operation": "filter_integrate"}, "git_filter": m})
+	hs, _ := contract.HostArtifactScopeSHA256(c)
+	c.HostArtifacts = &contract.HostArtifactGrant{Version: 1, TerminalReservationID: "terminal", ProgressReservationID: "progress", ScopeSHA256: hs}
+	md, _ := m.Digest()
+	scope, _ := contract.GitFilterResourceScopeSHA256(c, md)
+	c.GitFilter = &contract.GitFilterResourceGrant{Version: 1, ReservationID: "filter", ScopeSHA256: scope, ManifestSHA256: md, CleanToolSHA256: h, SmudgeToolSHA256: h, ToolMaximumBytes: contract.GitFilterToolMaximumBytes, StreamMaximumBytes: contract.GitFilterStreamMaximumBytes, StreamSlots: 3}
+	cs, _ := contract.GitFilterCarrierScopeSHA256(c)
+	c.GitFilterCarrier = &contract.GitFilterCarrierGrant{Version: 1, ReservationID: "carrier", ScopeSHA256: cs, FilterReservationID: "filter", FilterScopeSHA256: scope, ManifestSHA256: md, MetadataBytes: contract.GitFilterCarrierMetadataBytes, RuntimeNamespace: contract.GitFilterCarrierNamespace, DirectorySlots: 1, SocketSlots: 1}
+	return c, sp
+}
+
+type carrierCollisionJournal struct {
+	original *carrierJournal
+	foreign  string
+}
+
+func (j *carrierCollisionJournal) RecordCarrierSocket(ctx context.Context, r carrierSocketRecord) error {
+	if err := j.original.RecordCarrierSocket(ctx, r); err != nil {
+		return err
+	}
+	if r.Phase == "reserved" {
+		j.foreign = r.Directory
+		return os.Mkdir(r.Directory, 0700)
+	}
+	return nil
+}
+
+func TestCarrierCompanionKnownNotCreated(t *testing.T) {
+	c, sp := carrierJournalFixture(t)
+	j, err := newCarrierJournal(c, sp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.close()
+	ctx := carrierTestContext(t)
+	collision := &carrierCollisionJournal{original: j}
+	o, err := newCarrierSocket(ctx, sp.Directory(), j.binding, collision)
+	defer func() { carrierTestRelease(t, o, collision.foreign) }()
+	if err == nil || o == nil {
+		t.Fatal("collision not observed")
+	}
+	if err = o.release(ctx); err != nil {
+		t.Fatal(err)
+	}
+	r, err := j.cleanup(o)
+	if err != nil || r.Outcome != "not_created" || r.FinalOrdinal != 2 || r.RetainedBytes == 0 {
+		t.Fatal("known collision did not settle", r, err)
+	}
+	if _, err = os.Stat(collision.foreign); err != nil {
+		t.Fatal("foreign entry changed", err)
+	}
+}
+func TestCarrierCompanionJournalNative(t *testing.T) {
+	for _, mode := range []string{"lifecycle", "foreign-current", "foreign-temporary", "replaced-current"} {
+		t.Run(mode, func(t *testing.T) {
+			c, sp := carrierJournalFixture(t)
+			if strings.HasPrefix(mode, "foreign-") {
+				name := carrierJournalName
+				if mode == "foreign-temporary" {
+					name = "." + name + ".tmp"
+				}
+				file := filepath.Join(sp.Directory(), name)
+				if err := os.WriteFile(file, []byte("foreign"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if j, err := newCarrierJournal(c, sp); err == nil || j != nil {
+					t.Fatal("adopted foreign journal")
+				}
+				body, _ := os.ReadFile(file)
+				if string(body) != "foreign" {
+					t.Fatal("foreign bytes changed")
+				}
+				return
+			}
+			j, err := newCarrierJournal(c, sp)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer j.close()
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			o, err := newCarrierSocket(ctx, sp.Directory(), j.binding, j)
+			defer carrierTestRelease(t, o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "replaced-current" {
+				path := filepath.Join(sp.Directory(), carrierJournalName)
+				body, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err = os.WriteFile(path+".replacement", body, 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Rename(path+".replacement", path); err != nil {
+					t.Fatal(err)
+				}
+				if err = o.close(ctx); err != nil {
+					t.Fatal(err)
+				}
+				if o.remove(ctx) == nil {
+					t.Fatal("replacement accepted")
+				}
+				if _, err = j.cleanup(o); err == nil {
+					t.Fatal("uncertain carrier released")
+				}
+				return
+			}
+			b := j.binding.Original
+			for i := uint64(1); i <= 8; i++ {
+				r := ExactTransformRecord{Phase: "intent", Sequence: i, ManifestSHA256: b.ManifestSHA256, ScopeSHA256: b.ScopeSHA256, ReservationID: b.ReservationID, AttemptID: b.AttemptID, PlanRevision: b.PlanRevision, PermitsSHA256: strings.Repeat("b", 64), Path: "file", Operation: "smudge"}
+				if err = j.RecordExactTransform(ctx, r); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err = o.close(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if err = o.remove(ctx); err != nil {
+				t.Fatal(err)
+			}
+			r, err := j.cleanup(o)
+			if err != nil || r.Validate() != nil || r.FinalOrdinal != 12 || r.RetainedBytes > contract.GitFilterJournalLimit+1 {
+				t.Fatal("invalid bounded receipt", r, err)
+			}
+			body, err := os.ReadFile(filepath.Join(sp.Directory(), carrierJournalName))
+			if err != nil || int64(len(body)) != r.RetainedBytes {
+				t.Fatal("journal size", err)
+			}
+			var snapshot carrierJournalSnapshot
+			if json.Unmarshal(body, &snapshot) != nil || snapshot.Transform.Sequence != 8 || snapshot.Ordinal != 12 || snapshot.Socket.Phase != "removed" {
+				t.Fatal("unbounded or wrong final journal")
+			}
+			if _, err = os.Lstat(filepath.Join(sp.Directory(), "."+carrierJournalName+".tmp")); !os.IsNotExist(err) {
+				t.Fatal("temporary journal retained", err)
+			}
+		})
+	}
+}
+
+func TestCarrierCompanionJournalPrecheckNamespaceRace(t *testing.T) {
+	for _, mode := range []string{"named-segment-replacement", "ancestor-symlink", "foreign-temporary-after-precheck", "foreign-current-after-precheck"} {
+		t.Run(mode, func(t *testing.T) {
+			c, sp := carrierJournalFixture(t)
+			j, e := newCarrierJournal(c, sp)
+			if e != nil {
+				t.Fatal(e)
+			}
+			defer j.close()
+			ctx := carrierTestContext(t)
+			if e = j.write(ctx, j.current); e != nil {
+				t.Fatalf("positive baseline write: %v", e)
+			}
+			if e = j.verify(); e != nil {
+				t.Fatalf("positive current identity control: %v", e)
+			}
+			original := sp.Directory()
+			current := carrierJournalName
+			temporary := "." + current + ".tmp"
+			var foreign, held string
+			var expected map[string][]byte
+			fired := 0
+			e = j.writeWith(ctx, j.current, func() error {
+				fired++
+				switch mode {
+				case "named-segment-replacement":
+					held = original + ".held"
+					if e := os.Rename(original, held); e != nil {
+						return e
+					}
+					if e := os.Mkdir(original, 0700); e != nil {
+						return e
+					}
+					foreign = original
+				case "ancestor-symlink":
+					parent := filepath.Dir(original)
+					held = filepath.Join(parent+".held", filepath.Base(original))
+					if e := os.Rename(parent, parent+".held"); e != nil {
+						return e
+					}
+					target := filepath.Join(filepath.Dir(parent), "foreign")
+					foreign = filepath.Join(target, filepath.Base(original))
+					if e := os.MkdirAll(foreign, 0700); e != nil {
+						return e
+					}
+					if e := os.Symlink(target, parent); e != nil {
+						return e
+					}
+				case "foreign-temporary-after-precheck":
+					foreign = original
+					expected = map[string][]byte{current: append([]byte(nil), j.body...), temporary: []byte("foreign temp must survive\n")}
+					return os.WriteFile(filepath.Join(foreign, temporary), expected[temporary], 0600)
+				case "foreign-current-after-precheck":
+					foreign = original
+					expected = map[string][]byte{current: []byte("foreign current must survive\n")}
+					replacement := filepath.Join(original, "replacement.json")
+					if e := os.WriteFile(replacement, expected[current], 0600); e != nil {
+						return e
+					}
+					return os.Rename(replacement, filepath.Join(original, current))
+				}
+				expected = map[string][]byte{current: []byte("foreign current untouched\n"), temporary: []byte("foreign temp untouched\n"), "sentinel": []byte("foreign sentinel untouched\n")}
+				for name, body := range expected {
+					if e := os.WriteFile(filepath.Join(foreign, name), body, 0600); e != nil {
+						return e
+					}
+				}
+				return nil
+			})
+			if fired != 1 {
+				t.Fatalf("mutation seam fired=%d", fired)
+			}
+			if e == nil || !j.failed {
+				t.Fatalf("namespace drift accepted error=%v failed=%t", e, j.failed)
+			}
+			for name, body := range expected {
+				actual, e := os.ReadFile(filepath.Join(foreign, name))
+				if e != nil || !bytes.Equal(actual, body) {
+					t.Fatalf("foreign bytes changed name=%s got=%q want=%q error=%v", name, actual, body, e)
+				}
+			}
+			if held != "" {
+				retained, e := os.ReadFile(filepath.Join(held, temporary))
+				if e != nil || len(retained) == 0 || len(retained) > contract.GitFilterJournalLimit+1 {
+					t.Fatalf("original held temp not retained: bytes=%d error=%v", len(retained), e)
+				}
+				var snapshot carrierJournalSnapshot
+				if json.Unmarshal(retained, &snapshot) != nil || snapshot.Ordinal != 2 {
+					t.Fatal("retained temp not original bounded write")
+				}
+				prior, e := os.ReadFile(filepath.Join(held, current))
+				if e != nil || !bytes.Equal(prior, j.body) {
+					t.Fatal("original current changed despite namespace rejection", e)
+				}
+				entries, e := os.ReadDir(foreign)
+				if e != nil {
+					t.Fatal(e)
+				}
+				if len(entries) != len(expected) {
+					t.Fatalf("foreign inventory changed=%d expected=%d", len(entries), len(expected))
+				}
+			}
+			if _, e = j.cleanup(nil); e == nil {
+				t.Fatal("failed journal produced cleanup authority")
+			}
+			t.Logf("seam=%s fired=1 foreign_bytes_unchanged=true journal_failed=true cleanup_rejected=true", mode)
+		})
+	}
+}

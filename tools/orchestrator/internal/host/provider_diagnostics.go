@@ -26,7 +26,7 @@ type providerDiagnosticReport struct {
 // Capture only allowlisted event/tool categories from the already bounded
 // process buffer. Prompts, tool arguments, messages and environment are omitted.
 func providerDiagnostics(output string) providerDiagnosticReport {
-	result := providerDiagnosticReport{ToolErrors: map[string]int{}, ResultShapes: map[string]int{}, Version: 1, Bytes: len(output), Truncated: len(output) >= 1024*1024, Events: map[string]int{}, SystemSubtypes: map[string]int{}, Tools: map[string]int{}, StreamDeniedTools: map[string]int{}, StreamDenialReasons: map[string]int{}}
+	result := providerDiagnosticReport{ToolErrors: map[string]int{}, ResultShapes: map[string]int{}, Version: 1, Bytes: len(output), Events: map[string]int{}, SystemSubtypes: map[string]int{}, Tools: map[string]int{}, StreamDeniedTools: map[string]int{}, StreamDenialReasons: map[string]int{}}
 	category := func(value string, allowed string) string {
 		for _, entry := range strings.Split(allowed, "|") {
 			if value == entry {

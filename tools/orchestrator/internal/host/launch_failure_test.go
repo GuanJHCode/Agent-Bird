@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
@@ -50,7 +50,7 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}
-			meta := launchMetadata{commandID: "command", workRevision: 1, executionEpoch: 1}
+			meta := launchFailureMetadata(t, h, "run", a)
 			if err = h.recordLaunchFailed(a, "run", a.TaskID, meta, tc.cause); err != nil {
 				t.Fatal(err)
 			}
@@ -58,19 +58,15 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(got) != 2 || got[0].Kind != contract.EventFailed || got[1].Kind != contract.EventExited || got[0].Artifact == nil {
+			if len(got) != 1 || got[0].Kind != contract.EventLaunchRejected || got[0].Artifact == nil {
 				t.Fatalf("missing failed diagnostic: %#v", got)
 			}
 			e := got[0]
-			if e.Process != nil || e.ExitCode == nil || *e.ExitCode != -1 {
+			if e.Process != nil || e.ExitCode != nil || e.ActiveMS != 0 {
 				t.Fatalf("failure changed process outcome: %+v", e)
 			}
-			if e.Artifact.ID != "launch-failure" || e.Artifact.Path != filepath.Join(root, a.ID, a.SegmentID, "launch-failure", "result-output.bin") {
+			if e.Artifact.ID != "launch-failure" || e.Artifact.HostArtifact == nil {
 				t.Fatalf("diagnostic occupied candidate path: %+v", e.Artifact)
-			}
-			_, recovered, recoverErr := readRecoveredLaunchFailure(e.Artifact.Path)
-			if recoverErr != nil || string(recovered) != tc.code {
-				t.Fatalf("diagnostic recovery: %s %v", recovered, recoverErr)
 			}
 			body, err := os.ReadFile(e.Artifact.Path)
 			if err != nil {
@@ -94,22 +90,29 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			if err != nil || info.Mode().Perm() != 0600 {
 				t.Fatalf("artifact mode: %v %v", info, err)
 			}
-			sp, err := events.Open(filepath.Join(root, a.ID, a.SegmentID))
-			if err != nil {
-				t.Fatal(err)
+			var desc artifacts.HostSlotDescriptor
+			var proof artifacts.Proof
+			if err = json.Unmarshal(e.Artifact.HostArtifact.Descriptor, &desc); err != nil || json.Unmarshal(e.Artifact.HostArtifact.Proof, &proof) != nil {
+				t.Fatalf("invalid managed failure receipt: %v", err)
 			}
-			var launch map[string]any
-			if err = sp.ReadMetadata("launch.json", &launch); err != nil {
-				t.Fatal(err)
+			if meta.artifactGrant == nil || desc.ReservationID != meta.artifactGrant.HostArtifacts.TerminalReservationID || desc.ScopeSHA256 != meta.artifactGrant.HostArtifacts.ScopeSHA256 || desc.Class != "terminal" || desc.Index != 0 || desc.Kind != "prelaunch" || artifacts.VerifyHostSlotAndCommit(context.Background(), root, desc, proof, func() error { return nil }) != nil {
+				t.Fatalf("failure receipt is not bound to its managed terminal slot: %+v", desc)
 			}
-			if launch["phase"] != "exited" || launch["cause_code"] != tc.code {
-				t.Fatalf("lost safe cause on exit: %+v", launch)
+			verifiedBody, recoverErr := artifacts.ReadVerifiedHostSlot(context.Background(), root, desc, proof)
+			if recoverErr != nil {
+				t.Fatal(recoverErr)
 			}
-			if _, err = os.Stat(filepath.Join(root, a.ID, a.SegmentID, "result-output.bin")); !errors.Is(err, os.ErrNotExist) {
-				t.Fatalf("root result path occupied: %v", err)
+			recovered, recoverErr := decodeRecoveredLaunchFailure(verifiedBody)
+			if recoverErr != nil || string(recovered) != tc.code {
+				t.Fatalf("diagnostic recovery: %s %v", recovered, recoverErr)
 			}
 		})
 	}
+}
+
+func launchFailureMetadata(t *testing.T, h *Host, runID string, a store.Attempt) launchMetadata {
+	t.Helper()
+	return metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{CommandID: "failure-" + a.SegmentID, ReservationID: "reservation-" + a.SegmentID, RunID: runID, TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: 1, GrantedActiveMS: 1000}))
 }
 
 // Source fallback after an execution error must not replace original evidence.
@@ -127,8 +130,8 @@ func TestLaunchFailurePreservesExistingTerminalEvidence(t *testing.T) {
 				t.Fatal(err)
 			}
 			meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
-			path, err := sp.WriteArtifact([]byte("existing candidate or failure evidence"))
-			if err != nil {
+			path := filepath.Join(root, a.ID, a.SegmentID, "legacy-evidence.bin")
+			if err := os.WriteFile(path, []byte("existing candidate or failure evidence"), 0600); err != nil {
 				t.Fatal(err)
 			}
 			if _, err = h.appendPhaseEvent(sp, "r", "t", a, meta, kind, "existing-hash", nil, nil, nil); err != nil {
@@ -188,7 +191,7 @@ func TestLaunchFailureRejectsAmbiguousPartialEvidence(t *testing.T) {
 			meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
 			switch mode {
 			case "artifact":
-				_, err = sp.WriteArtifact([]byte("keep"))
+				err = os.WriteFile(filepath.Join(root, a.ID, a.SegmentID, "legacy-evidence.bin"), []byte("keep"), 0600)
 			case "process":
 				_, err = h.appendPhaseEvent(sp, "r", "t", a, meta, contract.EventSpawned, "spawn", &process.Identity{PID: 123, PGID: 123, BirthKnown: true, Birth: "birth"}, nil, nil)
 			case "partial-result":
@@ -212,6 +215,72 @@ func TestLaunchFailureRejectsAmbiguousPartialEvidence(t *testing.T) {
 	}
 }
 
+// events.go publishes a record once os.Link has made it durable, so
+// ExecuteLaunch can fail after its exited event is already on disk. The unknown
+// fallback must then preserve that confirmed terminal instead of appending a
+// second one; the sibling recordLaunchFailed already refuses both kinds.
+func TestLaunchUnknownNeverAppendsAfterDurableExited(t *testing.T) {
+	for _, prior := range [][]string{
+		{contract.EventExited},
+		{contract.EventResult, contract.EventExited},
+		{contract.EventFailed, contract.EventExited},
+	} {
+		name := strings.Join(prior, "+")
+		t.Run(name, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "spool")
+			h, err := NewIPC(root, "unknown-producer")
+			if err != nil {
+				t.Fatal(err)
+			}
+			a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
+			sp, err := h.spool(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
+			for index, kind := range prior {
+				if _, err = h.appendPhaseEvent(sp, "r", "t", a, meta, kind, fmt.Sprintf("hash-%d", index), nil, nil, nil); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err = sp.WriteMetadata("launch.json", map[string]any{"phase": "exited", "marker": "original"}); err != nil {
+				t.Fatal(err)
+			}
+			before, err := h.Collect(context.Background(), a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = h.ensureLaunchUnknown(a, "r", "t", meta, errors.New("host died after publishing exited")); err != nil {
+				t.Fatalf("fallback over confirmed terminal: %v", err)
+			}
+			after, err := h.Collect(context.Background(), a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(before, after) {
+				t.Fatalf("unknown fallback appended to a durable exited: before=%v after=%v", eventKinds(before), eventKinds(after))
+			}
+			records, err := sp.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			terminals := 0
+			for _, record := range records {
+				if record.Kind == contract.EventUnknown || record.Kind == contract.EventExited {
+					terminals++
+				}
+			}
+			if terminals != 1 {
+				t.Fatalf("segment carries %d process terminals: %#v", terminals, records)
+			}
+			var launch map[string]any
+			if err = sp.ReadMetadata("launch.json", &launch); err != nil || launch["marker"] != "original" {
+				t.Fatalf("launch metadata changed: %+v %v", launch, err)
+			}
+		})
+	}
+}
+
 type launchFailureDBSink struct{ db *store.DB }
 
 func (s launchFailureDBSink) SendEvent(ctx context.Context, _ uint64, e contract.Event) (contract.DurableAck, error) {
@@ -221,7 +290,8 @@ func (s launchFailureDBSink) SendEvent(ctx context.Context, _ uint64, e contract
 // An artifact must not upgrade failed status into an acceptable candidate.
 func TestLaunchFailureDiagnosticCannotBeAcceptedOrReleaseCandidateDependency(t *testing.T) {
 	ctx := context.Background()
-	db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
+	state := t.TempDir()
+	db, err := store.Open(filepath.Join(state, "state.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,13 +311,13 @@ func TestLaunchFailureDiagnosticCannotBeAcceptedOrReleaseCandidateDependency(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	spoolRoot := filepath.Join(t.TempDir(), "spool")
+	spoolRoot := filepath.Join(state, "host-spool", id)
 	h, err := NewIPC(spoolRoot, id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-	if err = h.recordLaunchFailed(a, "r", a.TaskID, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: 1}, errors.New("invalid_json")); err != nil {
+	if err = h.recordLaunchFailed(a, "r", a.TaskID, metadataForLaunch(grant), errors.New("invalid_json")); err != nil {
 		t.Fatal(err)
 	}
 	if err = h.PublishAll(ctx, launchFailureDBSink{db}, 1); err != nil {
@@ -272,7 +342,7 @@ func TestLaunchFailureDiagnosticCannotBeAcceptedOrReleaseCandidateDependency(t *
 	if _, err = os.ReadFile(e.Artifact.Path); err != nil {
 		t.Fatalf("nested artifact lost after durable ACK/reopen: %v", err)
 	}
-	if e.Kind != contract.EventFailed {
+	if e.Kind != contract.EventLaunchRejected {
 		t.Fatalf("diagnostic became result: %+v", e)
 	}
 	_, err = db.ReviewResult(ctx, store.ReviewSpec{TaskID: "edit", WorkRevision: grant.WorkRevision, EventID: e.EventID, EventRevision: e.EventRevision, EventHash: e.PayloadHash, ActionSlot: e.ActionSlot, Decision: "accept", CommandID: "accept"})
@@ -294,7 +364,7 @@ func TestLaunchFailureAfterPreparedAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
+	meta := launchFailureMetadata(t, h, "r", a)
 	if _, err = h.appendPhaseEvent(sp, "r", "t", a, meta, contract.EventPrepared, "prepared", nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -305,7 +375,7 @@ func TestLaunchFailureAfterPreparedAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(before) != 3 || before[0].Kind != contract.EventPrepared || before[1].Kind != contract.EventFailed || before[1].Artifact == nil || before[2].Kind != contract.EventExited {
+	if len(before) != 2 || before[0].Kind != contract.EventPrepared || before[1].Kind != contract.EventLaunchRejected || before[1].Artifact == nil {
 		t.Fatalf("prepared failure=%+v", before)
 	}
 	if err = h.recordLaunchFailed(a, "r", "t", meta, errors.New("invalid_json")); err != nil {
@@ -315,13 +385,13 @@ func TestLaunchFailureAfterPreparedAndReplay(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(before, after) {
 		t.Fatalf("duplicate failure changed evidence: %v", err)
 	}
-	if err = sp.AckThrough(before[2].Sequence); err != nil {
+	if err = sp.AckThrough(before[1].Sequence); err != nil {
 		t.Fatal(err)
 	}
-	if err = sp.AckThrough(before[2].Sequence); err != nil {
+	if err = sp.AckThrough(before[1].Sequence); err != nil {
 		t.Fatal(err)
 	}
-	pending, err := sp.ReadAfter(before[2].Sequence)
+	pending, err := sp.ReadAfter(before[1].Sequence)
 	if err != nil || len(pending) != 0 {
 		t.Fatalf("ACK replay pending=%d err=%v", len(pending), err)
 	}
@@ -357,13 +427,13 @@ func TestLaunchFailureDoesNotReclassifyUnknown(t *testing.T) {
 	}
 }
 
-// A crash after artifact fsync and before failed event append must reuse the
-// original cause/hash, not loop forever conflicting with a new generic cause.
+// A crash after artifact fsync preserves the diagnostic and its original hash,
+// but a new Host cannot manufacture never-started or process-exit proof.
 func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 	for _, metadata := range []bool{false, true} {
 		t.Run(fmt.Sprint(metadata), func(t *testing.T) {
 			root := filepath.Join(t.TempDir(), "spool")
-			grant := contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000}
+			grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", HostID: "host", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000})
 			h, err := NewIPC(root, "host")
 			if err != nil {
 				t.Fatal(err)
@@ -372,24 +442,14 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
-			sp, err := h.spool(a)
-			if err != nil {
-				t.Fatal(err)
-			}
-			diagnostic, err := events.Open(filepath.Join(root, "a", "s", "launch-failure"))
-			if err != nil {
-				t.Fatal(err)
-			}
 			original := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
-			path, err := diagnostic.WriteArtifact(original)
+			meta := metadataForLaunch(grant)
+			ref, err := h.writeHostArtifact(meta, "terminal", 0, "prelaunch", "launch-failure", original)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if metadata {
-				if err = sp.WriteMetadata("launch.json", map[string]any{"phase": "failed", "cause_code": "invocation_payload_invalid"}); err != nil {
-					t.Fatal(err)
-				}
-			}
+			path := ref.Path
+			_ = metadata // The descriptor/proof, rather than launch.json, is the durable pre-event evidence.
 			restarted, err := NewIPC(root, "host")
 			if err != nil {
 				t.Fatal(err)
@@ -402,7 +462,7 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 				t.Fatalf("pre-event artifact recovery failed: %v", err)
 			}
 			records, err := restarted.Collect(context.Background(), a)
-			if err != nil || len(records) != 2 || records[0].Kind != contract.EventFailed || records[1].Kind != contract.EventExited || records[0].Artifact == nil {
+			if err != nil || len(records) != 1 || records[0].Kind != contract.EventUnknown || records[0].Artifact == nil {
 				t.Fatalf("recovered events=%+v err=%v", records, err)
 			}
 			body, err := os.ReadFile(path)
@@ -412,10 +472,6 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 			sum := sha256.Sum256(original)
 			if records[0].PayloadHash != hex.EncodeToString(sum[:]) || records[0].Artifact.SHA256 != records[0].PayloadHash {
 				t.Fatal("recovery changed artifact binding")
-			}
-			var phase map[string]any
-			if err = sp.ReadMetadata("launch.json", &phase); err != nil || phase["phase"] != "exited" || phase["cause_code"] != "invocation_payload_invalid" {
-				t.Fatalf("recovery lost original cause: %+v %v", phase, err)
 			}
 			if err = restarted.recoverDuplicateGrant(grant, 2); err != nil {
 				t.Fatal(err)
@@ -450,29 +506,33 @@ func TestLaunchFailureRecoveryRejectsUntrustedDiagnostic(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			grant := contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000}
+			grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", HostID: "host", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000})
 			if _, err = h.acceptGrant(grant); err != nil {
 				t.Fatal(err)
 			}
 			a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
-			if _, err = h.spool(a); err != nil {
+			validBody := []byte(valid)
+			ref, err := h.writeHostArtifact(metadataForLaunch(grant), "terminal", 0, "prelaunch", "launch-failure", validBody)
+			if err != nil {
 				t.Fatal(err)
 			}
-			dir := filepath.Join(root, "a", "s", "launch-failure")
-			if _, err = events.Open(dir); err != nil {
-				t.Fatal(err)
-			}
-			path := filepath.Join(dir, "result-output.bin")
+			path := ref.Path
 			target := path
 			if tc.symlink {
 				target = filepath.Join(t.TempDir(), "outside")
 			}
-			mode := os.FileMode(0600)
-			if tc.public {
-				mode = 0644
+			if tc.symlink {
+				if err = os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
 			}
-			if err = os.WriteFile(target, []byte(tc.body), mode); err != nil {
+			if err = os.WriteFile(target, []byte(tc.body), 0600); err != nil {
 				t.Fatal(err)
+			}
+			if tc.public {
+				if err = os.Chmod(path, 0644); err != nil {
+					t.Fatal(err)
+				}
 			}
 			if tc.symlink {
 				if err = os.Symlink(target, path); err != nil {
@@ -500,7 +560,7 @@ func TestLaunchFailureRecoveryKeepsPartialTerminalUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000}
+	grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", HostID: "host", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000})
 	if _, err = h.acceptGrant(grant); err != nil {
 		t.Fatal(err)
 	}
@@ -509,13 +569,12 @@ func TestLaunchFailureRecoveryKeepsPartialTerminalUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	diagnostic, err := events.Open(filepath.Join(root, "a", "s", "launch-failure"))
-	if err != nil {
+	body := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
+	path := filepath.Join(root, "a", "s", "launch-failure", "result-output.bin")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
-	body := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
-	path, err := diagnostic.WriteArtifact(body)
-	if err != nil {
+	if err := os.WriteFile(path, body, 0600); err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(body)

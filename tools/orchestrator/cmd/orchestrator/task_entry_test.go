@@ -136,9 +136,9 @@ func TestTaskRunChecksProviderBeforeBinding(t *testing.T) {
 		name, help, want string
 		tamper           bool
 	}{
-		{"supported", "--output-format --input-format --permission-mode --disallowed-tools", "current_codex_thread_unavailable", false},
-		{"missing_guard", "--output-format --input-format --permission-mode", "provider_capability_unsupported", false},
-		{"changed_binary", "--output-format --input-format --permission-mode --disallowed-tools", "binary_sha256_mismatch", true},
+		{"supported", "--output-format --input-format --permission-mode --disallowed-tools --json-schema", "current_codex_thread_unavailable", false},
+		{"missing_guard", "--output-format --input-format --permission-mode --json-schema", "provider_capability_unsupported", false},
+		{"changed_binary", "--output-format --input-format --permission-mode --disallowed-tools --json-schema", "binary_sha256_mismatch", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := privateTaskTemp(t)

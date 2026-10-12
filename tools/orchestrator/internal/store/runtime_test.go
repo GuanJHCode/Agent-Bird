@@ -113,12 +113,18 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	commit := func(command contract.LaunchCommand, kind string, activeMS int64) contract.DurableAck {
 		t.Helper()
 		seq++
+		exit := 0
 		event := contract.Event{
 			Version: 1, ProducerID: hostID, EventID: "event-" + command.SegmentID + "-" + kind,
 			RunID: command.RunID, TaskID: command.TaskID, AttemptID: command.AttemptID,
 			SegmentID: command.SegmentID, WorkRevision: 1, ExecutionEpoch: 2,
 			CommandID: command.CommandID, Sequence: seq, Kind: kind,
 			PayloadHash: "hash-" + command.TaskID + "-" + kind, ActiveMS: activeMS,
+		}
+		// This fixture simulates a clean OS exit; the store guard only settles
+		// a durable result as result_ready for an explicitly zero exit code.
+		if kind == contract.EventExited {
+			event.ExitCode = &exit
 		}
 		ack, commitErr := db.CommitHostEvent(ctx, event)
 		if commitErr != nil {
@@ -400,6 +406,7 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	}
 	exit := 0
 	question.Sequence, question.EventID, question.Kind, question.PayloadHash, question.ExitCode = 2, hostID+":2", contract.EventExited, strings.Repeat("b", 64), &exit
+	question.ActiveMS = 100 // Settled measurement leaves room for the answer segment.
 	if _, err = db.CommitHostEvent(ctx, question); err != nil {
 		t.Fatal(err)
 	}
@@ -421,7 +428,7 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resumed.AttemptID != grant.AttemptID || resumed.SegmentID == grant.SegmentID || resumed.Answer != "Use the narrow API." || resumed.SessionID != "conversation-1" || resumed.QuestionID != "question-1" {
+	if resumed.AttemptID != grant.AttemptID || resumed.SegmentID == grant.SegmentID || resumed.Answer != "Use the narrow API." || resumed.SessionID != "conversation-1" || resumed.QuestionID != "question-1" || resumed.GrantedActiveMS != 3_599_900 {
 		t.Fatalf("resumed=%#v initial=%#v", resumed, grant)
 	}
 	ackEvent(t, db, grant.TaskID, questionPage.Events[0], "handled")
@@ -452,8 +459,7 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	commit := func(grant contract.LaunchCommand, sequence int64, kind, hash string) {
-		exit := 1
+	commit := func(grant contract.LaunchCommand, sequence int64, kind, hash string, exit int) {
 		event := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("%s:%d", hostID, sequence), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: sequence, Kind: kind, PayloadHash: hash, ExitCode: &exit}
 		// This fallback fixture models a measured short execution. Missing
 		// ActiveMS now conservatively consumes the full segment grant.
@@ -464,8 +470,8 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 			t.Fatal(commitErr)
 		}
 	}
-	commit(first, 1, contract.EventFailed, strings.Repeat("c", 64))
-	commit(first, 2, contract.EventExited, strings.Repeat("d", 64))
+	commit(first, 1, contract.EventFailed, strings.Repeat("c", 64), 1)
+	commit(first, 2, contract.EventExited, strings.Repeat("d", 64), 1)
 	failurePage, err := db.CollectPending(ctx, first.TaskID, "", 0, false)
 	if err != nil || len(failurePage.Events) != 1 {
 		t.Fatalf("failure events=%#v err=%v", failurePage.Events, err)
@@ -479,8 +485,8 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if err != nil || second.AttemptID == first.AttemptID || string(second.AdapterPayload) != string(fallback) {
 		t.Fatalf("fallback grant=%#v err=%v", second, err)
 	}
-	commit(second, 3, contract.EventResult, strings.Repeat("e", 64))
-	commit(second, 4, contract.EventExited, strings.Repeat("f", 64))
+	commit(second, 3, contract.EventResult, strings.Repeat("e", 64), 0)
+	commit(second, 4, contract.EventExited, strings.Repeat("f", 64), 0)
 	if snapshot, snapshotErr := db.TaskSnapshot(ctx, first.TaskID); snapshotErr != nil || snapshot.Status != "result_ready" {
 		t.Fatalf("result snapshot=%#v err=%v", snapshot, snapshotErr)
 	}
@@ -510,8 +516,8 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if err != nil || third.AttemptID == second.AttemptID || string(third.AdapterPayload) != string(fallback) {
 		t.Fatalf("third grant=%#v err=%v", third, err)
 	}
-	commit(third, 5, contract.EventResult, strings.Repeat("1", 64))
-	commit(third, 6, contract.EventExited, strings.Repeat("2", 64))
+	commit(third, 5, contract.EventResult, strings.Repeat("1", 64), 0)
+	commit(third, 6, contract.EventExited, strings.Repeat("2", 64), 0)
 	eventPage, err = db.CollectPending(ctx, first.TaskID, "", 0, false)
 	if err != nil || len(eventPage.Events) != 3 {
 		t.Fatalf("events after rework=%#v err=%v", eventPage.Events, err)
@@ -729,6 +735,11 @@ func TestReportReplayBindsKindAndProgressCannotConsumeCriticalReserve(t *testing
 	if _, progressErr := db.CommitReportEvent(ctx, secondProgress); progressErr == nil || progressErr.Error() != "storage_blocked" {
 		t.Fatalf("progress disk reserve err=%v", progressErr)
 	}
+	// Critical reports may use the emergency reserve but must still leave
+	// the complete outstanding Host artifact promise available.
+	db.storageAvailable = func(string) (uint64, error) {
+		return 10*1024 + uint64(contract.HostArtifactReservedBytes+hostArtifactManifestReservationBytes), nil
+	}
 	artifactPath := filepath.Join(capabilityDir, "result.json")
 	artifactData := []byte("terminal-result")
 	if err = os.WriteFile(artifactPath, artifactData, 0o600); err != nil {
@@ -846,6 +857,7 @@ func TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes(t *testing.
 	exit := 0
 	sequence++
 	exited := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("host-session-%d", sequence), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: sequence, Kind: contract.EventExited, PayloadHash: fmt.Sprintf("%064x", sequence), ExitCode: &exit}
+	exited.ActiveMS = 100 // Positive measurement preserves answer-segment budget.
 	if _, err = db.CommitHostEvent(ctx, exited); err != nil {
 		t.Fatal(err)
 	}
@@ -853,7 +865,7 @@ func TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes(t *testing.
 		t.Fatalf("answer status=%q err=%v", status, answerErr)
 	}
 	resumed, err := db.ClaimReady(ctx, hostID, 1, 2)
-	if err != nil || resumed.AttemptID != grant.AttemptID || resumed.SessionKind != "conversation-id" || resumed.SessionID != "trusted-session-1" || resumed.Answer != "Use the narrow boundary." {
+	if err != nil || resumed.AttemptID != grant.AttemptID || resumed.SessionKind != "conversation-id" || resumed.SessionID != "trusted-session-1" || resumed.Answer != "Use the narrow boundary." || resumed.GrantedActiveMS != 3_599_900 {
 		t.Fatalf("resumed=%#v err=%v", resumed, err)
 	}
 }

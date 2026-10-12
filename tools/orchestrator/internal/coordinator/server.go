@@ -3,6 +3,7 @@ package coordinator
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -23,34 +24,39 @@ import (
 )
 
 type TaskRequest struct {
-	ID                     string            `json:"id"`
-	Dependencies           []string          `json:"dependencies,omitempty"`
-	MaxAttempts            int               `json:"max_attempts"`
-	WorkRevision           int               `json:"work_revision,omitempty"`
-	BudgetGroupID          string            `json:"budget_group_id,omitempty"`
-	MaxActiveMS            int64             `json:"max_active_ms,omitempty"`
-	AdapterPayload         json.RawMessage   `json:"adapter"`
-	Fallbacks              []json.RawMessage `json:"fallbacks,omitempty"`
-	CompletionPolicy       string            `json:"completion_policy,omitempty"`
-	ExpectedArtifactSHA256 string            `json:"expected_artifact_sha256,omitempty"`
+	Diagnostics            *contract.DiagnosticsPolicy `json:"diagnostics,omitempty"`
+	ExecutionPolicy        *contract.ExecutionPolicy   `json:"execution_policy,omitempty"`
+	ID                     string                      `json:"id"`
+	Dependencies           []string                    `json:"dependencies,omitempty"`
+	MaxAttempts            int                         `json:"max_attempts"`
+	WorkRevision           int                         `json:"work_revision,omitempty"`
+	BudgetGroupID          string                      `json:"budget_group_id,omitempty"`
+	MaxActiveMS            int64                       `json:"max_active_ms,omitempty"`
+	AdapterPayload         json.RawMessage             `json:"adapter"`
+	Fallbacks              []json.RawMessage           `json:"fallbacks,omitempty"`
+	CompletionPolicy       string                      `json:"completion_policy,omitempty"`
+	ExpectedArtifactSHA256 string                      `json:"expected_artifact_sha256,omitempty"`
 }
 
 type SubmitRequest struct {
-	OwnerMode        string        `json:"owner_mode,omitempty"`
-	DeliveryMode     string        `json:"delivery_mode,omitempty"`
-	RunID            string        `json:"run_id"`
-	ControllerThread string        `json:"controller_thread"`
-	PlanRevision     int           `json:"plan_revision"`
-	OriginContextID  string        `json:"origin_context_id"`
-	OriginPID        int           `json:"origin_pid"`
-	OriginBirth      string        `json:"origin_birth"`
-	HostGeneration   string        `json:"host_generation"`
-	OwnerCapability  string        `json:"owner_capability,omitempty"`
-	HostExecutable   string        `json:"host_executable"`
-	Tasks            []TaskRequest `json:"tasks"`
-	LaunchID         string        `json:"launch_id,omitempty"`
-	LaunchToken      string        `json:"launch_token,omitempty"`
-	ControlToken     string        `json:"control_token,omitempty"`
+	NewBaseRework        *store.NewBaseReworkSpec    `json:"new_base_rework,omitempty"`
+	NewBaseAuthorization *store.NewBaseAuthorization `json:"new_base_authorization,omitempty"`
+	OwnerLaunchProtocol  int                         `json:"owner_launch_protocol,omitempty"`
+	OwnerMode            string                      `json:"owner_mode,omitempty"`
+	DeliveryMode         string                      `json:"delivery_mode,omitempty"`
+	RunID                string                      `json:"run_id"`
+	ControllerThread     string                      `json:"controller_thread"`
+	PlanRevision         int                         `json:"plan_revision"`
+	OriginContextID      string                      `json:"origin_context_id"`
+	OriginPID            int                         `json:"origin_pid"`
+	OriginBirth          string                      `json:"origin_birth"`
+	HostGeneration       string                      `json:"host_generation"`
+	OwnerCapability      string                      `json:"owner_capability,omitempty"`
+	HostExecutable       string                      `json:"host_executable"`
+	Tasks                []TaskRequest               `json:"tasks"`
+	LaunchID             string                      `json:"launch_id,omitempty"`
+	LaunchToken          string                      `json:"launch_token,omitempty"`
+	ControlToken         string                      `json:"control_token,omitempty"`
 }
 
 type SubmitResponse struct {
@@ -66,6 +72,11 @@ type TaskControlRequest struct {
 	ControllerThread string `json:"controller_thread"`
 	ControlToken     string `json:"control_token"`
 	WorkRevision     int    `json:"work_revision,omitempty"`
+}
+
+type CallResultRequest struct {
+	TaskControlRequest
+	Offset int `json:"offset"`
 }
 
 type CollectRequest struct {
@@ -104,6 +115,12 @@ type RetryRequest struct {
 
 type ReworkRequest struct {
 	store.ReworkSpec
+	ControllerThread string `json:"controller_thread"`
+	ControlToken     string `json:"control_token"`
+}
+
+type ResumeContinuationRequest struct {
+	store.ResumeContinuationSpec
 	ControllerThread string `json:"controller_thread"`
 	ControlToken     string `json:"control_token"`
 }
@@ -173,36 +190,109 @@ type ErrorResponse struct {
 }
 
 type hostSession struct {
-	id   string
-	conn net.Conn
-	mu   sync.Mutex
+	preBindRetry             bool                           // pending authenticated physical Host; Store registration occurs at Prepare
+	successorAuthorizationID string                         // private immutable selection; never decoded from HostHello
+	ownerPermit              *contract.OwnerControlPermit   // immutable before dispatch publication
+	ownerTicket              *contract.OwnerTransportTicket // immutable pending enrollment
+	ownerKey                 ed25519.PrivateKey
+	helloRequestID           string
+	transportClosed          atomic.Bool
+	supervised               bool
+	terminalSent             bool // guarded by send mu
+	id                       string
+	hello                    contract.HostHello
+	conn                     net.Conn
+	mu                       sync.Mutex
+	dispatchMu               sync.Mutex
+	failed                   bool // guarded by dispatchMu; a failed transport cannot claim again
 }
 
 func (h *hostSession) send(message ipc.Envelope) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if message.Kind == ipc.KindLaunch && h.terminalSent {
+		return store.ErrHostRejected
+	}
+	if message.Kind == ipc.KindHostDisposition {
+		h.terminalSent = true
+	}
+	if h.supervised {
+		_ = h.conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		defer h.conn.SetWriteDeadline(time.Time{})
+	}
 	return ipc.Write(h.conn, message)
 }
 
 type Server struct {
-	stateDir           string
-	socket             string
-	epoch              uint64
-	lock               *instance.Lock
-	db                 *store.DB
-	listener           net.Listener
-	mu                 sync.Mutex
-	hostRegistrationMu sync.Mutex
-	hosts              map[string]*hostSession
-	inFlight           int
-	close              sync.Once
-	idleTimeout        time.Duration
-	idleExit           atomic.Bool
-	eventMu            sync.Mutex
-	eventSignal        chan struct{}
+	gcCancel            context.CancelFunc
+	gcDone              chan struct{}
+	gcWake              chan struct{}
+	launchSupervisor    *contract.OriginalOwnerLaunchSupervisor // registration lock
+	launchChildren      map[string]*originalOwnerLaunchChild    // registration lock
+	cliSupervised       bool
+	ownerKeys           *originalOwnerKeys
+	stateDir            string
+	socket              string
+	epoch               uint64
+	lock                *instance.Lock
+	db                  *store.DB
+	listener            net.Listener
+	mu                  sync.Mutex
+	hostRegistrationMu  sync.Mutex
+	hosts               map[string]*hostSession
+	ownerTransports     map[string]*hostSession               // pending and active, guarded by mu
+	successorTransports map[string]*hostSession               // uncommitted successor sessions; never dispatched
+	ownerTickets        map[string]*ownerTransportTicketState // mutation holds registration and mu
+	ownerAdmission      chan struct{}
+	ownerRPCMu          sync.Mutex
+	ownerRPCs           map[net.Conn]struct{}
+	ownerRPCWG          sync.WaitGroup
+	ownerListener       net.Listener
+	ownerSocket         string
+	ownerAcceptDone     chan struct{}
+	// ownerRPCReplyHook is a narrow test seam for simulating a reply lost after
+	// the durable owner mutation. Production never installs it.
+	ownerRPCReplyHook func(contract.OwnerRPCRequest) bool
+	// Test-only loss after exact child credential redemption succeeds.
+	ownerTransportExchangeReplyHook func(contract.OwnerTransportTicket) bool
+	inFlight                        int
+	close                           sync.Once
+	idleTimeout                     time.Duration
+	idleExit                        atomic.Bool
+	eventMu                         sync.Mutex
+	eventSignal                     chan struct{}
+	bridgeMu                        sync.Mutex
+	bridgeConnections               map[net.Conn]struct{}
+	bridgeAdmission                 chan struct{}
+	bridgeClosing                   bool
+	bridgeWG                        sync.WaitGroup
+	lifecycleMu                     sync.Mutex
+	terminating                     atomic.Bool
+	closed                          atomic.Bool
 }
 
 func NewServer(stateDir string) (*Server, error) {
+	return newServer(stateDir, false)
+}
+
+// NewServerForRecovery never clears a durable normal-exit fence. The check is
+// made after acquiring the instance lock so an EOF cannot race Shutdown.
+func NewServerForRecovery(stateDir string) (*Server, error) {
+	return newServer(stateDir, true)
+}
+
+// NewCLIServer selects the durable supervised owner mode for native CLI
+// submissions.  NewServer remains legacy by default so embedders and existing
+// tests do not silently change their source-host protocol.
+func NewCLIServer(stateDir string, recovery bool) (*Server, error) {
+	s, err := newServer(stateDir, recovery)
+	if err == nil {
+		s.cliSupervised = true
+	}
+	return s, err
+}
+
+func newServer(stateDir string, recovery bool) (*Server, error) {
 	if err := instance.PrepareStateDir(stateDir); err != nil {
 		return nil, err
 	}
@@ -210,8 +300,29 @@ func NewServer(stateDir string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	intent, err := readRestartIntent(stateDir)
+	if err != nil || (recovery && intent.Blocked) {
+		_ = lock.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, store.CodeError("coordinator_shutdown")
+	}
 	db, err := store.Open(filepath.Join(stateDir, "state.db"))
 	if err != nil {
+		_ = lock.Close()
+		return nil, err
+	}
+
+	owners, err := db.CurrentOriginalOwners(context.Background())
+	if err != nil {
+		_ = db.Close()
+		_ = lock.Close()
+		return nil, err
+	}
+	ownerKeys, err := loadOriginalOwnerKeys(stateDir, owners)
+	if err != nil {
+		_ = db.Close()
 		_ = lock.Close()
 		return nil, err
 	}
@@ -221,6 +332,11 @@ func NewServer(stateDir string) (*Server, error) {
 		return nil, err
 	}
 	if err = db.BeginCoordinatorEpoch(context.Background(), lock.Epoch()); err != nil {
+		_ = db.Close()
+		_ = lock.Close()
+		return nil, err
+	}
+	if err = db.RecoverBridgeDelivery(context.Background()); err != nil {
 		_ = db.Close()
 		_ = lock.Close()
 		return nil, err
@@ -254,13 +370,28 @@ func NewServer(stateDir string) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
-	server := &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{})}
+	server := &Server{ownerKeys: ownerKeys, stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), ownerTransports: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
+	server.ownerAdmission = make(chan struct{}, 32)
+	server.successorTransports = make(map[string]*hostSession)
+	server.ownerRPCs = make(map[net.Conn]struct{})
+	if err = server.startOriginalOwnerListener(); err != nil {
+		_ = server.Close()
+		return nil, err
+	}
+	if !recovery {
+		if err := clearGlobalRestartBlock(stateDir, lock.Epoch()); err != nil {
+			_ = server.Close()
+			return nil, err
+		}
+	}
 	server.releaseTaskPins()
+	server.startDiagnosticsGC()
 	return server, nil
 }
 
-func (s *Server) SocketPath() string { return s.socket }
-func (s *Server) Epoch() uint64      { return s.epoch }
+func (s *Server) SocketPath() string      { return s.socket }
+func (s *Server) Epoch() uint64           { return s.epoch }
+func (s *Server) OwnerSocketPath() string { return s.ownerSocket }
 
 func (s *Server) currentEventSignal() <-chan struct{} {
 	s.eventMu.Lock()
@@ -276,10 +407,23 @@ func (s *Server) notifyActionableEvent() {
 }
 
 func (s *Server) Serve(ctx context.Context) error {
+	stopBridgeCleanup := context.AfterFunc(ctx, s.closeBridgeConnections)
+	defer stopBridgeCleanup()
 	go func() {
 		<-ctx.Done()
+		if s.closed.Load() {
+			return
+		}
+		if s.beginLifecycleExit() == nil {
+			s.notifyLifecycleExit()
+		}
 		_ = s.listener.Close()
 	}()
+	dispatchCtx, stopDispatch := context.WithCancel(ctx)
+	defer stopDispatch()
+	dispatchDone := make(chan struct{})
+	go func() { defer close(dispatchDone); s.monitorRetryDispatch(dispatchCtx) }()
+	defer func() { stopDispatch(); <-dispatchDone }()
 	go s.monitorIdle(ctx)
 	for {
 		conn, err := s.listener.Accept()
@@ -293,7 +437,7 @@ func (s *Server) Serve(ctx context.Context) error {
 			return err
 		}
 		s.mu.Lock()
-		if s.idleExit.Load() {
+		if s.idleExit.Load() || s.terminating.Load() {
 			s.mu.Unlock()
 			_ = conn.Close()
 			continue
@@ -308,6 +452,27 @@ func (s *Server) Serve(ctx context.Context) error {
 			}()
 			s.handleConnection(ctx, conn)
 		}()
+	}
+}
+
+// Persisted eligibility is authoritative; this bounded wake only asks the
+// existing dispatcher to claim. Reconnects continue to replay the original grant.
+func (s *Server) monitorRetryDispatch(ctx context.Context) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if s.closed.Load() || s.terminating.Load() {
+				return
+			}
+			due, err := s.db.HasDuePolicyRetry(ctx)
+			if err == nil && due {
+				s.dispatchAll()
+			}
+		}
 	}
 }
 
@@ -334,8 +499,14 @@ func (s *Server) monitorIdle(ctx context.Context) {
 				since = time.Now()
 			} else if time.Since(since) >= s.idleTimeout {
 				s.idleExit.Store(true)
-				_ = s.listener.Close()
 				s.mu.Unlock()
+				if s.beginLifecycleExit() != nil {
+					s.idleExit.Store(false)
+					since = time.Time{}
+					continue
+				}
+				s.notifyLifecycleExit()
+				_ = s.listener.Close()
 				return
 			}
 		} else {
@@ -354,6 +525,9 @@ func (s *Server) monitorIdle(ctx context.Context) {
 // exit events. Work that cannot be confirmed before ctx expires remains
 // unknown and continues to occupy its reservation after restart.
 func (s *Server) Shutdown(ctx context.Context) error {
+	if err := s.beginLifecycleExit(); err != nil {
+		return err
+	}
 	active, err := s.db.ActiveTasks(context.Background())
 	if err != nil {
 		return err
@@ -370,6 +544,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 			_ = sendStop(host, s.epoch, dispatch.Command)
 		}
 	}
+	s.notifyLifecycleExit()
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -392,16 +567,54 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func (s *Server) Close() error {
 	var result error
 	s.close.Do(func() {
+		s.closed.Store(true)
+		if s.gcCancel != nil {
+			s.gcCancel()
+			<-s.gcDone
+		}
+		_ = s.listener.Close()
+		s.closeBridgeConnections()
+		s.bridgeWG.Wait()
+		if s.ownerListener != nil {
+			_ = s.ownerListener.Close()
+			<-s.ownerAcceptDone
+		}
+		s.ownerRPCMu.Lock()
+		for conn := range s.ownerRPCs {
+			_ = conn.Close()
+		}
+		s.ownerRPCMu.Unlock()
+		s.ownerRPCWG.Wait()
+		// RPCs can be waiting for registration while graceful exit waits for
+		// lifecycle. Drain with neither lock held, then use the common order.
+		s.hostRegistrationMu.Lock()
+		defer s.hostRegistrationMu.Unlock()
+		s.lifecycleMu.Lock()
+		defer s.lifecycleMu.Unlock()
 		s.mu.Lock()
 		for _, host := range s.hosts {
 			_ = host.conn.Close()
 		}
+		for _, host := range s.ownerTransports {
+			_ = host.conn.Close()
+		}
+		for _, host := range s.successorTransports {
+			_ = host.conn.Close()
+		}
+		s.successorTransports = nil
+		s.ownerTransports = nil
 		s.hosts = nil
 		s.mu.Unlock()
+		launchCloseCtx, launchCloseCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		result = errors.Join(result, s.closeOriginalOwnerLaunches(launchCloseCtx))
+		launchCloseCancel()
 		if err := s.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			result = err
 		}
 		_ = os.Remove(s.socket)
+		if s.ownerSocket != "" {
+			_ = os.Remove(s.ownerSocket)
+		}
 		if err := s.db.Close(); result == nil {
 			result = err
 		}
@@ -422,7 +635,23 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		s.handleHost(ctx, conn, message)
 		return
 	}
+	if message.Kind == ipc.KindHostRecoveryScope {
+		s.handleHostRecoveryScope(ctx, conn, message)
+		return
+	}
 	defer conn.Close()
+	if message.Kind == ipc.KindOwnerLaunchStatus {
+		s.handleOwnerLaunchStatus(ctx, conn, message)
+		return
+	}
+	if diagnosticsControlKind(message.Kind) || reportRetentionControlKind(message.Kind) {
+		s.handleDiagnosticsConnection(ctx, conn, message)
+		return
+	}
+	if bridgeKind(message.Kind) {
+		s.handleBridgeConnection(ctx, conn, message)
+		return
+	}
 	if message.Kind == ipc.KindHostProgress {
 		s.hostProgress(ctx, conn, message)
 		return
@@ -441,16 +670,102 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	s.handleControl(controlCtx, conn, message)
 }
 
+// Admission starts after the generic envelope frame has been decoded. It caps
+// bridge authorization and DB work, including a blocked bridge mutex wait.
+func (s *Server) handleBridgeConnection(parent context.Context, conn net.Conn, message ipc.Envelope) {
+	select {
+	case s.bridgeAdmission <- struct{}{}:
+		defer func() { <-s.bridgeAdmission }()
+	default:
+		_ = conn.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+		_ = sendError(conn, message.RequestID, s.epoch, store.CodeError("bridge_busy"))
+		return
+	}
+	s.bridgeMu.Lock()
+	if s.bridgeClosing {
+		s.bridgeMu.Unlock()
+		_ = sendError(conn, message.RequestID, s.epoch, store.CodeError("bridge_busy"))
+		return
+	}
+	s.bridgeWG.Add(1)
+	s.bridgeConnections[conn] = struct{}{}
+	s.bridgeMu.Unlock()
+	defer func() {
+		_ = conn.Close()
+		s.bridgeMu.Lock()
+		delete(s.bridgeConnections, conn)
+		s.bridgeMu.Unlock()
+		s.bridgeWG.Done()
+	}()
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if bridgeHookRole(message.Kind) {
+		ctx, cancel = context.WithTimeout(parent, 2*time.Second)
+	} else {
+		ctx, cancel = context.WithCancel(parent)
+	}
+	defer cancel()
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		var probe [1]byte
+		_, _ = conn.Read(probe[:])
+		cancel()
+	}()
+	defer func() { _ = conn.Close(); <-watchDone }()
+	payload, err := s.bridgeRPC(ctx, conn, message.Kind, message.Payload)
+	responseKind := ipc.KindResponse
+	if err != nil {
+		responseKind = ipc.KindError
+		payload, _ = json.Marshal(ErrorResponse{Error: bridgeErrorCode(err)})
+	}
+	_ = conn.SetWriteDeadline(time.Now().Add(200 * time.Millisecond))
+	_ = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: responseKind, RequestID: message.RequestID, Epoch: s.epoch, Payload: payload})
+}
+
+func bridgeHookRole(kind ipc.Kind) bool {
+	switch kind {
+	case ipc.KindBridgeIngest, ipc.KindBridgeClaim, ipc.KindBridgeBeginEmit, ipc.KindBridgeOffered:
+		return true
+	}
+	return false
+}
+
+func (s *Server) closeBridgeConnections() {
+	s.bridgeMu.Lock()
+	defer s.bridgeMu.Unlock()
+	s.bridgeClosing = true
+	for conn := range s.bridgeConnections {
+		_ = conn.Close()
+	}
+}
+
 func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.Envelope) {
 	var payload json.RawMessage
 	var err error
+	if diagnosticsControlKind(message.Kind) && !store.ValidDiagnosticsToken(message.RequestID) {
+		err = store.CodeError("diagnostics_request_invalid")
+	}
+	if reportRetentionControlKind(message.Kind) && !store.ValidDiagnosticsToken(message.RequestID) {
+		err = store.CodeError("report_retention_request_invalid")
+	}
+	if hostRetentionControlKind(message.Kind) && !store.ValidDiagnosticsToken(message.RequestID) {
+		err = store.CodeError("host_retention_request_invalid")
+	}
+	if candidateRetentionKind(message.Kind) && !store.ValidDiagnosticsToken(message.RequestID) {
+		err = store.CodeError("candidate_retention_request_invalid")
+	}
 	switch message.Kind {
-	case ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
+	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus, ipc.KindReportArtifactResolve, ipc.KindReportArtifactRetentionPlan, ipc.KindReportArtifactRetentionApply, ipc.KindReportGCEnable, ipc.KindReportGCDisable, ipc.KindReportGCStatus, ipc.KindHostArtifactResolve, ipc.KindHostArtifactRetentionPlan, ipc.KindHostArtifactRetentionApply, ipc.KindHostGCEnable, ipc.KindHostGCDisable, ipc.KindHostGCStatus, ipc.KindCandidateRetentionResolve, ipc.KindCandidateRetentionPlan, ipc.KindCandidateRetentionApply, ipc.KindCandidateGCEnable, ipc.KindCandidateGCDisable, ipc.KindCandidateGCStatus:
+		if err == nil {
+			ctx, err = s.authorizePeer(ctx, conn)
+		}
+	case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindRebindOwnerPublished, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
 		ctx, err = s.authorizePeer(ctx, conn)
 	}
 	if err == nil {
 		switch message.Kind {
-		case ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
+		case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwnerPublished, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
 			ancestry, _ := ctx.Value(peerAncestryKey{}).(map[int]string)
 			err = s.db.ValidateDispatchPeer(ctx, ancestry)
 		}
@@ -459,6 +774,18 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 		payload, err = s.control(ctx, message.Kind, message.Payload)
 	}
 	responseKind := ipc.KindResponse
+	if diagnosticsControlKind(message.Kind) {
+		err = diagnosticsControlError(err)
+	}
+	if reportRetentionControlKind(message.Kind) {
+		err = reportRetentionControlError(err)
+	}
+	if hostRetentionControlKind(message.Kind) {
+		err = hostRetentionControlError(err)
+	}
+	if candidateRetentionKind(message.Kind) {
+		err = candidateRetentionControlError(err)
+	}
 	if err != nil {
 		responseKind = ipc.KindError
 		payload, _ = json.Marshal(ErrorResponse{Error: errorCode(err)})
@@ -468,17 +795,33 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
+	case ipc.KindCandidateRetentionResolve, ipc.KindCandidateRetentionPlan, ipc.KindCandidateRetentionApply, ipc.KindCandidateGCEnable, ipc.KindCandidateGCDisable, ipc.KindCandidateGCStatus:
+		return s.candidateRetentionControl(ctx, kind, raw)
+	case ipc.KindHostArtifactResolve, ipc.KindHostArtifactRetentionPlan, ipc.KindHostArtifactRetentionApply, ipc.KindHostGCEnable, ipc.KindHostGCDisable, ipc.KindHostGCStatus:
+		return s.hostRetentionControl(ctx, kind, raw)
+	case ipc.KindReportArtifactResolve, ipc.KindReportArtifactRetentionPlan, ipc.KindReportArtifactRetentionApply, ipc.KindReportGCEnable, ipc.KindReportGCDisable, ipc.KindReportGCStatus:
+		return s.reportRetentionControl(ctx, kind, raw)
+	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus:
+		return s.diagnosticsControl(ctx, kind, raw)
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1", "diagnostics_delete_v1", "diagnostics_retention_v1", "diagnostics_gc_v1", "report_artifact_retention_v1", "report_gc_v1", "host_artifact_retention_v1", "host_gc_v1", "owner_rebind_publication_v1"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
 		return s.providerControl(ctx, raw)
+	case ipc.KindBudgetRevise:
+		return s.reviseBudget(ctx, raw)
+	case ipc.KindConfigGeneration:
+		return s.configGeneration(ctx, raw)
 	case ipc.KindSubmit:
 		var request SubmitRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
+		if (request.OwnerLaunchProtocol != 0 && request.OwnerLaunchProtocol != 2) || (request.OwnerLaunchProtocol == 2 && !s.cliSupervised) {
+			return nil, store.CodeError("owner_launch_protocol_unsupported")
+		}
+		var configGuard *install.ConfigSubmissionGuard
 		if request.OwnerMode == "local" {
 			g, err := s.localOwner(ctx, request.OwnerCapability)
 			if err != nil {
@@ -487,10 +830,35 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			if g.ControllerThread != request.ControllerThread || g.OriginContextID != request.OriginContextID || g.OriginPID != request.OriginPID || g.OriginBirth != request.OriginBirth || g.HostGeneration != request.HostGeneration {
 				return nil, store.CodeError("owner_capability_mismatch")
 			}
+			ref, err := ConfigGenerationForTasks(request.Tasks)
+			if err != nil {
+				return nil, err
+			}
+			if ref != nil {
+				exe, e := coordinatorConfigExecutable()
+				if e != nil {
+					return nil, e
+				}
+				configGuard, e = openConfigSubmission(request, exe, g)
+				if e != nil {
+					return nil, e
+				}
+				defer configGuard.Close()
+			}
+
 		} else if request.OwnerMode != "" && request.OwnerMode != "native" {
 			return nil, store.CodeError("owner_mode_invalid")
 		} else if err := s.db.ValidateOwnerRegistration(ctx); err != nil {
 			return nil, err
+		}
+		if request.OwnerMode != "local" {
+			ref, e := ConfigGenerationForTasks(request.Tasks)
+			if e != nil {
+				return nil, e
+			}
+			if ref != nil {
+				return nil, store.CodeError("config_generation_local_owner_required")
+			}
 		}
 		tasks := make([]store.TaskSpec, 0, len(request.Tasks))
 		for _, task := range request.Tasks {
@@ -498,9 +866,13 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			if policy == "" {
 				policy = "owner_review"
 			}
-			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
+			tasks = append(tasks, store.TaskSpec{Diagnostics: task.Diagnostics, ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, ExecutionPolicy: task.ExecutionPolicy, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
-		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
+		mode := "legacy"
+		if s.cliSupervised && (request.OwnerMode != "local" || configGuard != nil || request.OwnerLaunchProtocol == 2) {
+			mode = "supervised-v1"
+		}
+		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{NewBaseRework: request.NewBaseRework, NewBaseAuthorization: request.NewBaseAuthorization, ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: mode, OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {
 			return nil, err
 		}
@@ -512,11 +884,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		status, err := s.db.HostLaunchStatus(ctx, request.LaunchID, request.LaunchToken)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(StatusResponse{Status: status})
+		return s.hostPresence(ctx, request)
 	case ipc.KindSummary:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -540,6 +908,16 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			return nil, err
 		}
 		return json.Marshal(snapshot)
+	case ipc.KindCallResult:
+		var request CallResultRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		result, err := s.db.ReadCallResult(ctx, request.TaskID, request.ControllerThread, request.ControlToken, request.Offset)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(result)
 	case ipc.KindCollect:
 		var request CollectRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -595,18 +973,21 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		s.releaseTaskPins()
 		return json.Marshal(map[string]any{"version": 1, "status": "acknowledged", "delivery_id": request.DeliveryID})
 	case ipc.KindResume:
-		var request TaskControlRequest
+		return s.resumeControl(ctx, raw)
+	case ipc.KindResumeContinuation:
+		var request ResumeContinuationRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
 		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
-		if err := s.db.QueueResume(ctx, request.TaskID, request.WorkRevision); err != nil {
+		receipt, err := s.db.QueueContinuation(ctx, request.ResumeContinuationSpec)
+		if err != nil {
 			return nil, err
 		}
 		s.dispatchAll()
-		return json.Marshal(StatusResponse{Status: "resume_queued"})
+		return json.Marshal(receipt)
 	case ipc.KindRetry:
 		var request RetryRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -681,6 +1062,8 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		return json.Marshal(ack)
 	case ipc.KindRebindOwner:
+		return nil, store.CodeError("owner_rebind_publication_protocol_required")
+	case ipc.KindRebindOwnerPublished:
 		var request RebindOwnerRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
@@ -698,20 +1081,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		} else if request.OwnerMode != "" && request.OwnerMode != "native" {
 			return nil, store.CodeError("owner_mode_invalid")
 		}
-		binding, err := s.db.ValidateRunOwner(ctx, request.RunID, request.ControllerThread, request.ControlToken)
-		if err != nil || binding.OriginContextID != request.OriginContextID {
-			return nil, store.ErrConflict
-		}
-		if birth, birthErr := process.Birth(binding.OriginPID); birthErr == nil && birth == binding.OriginBirth {
-			return nil, store.ErrConflict
-		}
-		if birth, birthErr := process.Birth(request.OriginPID); birthErr != nil || birth != request.OriginBirth {
-			return nil, store.ErrConflict
-		}
-		if err = s.db.RebindOwner(ctx, store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256}); err != nil {
-			return nil, err
-		}
-		return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration})
+		return s.rebindOwnerPublished(ctx, request)
 	case ipc.KindStopTask:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -749,7 +1119,11 @@ func (s *Server) releaseTaskPins() {
 		return
 	}
 	for _, task := range tasks {
-		_ = install.UnpinRunningVersion(task.Executable, task.TaskID)
+		if task.ConfigGeneration != nil {
+			_ = s.db.ReleaseConfigTaskUse(context.Background(), task.Executable, task.RunID, task.TaskID, task.ConfigGeneration)
+		} else {
+			_ = install.UnpinRunningVersion(task.Executable, task.TaskID)
+		}
 	}
 }
 
@@ -764,7 +1138,7 @@ func (s *Server) authorizeHostHello(ctx context.Context, conn net.Conn, hello co
 	if err != nil || pid != hello.PID {
 		return store.ErrHostRejected
 	}
-	ancestry, err := process.Ancestry(pid)
+	ancestry, err := process.AncestryContext(ctx, pid)
 	if err != nil || ancestry[pid] != hello.Birth {
 		return store.ErrHostRejected
 	}
@@ -780,6 +1154,10 @@ func (s *Server) authorizeHostHello(ctx context.Context, conn net.Conn, hello co
 	}
 	if bindingErr == nil && binding.PID == pid && binding.Birth == hello.Birth {
 		delete(workerAncestry, pid)
+	}
+	if state, _, authErr := s.authorizedOwnerTransport(ctx, hello); authErr == nil {
+		delete(workerAncestry, pid)
+		delete(workerAncestry, state.Binding.Owner.PID)
 	}
 	worker, err := s.db.IsWorkerAncestry(ctx, workerAncestry)
 	if err != nil || worker {
@@ -808,38 +1186,79 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		_ = conn.Close()
 		return
 	}
+	var helloFields map[string]json.RawMessage
+	_ = json.Unmarshal(message.Payload, &helloFields)
+	if _, present := helloFields["resume_command_id"]; present {
+		// A selector must be a nonempty exact string. The stricter owner
+		// decoder also rejects duplicate keys and invalid UTF-8 in this form.
+		if hello.ResumeCommandID == "" || contract.DecodeOwnerRuntimeStrict(message.Payload, &hello) != nil {
+			_ = conn.Close()
+			return
+		}
+	}
 	if err := s.authorizeHostHello(ctx, conn, hello); err != nil {
 		_ = sendError(conn, message.RequestID, s.epoch, store.ErrHostRejected)
 		_ = conn.Close()
 		return
 	}
-	hostID, err := s.registerHost(ctx, hello)
+	mode, err := s.db.ExecutionOwnerMode(ctx, hello.LaunchID)
 	if err != nil {
+		_ = conn.Close()
+		return
+	}
+	if mode == "supervised-v1" {
+		s.handleOriginalOwnerTransport(ctx, conn, message, hello)
+		return
+	}
+	if hello.ResumeCommandID != "" {
+		_ = sendError(conn, message.RequestID, s.epoch, store.ErrHostRejected)
+		_ = conn.Close()
+		return
+	}
+	s.hostRegistrationMu.Lock()
+	if fenceErr := CheckRecoveryAllowed(s.stateDir, hello); fenceErr != nil {
+		s.hostRegistrationMu.Unlock()
+		if fenceErr.Error() == "coordinator_shutdown" {
+			_ = sendHostDisposition(&hostSession{id: hello.LaunchID, hello: hello, conn: conn}, s.epoch, "coordinator_exit")
+		} else {
+			_ = sendError(conn, message.RequestID, s.epoch, fenceErr)
+		}
+		_ = conn.Close()
+		return
+	}
+	if released, releasedErr := s.db.ReleasedHostIdentity(ctx, hello); released || releasedErr != nil {
+		s.hostRegistrationMu.Unlock()
+		if releasedErr == nil {
+			_ = sendHostDisposition(&hostSession{id: hello.LaunchID, hello: hello, conn: conn}, s.epoch, "host_retired")
+		} else {
+			_ = sendError(conn, message.RequestID, s.epoch, releasedErr)
+		}
+		_ = conn.Close()
+		return
+	}
+	hostID, err := s.registerHostLocked(ctx, hello)
+	if err != nil {
+		s.hostRegistrationMu.Unlock()
 		_ = sendError(conn, message.RequestID, s.epoch, err)
 		_ = conn.Close()
 		return
 	}
 	if err = s.db.BeginHostReconcile(context.Background(), hostID); err != nil {
+		s.hostRegistrationMu.Unlock()
 		_ = sendError(conn, message.RequestID, s.epoch, err)
 		_ = conn.Close()
 		return
 	}
-	session := &hostSession{id: hostID, conn: conn}
+	session := &hostSession{id: hostID, hello: hello, conn: conn}
 	s.mu.Lock()
 	s.hosts[hostID] = session
 	s.mu.Unlock()
+	s.hostRegistrationMu.Unlock()
+	wakeAfterExit := false
 	defer func() {
-		s.mu.Lock()
-		current := false
-		if s.hosts[hostID] == session {
-			delete(s.hosts, hostID)
-			current = true
+		if s.disconnectHost(session) || wakeAfterExit {
+			s.dispatchAll()
 		}
-		s.mu.Unlock()
-		if current {
-			_ = s.db.MarkHostOffline(context.Background(), hostID, s.epoch)
-		}
-		_ = conn.Close()
 	}()
 	ready, _ := json.Marshal(contract.HostReady{HostID: hostID, CoordinatorEpoch: s.epoch})
 	if err = session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostReady, RequestID: message.RequestID, Epoch: s.epoch, Payload: ready}); err != nil {
@@ -875,9 +1294,12 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	if err = s.db.FinishHostReconcile(context.Background(), hostID); err != nil {
 		return
 	}
-	if err = s.dispatch(session, true); err != nil {
+	s.dispatchPendingStops()
+	if changed, dispatchErr := s.dispatch(session, true); dispatchErr != nil && !dispatchBudgetRejected(dispatchErr) {
+		wakeAfterExit = changed
 		return
 	}
+	s.dispatchAll()
 	for {
 		incoming, readErr := ipc.Read(conn)
 		if readErr != nil || incoming.Epoch != s.epoch {
@@ -901,13 +1323,15 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		}
 		s.dispatchPendingStops()
 		s.retireCompletedHosts()
+		s.dispatchAll()
 		s.mu.Lock()
 		_, stillRegistered := s.hosts[session.id]
 		s.mu.Unlock()
 		if !stillRegistered {
 			return
 		}
-		if err = s.dispatch(session, false); err != nil {
+		if changed, dispatchErr := s.dispatch(session, false); dispatchErr != nil && !dispatchBudgetRejected(dispatchErr) {
+			wakeAfterExit = changed
 			return
 		}
 	}
@@ -957,35 +1381,63 @@ func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (b
 		_ = sendError(session.conn, incoming.RequestID, s.epoch, err)
 		return false, nil
 	}
-	if event.Kind == contract.EventSession || event.Kind == contract.EventQuestion || event.Kind == contract.EventResult || event.Kind == contract.EventFailed || event.Kind == contract.EventUnknown || event.Kind == contract.EventStopped {
+	if event.Kind == contract.EventSession || event.Kind == contract.EventQuestion || event.Kind == contract.EventResult || event.Kind == contract.EventFailed || event.Kind == contract.EventLaunchRejected || event.Kind == contract.EventUnknown || event.Kind == contract.EventStopped {
 		s.notifyActionableEvent()
 	}
 	body, _ := json.Marshal(ack)
 	return true, session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindDurableAck, RequestID: incoming.RequestID, Epoch: s.epoch, Payload: body})
 }
 
-func (s *Server) dispatch(session *hostSession, includePending bool) error {
+// Progress includes a durable claim or a successful offline transition, even
+// when its transport write fails. It never means that the worker has started.
+func (s *Server) dispatch(session *hostSession, includePending bool) (bool, error) {
+	session.dispatchMu.Lock()
+	defer session.dispatchMu.Unlock()
+	if session.failed || s.terminating.Load() || s.closed.Load() {
+		return false, nil
+	}
+	progressed := false
 	if includePending {
+		s.lifecycleMu.Lock()
+		if s.terminating.Load() || s.closed.Load() {
+			s.lifecycleMu.Unlock()
+			return progressed, nil
+		}
 		pending, err := s.db.PendingLaunches(context.Background(), session.id, s.epoch)
+		s.lifecycleMu.Unlock()
 		if err != nil {
-			return err
+			return false, err
 		}
 		for _, command := range pending {
+			if s.terminating.Load() || s.closed.Load() {
+				return progressed, nil
+			}
 			if err = sendLaunch(session, s.epoch, command); err != nil {
-				return err
+				return s.disconnectHostLocked(session), err
 			}
 		}
 	}
 	for {
+		s.lifecycleMu.Lock()
+		if s.terminating.Load() || s.closed.Load() {
+			s.lifecycleMu.Unlock()
+			return progressed, nil
+		}
 		command, err := s.db.ClaimReady(context.Background(), session.id, s.epoch, 0)
+		s.lifecycleMu.Unlock()
 		if errors.Is(err, store.ErrNoReady) || errors.Is(err, store.ErrNoSlot) {
-			return nil
+			return progressed, nil
 		}
 		if err != nil {
-			return err
+			return progressed, err
+		}
+		progressed = true
+		if s.terminating.Load() || s.closed.Load() {
+			return progressed, nil
 		}
 		if err = sendLaunch(session, s.epoch, command); err != nil {
-			return err
+			s.disconnectHostLocked(session)
+			return progressed, err
 		}
 	}
 }
@@ -997,8 +1449,22 @@ func (s *Server) dispatchAll() {
 		hosts = append(hosts, host)
 	}
 	s.mu.Unlock()
-	for _, host := range hosts {
-		_ = s.dispatch(host, false)
+	s.dispatchAllHosts(hosts)
+}
+
+// Keep the bounded scan separate from the snapshot so its order is testable.
+func (s *Server) dispatchAllHosts(hosts []*hostSession) {
+	for pass := 0; pass < 32; pass++ {
+		progressed := false
+		for _, host := range hosts {
+			changed, _ := s.dispatch(host, false)
+			if changed {
+				progressed = true
+			}
+		}
+		if !progressed {
+			return
+		}
 	}
 }
 
@@ -1008,25 +1474,35 @@ func (s *Server) retireCompletedHosts() {
 		return
 	}
 	for _, id := range ids {
+		s.hostRegistrationMu.Lock()
 		if s.db.RetireHost(context.Background(), id) != nil {
+			s.hostRegistrationMu.Unlock()
 			continue
 		}
 		s.mu.Lock()
 		host := s.hosts[id]
 		delete(s.hosts, id)
 		s.mu.Unlock()
+		s.hostRegistrationMu.Unlock()
 		if host != nil {
+			_ = sendHostDisposition(host, s.epoch, "host_retired")
 			_ = host.conn.Close()
 		}
 	}
 }
 
 func sendLaunch(session *hostSession, epoch uint64, command contract.LaunchCommand) error {
+	if session.ownerPermit != nil {
+		return session.sendOwnerCommand("launch", command.CommandID, command)
+	}
 	body, _ := json.Marshal(command)
 	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindLaunch, RequestID: command.CommandID, Epoch: epoch, Payload: body})
 }
 
 func sendStop(session *hostSession, epoch uint64, command contract.StopCommand) error {
+	if session.ownerPermit != nil {
+		return session.sendOwnerCommand("stop", command.CommandID, command)
+	}
 	body, _ := json.Marshal(command)
 	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindStop, RequestID: command.CommandID, Epoch: epoch, Payload: body})
 }

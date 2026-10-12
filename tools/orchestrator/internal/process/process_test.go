@@ -17,7 +17,7 @@ import (
 // it before the birth lookup turns ordinary success into launch_unknown.
 func TestShortLivedChildRetainsBirthUntilRegistered(t *testing.T) {
 	for i := 0; i < 20; i++ {
-		h, err := Start(context.Background(), Command{Path: "/usr/bin/true"})
+		h, err := Start(context.Background(), duplexCommand(t, "quick"))
 		if err != nil {
 			t.Fatalf("child %d: %v", i, err)
 		}

@@ -95,6 +95,19 @@ func ValidateRuntimeBundle(packageRoot string) (RuntimeIdentity, error) {
 		return RuntimeIdentity{}, ErrRuntimeInvalid
 	}
 
+	entries, err := os.ReadDir(runtimeRoot)
+	if err != nil || len(entries) != len(runtimeFileNames)+1 {
+		return RuntimeIdentity{}, ErrRuntimeInvalid
+	}
+	allowed := map[string]bool{"runtime-manifest.json": true}
+	for _, name := range runtimeFileNames {
+		allowed[name] = true
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !allowed[entry.Name()] {
+			return RuntimeIdentity{}, ErrRuntimeInvalid
+		}
+	}
 	expected := append([]string(nil), runtimeFileNames...)
 	sort.Strings(expected)
 	actual := make([]string, 0, len(manifest.Files))

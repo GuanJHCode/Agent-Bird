@@ -76,7 +76,7 @@ func TestQuotaCountersTrackUpdateDeleteAndRollback(t *testing.T) {
 		t.Fatal(err)
 	}
 	var n int64
-	if err = tx.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id='run'`).Scan(&n); err != nil || n != 6 {
+	if err = tx.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id='run'`).Scan(&n); err != nil || n != initial+6 {
 		t.Fatalf("byte quota=%d %v", n, err)
 	}
 	tx.Rollback()
@@ -102,18 +102,21 @@ func TestQuotaCountersTrackUpdateDeleteAndRollback(t *testing.T) {
 
 func TestQuotaMigrationBackfillsReportAndRuntimeUsage(t *testing.T) {
 	db, launch := quotaFixture(t)
-	if _, err := db.sql.Exec(quotaInsert, "history", launch.HostID, 1, launch.AttemptID, launch.SegmentID, "runtime"); err != nil {
+	const runtimeBody = `{"kind":"result"}`
+	const reportBody = `{"kind":"progress"}`
+	if _, err := db.sql.Exec(quotaInsert, "history", launch.HostID, 1, launch.AttemptID, launch.SegmentID, `{"kind":"result"}`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.sql.Exec(`INSERT INTO report_events(event_id,capability_id,sequence,kind,payload_hash,body_json,event_revision,action_slot,delivery_status,accounted_bytes,created_at) VALUES('progress',?,1,'progress','hash','report',0,'','internal',6,'now')`, launch.ReportCapabilityID); err != nil {
+	if _, err := db.sql.Exec(`INSERT INTO report_events(event_id,capability_id,sequence,kind,payload_hash,body_json,event_revision,action_slot,delivery_status,accounted_bytes,created_at) VALUES('progress',?,1,'progress','hash',?,0,'','internal',?, 'now')`, launch.ReportCapabilityID, reportBody, len(reportBody)); err != nil {
 		t.Fatal(err)
 	}
+	hostMetadata := int(hostArtifactControlBytes(t, db, ""))
 	check := func() {
 		t.Helper()
 		for _, scope := range []struct {
 			kind, id        string
 			total, progress int
-		}{{"global", "", 13, 6}, {"run", "run", 13, 6}, {"capability", launch.ReportCapabilityID, 6, 6}} {
+		}{{"global", "", len(runtimeBody) + len(reportBody) + hostMetadata, len(reportBody)}, {"run", "run", len(runtimeBody) + len(reportBody) + hostMetadata, len(reportBody)}, {"capability", launch.ReportCapabilityID, len(reportBody), len(reportBody)}} {
 			var total, progress int
 			if err := db.sql.QueryRow(`SELECT total_bytes,progress_bytes FROM storage_usage WHERE scope=? AND scope_id=?`, scope.kind, scope.id).Scan(&total, &progress); err != nil || total != scope.total || progress != scope.progress {
 				t.Fatalf("%s counters %d/%d %v", scope.kind, total, progress, err)
@@ -121,6 +124,8 @@ func TestQuotaMigrationBackfillsReportAndRuntimeUsage(t *testing.T) {
 		}
 	}
 	check()
+	// Strip later schema while its accounting triggers still exist.
+	downgradePolicySchema(t, db)
 	for _, table := range []string{"runtime_events", "report_events"} {
 		for _, op := range []string{"INSERT", "UPDATE", "DELETE"} {
 			if _, err := db.sql.Exec("DROP TRIGGER quota_" + table + "_" + op); err != nil {
@@ -129,18 +134,19 @@ func TestQuotaMigrationBackfillsReportAndRuntimeUsage(t *testing.T) {
 		}
 	}
 	// Recreate the actual v4 schema, including removal of the later v6 ledger.
-	if _, err := db.sql.Exec(`DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; DROP TABLE storage_usage; UPDATE schema_meta SET version=4`); err != nil {
+	hostMetadata = 0 // Historical v4 had no managed Host reservations.
+	if _, err := db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; ALTER TABLE owner_rebinds DROP COLUMN old_host_generation; DROP TABLE continuation_decisions; DROP TABLE attempt_provider_bindings; DROP TABLE bridge_delivery_attempts; DROP TABLE bridge_batch_items; DROP TABLE bridge_batches; DROP TABLE bridge_ingress; DROP TABLE bridge_bindings; ALTER TABLE schema_meta DROP COLUMN bridge_cutover_at; DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; DROP TABLE storage_usage; UPDATE schema_meta SET version=4`); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.migrateRuntime(); err != nil {
 		t.Fatal(err)
 	}
 	check()
-	if _, err := db.sql.Exec(`UPDATE report_events SET kind='result',accounted_bytes=7 WHERE event_id='progress'`); err != nil {
+	if _, err := db.sql.Exec(`UPDATE report_events SET kind='result',accounted_bytes=? WHERE event_id='progress'`, len(reportBody)+1); err != nil {
 		t.Fatal(err)
 	}
 	var total, progress int
-	if err := db.sql.QueryRow(`SELECT total_bytes,progress_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&total, &progress); err != nil || total != 14 || progress != 0 {
+	if err := db.sql.QueryRow(`SELECT total_bytes,progress_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&total, &progress); err != nil || total != len(runtimeBody)+len(reportBody)+1 || progress != 0 {
 		t.Fatalf("report update %d/%d %v", total, progress, err)
 	}
 }

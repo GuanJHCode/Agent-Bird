@@ -1,11 +1,11 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -29,8 +29,15 @@ func TestProviderDiagnosticsContainCountsWithoutToolInputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	script := `printf '%s\n' '{"type":"system","subtype":"init","session_id":"diag"}' '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"PRIVATE_SENTINEL"}}]}}' '{"type":"system","subtype":"permission_denied","tool_name":"Task","decision_reason_type":"rule","decision_reason":"PRIVATE_SENTINEL","message":"PRIVATE_SENTINEL"}' '{"type":"result","subtype":"success","session_id":"diag","result":"ok"}'`
-	result, err := h.execute(context.Background(), store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", process.Command{Path: "/bin/sh", Args: []string{"-c", script}}, false, launchMetadata{commandID: "command", workRevision: 1, outputProvider: "claude-code"})
+	payload := `{"type":"system","subtype":"init","session_id":"diag"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"PRIVATE_SENTINEL"}}]}}
+{"type":"system","subtype":"permission_denied","tool_name":"Task","decision_reason_type":"rule","decision_reason":"PRIVATE_SENTINEL","message":"PRIVATE_SENTINEL"}
+{"type":"result","subtype":"success","session_id":"diag","result":"ok"}
+`
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
+	meta := metadataForLaunch(grant)
+	meta.outputProvider = "claude-code"
+	result, err := h.execute(context.Background(), store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", providerDiagnosticsOutputCommand(t, payload), false, meta)
 	if err != nil || result.Status != "result_ready" {
 		t.Fatalf("fixture: %+v %v", result, err)
 	}

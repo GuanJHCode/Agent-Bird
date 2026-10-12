@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 type Provider string
@@ -49,29 +51,32 @@ type Permission struct {
 }
 
 type Request struct {
-	Action     *CandidateAction
-	Provider   Provider
-	Binary     BinaryPin
-	CWD        string
-	Prompt     string
-	Session    SessionRef
-	Permission Permission
-	ExtraArgs  []string
-	Profile    *ExecutionProfile
-	Lock       *ProviderLock
-	Workspace  *CandidateWorkspace
+	Action       *CandidateAction
+	Provider     Provider
+	Binary       BinaryPin
+	CWD          string
+	Prompt       string
+	Session      SessionRef
+	Permission   Permission
+	ExtraArgs    []string
+	Profile      *ExecutionProfile
+	Lock         *ProviderLock
+	Workspace    *CandidateWorkspace
+	Continuation *contract.ContinuationRef
 }
 
 type Invocation struct {
-	action    *CandidateAction
-	provider  Provider
-	pin       BinaryPin
-	argv      []string
-	cwd       string
-	input     []byte
-	env       map[string]string
-	profile   *ExecutionProfile
-	workspace *CandidateWorkspace
+	managedCodex   *ManagedCodexDescriptor
+	completionMode TaskCompletionMode
+	action         *CandidateAction
+	provider       Provider
+	pin            BinaryPin
+	argv           []string
+	cwd            string
+	input          []byte
+	env            map[string]string
+	profile        *ExecutionProfile
+	workspace      *CandidateWorkspace
 }
 
 func (i Invocation) ExecutablePin() (string, string) { return i.pin.Path, i.pin.SHA256 }
@@ -93,6 +98,12 @@ func (i Invocation) Environment() map[string]string {
 var hex64 = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 func BuildInvocation(req Request) (Invocation, error) {
+	if req.Provider == ProviderCodex && req.Profile != nil && req.Profile.CodexHostToolsVersion == 1 {
+		return BuildCodexPluginInvocation(req)
+	}
+	if err := validateContinuation(req); err != nil {
+		return Invocation{}, err
+	}
 	if err := validateWorkspace(req); err != nil {
 		return Invocation{}, err
 	}
@@ -153,6 +164,11 @@ func BuildInvocation(req Request) (Invocation, error) {
 		}
 	}
 
+	completionMode := TaskCompletionNone
+	if usesManagedTaskSchema(req) {
+		completionMode = TaskCompletionV1
+		req.Prompt += "\n\n" + managedTaskInstruction
+	}
 	args := []string{req.Binary.Path}
 	input := []byte(nil)
 	switch req.Provider {
@@ -163,7 +179,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 		}
 		input = userEvent(req.Prompt)
 	case ProviderAGY:
-		args = append(args, "--output-format", "stream-json", "--input-format", "stream-json")
+		args = append(args, "--print=", "--output-format", "stream-json", "--input-format", "stream-json")
 		if req.Session.ID != "" {
 			args = append(args, "--conversation", req.Session.ID)
 		}
@@ -207,6 +223,8 @@ func BuildInvocation(req Request) (Invocation, error) {
 	}
 	if usesCandidateReviewSchema(req) {
 		args = append(args, "--json-schema", candidateReviewSchema)
+	} else if completionMode == TaskCompletionV1 {
+		args = append(args, "--json-schema", managedTaskSchema)
 	}
 	if req.Profile != nil && (req.Provider == ProviderClaude || req.Provider == ProviderAGY || req.Provider == ProviderGrok) {
 		if req.Profile.Model != "" {
@@ -224,7 +242,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 		// Prevent a self-update from changing the pinned executable mid-run.
 		env["AGY_CLI_DISABLE_AUTO_UPDATE"] = "true"
 	}
-	return Invocation{provider: req.Provider, pin: req.Binary, argv: args, cwd: req.CWD, input: input, env: env, profile: req.Profile, workspace: cloneWorkspace(req.Workspace), action: req.Action}, nil
+	return Invocation{completionMode: completionMode, provider: req.Provider, pin: req.Binary, argv: args, cwd: req.CWD, input: input, env: env, profile: req.Profile, workspace: cloneWorkspace(req.Workspace), action: req.Action}, nil
 }
 
 func validatePermission(provider Provider, p Permission) error {

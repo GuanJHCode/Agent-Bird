@@ -18,6 +18,11 @@ func preflightTasks(tasks []coordinator.TaskRequest) error {
 		return codeError("invalid_submit")
 	}
 	for i := range tasks {
+		if tasks[i].Diagnostics != nil {
+			if err := tasks[i].Diagnostics.Validate(); err != nil {
+				return err
+			}
+		}
 		payloads := append([]json.RawMessage{tasks[i].AdapterPayload}, tasks[i].Fallbacks...)
 		normalized := make([]json.RawMessage, len(payloads))
 		for j, raw := range payloads {

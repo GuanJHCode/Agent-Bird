@@ -37,7 +37,7 @@ func TestMain(m *testing.M) {
 	}
 	if os.Getenv("ORCHESTRATOR_PROBE_TEST_HELPER") == "1" {
 		if len(os.Args) == 2 && os.Args[1] == "--help" {
-			_, _ = os.Stderr.WriteString("--input-format --output-format --mode\n")
+			_, _ = os.Stderr.WriteString("--print --input-format --output-format --mode\n")
 		} else if len(os.Args) == 2 && os.Args[1] == "--version" {
 			_, _ = os.Stdout.WriteString("1.2.0\n")
 			_, _ = os.Stderr.WriteString("diagnostic\n")
@@ -99,7 +99,7 @@ func TestProbeAcceptsHelpOnStderrWithoutMixingVersionDiagnostics(t *testing.T) {
 		t.Fatal(err)
 	}
 	help, err := ProbeOutput(context.Background(), path, "--help")
-	if err != nil || help != "--input-format --output-format --mode" {
+	if err != nil || help != "--print --input-format --output-format --mode" {
 		t.Fatalf("stderr help lost: %q %v", help, err)
 	}
 	version, err := ProbeOutput(context.Background(), path, "--version")

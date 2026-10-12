@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
@@ -26,7 +28,17 @@ func TestCLIReviewRetryCandidateDevelopmentDAG(t *testing.T) { exerciseCLICandid
 
 func TestCLITaskHandleReworkCandidateDAG(t *testing.T) { exerciseCLICandidateDAG(t, true, false, true) }
 
+func TestCLIVersionedDAGRework(t *testing.T) { exerciseCLICandidateDAGVersion(t, true, false, 1) }
+
 func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...bool) {
+	exerciseCLICandidateDAGVersion(t, rework, retryReview, 0, facade...)
+}
+
+func TestCLIOrderedCandidateComposition(t *testing.T) {
+	exerciseCLICandidateDAGVersion(t, false, false, 2)
+}
+
+func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, version int, facade ...bool) {
 	root, err := os.MkdirTemp("/tmp", "candidate-cli-")
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +49,7 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	}
 	clean := false
 	defer func() {
-		if clean {
+		if clean && !t.Failed() {
 			_ = os.RemoveAll(root)
 		} else {
 			t.Logf("retained failed runtime: %s", root)
@@ -52,7 +64,11 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build: %s %v", out, err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	deadline := 90 * time.Second
+	if version == 2 {
+		deadline = 150 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 	git := func(dir string, args ...string) string {
 		t.Helper()
@@ -87,6 +103,9 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	}
 	sum := sha256.Sum256(body)
 	mode := "success"
+	if version == 2 {
+		mode = "compose-public"
+	}
 	if rework {
 		mode = "rework"
 	}
@@ -101,7 +120,11 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	}
 	target := map[string]string{"worktree": repo, "ref": "refs/heads/main", "base_oid": base}
 	action := func(operation, source string) map[string]any {
-		return map[string]any{"version": 1, "operation": operation, "source_task": source, "target": target}
+		a := map[string]any{"version": 1, "operation": operation, "source_task": source, "target": target}
+		if version >= 1 {
+			a["dependency_input_version"] = 1
+		}
+		return a
 	}
 	check := action("validate", "implement")
 	check["command"] = []string{"/usr/bin/grep", "-q", "worker implementation", "README"}
@@ -110,6 +133,24 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 		map[string]any{"id": "validate", "dependencies": []string{"implement"}, "max_attempts": 3, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "validation"), "candidate_action": check}},
 		map[string]any{"id": "review", "dependencies": []string{"validate"}, "max_attempts": 3, "adapter": map[string]any{"provider": "claude-code", "provider_lock": lock, "profile": profile("reviewer", "read-only"), "directory": filepath.Join(root, "review"), "prompt": "independent review", "candidate_action": action("review", "validate")}},
 		map[string]any{"id": "integrate", "dependencies": []string{"review"}, "max_attempts": 3, "adapter": map[string]any{"kind": "candidate", "directory": repo, "candidate_action": action("integrate", "review")}},
+	}
+	if version == 1 {
+		audit := action("validate", "implement")
+		audit["command"] = []string{"/usr/bin/grep", "-q", "worker implementation", "README"}
+		tasks = append(tasks, map[string]any{"id": "audit", "dependencies": []string{"implement"}, "max_attempts": 3, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "audit"), "candidate_action": audit}})
+		tasks[2].(map[string]any)["dependencies"] = []string{"validate", "audit"}
+	}
+	if version == 2 {
+		producer := func(id string) any {
+			return map[string]any{"id": id, "max_attempts": 1, "adapter": map[string]any{"provider": "claude-code", "provider_lock": lock, "profile": profile("implementer", "workspace-write"), "directory": filepath.Join(root, "producer-"+id), "prompt": "COMPOSE_FIXTURE_" + id, "candidate_workspace": map[string]any{"version": 1, "repo_root": repo, "base_oid": base, "paths": []string{strings.ToLower(id) + ".txt"}}}}
+		}
+		check := action("validate", "compose")
+		check["command"] = []string{"/usr/bin/grep", "-q", "compose-a", "a.txt"}
+		tasks = []any{producer("A"), producer("B"),
+			map[string]any{"id": "compose", "dependencies": []string{"A", "B"}, "max_attempts": 1, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "compose"), "candidate_action": map[string]any{"version": 2, "dependency_input_version": 2, "operation": "compose", "ordered_source_tasks": []string{"B", "A"}}}},
+			map[string]any{"id": "validate", "dependencies": []string{"compose"}, "max_attempts": 1, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "validation"), "candidate_action": check}},
+			tasks[2], tasks[3],
+		}
 	}
 	birth, err := process.Birth(os.Getpid())
 	if err != nil {
@@ -153,9 +194,17 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	if rework {
 		sequence = []string{"implement", "validate", "review", "implement", "validate", "review", "integrate"}
 	}
+	if version == 1 {
+		sequence = []string{"implement", "validate", "audit", "review", "implement", "validate", "audit", "review", "integrate"}
+	}
 	if retryReview {
 		sequence = []string{"implement", "validate", "review", "review", "integrate"}
 	}
+	if version == 2 {
+		sequence = []string{"A", "B", "compose", "validate", "review", "integrate"}
+	}
+	composedSources := map[string]string{}
+	compositionHash := ""
 	retriedReview := false
 	for _, task := range sequence {
 		interruptedReview := retryReview && !retriedReview && task == "review"
@@ -213,6 +262,27 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 		if err = json.Unmarshal(data, &artifact); err != nil {
 			t.Fatal(err)
 		}
+		if version == 2 {
+			if task == "A" || task == "B" {
+				composedSources[task] = artifact.Candidate.OID
+				candidateOID = artifact.Candidate.OID
+			} else {
+				var composed host.CandidateDelivery
+				if json.Unmarshal(data, &composed) != nil || composed.Composition == nil {
+					t.Fatal("missing public composition manifest")
+				}
+				m := composed.Composition
+				if len(m.Sources) != 2 || m.Sources[0].TaskID != "B" || m.Sources[1].TaskID != "A" || !reflect.DeepEqual(m.OrderedInputOIDs, []string{composedSources["B"], composedSources["A"]}) {
+					t.Fatal("public compose lost declaration order")
+				}
+				if task == "compose" {
+					candidateOID = artifact.Candidate.OID
+					compositionHash = m.ManifestSHA256
+				} else if m.ManifestSHA256 != compositionHash {
+					t.Fatal("public downstream changed composition")
+				}
+			}
+		}
 		if task == "implement" {
 			candidateOID = artifact.Candidate.OID
 			if revision == 1 {
@@ -244,6 +314,14 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 				"candidate_oid": firstCandidate, "review_task_id": "review", "review_work_revision": 1,
 				"review":      map[string]any{"event_id": event.EventID, "event_revision": event.EventRevision, "event_hash": event.PayloadHash},
 				"action_slot": event.ActionSlot, "feedback": "Add the requested revised behavior", "acceptance": "ACCEPTANCE_MARKER: README must contain revised", "command_id": "rework-first"})
+			if version == 1 {
+				var request map[string]any
+				if err = readPrivateJSON(requestPath, &request); err != nil {
+					t.Fatal(err)
+				}
+				request["version"] = 1
+				write(request)
+			}
 			var firstReceipt []byte
 			for i := 0; i < 2; i++ {
 				var b []byte
@@ -278,5 +356,11 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	if git(repo, "rev-parse", "HEAD") != candidateOID || git(repo, "status", "--porcelain") != "" {
 		t.Fatal("final target differs from accepted candidate")
 	}
+	if version == 2 {
+		if git(repo, "show", "HEAD:a.txt") != "compose-a" || git(repo, "show", "HEAD:b.txt") != "compose-b" {
+			t.Fatal("public integration lost source changes")
+		}
+	}
+	c04AssertCandidateReportCapabilitiesRemain(t, ctx, state)
 	clean = true
 }

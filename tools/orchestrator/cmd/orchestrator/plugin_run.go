@@ -17,19 +17,17 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("plugin-run", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	source := fs.String("plugin-root", "", "installed Codex plugin root")
+	requestedState := fs.String("state-dir", "", "explicit private runtime state")
 	destination := fs.String("install-root", "", "private runtime installation")
 
 	if fs.Parse(args) != nil || *source == "" || fs.NArg() == 0 {
 		return codeError("invalid_args")
 	}
 	action := fs.Arg(0)
-	if !pluginActionAllowed(action) {
-		return codeError("portable_action_unsupported")
+	if err := portableRunPolicy(runtime.GOOS, fs.Args()...); err != nil {
+		return err
 	}
-	if runtime.GOOS != "darwin" {
-		return codeError("portable_platform_unsupported")
-	}
-	state, err := resolveState("")
+	state, err := resolveState(*requestedState)
 	if err != nil {
 		return err
 	}
@@ -40,7 +38,12 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 		}
 		*destination = filepath.Join(home, "OpenAI", "Codex Bird Packages")
 	}
-	binary, err := install.InstallPortable(*source, *destination, state)
+	var binary string
+	if runtime.GOOS == "linux" {
+		binary, err = install.InstallPortableCollectOnly(*source, *destination, state)
+	} else {
+		binary, err = install.InstallPortable(*source, *destination, state)
+	}
 	if err != nil {
 		return err
 	}
@@ -55,9 +58,40 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 	return syscall.Exec(binary, append([]string{binary}, fs.Args()...), os.Environ())
 }
 
+// portableRunPolicy is deliberately pure so platform admission can be unit
+// tested without representing that test as native Linux execution.
+func portableRunPolicy(platform string, args ...string) error {
+	if len(args) == 0 {
+		return codeError("portable_action_unsupported")
+	}
+	action := args[0]
+	switch platform {
+	case "darwin":
+		if pluginActionAllowed(action) {
+			return nil
+		}
+		return codeError("portable_action_unsupported")
+	case "linux":
+		switch action {
+		case "check", "runtime-status", "status", "summary", "collect", "wait-events":
+			return nil
+		case "task":
+			if len(args) > 1 {
+				switch args[1] {
+				case "inspect", "status", "collect", "wait":
+					return nil
+				}
+			}
+		}
+		return codeError("portable_action_unsupported")
+	default:
+		return codeError("portable_platform_unsupported")
+	}
+}
+
 func pluginActionAllowed(action string) bool {
 	switch action {
-	case "provider", "check", "runtime-status", "preflight", "task", "routing", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
+	case "call", "mcp", "bridge", "config-plan", "config-apply", "config-remove", "provider", "check", "runtime-status", "preflight", "task", "routing", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
 		return true
 	default:
 		return false

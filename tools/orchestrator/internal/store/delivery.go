@@ -1,12 +1,12 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"strconv"
 	"strings"
 	"time"
@@ -60,7 +60,7 @@ func (d *DB) CollectPending(ctx context.Context, taskID, cursor string, limit in
 	rows, err := d.sql.QueryContext(ctx, `SELECT o.ordinal,e.body_json,e.event_revision,e.action_slot FROM delivery_order o JOIN (
 	 SELECT event_id,body_json,event_revision,action_slot FROM runtime_events WHERE task_id=? AND delivery_status='pending'
  UNION ALL
- SELECT event_id,body_json,sequence AS event_revision,'' AS action_slot FROM host_progress WHERE task_id=? AND ?
+ SELECT event_id,body_json,sequence AS event_revision,'' AS action_slot FROM host_progress h WHERE task_id=? AND ? AND NOT EXISTS(SELECT 1 FROM managed_artifact_reservations r WHERE r.task_id=h.task_id AND r.scope_key=h.segment_id AND r.class='progress' AND r.state IN ('deleting','released'))
 	 UNION ALL
 	 SELECT e.event_id,e.body_json,e.event_revision,e.action_slot FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=? AND (e.delivery_status='pending' OR (? AND e.kind='progress'))
 	) e ON e.event_id=o.event_id WHERE o.task_id=? AND o.ordinal>? ORDER BY o.ordinal LIMIT ?`, taskID, taskID, includeDiagnostics, taskID, includeDiagnostics, taskID, ordinal, limit+1)
@@ -128,18 +128,23 @@ func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofS
 	decisionsHash := runtimeHash(string(encoded))
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
+	if err = requirePublishedTaskTx(ctx, tx, taskID); err != nil {
+		return rollback(err)
+	}
 	var storedTask, storedProof, storedDecisions string
 	err = tx.QueryRowContext(ctx, `SELECT task_id,history_proof_sha256,decisions_hash FROM delivery_receipts WHERE delivery_id=?`, deliveryID).Scan(&storedTask, &storedProof, &storedDecisions)
 	if err == nil {
 		if storedTask != taskID || storedProof != strings.ToLower(historyProofSHA256) || storedDecisions != decisionsHash {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -153,7 +158,10 @@ func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofS
 	if _, err = tx.ExecContext(ctx, `INSERT INTO delivery_receipts(delivery_id,task_id,history_proof_sha256,decisions_hash,created_at) VALUES(?,?,?,?,?)`, deliveryID, taskID, strings.ToLower(historyProofSHA256), decisionsHash, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return rollback(mapConflict(err))
 	}
-	return tx.Commit()
+	if err = d.recordDiagnosticsConsumption(ctx, tx, taskID, decisions, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return rollback(err)
+	}
+	return owned.commit()
 }
 
 func applyAckDecision(ctx context.Context, tx *sql.Tx, taskID string, decision AckDecision) error {

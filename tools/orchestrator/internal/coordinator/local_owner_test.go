@@ -24,6 +24,7 @@ func TestLocalOwnerBindingDoesNotRequireNativeReturnTransport(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+	server.cliSupervised = true // Only authenticated config pins opt local submissions into supervised mode.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go server.Serve(ctx)
@@ -52,6 +53,10 @@ func TestLocalOwnerBindingDoesNotRequireNativeReturnTransport(t *testing.T) {
 	if submitted.Status != "queued" {
 		t.Fatalf("submit=%s", response.Payload)
 	}
+	var mode string
+	if err = server.db.SQL().QueryRow(`SELECT execution_owner_mode FROM host_launches WHERE id=?`, submitted.LaunchID).Scan(&mode); err != nil || mode != "legacy" {
+		t.Fatal("non-config local admission changed mode", mode, err)
+	}
 	request["run_id"] = "spoof"
 	request["controller_thread"] = "other"
 	raw, _ := json.Marshal(request)
@@ -61,7 +66,7 @@ func TestLocalOwnerBindingDoesNotRequireNativeReturnTransport(t *testing.T) {
 	}
 }
 
-func TestLocalOwnerExplicitRebindPreservesRunContext(t *testing.T) {
+func TestLocalOwnerLegacyRebindRequiresPublicationProtocol(t *testing.T) {
 	root, err := os.MkdirTemp("/tmp", "local-rebind-")
 	if err != nil {
 		t.Fatal(err)
@@ -85,11 +90,16 @@ func TestLocalOwnerExplicitRebindPreservesRunContext(t *testing.T) {
 	bound := callServer(t, server.SocketPath(), ipc.KindOwnerBind, OwnerBindRequest{ControllerThread: "master", OriginPID: os.Getpid(), OriginBirth: birth})
 	var owner map[string]any
 	decodePayload(t, bound, &owner)
-	rebound := callServer(t, server.SocketPath(), ipc.KindRebindOwner, map[string]any{"run_id": "run", "controller_thread": "master", "control_token": receipt.ControlToken, "origin_context_id": "original", "origin_pid": os.Getpid(), "origin_birth": birth, "host_generation": owner["host_generation"], "owner_mode": "local", "owner_capability": owner["owner_capability"]})
-	var result map[string]any
-	decodePayload(t, rebound, &result)
-	if result["origin_context_id"] != "original" || result["status"] != "owner_rebound" {
-		t.Fatalf("context changed: %#v", result)
+	rebound, err := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: ipc.KindRebindOwner, RequestID: "legacy-rebind", Payload: jsonBytes(t, map[string]any{"run_id": "run", "controller_thread": "master", "control_token": receipt.ControlToken, "origin_context_id": "original", "origin_pid": os.Getpid(), "origin_birth": birth, "host_generation": owner["host_generation"], "owner_mode": "local", "owner_capability": owner["owner_capability"]})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rebound.Kind != ipc.KindError || !strings.Contains(string(rebound.Payload), "owner_rebind_publication_protocol_required") {
+		t.Fatalf("old RPC accepted: %s", rebound.Payload)
+	}
+	var count int
+	if err = server.db.SQL().QueryRow(`SELECT COUNT(*) FROM owner_rebinds`).Scan(&count); err != nil || count != 0 {
+		t.Fatal("old RPC mutated owner", count, err)
 	}
 }
 
@@ -118,7 +128,7 @@ func TestWorkerPeerCannotUseMainAgentControlKinds(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw, _ := json.Marshal(TaskControlRequest{TaskID: "task", ControllerThread: "master", ControlToken: receipt.ControlToken})
-	for _, kind := range []ipc.Kind{ipc.KindRecoverHost, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus} {
+	for _, kind := range []ipc.Kind{ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.Kind("budget_revise"), ipc.KindRecoverHost, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus} {
 		response, err := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: kind, RequestID: "worker", Payload: raw})
 		if err != nil || response.Kind != ipc.KindError || !strings.Contains(string(response.Payload), "worker_dispatch_forbidden") {
 			t.Errorf("worker %s reached controller path: %s %v", kind, response.Payload, err)
@@ -206,9 +216,14 @@ func TestUnidentifiedLaunchDefersUnboundPeerDispatchControls(t *testing.T) {
 	}
 	control := TaskControlRequest{TaskID: "task", ControllerThread: "master", ControlToken: receipt.ControlToken}
 	raw, _ := json.Marshal(control)
-	for _, kind := range []ipc.Kind{ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer} {
+	for _, kind := range []ipc.Kind{ipc.Kind("budget_revise"), ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer} {
 		response, err := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: kind, RequestID: "control", Payload: raw})
-		if err != nil || response.Kind != ipc.KindError || !strings.Contains(string(response.Payload), "owner_registration_deferred") {
+		expected := "owner_registration_deferred"
+		if kind == ipc.KindRebindOwner {
+			// F10 rejects obsolete publication protocol before authority/lease.
+			expected = "owner_rebind_publication_protocol_required"
+		}
+		if err != nil || response.Kind != ipc.KindError || !strings.Contains(string(response.Payload), expected) {
 			t.Errorf("unbound peer reached %s: response_kind=%s err=%v", kind, response.Kind, err)
 		}
 	}

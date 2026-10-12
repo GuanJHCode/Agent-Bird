@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"syscall"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -29,7 +28,12 @@ func (s *Server) inspectHostRecovery(ctx context.Context, raw json.RawMessage) (
 	defer s.hostRegistrationMu.Unlock()
 	r, err := s.db.InspectHostRecovery(ctx, req.TaskID, req.ControllerThread, req.ControlToken, req.WorkRevision)
 	if err != nil {
-		return nil, err
+		// This separate proof domain may recover an unbound v2 launch while
+		// preserving its ready queue. Legacy/quiescent gates remain unchanged.
+		r, err = s.db.InspectPreBindHostRecovery(ctx, req.TaskID, req.ControllerThread, req.ControlToken, req.WorkRevision)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if owner.ControllerThread != req.ControllerThread || owner.OriginPID != r.OriginPID || owner.OriginBirth != r.OriginBirth || owner.HostGeneration != r.HostGeneration {
 		return nil, store.CodeError("owner_mismatch")
@@ -55,22 +59,11 @@ func (s *Server) inspectHostRecovery(ctx context.Context, raw json.RawMessage) (
 // An observation failure is not proof of exit. A reused PID has a different
 // birth and cannot be treated as the old Host or signalled by recovery.
 func hostIdentityExited(pid int, birth string) (bool, error) {
-	if pid <= 1 || birth == "" {
-		return false, store.CodeError("host_recovery_identity_unknown")
-	}
-	if err := syscall.Kill(pid, 0); errors.Is(err, syscall.ESRCH) {
-		return true, nil
-	} else if err != nil {
-		return false, store.CodeError("host_recovery_identity_unknown")
-	}
-	current, err := process.Birth(pid)
+	exited, err := process.IdentityExitedContext(context.Background(), pid, birth)
 	if err != nil {
-		if errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
-			return true, nil
-		}
 		return false, store.CodeError("host_recovery_identity_unknown")
 	}
-	return current != birth, nil
+	return exited, nil
 }
 
 // Serialize admission so two valid peers cannot both replace a retired Host.
@@ -78,6 +71,10 @@ func hostIdentityExited(pid int, birth string) (bool, error) {
 func (s *Server) registerHost(ctx context.Context, hello contract.HostHello) (string, error) {
 	s.hostRegistrationMu.Lock()
 	defer s.hostRegistrationMu.Unlock()
+	return s.registerHostLocked(ctx, hello)
+}
+
+func (s *Server) registerHostLocked(ctx context.Context, hello contract.HostHello) (string, error) {
 	binding, err := s.db.HostBinding(ctx, hello.LaunchID)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return "", err

@@ -1,17 +1,30 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"strings"
 	"time"
 )
 
-func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contract.DurableAck, error) {
+func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifactGate *hostArtifactGate) (contract.DurableAck, error) {
+	if err := contract.ValidateCandidateResourceEvent(event); err != nil {
+		return contract.DurableAck{}, err
+	}
+	if err := contract.ValidateTemporaryWorkspaceCleanupEvent(event); err != nil {
+		return contract.DurableAck{}, err
+	}
+	if err := contract.ValidateDiagnosticsFailure(event); err != nil {
+		return contract.DurableAck{}, err
+	}
+	if event.Failure != nil && (event.Kind != contract.EventLaunchRejected || (!event.Failure.ValidPrelaunchProbe() && !event.Failure.ValidValidationStart())) {
+		return contract.DurableAck{}, CodeError("failure_facts_invalid")
+	}
 	if event.Kind == contract.EventProgress {
 		return contract.DurableAck{}, CodeError("progress_requires_side_channel")
 	}
@@ -20,7 +33,7 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 			return contract.DurableAck{}, CodeError("invalid_stop_reason")
 		}
 		switch event.StopReason {
-		case "owner_stop_requested", "deadline_exceeded", "caller_cancelled", "active_budget_exhausted", "profile_timeout", "task_deadline_exceeded", "process_signaled", "interrupted":
+		case "owner_stop_requested", "deadline_exceeded", "caller_cancelled", "active_budget_exhausted", "profile_timeout", "task_deadline_exceeded", "process_signaled", "interrupted", "diagnostics_unavailable":
 		default:
 			return contract.DurableAck{}, CodeError("invalid_stop_reason")
 		}
@@ -34,11 +47,13 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.DurableAck{}, err
 	}
-	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (contract.DurableAck, error) { owned.close(); return contract.DurableAck{}, e }
 	var registeredEpoch uint64
 	// A rebound Host must replay its durable spool before it is marked ready
 	// for new dispatch. Those replay events still belong to the newly verified
@@ -54,7 +69,7 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		if oldID != event.EventID || oldHash != event.PayloadHash || oldErr != nil || newErr != nil || subtle.ConstantTimeCompare(oldCanonical, newCanonical) != 1 {
 			return rollback(ErrEventSequence)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -71,6 +86,22 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		return rollback(err)
 	}
 	historical := currentRevision != segmentRevision || superseded != 0
+	var segmentStatus string
+	if err = tx.QueryRowContext(ctx, `SELECT status FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&segmentStatus); err != nil {
+		return rollback(ErrConflict)
+	}
+	if event.Kind == contract.EventLaunchRejected {
+		if historical {
+			return rollback(ErrConflict)
+		}
+		if err = validateLaunchRejection(ctx, tx, event); err != nil {
+			return rollback(err)
+		}
+	} else if segmentStatus == "not_started" {
+		// Keep late authenticated records as internal history. They cannot create
+		// a session binding or change the already proved never-started terminal.
+		historical = true
+	}
 	var last int64
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(sequence),0) FROM runtime_events WHERE producer_id=?`, event.ProducerID).Scan(&last); err != nil {
 		return rollback(err)
@@ -83,23 +114,60 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		if event.Artifact.Size < 0 || event.Artifact.Size > 1024*1024 {
 			return rollback(CodeError("artifact_too_large"))
 		}
-		incoming += event.Artifact.Size
 	}
 	if err = d.storageAdmission(ctx, tx, event.RunID, incoming, false); err != nil {
 		return rollback(err)
 	}
-	var storedHost, taskID, attemptID string
-	if err = tx.QueryRowContext(ctx, `SELECT host_id,(SELECT task_id FROM attempts WHERE id=segment_runtime.attempt_id),attempt_id FROM segment_runtime WHERE segment_id=? AND command_id=?`, event.SegmentID, event.CommandID).Scan(&storedHost, &taskID, &attemptID); err != nil || storedHost != event.ProducerID || taskID != event.TaskID || attemptID != event.AttemptID {
+	var storedHost, taskID, attemptID, runID string
+	if err = tx.QueryRowContext(ctx, `SELECT s.host_id,a.task_id,s.attempt_id,t.run_id FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE s.segment_id=? AND s.command_id=?`, event.SegmentID, event.CommandID).Scan(&storedHost, &taskID, &attemptID, &runID); err != nil || storedHost != event.ProducerID || taskID != event.TaskID || attemptID != event.AttemptID || runID != event.RunID {
 		return rollback(ErrConflict)
+	}
+	if err = validateTemporaryWorkspaceCleanup(ctx, tx, event, historical); err != nil {
+		return rollback(err)
+	}
+	if event.DiagnosticsFailure != nil && event.DiagnosticsFailure.Detailed || event.StopReason == "diagnostics_unavailable" {
+		bound := contract.LaunchCommand{RunID: event.RunID, TaskID: event.TaskID, AttemptID: event.AttemptID, SegmentID: event.SegmentID, HostID: event.ProducerID, CommandID: event.CommandID}
+		if err = bindExistingDiagnostics(ctx, tx, &bound); err != nil || bound.Diagnostics == nil {
+			return rollback(CodeError("diagnostics_failure_unauthorized"))
+		}
+	}
+	var controlBefore int64
+	if err = tx.QueryRowContext(ctx, `SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&controlBefore); err != nil {
+		return rollback(err)
+	}
+	if err = d.retainHostArtifact(ctx, tx, event, artifactGate, false); err != nil {
+		return rollback(err)
+	}
+	if err = validateFilterTargetHostEvent(ctx, tx, event, artifactGate.verified); err != nil {
+		return rollback(err)
+	}
+	legacyClaimed := 0
+	if !artifactGate.verified && event.Artifact != nil && event.Kind != contract.EventExited {
+		claim := legacyClaimFromBody("runtime", event.EventID, event.RunID, "", body, true)
+		if claim.state == "malformed" && !historical {
+			return rollback(CodeError("legacy_artifact_unclassified"))
+		}
+		// An authenticated legacy grant records its preexisting declaration, never
+		// claims new disk capacity.  It is intentionally allowed even when old
+		// history is already over limit or contains another malformed row.
+		if err = insertLegacyClaim(ctx, tx, claim, false, d); err != nil {
+			return rollback(err)
+		}
+		if claim.state == "legacy_pending" {
+			legacyClaimed = 1
+		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	deliveryStatus := "pending"
-	if historical || event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventSession || event.Kind == contract.EventExited {
+	if historical || event.Kind == contract.EventCandidateResourceRegistered || event.Kind == contract.EventTemporaryWorkspaceCleanup || event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventSession || event.Kind == contract.EventExited {
 		deliveryStatus = "internal"
 	}
 	actionSlot := "action-" + runtimeHash(event.ProducerID + "\x00" + event.EventID)[:32]
-	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), event.Sequence, actionSlot, deliveryStatus, now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at,host_artifact_verified,legacy_artifact_claimed) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), event.Sequence, actionSlot, deliveryStatus, now, artifactGate.verified, legacyClaimed); err != nil {
 		return rollback(mapConflict(err))
+	}
+	if err = d.registerCandidateResource(ctx, tx, event, historical, now); err != nil {
+		return rollback(err)
 	}
 	if deliveryStatus == "pending" {
 		if _, err = tx.ExecContext(ctx, `INSERT INTO delivery_order(event_id,task_id) VALUES(?,?)`, event.EventID, event.TaskID); err != nil {
@@ -107,11 +175,58 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		}
 	}
 	if !historical {
+		if event.Kind == contract.EventSession {
+			if err = d.freezeProviderBinding(ctx, tx, event); err != nil {
+				return rollback(err)
+			}
+		}
 		if err = applyEvent(ctx, tx, event); err != nil {
 			return rollback(err)
 		}
 	}
-	if err = tx.Commit(); err != nil {
+
+	if event.Kind == contract.EventExited {
+		var status string
+		if err = tx.QueryRowContext(ctx, `SELECT status FROM tasks WHERE id=?`, event.TaskID).Scan(&status); err != nil {
+			return rollback(err)
+		}
+		if status == "completed" {
+			if err = d.completeDiagnosticsConsumption(ctx, tx, event.TaskID); err != nil {
+				return rollback(err)
+			}
+		}
+	}
+	if err = applyValidationToolRelease(ctx, tx, event); err != nil {
+		return rollback(err)
+	}
+	if err = applyGitFilterRelease(ctx, tx, event); err != nil {
+		return rollback(err)
+	}
+	if err = applyGitFilterCarrierRelease(ctx, tx, event); err != nil {
+		return rollback(err)
+	}
+	if !historical {
+		queued, retryErr := d.queuePolicyRetry(ctx, tx, event, actionSlot, artifactGate.validation)
+		if retryErr != nil {
+			return rollback(retryErr)
+		}
+		if event.Kind == contract.EventLaunchRejected && !queued {
+			if err = blockFailedDependencies(ctx, tx, event.TaskID); err != nil {
+				return rollback(err)
+			}
+		}
+	}
+	if artifactGate.verified {
+		if err = d.hostArtifactCommitAdmission(ctx, tx, event.RunID, controlBefore, false); err != nil {
+			return rollback(err)
+		}
+	} else if err = d.storageAdmission(ctx, tx, event.RunID, 0, false); err != nil {
+		return rollback(err)
+	}
+	if err = refreshNewBaseTargets(ctx, tx); err != nil {
+		return rollback(err)
+	}
+	if err = owned.commit(); err != nil {
 		return contract.DurableAck{}, err
 	}
 	return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"}, nil
@@ -129,7 +244,18 @@ func canonicalHostEvent(body []byte) ([]byte, error) {
 }
 
 func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
+	var terminal string
+	if err := tx.QueryRowContext(ctx, `SELECT status FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&terminal); err != nil {
+		return err
+	}
+	if terminal == "not_started" {
+		return nil
+	}
 	switch event.Kind {
+	case contract.EventTemporaryWorkspaceCleanup, contract.EventCandidateResourceRegistered:
+		return nil
+	case contract.EventLaunchRejected:
+		return applyLaunchRejection(ctx, tx, event)
 	case contract.EventPrepared, contract.EventSpawned, contract.EventRunning:
 		allowed := ""
 		switch event.Kind {
@@ -177,6 +303,9 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		}
 		return materializePendingReportQuestion(ctx, tx, event.SegmentID, event.SessionKind, event.SessionID)
 	case contract.EventQuestion:
+		if err := validateTypedQuestionBinding(ctx, tx, event); err != nil {
+			return err
+		}
 		if event.QuestionID == "" || event.QuestionRevision < 1 || event.SessionKind == "" || event.SessionID == "" {
 			return CodeError("invalid_question")
 		}
@@ -243,10 +372,22 @@ func materializePendingReportQuestion(ctx context.Context, tx *sql.Tx, segmentID
 		return ErrConflict
 	}
 	event.SessionKind, event.SessionID = sessionKind, sessionID
-	bodyBytes, err := json.Marshal(event)
-	if err != nil {
+	// Keep historical and forward-compatible fields intact. Re-marshalling the
+	// typed Event would replace the immutable artifact declaration while merely
+	// filling in trusted session metadata.
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(body), &fields); err != nil {
 		return err
 	}
+	fields["session_kind"], _ = json.Marshal(sessionKind)
+	fields["session_id"], _ = json.Marshal(sessionID)
+	var encoded bytes.Buffer
+	encoder := json.NewEncoder(&encoded)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(fields); err != nil {
+		return err
+	}
+	bodyBytes := bytes.TrimSuffix(encoded.Bytes(), []byte("\n"))
 	if _, err = tx.ExecContext(ctx, `UPDATE report_events SET body_json=?,delivery_status='pending' WHERE event_id=? AND delivery_status='pending_session'`, string(bodyBytes), eventID); err != nil {
 		return err
 	}
@@ -297,7 +438,7 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	if err := tx.QueryRowContext(ctx, `SELECT outcome,reservation_id,status,(SELECT granted_ms FROM budget_runtime WHERE id=segment_runtime.reservation_id) FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&outcome, &reservation, &segmentStatus, &grant); err != nil {
 		return err
 	}
-	if segmentStatus == "exited" {
+	if segmentStatus == "exited" || segmentStatus == "not_started" {
 		return nil
 	}
 	used := event.ActiveMS
@@ -325,6 +466,14 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	attemptStatus, taskStatus := "interrupted", "interrupted"
 	switch outcome {
 	case contract.EventResult:
+		observed, err := filterTargetTask(ctx, tx, event.TaskID)
+		if err != nil {
+			return err
+		}
+		if !observed && (event.ExitCode == nil || *event.ExitCode != 0) {
+			attemptStatus, taskStatus = "failed", "failed"
+			break
+		}
 		attemptStatus, taskStatus = "result_ready", "result_ready"
 		var policy, expected string
 		if err := tx.QueryRowContext(ctx, `SELECT completion_policy,expected_artifact_sha256 FROM task_runtime WHERE task_id=?`, event.TaskID).Scan(&policy, &expected); err != nil {
@@ -353,18 +502,20 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		return releaseReady(ctx, tx)
 	}
 	if taskStatus == "failed" {
-		var attempts, maxAttempts int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*),t.max_attempts FROM attempts a JOIN tasks t ON t.id=a.task_id WHERE a.task_id=?`, event.TaskID).Scan(&attempts, &maxAttempts); err != nil {
+		exhausted, err := executionExhausted(ctx, tx, event.TaskID)
+		if err != nil {
 			return err
 		}
-		if attempts >= maxAttempts || attempts >= 3 {
+		if exhausted {
 			return blockFailedDependencies(ctx, tx)
 		}
 	}
 	return nil
 }
 
-func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
+// roots scopes a newly terminal event to its own descendant closure. An
+// unrelated failed task may still have an authorized owner retry available.
+func blockFailedDependencies(ctx context.Context, tx *sql.Tx, roots ...string) error {
 	rows, err := tx.QueryContext(ctx, `SELECT id,status,dependencies_json FROM tasks`)
 	if err != nil {
 		return err
@@ -390,6 +541,10 @@ func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
 	if err = rows.Close(); err != nil {
 		return err
 	}
+	terminal := map[string]bool{}
+	for _, root := range roots {
+		terminal[root] = true
+	}
 	changed := true
 	for changed {
 		changed = false
@@ -399,9 +554,10 @@ func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
 			}
 			for _, dep := range task.deps {
 				depStatus := tasks[dep].status
-				if depStatus == "failed" || depStatus == "cancelled" || depStatus == "budget_exhausted" || depStatus == "blocked_dependency" {
+				if (len(roots) > 0 && terminal[dep]) || (len(roots) == 0 && (depStatus == "failed" || depStatus == "cancelled" || depStatus == "budget_exhausted" || depStatus == "blocked_dependency")) {
 					task.status = "blocked_dependency"
 					tasks[id] = task
+					terminal[id] = true
 					changed = true
 					break
 				}
@@ -411,6 +567,9 @@ func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
 	for id, task := range tasks {
 		if task.status == "blocked_dependency" {
 			if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='blocked_dependency' WHERE id=? AND status IN ('queued','ready')`, id); err != nil {
+				return err
+			}
+			if err = retireDecisionBindings(ctx, tx, id); err != nil {
 				return err
 			}
 		}

@@ -22,7 +22,7 @@ func currentCodexOwner(ctx context.Context) (coordinator.OwnerBindRequest, error
 	if !codexThreadPattern.MatchString(thread) {
 		return req, codeError("current_codex_thread_unavailable")
 	}
-	ancestry, err := process.Ancestry(os.Getpid())
+	ancestry, err := process.AncestryContext(ctx, os.Getpid())
 	if err != nil {
 		return req, codeError("current_codex_origin_unverified")
 	}

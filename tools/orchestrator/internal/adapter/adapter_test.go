@@ -411,3 +411,22 @@ func TestAGYFinalResultPreservesSchemaResponseChannel(t *testing.T) {
 		t.Fatalf("AGY response was accepted as structured output: %#v", responseOnly)
 	}
 }
+
+func TestParseGrokToolEventsProjectBoundaryOnly(t *testing.T) {
+	cases := []struct {
+		line string
+		want Event
+	}{
+		{`{"type":"tool_started","sessionId":"grok-1","tool_name":"read_file","secret":"DROP"}`, Event{Kind: EventProgress, SessionID: "grok-1", Status: "tool_started"}},
+		{`{"type":"tool_completed","tool_name":"read_file","outcome":"success","secret":"DROP"}`, Event{Kind: EventProgress, Status: "tool_completed"}},
+	}
+	for _, tc := range cases {
+		got, err := ParseEvent(ProviderGrok, tc.line, 4096)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.line, err)
+		}
+		if got != tc.want {
+			t.Errorf("%s: event = %#v, want %#v", tc.line, got, tc.want)
+		}
+	}
+}

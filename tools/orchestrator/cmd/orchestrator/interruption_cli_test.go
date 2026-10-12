@@ -169,11 +169,11 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 	if err = json.Unmarshal(runBinary(t, ctx, bin, "task", "inspect", "--handle", handle), &summary); err != nil {
 		t.Fatal(err)
 	}
-	if len(summary.Tasks) != 1 || summary.Tasks[0].Status != "interrupted" || summary.Tasks[0].ResumeBlockedReason != "profile_resume_not_verified" || summary.Tasks[0].StopReason != event.StopReason {
+	if len(summary.Tasks) != 1 || summary.Tasks[0].Status != "interrupted" || summary.Tasks[0].ResumeBlockedReason != "claude_session_history_not_verified" || summary.Tasks[0].StopReason != event.StopReason {
 		t.Fatalf("%+v", summary)
 	}
 	output, err := exec.CommandContext(ctx, bin, "task", "resume", "--handle", handle, "--work-revision", "1").CombinedOutput()
-	if err == nil || !strings.Contains(string(output), "profile_resume_not_verified") {
+	if err == nil || !strings.Contains(string(output), "claude_session_history_not_verified") {
 		t.Fatalf("resume: %s %v", output, err)
 	}
 }

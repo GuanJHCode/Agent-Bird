@@ -41,6 +41,9 @@ func prepareAuthenticatedGrokCommand(ctx context.Context, cmd process.Command, p
 	if err != nil {
 		return cmd, err
 	}
+	if profile.GrokExistingAuthOnly {
+		return prepared, nil
+	}
 	pin := adapter.BinaryPin{Path: cmd.PinnedPath, SHA256: cmd.PinnedSHA256, Version: "grok 1.0.34 (3736acbc8658)"}
 	if err := adapter.RefreshGrokAuth(ctx, pin, cmd.Env); err != nil {
 		return cmd, err

@@ -1,10 +1,14 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"strings"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"time"
 )
 
@@ -19,19 +23,50 @@ type ActiveTask struct {
 }
 
 type ReleasableTask struct {
-	TaskID     string
-	Executable string
+	TaskID           string
+	RunID            string
+	Executable       string
+	ConfigGeneration *contract.ConfigGenerationRef
 }
 
-func (d *DB) ReleasableTasks(ctx context.Context) ([]ReleasableTask, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT t.id,h.executable FROM tasks t
-	 JOIN task_runtime r ON r.task_id=t.id JOIN host_launches h ON h.id=r.host_launch_id
-	 WHERE (t.status IN ('completed','cancelled','budget_exhausted','blocked_dependency')
-	        OR (t.status='failed' AND (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id) >= MIN(t.max_attempts,3)))
+// These expressions share the latest absolute snapshot used by admission.
+// Both enumeration and the config-pin removal TX must see the same caps.
+// Aliases t/r refer to tasks/task_runtime in both callers.
+const latestBudgetRequestSQL = `(SELECT br.request_json FROM budget_revisions br WHERE br.run_id=t.run_id AND br.budget_group_id=r.budget_group_id ORDER BY br.revision DESC LIMIT 1)`
+const effectiveGroupAttemptsSQL = `COALESCE(json_extract(` + latestBudgetRequestSQL + `,'$.group_max_attempts'),(SELECT json_extract(body_json,'$.group_max_attempts') FROM task_execution_policies WHERE task_id=t.id),MIN(t.max_attempts,3))`
+const effectiveTaskAttemptsSQL = `COALESCE((SELECT json_extract(j.value,'$.max_attempts') FROM json_each(` + latestBudgetRequestSQL + `,'$.tasks') j WHERE json_extract(j.value,'$.task_id')=t.id),t.max_attempts)`
+const effectiveTaskTimeSQL = `COALESCE((SELECT json_extract(j.value,'$.task_max_active_ms') FROM json_each(` + latestBudgetRequestSQL + `,'$.tasks') j WHERE json_extract(j.value,'$.task_id')=t.id),json_extract(p.body_json,'$.task_max_active_ms'))`
+const effectiveGroupTimeSQL = `COALESCE(json_extract(` + latestBudgetRequestSQL + `,'$.group_max_active_ms'),json_extract(p.body_json,'$.group_max_active_ms'))`
+
+// A blocked descendant may still be restored by an unresolved ancestor retry.
+// Enumeration and pin removal must retain exactly the same dependency hold.
+const blockedAncestorHoldSQL = `(t.status!='blocked_dependency' OR NOT EXISTS (
+ WITH RECURSIVE ancestors(id) AS (
+   SELECT value FROM json_each(t.dependencies_json)
+   UNION SELECT j.value FROM tasks parent JOIN ancestors a ON a.id=parent.id JOIN json_each(parent.dependencies_json) j WHERE parent.run_id=t.run_id
+ ) SELECT 1 FROM ancestors a WHERE
+ EXISTS(SELECT 1 FROM runtime_events e WHERE e.task_id=a.id AND e.delivery_status='pending') OR
+ EXISTS(SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=a.id AND e.delivery_status IN ('pending','pending_session')) OR
+ EXISTS(SELECT 1 FROM decision_attempt_bindings b WHERE b.task_id=a.id AND b.attempt_id IS NULL AND b.retired=0)))`
+
+const releasableTaskPredicate = `(t.status IN ('completed','cancelled','budget_exhausted','blocked_dependency')
+	        OR (t.status='failed' AND (
+          EXISTS(SELECT 1 FROM attempts a JOIN segment_runtime s ON s.attempt_id=a.id WHERE a.task_id=t.id AND a.attempt_no=(SELECT MAX(attempt_no) FROM attempts WHERE task_id=t.id) AND s.segment_id=(SELECT id FROM segments WHERE attempt_id=a.id ORDER BY segment_no DESC LIMIT 1) AND a.status='failed' AND s.status='not_started' AND s.outcome='launch_rejected') OR
+          (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id) >= ` + effectiveGroupAttemptsSQL + `
+          OR EXISTS(SELECT 1 FROM task_execution_policies p WHERE p.task_id=t.id AND (
+            (SELECT COUNT(*) FROM attempts WHERE task_id=t.id)>=` + effectiveTaskAttemptsSQL + ` OR
+            (SELECT COALESCE(SUM(CASE WHEN b.status='settled' THEN b.used_ms ELSE b.granted_ms END),0) FROM budget_runtime b JOIN segments s ON s.id=b.segment_id JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id)>=` + effectiveTaskTimeSQL + ` OR
+            (SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=r.budget_group_id)>=` + effectiveGroupTimeSQL + `)))))
+     AND NOT EXISTS(SELECT 1 FROM decision_attempt_bindings WHERE task_id=t.id AND attempt_id IS NULL AND retired=0)
 	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))
 	 AND NOT EXISTS (SELECT 1 FROM runtime_events e WHERE e.task_id=t.id AND e.delivery_status='pending')
 	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=t.id AND e.delivery_status IN ('pending','pending_session'))
-	 AND NOT EXISTS (SELECT 1 FROM runtime_questions q WHERE q.task_id=t.id AND q.status IN ('open','resume_queued','resume_started'))
+	 AND NOT EXISTS (SELECT 1 FROM runtime_questions q WHERE q.task_id=t.id AND q.status IN ('open','resume_queued','resume_started')) AND ` + blockedAncestorHoldSQL
+
+func (d *DB) ReleasableTasks(ctx context.Context) ([]ReleasableTask, error) {
+	rows, err := d.sql.QueryContext(ctx, `SELECT t.id,t.run_id,h.executable,r.adapter_payload FROM tasks t
+	 JOIN task_runtime r ON r.task_id=t.id JOIN host_launches h ON h.id=r.host_launch_id
+	 WHERE `+releasableTaskPredicate+`
 	 ORDER BY t.id`)
 	if err != nil {
 		return nil, err
@@ -40,8 +75,25 @@ func (d *DB) ReleasableTasks(ctx context.Context) ([]ReleasableTask, error) {
 	var out []ReleasableTask
 	for rows.Next() {
 		var item ReleasableTask
-		if err = rows.Scan(&item.TaskID, &item.Executable); err != nil {
+		var payload []byte
+		if err = rows.Scan(&item.TaskID, &item.RunID, &item.Executable, &payload); err != nil {
 			return nil, err
+		}
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(payload, &fields) != nil {
+			return nil, CodeError("invalid_adapter_payload")
+		}
+		paired := false
+		for key := range fields {
+			paired = paired || strings.EqualFold(key, "config_generation") || strings.EqualFold(key, "config_model_source")
+		}
+		if paired {
+			original, e := adapter.DecodeInvocationPayload(payload)
+			if e != nil || original.ConfigGeneration == nil {
+				return nil, CodeError("config_generation_invalid")
+			}
+			copy := *original.ConfigGeneration
+			item.ConfigGeneration = &copy
 		}
 		out = append(out, item)
 	}
@@ -73,15 +125,22 @@ func (d *DB) CompletelyIdle(ctx context.Context) (bool, error) {
  (SELECT COUNT(*) FROM runtime_events WHERE delivery_status='pending') +
 	 (SELECT COUNT(*) FROM report_events WHERE delivery_status IN ('pending','pending_session')) +
  (SELECT COUNT(*) FROM stop_runtime WHERE status IN ('pending','accepted')) +
- (SELECT COUNT(*) FROM runtime_hosts WHERE status='ready')`).Scan(&count)
+ (SELECT COUNT(*) FROM runtime_hosts WHERE status='ready') + (SELECT COUNT(*) FROM decision_attempt_bindings WHERE attempt_id IS NULL AND retired=0)`).Scan(&count)
 	return count == 0, err
 }
 
-func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT h.id FROM runtime_hosts h WHERE h.status='ready'
+const retirableHostPredicate = `h.status='ready'
+ AND NOT EXISTS(SELECT 1 FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.host_launch_id=h.launch_id AND b.attempt_id IS NULL AND b.retired=0)
 	 AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','result_ready','cancelled','failed','budget_exhausted','blocked_dependency'))
 	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.producer_id=h.id AND e.delivery_status='pending_session')
- ORDER BY h.id`)
+	 AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id JOIN task_execution_policies p ON p.task_id=t.id
+	  WHERE r.host_launch_id=h.launch_id AND t.status='failed' AND (
+	   EXISTS(SELECT 1 FROM runtime_events e WHERE e.task_id=t.id AND e.delivery_status='pending') OR
+	   EXISTS(SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=t.id AND e.delivery_status IN ('pending','pending_session'))))
+	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s WHERE s.host_id=h.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))`
+
+func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
+	rows, err := d.sql.QueryContext(ctx, `SELECT h.id FROM runtime_hosts h WHERE `+retirableHostPredicate+` ORDER BY h.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -100,28 +159,40 @@ func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
 func (d *DB) RetireHost(ctx context.Context, hostID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='released',updated_at=? WHERE id=? AND status='ready'`, time.Now().UTC().Format(time.RFC3339Nano), hostID); err != nil {
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
+	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts AS h SET status='released',updated_at=? WHERE h.id=? AND `+retirableHostPredicate, time.Now().UTC().Format(time.RFC3339Nano), hostID)
+	if err != nil {
 		return rollback(err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return rollback(err)
+	}
+	if changed != 1 {
+		return rollback(ErrConflict)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='released' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) MarkStoppingUnknown(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	if _, err = tx.ExecContext(ctx, `UPDATE segment_runtime SET status='unknown' WHERE status='stopping'`); err != nil {
 		return rollback(err)
 	}
@@ -134,7 +205,7 @@ func (d *DB) MarkStoppingUnknown(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE stop_runtime SET status='unknown' WHERE status IN ('pending','accepted')`); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) RequestStop(ctx context.Context, taskID string, workRevision int, reason string) (StopDispatch, error) {
@@ -143,19 +214,31 @@ func (d *DB) RequestStop(ctx context.Context, taskID string, workRevision int, r
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return StopDispatch{}, err
 	}
-	rollback := func(e error) (StopDispatch, error) { _ = tx.Rollback(); return StopDispatch{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (StopDispatch, error) { owned.close(); return StopDispatch{}, e }
+	var runID string
+	if err = tx.QueryRowContext(ctx, `SELECT run_id FROM tasks WHERE id=?`, taskID).Scan(&runID); err != nil {
+		return rollback(ErrNotFound)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return rollback(err)
+	}
 	dispatch, err := requestStopTx(ctx, tx, taskID, workRevision, reason)
 	if err != nil {
 		return rollback(err)
 	}
-	return dispatch, tx.Commit()
+	return dispatch, owned.commit()
 }
 
 func requestStopTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int, reason string) (StopDispatch, error) {
+	if err := initialOwnerRunFence(ctx, tx, taskID); err != nil {
+		return StopDispatch{}, err
+	}
 	var err error
 	rollback := func(e error) (StopDispatch, error) { return StopDispatch{}, e }
 	var status string
@@ -170,7 +253,13 @@ func requestStopTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision 
 		if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='cancelled' WHERE id=?`, taskID); err != nil {
 			return rollback(err)
 		}
-		if err = blockFailedDependencies(ctx, tx); err != nil {
+		if err = retireDecisionBindings(ctx, tx, taskID); err != nil {
+			return rollback(err)
+		}
+		if err = blockFailedDependencies(ctx, tx, taskID); err != nil {
+			return rollback(err)
+		}
+		if err = refreshNewBaseTargets(ctx, tx); err != nil {
 			return rollback(err)
 		}
 		return StopDispatch{}, nil

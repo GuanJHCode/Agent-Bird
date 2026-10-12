@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -36,13 +35,9 @@ func TestCandidateInputBindsAcceptedHostResultAndReplay(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			path := filepath.Join(t.TempDir(), "candidate.json")
 			body := []byte(`{"candidate":"immutable"}`)
-			if err = os.WriteFile(path, body, 0600); err != nil {
-				t.Fatal(err)
-			}
 			zero := 0
-			e := contract.Event{Version: 1, ProducerID: hostID, EventID: "edit-result", RunID: "run", TaskID: "edit", AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: &contract.ArtifactRef{ID: "candidate", Path: path, Size: int64(len(body)), SHA256: runtimeHash(string(body))}}
+			e := contract.Event{Version: 1, ProducerID: hostID, EventID: "edit-result", RunID: "run", TaskID: "edit", AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: managedHostArtifactForTest(t, db, grant, "terminal", 0, body)}
 			if _, err = db.CommitHostEvent(ctx, e); err != nil {
 				t.Fatal(err)
 			}
@@ -92,6 +87,16 @@ func TestCandidateInputBindsAcceptedHostResultAndReplay(t *testing.T) {
 				}
 			}
 			check(next)
+			legacyBody, _ := json.Marshal(struct {
+				Plan          int
+				Payload       json.RawMessage
+				Input         *contract.AcceptedInput
+				HostArtifacts *contract.HostArtifactGrant
+			}{next.PlanRevision, next.AdapterPayload, next.Input, next.HostArtifacts})
+			legacyHash := runtimeHash(next.RunID + "\x00" + next.TaskID + "\x00" + next.AttemptID + "\x00" + next.SegmentID + "\x00" + next.SlotToken + "\x00" + string(legacyBody))
+			if next.LaunchIntentHash != legacyHash {
+				t.Fatal("new candidate intent omitted or changed Host authority")
+			}
 			pending, err := db.PendingLaunches(ctx, hostID, 1)
 			if err != nil || len(pending) != 1 {
 				t.Fatalf("pending=%d err=%v", len(pending), err)
@@ -125,5 +130,47 @@ func TestCandidatePlanRejectsInvalidInputBeforeReservingHost(t *testing.T) {
 				t.Fatal("poisoned ready task admitted into source Host")
 			}
 		})
+	}
+}
+
+// A second dependency is evidence, not merely a scheduling gate. Until the
+// action explicitly opts into the v1 dependency-input vector, admission must
+// refuse it instead of silently binding only source_task.
+func TestCandidatePlanRejectsUnversionedJoinBeforeReservingHost(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	tasks := []TaskSpec{
+		{ID: "edit", RunID: "run", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","candidate_workspace":{"version":1}}`)},
+		{ID: "side", RunID: "run", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","candidate_workspace":{"version":1}}`)},
+		{ID: "validate", RunID: "run", Dependencies: []string{"edit"}, MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"operation":"validate","command":["/usr/bin/true"],"source_task":"edit"}}`)},
+		{ID: "review", RunID: "run", Dependencies: []string{"validate", "side"}, MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"reviewer","permission":"read-only"},"candidate_action":{"version":1,"operation":"review","source_task":"validate"}}`)},
+	}
+	if _, err = db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks}); err == nil || err.Error() != "candidate_dependency_inputs_required" {
+		t.Fatalf("unversioned join admitted: %v", err)
+	}
+	var count int
+	if err = db.sql.QueryRow(`SELECT COUNT(*) FROM tasks`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("partial plan rows=%d err=%v", count, err)
+	}
+}
+
+func TestCandidatePlanAcceptsV2ComposeWithDeclaredOrder(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	producer := func(id string) TaskSpec {
+		return TaskSpec{ID: id, RunID: "run", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"implementer","permission":"workspace-write"},"candidate_workspace":{"version":1}}`)}
+	}
+	compose := TaskSpec{ID: "compose", RunID: "run", Dependencies: []string{"a", "z"}, MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":2,"dependency_input_version":2,"operation":"compose","ordered_source_tasks":["z","a"]}}`)}
+	_, err = db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{producer("a"), producer("z"), compose}})
+	if err != nil {
+		t.Fatalf("v2 compose rejected: %v", err)
 	}
 }

@@ -1,0 +1,70 @@
+{
+  "bind": {
+    "schema_version": 1,
+    "request_id": "bind-1",
+    "run_id": "run-1",
+    "provider_id": "grok",
+    "native_pid": 123,
+    "native_birth": "123.456",
+    "native_executable_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "transport_mode": "grok_acp_push_v1",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "manifest_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "activate": {
+    "schema_version": 1,
+    "binding_id": "binding-界",
+    "owner_epoch": 1,
+    "request_id": "713bbcb86867178e3c58eb4cea4b872f602060a53eed5ebca0f2c876e7ee63ce",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "native_session_id": "session-界"
+  },
+  "claim": {
+    "schema_version": 1,
+    "binding_id": "binding-界",
+    "owner_epoch": 1,
+    "request_id": "claim-1",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json"
+  },
+  "begin": {
+    "schema_version": 1,
+    "binding_id": "binding-界",
+    "owner_epoch": 1,
+    "request_id": "23058bc8aa942b67f90adeb92c9dc70ce94f8080d64cc52b155145fa11d897ef",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "native_session_id": "session-界",
+    "batch_id": "batch-1",
+    "attempt_id": "attempt-1",
+    "claim_token": "token-1",
+    "render_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "prompt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "turn_ordinal": 1
+  },
+  "receive": {
+    "schema_version": 1,
+    "binding_id": "binding-界",
+    "owner_epoch": 1,
+    "request_id": "7a47dfebfda2887ca977e86f9db7819c35bc6e94a646b4e9d1a43123d0c6cf9a",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "native_session_id": "session-界",
+    "batch_id": "batch-1",
+    "attempt_id": "attempt-1",
+    "claim_token": "token-1",
+    "render_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "prompt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "turn_ordinal": 1,
+    "rpc_request_id": 3,
+    "response_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "stop_reason": "end_turn"
+  }
+}

@@ -20,10 +20,12 @@ import (
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/admincli"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/candidatemaintenance"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/hostbootstrap"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
@@ -52,6 +54,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
+	case "mcp":
+		return providerMCPEntry(ctx, args[1:], os.Stdin, stdout)
+	case "call":
+		return providerCallEntry(ctx, args[1:], stdout)
+	case "platform":
+		return platformCapabilities(args[1:], stdout)
+	case "filter-carrier-helper":
+		return filterCarrierHelper(ctx, args[1:])
 	case "runtime-status":
 		return runtimeStatus(ctx, args[1:], stdout)
 	case "routing":
@@ -76,11 +86,17 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return providerControl(ctx, args[0], args[1:], stdout)
 	case "serve":
 		return serve(ctx, args[1:], stderr)
+	case "owner-transport":
+		return ownerTransportEntry(ctx, args[1:])
+	case "original-owner":
+		return originalOwnerEntry(ctx, args[1:])
 	case "source-host":
 		return sourceHost(ctx, args[1:])
 	case "gitops-worker":
 		return runGitopsWorker(ctx, args[1:], stdout)
-	case "install", "doctor", "uninstall", "pin", "unpin":
+	case "candidate-maintenance-worker":
+		return candidateMaintenanceWorker(ctx, args[1:], stdout)
+	case "install", "doctor", "uninstall", "pin", "unpin", "config-plan", "config-apply", "config-remove":
 		return runAdmin(args[0], args[1:], stdout)
 	case "ensure-running":
 		state, err := parseStateOnly(args[1:])
@@ -106,6 +122,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskControl(ctx, ipc.KindResume, args[1:], stdout)
 	case "retry":
 		return retryTask(ctx, args[1:], stdout)
+	case "budget-revise":
+		return reviseBudget(ctx, args[1:], stdout)
 	case "rework":
 		return reworkTask(ctx, args[1:], stdout)
 	case "accept":
@@ -116,6 +134,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return reportEvent(ctx, args[1:], stdout)
 	case "native-bridge":
 		return runNativeBridge(ctx, args[1:], stdout, stderr)
+	case "bridge":
+		return bridgeEntry(ctx, args[1:], stdout, stderr)
 	case "recover-host":
 		return recoverHost(ctx, args[1:], stdout)
 	case "rebind-owner":
@@ -124,6 +144,14 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskControl(ctx, ipc.KindStopTask, args[1:], stdout)
 	case "ack":
 		return acknowledge(ctx, args[1:], stdout)
+	case "diagnostics-read", "diagnostics-ack", "diagnostics-delete", "diagnostics-retention-plan", "diagnostics-retention-apply", "diagnostics-gc-enable", "diagnostics-gc-disable", "diagnostics-gc-status":
+		return diagnosticsCLI(ctx, args[0], args[1:], stdout)
+	case "report-artifact-retention-resolve", "report-artifact-retention-plan", "report-artifact-retention-apply", "report-gc-enable", "report-gc-disable", "report-gc-status":
+		return reportRetentionCLI(ctx, args[0], args[1:], stdout)
+	case "host-artifact-retention-resolve", "host-artifact-retention-plan", "host-artifact-retention-apply", "host-gc-enable", "host-gc-disable", "host-gc-status":
+		return hostRetentionCLI(ctx, args[0], args[1:], stdout)
+	case "candidate-retention-resolve", "candidate-retention-plan", "candidate-retention-apply", "candidate-gc-enable", "candidate-gc-disable", "candidate-gc-status":
+		return candidateRetentionCLI(ctx, args[0], args[1:], stdout)
 	default:
 		return codeError("invalid_args")
 	}
@@ -202,21 +230,12 @@ func rebindOwner(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	bootstrap, err := loadHostBootstrap(capability)
-	if err != nil {
-		return err
-	}
-	if bootstrap.Version != 2 {
+	if capability.Version != 2 {
 		return codeError("legacy_bootstrap_rebind_unsupported")
 	}
 	request := coordinator.RebindOwnerRequest{RunID: capability.RunID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, OriginContextID: verified.OriginContextID, OriginPID: verified.OriginPID, OriginBirth: verified.OriginBirth, HostGeneration: verified.HostGeneration, AttachmentProofSHA256: verified.AttachmentProofSHA256}
-	response, err := call(ctx, state, ipc.KindRebindOwner, request)
+	response, err := rebindHostBootstrap(ctx, state, capability, request)
 	if err != nil {
-		return err
-	}
-	bootstrap.Hello.OriginPID, bootstrap.Hello.OriginBirth = verified.OriginPID, verified.OriginBirth
-	bootstrap.Hello.OriginContextID, bootstrap.Hello.HostGeneration = verified.OriginContextID, verified.HostGeneration
-	if err = replacePrivateJSON(capability.BootstrapPath, bootstrapMetadata(bootstrap)); err != nil {
 		return err
 	}
 	_, err = stdout.Write(append(response.Payload, '\n'))
@@ -230,6 +249,28 @@ func runGitopsWorker(ctx context.Context, args []string, stdout io.Writer) error
 	}
 	return gitopsworker.Run(ctx, path, stdout)
 }
+func candidateMaintenanceWorker(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("candidate-maintenance-worker", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fd := fs.Int("bootstrap-fd", -1, "inherited grant")
+	if fs.Parse(args) != nil || fs.NArg() != 0 || *fd != 3 {
+		return codeError("candidate_maintenance_bootstrap_invalid")
+	}
+	f := os.NewFile(uintptr(*fd), "candidate-maintenance-bootstrap")
+	if f == nil {
+		return codeError("candidate_maintenance_bootstrap_invalid")
+	}
+	defer f.Close()
+	out, err := candidatemaintenance.Worker(ctx, f)
+	if err != nil {
+		if out.Version == 0 {
+			return err
+		}
+		_ = json.NewEncoder(stdout).Encode(out)
+		return err
+	}
+	return json.NewEncoder(stdout).Encode(out)
+}
 
 func runAdmin(operation string, args []string, stdout io.Writer) error {
 	path, err := requestFile(args)
@@ -240,11 +281,18 @@ func runAdmin(operation string, args []string, stdout io.Writer) error {
 }
 
 func serve(parent context.Context, args []string, stderr io.Writer) error {
-	state, err := parseStateOnly(args)
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	stateArg := fs.String("state-dir", "", "private state directory")
+	recovery := fs.Bool("recover-existing-host", false, "recover coordinator without clearing normal-exit fences")
+	if fs.Parse(args) != nil || fs.NArg() != 0 {
+		return codeError("invalid_args")
+	}
+	state, err := resolveState(*stateArg)
 	if err != nil {
 		return err
 	}
-	server, err := coordinator.NewServer(state)
+	server, err := coordinator.NewCLIServer(state, *recovery)
 	if err != nil {
 		return err
 	}
@@ -279,7 +327,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
 	requestPath := fs.String("request", "", "owner-only JSON request")
-	if fs.Parse(args) != nil || *requestPath == "" || fs.NArg() != 0 {
+	sourceControlFile := fs.String("source-control-file", "", "source integration owner-only control capability")
+	ownerLaunchProtocol := fs.Int("owner-launch-protocol", 1, "original owner launch protocol (1 or 2)")
+	if fs.Parse(args) != nil || *requestPath == "" || fs.NArg() != 0 || (*ownerLaunchProtocol != 1 && *ownerLaunchProtocol != 2) {
 		return codeError("invalid_args")
 	}
 	state, err := resolveState(*stateArg)
@@ -289,6 +339,30 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	var request coordinator.SubmitRequest
 	if err = readPrivateJSON(*requestPath, &request); err != nil {
 		return err
+	}
+	if request.NewBaseAuthorization != nil || request.NewBaseRework != nil && (request.LaunchID != "" || request.LaunchToken != "" || request.ControlToken != "") {
+		return codeError("invalid_submit_credentials")
+	}
+	if request.NewBaseRework != nil {
+		if *sourceControlFile == "" {
+			return codeError("source_control_required")
+		}
+		cap, e := loadControlCapability(*sourceControlFile)
+		if e != nil {
+			return e
+		}
+		request.NewBaseAuthorization = &store.NewBaseAuthorization{ControllerThread: cap.ControllerThread, ControlToken: cap.ControlToken}
+	} else if *sourceControlFile != "" {
+		return codeError("invalid_args")
+	}
+	if request.OwnerLaunchProtocol != 0 && request.OwnerLaunchProtocol != 2 {
+		return codeError("invalid_args")
+	}
+	if request.OwnerLaunchProtocol == 2 {
+		*ownerLaunchProtocol = 2
+	}
+	if *ownerLaunchProtocol == 2 {
+		request.OwnerLaunchProtocol = 2
 	}
 	if err = preflightTasks(request.Tasks); err != nil {
 		return err
@@ -322,46 +396,115 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err = requireTaskCoordinator(ctx, state, request.Tasks); err != nil {
 		return err
 	}
-	launchID, err := randomValue("host-launch")
-	if err != nil {
-		return err
+	var launchID, launchToken, controlToken, bootstrapPath, controlPath string
+	var bootstrap hostBootstrap
+	prepared, e := loadNewBasePrepared(state, request, *ownerLaunchProtocol)
+	if e != nil {
+		return e
 	}
-	launchToken, err := randomValue("host-token")
-	if err != nil {
-		return err
+	if prepared != "" {
+		cap, e := loadControlCapability(prepared)
+		if e != nil {
+			return e
+		}
+		bootstrap, e = loadHostBootstrap(cap)
+		if e != nil {
+			return e
+		}
+		launchID, launchToken, controlToken, bootstrapPath, controlPath = cap.HostLaunchID, cap.HostLaunchToken, cap.ControlToken, cap.BootstrapPath, prepared
+	} else {
+		launchID, err = randomValue("host-launch")
+		if err != nil {
+			return err
+		}
+		launchToken, err = randomValue("host-token")
+		if err != nil {
+			return err
+		}
+		controlToken, err = randomValue("control-token")
+		if err != nil {
+			return err
+		}
+		bootstrap = hostBootstrap{Version: 2, SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
+		if *ownerLaunchProtocol == 2 {
+			bootstrap.OwnerLaunchProtocol = 2
+		}
+		bootstrapPath, err = writeBootstrap(state, bootstrap)
+		if err != nil {
+			return err
+		}
+		controlPath, err = writeControlCapability(state, request.RunID, request.ControllerThread, controlToken, bootstrapPath, launchID, launchToken)
+		if err != nil {
+			_ = os.Remove(bootstrapPath)
+			return err
+		}
+
+		if request.NewBaseRework != nil {
+			saved, e := publishNewBasePrepared(state, request, *ownerLaunchProtocol, controlPath)
+			if e != nil {
+				return e
+			}
+			if saved != controlPath {
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+				cap, e := loadControlCapability(saved)
+				if e != nil {
+					return e
+				}
+				bootstrap, e = loadHostBootstrap(cap)
+				if e != nil {
+					return e
+				}
+				launchID, launchToken, controlToken, bootstrapPath, controlPath = cap.HostLaunchID, cap.HostLaunchToken, cap.ControlToken, cap.BootstrapPath, saved
+			}
+		}
 	}
-	controlToken, err := randomValue("control-token")
-	if err != nil {
-		return err
+	ref, pairErr := coordinator.ConfigGenerationForTasks(request.Tasks)
+	if pairErr != nil {
+		return pairErr
 	}
-	bootstrap := hostBootstrap{Version: 2, SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
-	bootstrapPath, err := writeBootstrap(state, bootstrap)
-	if err != nil {
-		return err
-	}
-	controlPath, err := writeControlCapability(state, request.RunID, request.ControllerThread, controlToken, bootstrapPath, launchID, launchToken)
-	if err != nil {
-		_ = os.Remove(bootstrapPath)
-		return err
+	if ref != nil {
+		if request.OwnerMode != "local" {
+			return codeError("config_generation_local_owner_required")
+		}
+		scope, e := contract.ConfigGenerationOwnerScope(request.ControllerThread, request.OriginBirth)
+		if e != nil {
+			return e
+		}
+		if e = install.ValidateConfigGenerationSubmission(executable, scope, request.RunID, coordinator.ConfigTaskPlanDigest(request.RunID, request.PlanRevision, request.Tasks), configTaskUses(request.Tasks)); e != nil {
+			return e
+		}
 	}
 	pinned := make([]string, 0, len(request.Tasks))
 	for _, task := range request.Tasks {
+		if ref != nil {
+			continue
+		} // Exact v2 pins were durably converted from the original hold.
+
 		if _, pinErr := install.PinRunningVersion(executable, task.ID); pinErr != nil {
 			if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1" && pinErr.Error() == "running_package_invalid" {
 				continue
 			}
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
-			_ = os.Remove(controlPath)
-			_ = os.Remove(bootstrapPath)
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
+			if request.NewBaseRework == nil {
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+			}
 			return pinErr
 		}
 		pinned = append(pinned, task.ID)
 	}
 	if onPrepared != nil {
 		if err = onPrepared(controlPath); err != nil {
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
-			_ = os.Remove(controlPath)
-			_ = os.Remove(bootstrapPath)
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
+			if request.NewBaseRework == nil {
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+			}
 			return err
 		}
 	}
@@ -370,9 +513,13 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err != nil {
 		var rejected remoteError
 		if errors.As(err, &rejected) {
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
-			_ = os.Remove(controlPath)
-			_ = os.Remove(bootstrapPath)
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
+			if request.NewBaseRework == nil {
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+			}
 			return err
 		}
 		_ = startSourceHost(executable, state, bootstrap)
@@ -383,7 +530,17 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err = decode(response.Payload, &receipt); err != nil || receipt.LaunchID != launchID || receipt.LaunchToken != launchToken || receipt.ControlToken != controlToken {
 		return codeError("submit_receipt_mismatch")
 	}
-	if err = startSourceHost(executable, state, bootstrap); err != nil {
+	startHost := func() error { return startSourceHost(executable, state, bootstrap) }
+	if request.NewBaseRework != nil {
+		startHost = func() error {
+			cap, e := loadControlCapability(controlPath)
+			if e != nil {
+				return e
+			}
+			return ensureSourceHost(ctx, state, cap)
+		}
+	}
+	if err = startHost(); err != nil {
 		_ = json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "queued_host_unavailable", "run_id": request.RunID, "control_file": controlPath})
 		return codeError("source_host_start_failed")
 	}
@@ -405,6 +562,15 @@ type controlCapability struct {
 }
 
 func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Writer) error {
+	return taskControlWithResumeDependencies(ctx, kind, args, stdout, resumeControlDependencies{
+		requireCoordinator:  requireInterruptionCoordinator,
+		call:                call,
+		ensureLegacyHost:    ensureSourceHost,
+		ensureSuccessorHost: ensureSuccessorSourceHost,
+	})
+}
+
+func taskControlWithResumeDependencies(ctx context.Context, kind ipc.Kind, args []string, stdout io.Writer, resumeDeps resumeControlDependencies) error {
 	fs := flag.NewFlagSet(string(kind), flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
@@ -413,40 +579,35 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 	revision := fs.Int("work-revision", 0, "work revision")
 	cursor := fs.String("cursor", "", "opaque delivery cursor")
 	includeDiagnostics := fs.Bool("include-diagnostics", false, "include durable progress diagnostics")
+	commandID := ""
+	if kind == ipc.KindResume {
+		fs.StringVar(&commandID, "command-id", "", "stable owner Resume command id")
+	}
 	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || fs.NArg() != 0 || (kind != ipc.KindCollect && (*cursor != "" || *includeDiagnostics)) {
 		return codeError("invalid_args")
 	}
 	if (kind == ipc.KindResume || kind == ipc.KindStopTask) && *revision < 1 {
 		return codeError("invalid_args")
 	}
+	explicitCommand := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "command-id" {
+			explicitCommand = true
+		}
+	})
+	if explicitCommand && !validResumeJournalCommandID(commandID) {
+		return codeError("invalid_args")
+	}
 	state, err := resolveState(*stateArg)
 	if err != nil {
 		return err
 	}
+	if kind == ipc.KindResume {
+		return resumeControl(ctx, state, *controlFile, *taskID, *revision, commandID, explicitCommand, stdout, resumeDeps)
+	}
 	capability, err := loadControlCapability(*controlFile)
 	if err != nil {
 		return err
-	}
-	if kind == ipc.KindResume {
-		if err = requireInterruptionCoordinator(ctx, state); err != nil {
-			return err
-		}
-		response, queryErr := call(ctx, state, ipc.KindSummary, coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken})
-		if queryErr != nil {
-			return queryErr
-		}
-		var summary store.RunSummary
-		if err = decode(response.Payload, &summary); err != nil {
-			return err
-		}
-		for _, task := range summary.Tasks {
-			if task.TaskID == *taskID && task.ResumeBlockedReason != "" {
-				return codeError(task.ResumeBlockedReason)
-			}
-		}
-		if err = ensureSourceHost(ctx, state, capability); err != nil {
-			return err
-		}
 	}
 	control := coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision}
 	request := any(control)
@@ -577,7 +738,7 @@ func retryTask(ctx context.Context, args []string, stdout io.Writer) error {
 	eventHash := fs.String("event-hash", "", "failed event payload hash")
 	actionSlot := fs.String("action-slot", "", "failed event action slot")
 	segmentID := fs.String("segment-id", "", "failed segment id")
-	nextAttemptNo := fs.Int("next-attempt", 0, "next attempt number in the frozen budget group")
+	nextAttemptNo := fs.Int("next-attempt", 0, "next task attempt number in the frozen budget group")
 	commandID := fs.String("command-id", "", "stable retry command id")
 	useNext := fs.Bool("use-next-fallback", false, "use the next pre-authorized adapter")
 	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || *revision < 1 || *eventID == "" || *eventRevision < 1 || *eventHash == "" || *actionSlot == "" || *segmentID == "" || *nextAttemptNo < 2 || *commandID == "" || fs.NArg() != 0 {
@@ -767,6 +928,10 @@ func call(ctx context.Context, state string, kind ipc.Kind, payload any) (ipc.En
 }
 
 func ensureServer(ctx context.Context, state string) (map[string]any, error) {
+	return ensureServerMode(ctx, state, false)
+}
+
+func ensureServerMode(ctx context.Context, state string, recovery bool) (map[string]any, error) {
 	parent := ctx
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -811,7 +976,11 @@ func ensureServer(ctx context.Context, state string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	command := exec.Command(executable, "serve", "--state-dir", state)
+	arguments := []string{"serve", "--state-dir", state}
+	if recovery {
+		arguments = append(arguments, "--recover-existing-host")
+	}
+	command := exec.Command(executable, arguments...)
 	command.Stdin, command.Stdout, command.Stderr = nil, logFile, logFile
 	command.Env = coordinatorEnvironment()
 	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -824,6 +993,11 @@ func ensureServer(ctx context.Context, state string) (map[string]any, error) {
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
 	for {
+		if recovery {
+			if err := coordinator.CheckRecoveryAllowed(state, contract.HostHello{}); err != nil {
+				return nil, err
+			}
+		}
 		if value, readyErr := ready(); readyErr == nil {
 			return value, nil
 		} else if errors.Is(readyErr, ipc.ErrInvalidMessage) || errors.Is(readyErr, ipc.ErrMessageTooLarge) {
@@ -846,36 +1020,22 @@ func coordinatorEnvironment() []string {
 }
 
 type hostBootstrap struct {
-	Version    int                `json:"version"`
-	SocketPath string             `json:"socket_path"`
-	SpoolRoot  string             `json:"spool_root"`
-	ProducerID string             `json:"producer_id"`
-	Hello      contract.HostHello `json:"hello"`
+	OwnerLaunchProtocol int                `json:"owner_launch_protocol,omitempty"`
+	Version             int                `json:"version"`
+	SocketPath          string             `json:"socket_path"`
+	SpoolRoot           string             `json:"spool_root"`
+	ProducerID          string             `json:"producer_id"`
+	Hello               contract.HostHello `json:"hello"`
 }
 
 // hostBootstrapMetadataV2 is the token-free disk contract, distinct from the
 // in-memory/v1 wire object. Strict decoding rejects injected token fields.
-type hostBootstrapMetadataV2 struct {
-	Version    int               `json:"version"`
-	SocketPath string            `json:"socket_path"`
-	SpoolRoot  string            `json:"spool_root"`
-	ProducerID string            `json:"producer_id"`
-	Hello      hostHelloMetadata `json:"hello"`
-}
-type hostHelloMetadata struct {
-	LaunchID        string `json:"launch_id"`
-	OriginContextID string `json:"origin_context_id"`
-	OriginPID       int    `json:"origin_pid"`
-	OriginBirth     string `json:"origin_birth"`
-	HostGeneration  string `json:"host_generation"`
-	PID             int    `json:"pid"`
-	Birth           string `json:"birth"`
-	Executable      string `json:"executable"`
-}
+type hostBootstrapMetadataV2 = hostbootstrap.MetadataV2
+type hostHelloMetadata = hostbootstrap.HelloMetadata
 
 func bootstrapMetadata(b hostBootstrap) hostBootstrapMetadataV2 {
 	h := b.Hello
-	return hostBootstrapMetadataV2{Version: 2, SocketPath: b.SocketPath, SpoolRoot: b.SpoolRoot, ProducerID: b.ProducerID, Hello: hostHelloMetadata{LaunchID: h.LaunchID, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}
+	return hostBootstrapMetadataV2{OwnerLaunchProtocol: b.OwnerLaunchProtocol, Version: 2, SocketPath: b.SocketPath, SpoolRoot: b.SpoolRoot, ProducerID: b.ProducerID, Hello: hostHelloMetadata{LaunchID: h.LaunchID, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}
 }
 func loadHostBootstrap(c controlCapability) (hostBootstrap, error) {
 	var b hostBootstrap
@@ -898,11 +1058,11 @@ func loadHostBootstrap(c controlCapability) (hostBootstrap, error) {
 	if err := readPrivateJSON(c.BootstrapPath, &m); err != nil {
 		return b, err
 	}
-	if m.Version != 2 || m.Hello.LaunchID != c.HostLaunchID || m.ProducerID != c.HostLaunchID {
+	if m.Version != 2 || (m.OwnerLaunchProtocol != 0 && m.OwnerLaunchProtocol != 2) || m.Hello.LaunchID != c.HostLaunchID || m.ProducerID != c.HostLaunchID {
 		return b, codeError("invalid_host_bootstrap")
 	}
 	h := m.Hello
-	return hostBootstrap{Version: 2, SocketPath: m.SocketPath, SpoolRoot: m.SpoolRoot, ProducerID: m.ProducerID, Hello: contract.HostHello{LaunchID: h.LaunchID, LaunchToken: c.HostLaunchToken, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}, nil
+	return hostBootstrap{OwnerLaunchProtocol: m.OwnerLaunchProtocol, Version: 2, SocketPath: m.SocketPath, SpoolRoot: m.SpoolRoot, ProducerID: m.ProducerID, Hello: contract.HostHello{LaunchID: h.LaunchID, LaunchToken: c.HostLaunchToken, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}, nil
 }
 
 func sourceHost(parent context.Context, args []string) error {
@@ -960,9 +1120,29 @@ func sourceHost(parent context.Context, args []string) error {
 	bootstrap.Hello.PID, bootstrap.Hello.Birth, bootstrap.Hello.Executable = os.Getpid(), birth, executable
 	ctx, cancel := signal.NotifyContext(parent, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
+	supervised, runErr := runInitialOriginalOwner(ctx, bootstrap)
+	if runErr != nil {
+		if runErr == context.Canceled {
+			return nil
+		}
+		return runErr
+	}
+	if supervised {
+		if runErr == nil || errors.Is(runErr, context.Canceled) {
+			return nil
+		}
+		return runErr
+	}
 	err = host.RunSource(ctx, host.SourceConfig{
 		SocketPath: bootstrap.SocketPath, SpoolRoot: bootstrap.SpoolRoot,
 		ProducerID: bootstrap.ProducerID, Hello: bootstrap.Hello,
+		EnsureCoordinator: func(ctx context.Context) error {
+			if err := coordinator.CheckRecoveryAllowed(state, bootstrap.Hello); err != nil {
+				return err
+			}
+			_, err := ensureServerMode(ctx, state, true)
+			return err
+		},
 		InvocationProvider: func(ctx context.Context, grant contract.LaunchCommand) (contract.InvocationView, error) {
 			var discriminator struct {
 				Kind string `json:"kind"`
@@ -970,7 +1150,7 @@ func sourceHost(parent context.Context, args []string) error {
 			if json.Unmarshal(grant.AdapterPayload, &discriminator) == nil && discriminator.Kind == "gitops" {
 				return gitopsworker.BuildInvocation(grant.AdapterPayload, executable, bootstrap.SpoolRoot, grant.CommandID)
 			}
-			return invocationForGrant(ctx, grant)
+			return invocationForGrant(ctx, grant, filepath.Join(state, "host-spool"))
 		},
 	})
 	if err == nil || errors.Is(err, context.Canceled) {
@@ -1002,12 +1182,24 @@ func (i localInvocation) Environment() map[string]string {
 	return out
 }
 
-func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (contract.InvocationView, error) {
+func invocationForGrant(ctx context.Context, grant contract.LaunchCommand, hostSpoolParent ...string) (contract.InvocationView, error) {
+	if err := contract.ValidateDependencyInputs(grant); err != nil {
+		return nil, err
+	}
 	payload, err := adapter.DecodeInvocationPayload(grant.AdapterPayload)
 	if err != nil {
 		return nil, codeError("invalid_json")
 	}
+	if err = applyTrustedContinuationPrompt(grant, &payload); err != nil {
+		return nil, err
+	}
 	if action := payload.CandidateAction; action != nil {
+		if action.Version == 2 && action.DependencyInputVersion == 2 && action.Operation == "compose" {
+			if grant.Input != nil || action.SourceTask != "" || len(action.OrderedSourceTasks) < 2 || payload.Kind != "candidate" || payload.Provider != "" || payload.Profile != nil || payload.ProviderLock != nil || payload.CandidateWorkspace != nil || payload.BinaryPath != "" || len(payload.Args) != 0 || len(payload.ExtraArgs) != 0 || !filepath.IsAbs(payload.Directory) {
+				return nil, codeError("candidate_action_invalid")
+			}
+			return localInvocation{args: []string{"/usr/bin/true"}, dir: payload.Directory, action: action}, nil
+		}
 		if action.Version != 1 || grant.Input == nil || action.SourceTask != grant.Input.Event.TaskID || payload.CandidateWorkspace != nil || grant.SessionID != "" || payload.SessionID != "" || !filepath.IsAbs(payload.Directory) {
 			return nil, codeError("candidate_action_invalid")
 		}
@@ -1015,19 +1207,31 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 			if payload.Provider != "" || payload.Profile != nil || payload.ProviderLock != nil || payload.BinaryPath != "" || len(payload.Args) != 0 || len(payload.ExtraArgs) != 0 {
 				return nil, codeError("candidate_action_invalid")
 			}
+			if adapter.IsFilterTargetPreflight(payload) || adapter.IsFilterIntegrate(payload) {
+				return localInvocation{dir: payload.Directory, action: action}, nil
+			}
 			if action.Operation != "validate" && action.Operation != "integrate" {
 				return nil, codeError("candidate_action_invalid")
 			}
 			return localInvocation{args: []string{"/usr/bin/true"}, dir: payload.Directory, action: action}, nil
 		}
-		if action.Operation != "review" || payload.Profile == nil || payload.Profile.Role != adapter.Reviewer || payload.Profile.Permission != adapter.ReadOnly {
+		if (action.Operation != "review" && !adapter.IsFilterTargetReview(payload)) || payload.Profile == nil || payload.Profile.Role != adapter.Reviewer || payload.Profile.Permission != adapter.ReadOnly {
 			return nil, codeError("candidate_action_invalid")
 		}
-		brief, err := host.CandidateReviewPrompt(grant)
+		var brief string
+		if adapter.IsFilterTargetReview(payload) {
+			brief, err = host.FilteredTargetReviewPrompt(grant, hostSpoolParent...)
+		} else {
+			brief, err = host.CandidateReviewPrompt(grant, hostSpoolParent...)
+		}
 		if err != nil {
 			return nil, err
 		}
-		payload.Prompt += brief
+		if adapter.IsFilterTargetReview(payload) {
+			payload.Prompt = brief
+		} else {
+			payload.Prompt += brief
+		}
 	}
 	if payload.ProviderLock != nil {
 		lock := payload.ProviderLock
@@ -1036,10 +1240,11 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		}
 		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
 	}
-	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+	codexPlugin := payload.Provider == string(adapter.ProviderCodex) && payload.Kind == "provider" && payload.Profile != nil && payload.Profile.CodexHostToolsVersion == 1 && grant.Continuation == nil
+	if !codexPlugin && (payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256)) {
 		return nil, codeError("codex_trial_guard_not_ready")
 	}
-	if grant.Answer != "" {
+	if grant.Answer != "" && grant.Continuation == nil {
 		if grant.QuestionID == "" || grant.QuestionRevision < 1 || grant.SessionKind == "" || grant.SessionID == "" || payload.Kind == "fake" {
 			return nil, codeError("invalid_question_resume")
 		}
@@ -1053,6 +1258,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	}
 	request := adapter.Request{Provider: adapter.Provider(payload.Provider), Binary: adapter.BinaryPin{Path: payload.BinaryPath, Version: payload.BinaryVersion, SHA256: payload.BinarySHA256}, CWD: payload.Directory, Prompt: payload.Prompt, Session: adapter.SessionRef{Kind: adapter.SessionKind(payload.SessionKind), ID: payload.SessionID}, Permission: adapter.Permission{Mode: payload.PermissionMode, Allow: payload.Allow, Deny: payload.Deny}, ExtraArgs: payload.ExtraArgs}
 	request.Profile, request.Lock, request.Workspace, request.Action = payload.Profile, payload.ProviderLock, payload.CandidateWorkspace, payload.CandidateAction
+	request.Continuation = grant.Continuation
 	if err := adapter.VerifyExecutable(request.Binary, request.Binary.Version); err != nil {
 		return nil, err
 	}
@@ -1060,7 +1266,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	defer cancel()
 	version, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--version")
 	if err != nil {
-		return nil, codeError("binary_version_probe_failed")
+		return nil, adapter.VersionProbeFailure(err)
 	}
 	if err = adapter.VerifyExecutable(request.Binary, strings.TrimSpace(string(version))); err != nil {
 		return nil, err
@@ -1085,10 +1291,8 @@ func waitForHost(ctx context.Context, state, launchID, launchToken string) error
 	for {
 		response, err := call(ctx, state, ipc.KindHostStatus, coordinator.HostStatusRequest{LaunchID: launchID, LaunchToken: launchToken})
 		if err == nil {
-			var status struct {
-				Status string `json:"status"`
-			}
-			if decode(response.Payload, &status) == nil && status.Status == "ready" {
+			var status contract.HostPresenceResponse
+			if decode(response.Payload, &status) == nil && status.Status == "ready" && status.Presence == "same_host_alive" {
 				return nil
 			}
 		}
@@ -1102,7 +1306,7 @@ func waitForHost(ctx context.Context, state, launchID, launchToken string) error
 	}
 }
 
-const maxBootstrapBytes = 64 * 1024
+const maxBootstrapBytes = hostbootstrap.MaxBytes
 
 // readBootstrapFD consumes the inherited pipe before any Host/Worker starts.
 // Close-on-exec is set immediately; even error paths close the descriptor.
@@ -1138,10 +1342,21 @@ func readBootstrapFD(fd int) (hostBootstrap, error) {
 }
 
 func validHostBootstrap(state string, b hostBootstrap) bool {
-	return (b.Version == 1 || b.Version == 2) && b.SocketPath == filepath.Join(state, "coordinator.sock") && b.ProducerID != "" && b.ProducerID == b.Hello.LaunchID && b.Hello.LaunchToken != ""
+	return (b.Version == 1 || b.Version == 2) && (b.OwnerLaunchProtocol == 0 || (b.Version == 2 && b.OwnerLaunchProtocol == 2)) && b.SocketPath == filepath.Join(state, "coordinator.sock") && b.ProducerID != "" && b.ProducerID == b.Hello.LaunchID && b.Hello.LaunchToken != ""
 }
 
 func startSourceHost(executable, state string, bootstrap hostBootstrap) error {
+	return startSourceHostContext(context.Background(), executable, state, bootstrap)
+}
+
+func startSourceHostContext(parent context.Context, executable, state string, bootstrap hostBootstrap) error {
+	// The ensure caller passes its original observation/start/reconcile window.
+	// Bootstrap I/O may use the remaining time, never a fresh five seconds.
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !validHostBootstrap(state, bootstrap) {
 		return codeError("invalid_host_bootstrap")
 	}
@@ -1155,6 +1370,8 @@ func startSourceHost(executable, state string, bootstrap hostBootstrap) error {
 	}
 	defer reader.Close()
 	defer writer.Close()
+	stopClose := context.AfterFunc(ctx, func() { _ = writer.Close() })
+	defer stopClose()
 	command := exec.Command(executable, "source-host", "--state-dir", state, "--bootstrap-fd", "3")
 	command.ExtraFiles = []*os.File{reader}
 	command.Stdin = nil
@@ -1166,12 +1383,16 @@ func startSourceHost(executable, state string, bootstrap hostBootstrap) error {
 	command.Stdout, command.Stderr = logFile, logFile
 	command.Env = sourceEnvironment()
 	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err = ctx.Err(); err != nil {
+		return err
+	}
 	if err = command.Start(); err != nil {
 		return err
 	}
 	defer command.Process.Release()
 	_ = reader.Close()
-	if err = writer.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	deadline, _ := ctx.Deadline()
+	if err = writer.SetWriteDeadline(deadline); err != nil {
 		return codeError("bootstrap_pipe_failed")
 	}
 	if _, err = writer.Write(data); err != nil {
@@ -1303,21 +1524,20 @@ func ensureSourceHost(ctx context.Context, state string, capability controlCapab
 	if err != nil {
 		return err
 	}
-	response, err := call(ctx, state, ipc.KindHostStatus, coordinator.HostStatusRequest{LaunchID: bootstrap.Hello.LaunchID, LaunchToken: bootstrap.Hello.LaunchToken})
-	if err == nil {
-		var status coordinator.StatusResponse
-		if decode(response.Payload, &status) == nil && status.Status == "ready" {
-			return nil
+	return ensureSourceHostPresence(ctx, func(ctx context.Context) (contract.HostPresenceResponse, error) {
+		var presence contract.HostPresenceResponse
+		response, err := call(ctx, state, ipc.KindHostStatus, coordinator.HostStatusRequest{LaunchID: bootstrap.Hello.LaunchID, LaunchToken: bootstrap.Hello.LaunchToken})
+		if err == nil {
+			err = decode(response.Payload, &presence)
 		}
-	}
-	executable, err := resolvedExecutable()
-	if err != nil {
-		return err
-	}
-	if err = startSourceHost(executable, state, bootstrap); err != nil {
-		return err
-	}
-	return waitForHost(ctx, state, bootstrap.Hello.LaunchID, bootstrap.Hello.LaunchToken)
+		return presence, err
+	}, func(ctx context.Context) error {
+		executable, err := resolvedExecutable()
+		if err != nil {
+			return err
+		}
+		return startSourceHostContext(ctx, executable, state, bootstrap)
+	})
 }
 
 func randomValue(prefix string) (string, error) {
@@ -1371,17 +1591,46 @@ func parseStateOnly(args []string) (string, error) {
 }
 
 func resolveState(value string) (string, error) {
-	if value != "" {
-		if !filepath.IsAbs(value) || filepath.Clean(value) != value {
-			return "", codeError("path_not_absolute")
+	if value == "" {
+		base, err := os.UserConfigDir()
+		if err != nil {
+			return "", err
 		}
-		return value, nil
+		value = filepath.Join(base, "OpenAI", "Codex Orchestrator")
 	}
-	base, err := os.UserConfigDir()
-	if err != nil {
+	if !filepath.IsAbs(value) || filepath.Clean(value) != value {
+		return "", codeError("path_not_absolute")
+	}
+	// Preserve the private state-directory boundary: the leaf itself cannot be
+	// a symlink. Resolve existing ancestors (including macOS /tmp and /var)
+	// once, before deriving DB, spool, socket or capability paths.
+	if info, err := os.Lstat(value); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", codeError("untrusted_state_dir")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	return filepath.Join(base, "OpenAI", "Codex Orchestrator"), nil
+	// Never EvalSymlinks on the leaf after inspecting it: if it is replaced
+	// meanwhile, PrepareStateDir must still see and reject that symlink.
+	parent := filepath.Dir(value)
+	suffix := []string{filepath.Base(value)}
+	for {
+		if _, err := os.Lstat(parent); err == nil {
+			real, err := filepath.EvalSymlinks(parent)
+			if err != nil {
+				return "", err
+			}
+			for i := len(suffix) - 1; i >= 0; i-- {
+				real = filepath.Join(real, suffix[i])
+			}
+			return real, nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		suffix = append(suffix, filepath.Base(parent))
+		parent = filepath.Dir(parent)
+	}
 }
 
 func resolvedExecutable() (string, error) {
@@ -1420,6 +1669,10 @@ func writePID(state string) error {
 func errorCode(err error) string {
 	if err == nil {
 		return ""
+	}
+	var acpCleanup *controllerACPCleanupError
+	if errors.As(err, &acpCleanup) {
+		return acpCleanup.Error()
 	}
 	var coded codeError
 	if errors.As(err, &coded) {

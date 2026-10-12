@@ -11,10 +11,41 @@ import (
 	"strings"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string, grok ...grokSandbox) (process.Command, error) {
+	return sandboxCommandWithState(ctx, cmd, profile, scratch, "", grok...)
+}
+
+func (h *Host) sandboxProfileCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string, g contract.LaunchCommand) (process.Command, error) {
+	if runtime.GOOS != "darwin" {
+		return cmd, errors.New("profile_sandbox_unsupported")
+	}
+	history := ""
+	agyHistory := agyHistoryScope{}
+	p, err := adapter.DecodeInvocationPayload(g.AdapterPayload)
+	if err == nil && p.Provider == "claude-code" && p.Profile != nil && p.ProviderLock != nil {
+		cmd, history, err = h.prepareClaudeHistory(cmd, g, p.ProviderLock.Binary)
+		if err != nil {
+			return cmd, err
+		}
+	}
+	if err == nil && p.Provider == "antigravity-cli" && p.Profile != nil && p.ProviderLock != nil {
+		cmd, agyHistory, err = h.prepareAGYHistory(cmd, g, p.ProviderLock.Binary)
+		if err != nil {
+			return cmd, err
+		}
+	}
+	return sandboxCommandWithHistories(ctx, cmd, profile, scratch, history, agyHistory)
+}
+
+func sandboxCommandWithState(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch, claudeHistory string, grok ...grokSandbox) (process.Command, error) {
+	return sandboxCommandWithHistories(ctx, cmd, profile, scratch, claudeHistory, agyHistoryScope{}, grok...)
+}
+
+func sandboxCommandWithHistories(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch, claudeHistory string, agyHistory agyHistoryScope, grok ...grokSandbox) (process.Command, error) {
 	if runtime.GOOS != "darwin" {
 		return cmd, errors.New("profile_sandbox_unsupported")
 	}
@@ -36,6 +67,21 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 		return cmd, err
 	}
 	rules := []string{"(version 1)", "(allow default)", "(deny file-write*)", `(allow file-write* (literal "/dev/null"))`, "(allow file-write* (subpath " + strconv.Quote(scratch) + "))"}
+	if claudeHistory != "" {
+		if err := continuationOwnedDirectory(claudeHistory, 0700); err != nil {
+			return cmd, err
+		}
+		rules = append(rules, "(allow file-write* (subpath "+strconv.Quote(claudeHistory)+"))")
+	}
+	if agyHistory.Path != "" {
+		if err := continuationOwnedDirectory(agyHistory.Path, 0700); err != nil {
+			return cmd, err
+		}
+		rules = append(rules, "(allow file-write* (subpath "+strconv.Quote(agyHistory.Path)+"))")
+		for _, protected := range agyHistory.Protected {
+			rules = append(rules, "(deny file-write* (literal "+strconv.Quote(protected)+"))")
+		}
+	}
 	if len(grok) == 1 {
 		for _, path := range []string{grok[0].session, grok[0].socket} {
 			if err := grokOwnedDirectory(path, false, true); err != nil {
@@ -51,7 +97,7 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 		rules = append(rules, "(deny file-read* (subpath "+strconv.Quote(filepath.Dir(spoolRoot))+"))", "(deny file-write* (subpath "+strconv.Quote(state)+"))", "(allow file-read* file-write* (subpath "+strconv.Quote(scratch)+"))")
 		for _, entry := range cmd.Env {
 			capPath, ok := strings.CutPrefix(entry, "ORCHESTRATOR_REPORT_CAPABILITY=")
-			if !ok {
+			if !ok || capPath == "" {
 				continue
 			}
 			reports := filepath.Join(spoolRoot, ".reports")
@@ -73,6 +119,19 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 			rules = append(rules, "(deny file-read* (literal "+strconv.Quote(filepath.Join(state, name))+"))")
 		}
 	}
+	if cmd.SealedPath != "" {
+		if cmd.Path != cmd.SealedPath || cmd.SealedSHA256 == "" {
+			return cmd, errors.New("validation_tool_pin_changed")
+		}
+		// Expose only the immutable executable, not its protected Host spool peers.
+		rules = append(rules, "(allow file-read* (literal "+strconv.Quote(cmd.SealedPath)+"))", "(deny file-write* (subpath "+strconv.Quote(filepath.Join(spoolRoot, ".validation-tools"))+"))")
+		for parent := filepath.Dir(cmd.SealedPath); parent != filepath.Dir(spoolRoot); parent = filepath.Dir(parent) {
+			if parent == filepath.Dir(parent) {
+				return cmd, errors.New("validation_tool_scope_invalid")
+			}
+			rules = append(rules, "(allow file-read-metadata (literal "+strconv.Quote(parent)+"))")
+		}
+	}
 	if profile.Role == adapter.Implementer {
 		// A linked worktree has its own git file and an external common directory.
 		// Workers can change source files, but Git candidate/ref operations stay in
@@ -91,6 +150,7 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 			rules = append(rules, "(deny file-write* (subpath "+strconv.Quote(p)+"))")
 		}
 	}
+	rules = append(rules, "(deny file-write* (subpath "+strconv.Quote(filepath.Join(spoolRoot, ".validation-tools"))+"))")
 	// TMPDIR is task-owned; no authentication/config directories are made writable.
 	cmd.Env = append(cmd.Env, "TMPDIR="+scratch)
 	cmd.Args = append([]string{"-p", strings.Join(rules, "\n"), cmd.Path}, cmd.Args...)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 var ErrIntegrationUncertain = errors.New("integration_uncertain")
@@ -112,6 +114,20 @@ func ManagedIntegrate(ctx context.Context, req IntegrationRequest) (IntegrationO
 	}
 	out, err := Integrate(ctx, req)
 	if out.State == IntegrationUncertain {
+		return out, errors.Join(ErrIntegrationUncertain, err)
+	}
+	return out, err
+}
+
+// TrackedIntegrate executes the final fast-forward with the original Git
+// process Handle and journal, while preserving repository hooks and signing
+// configuration. Candidate extension admission is deliberately not applied:
+// final integration must retain the repository's normal Git behavior.
+func TrackedIntegrate(ctx context.Context, req IntegrationRequest) (IntegrationOutcome, error) {
+	ctx = context.WithValue(ctx, trackedIntegrationRunnerKey{}, true)
+	out, err := Integrate(ctx, req)
+	if out.State == IntegrationUncertain || errors.Is(err, process.ErrProcessTreeUnknown) {
+		out.State = IntegrationUncertain
 		return out, errors.Join(ErrIntegrationUncertain, err)
 	}
 	return out, err

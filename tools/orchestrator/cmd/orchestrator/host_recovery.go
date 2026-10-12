@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -10,7 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"syscall"
+	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
@@ -47,28 +46,31 @@ func recoverHost(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	b, err := loadHostBootstrap(capability)
-	if err != nil {
-		return err
-	}
-	if b.Version != 2 {
+	if capability.Version != 2 {
 		return codeError("legacy_host_recovery_unsupported")
 	}
 	state, err := resolveState(*stateArg)
 	if err != nil {
 		return err
 	}
-	if b.SocketPath != filepath.Join(state, "coordinator.sock") {
-		return codeError("host_recovery_binding_mismatch")
-	}
-	lock, err := lockHostRecovery(state, b.Hello.LaunchID)
+	// Cover acquisition, inspection and startup with one bounded caller window.
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	lease, err := openHostLaunchLease(ctx, state, capability)
 	if err != nil {
 		return err
 	}
-	defer lock.Close() // closing the descriptor releases the flock; never unlink it.
+	defer lease.close()
+	b, err := lease.read(capability)
+	if err != nil {
+		return err
+	}
 	query := coordinator.HostRecoveryRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: req.TaskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: req.WorkRevision}, OwnerCapability: req.OwnerCapability}
 	inspect := func() (store.HostRecovery, error) {
 		var r store.HostRecovery
+		if err := lease.unchanged(); err != nil {
+			return r, err
+		}
 		response, err := call(ctx, state, ipc.KindRecoverHost, query)
 		if err != nil {
 			return r, err
@@ -79,7 +81,7 @@ func recoverHost(ctx context.Context, args []string, out io.Writer) error {
 		if r.RunID != capability.RunID || r.LaunchID != b.Hello.LaunchID || r.OriginContextID != b.Hello.OriginContextID || r.OriginPID != b.Hello.OriginPID || r.OriginBirth != b.Hello.OriginBirth || r.HostGeneration != b.Hello.HostGeneration || r.Executable != b.Hello.Executable {
 			return r, codeError("host_recovery_binding_mismatch")
 		}
-		return r, nil
+		return r, lease.unchanged()
 	}
 	r, err := inspect()
 	if err != nil {
@@ -94,27 +96,20 @@ func recoverHost(ctx context.Context, args []string, out io.Writer) error {
 		return codeError("host_recovery_executable_mismatch")
 	}
 	if r.Status == "ready" {
+		if err = lease.unchanged(); err != nil {
+			return err
+		}
 		return json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "host_ready", "run_id": r.RunID, "host_pid": r.PID, "host_birth": r.Birth})
 	}
 	// One startup intent per launch is retained even if the caller crashes before
 	// observing HostReady. A retry may observe a ready Host, but never spawn again
 	// from an unresolved intent. Recovery does not delete evidence to unlock it.
-	marker := lock.Name() + ".intent.json"
-	if err = writeExclusiveJSON(marker, map[string]any{"version": 1, "launch_id": r.LaunchID, "host_generation": r.HostGeneration, "host_sha256": actual}); errors.Is(err, os.ErrExist) {
+	if err = lease.writeRecoveryIntent(map[string]any{"version": 1, "launch_id": r.LaunchID, "host_generation": r.HostGeneration, "host_sha256": actual}); errors.Is(err, os.ErrExist) {
 		return codeError("host_recovery_uncertain")
 	} else if err != nil {
 		return err
 	}
-	dir, err := os.Open(filepath.Dir(marker))
-	if err != nil {
-		return err
-	}
-	err = dir.Sync()
-	_ = dir.Close()
-	if err != nil {
-		return err
-	}
-	if err = startSourceHost(r.Executable, state, b); err != nil {
+	if err = startSourceHostContext(ctx, r.Executable, state, b); err != nil {
 		return codeError("host_recovery_uncertain")
 	}
 	if err = waitForHost(ctx, state, b.Hello.LaunchID, b.Hello.LaunchToken); err != nil {
@@ -125,27 +120,4 @@ func recoverHost(ctx context.Context, args []string, out io.Writer) error {
 		return codeError("host_recovery_uncertain")
 	}
 	return json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "host_ready", "run_id": r.RunID, "host_pid": r.PID, "host_birth": r.Birth})
-}
-
-func lockHostRecovery(state, launchID string) (*os.File, error) {
-	root := filepath.Join(state, "host-recovery")
-	if err := privateSubdir(root); err != nil {
-		return nil, err
-	}
-	sum := sha256.Sum256([]byte(launchID))
-	path := filepath.Join(root, hex.EncodeToString(sum[:])+".lock")
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
-	if err != nil {
-		return nil, err
-	}
-	info, err := f.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !owned(info) {
-		_ = f.Close()
-		return nil, codeError("untrusted_private_file")
-	}
-	if err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		_ = f.Close()
-		return nil, codeError("host_recovery_busy")
-	}
-	return f, nil
 }

@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 type recordedRPC struct {
@@ -17,32 +17,16 @@ type recordedRPC struct {
 }
 
 func TestAppServerCloseKillsChildThatInheritedStdout(t *testing.T) {
-	dir := t.TempDir()
-	child := filepath.Join(dir, "child")
-	old := appServerCommand
-	defer func() { appServerCommand = old }()
-	appServerCommand = func(context.Context) *exec.Cmd {
-		return exec.Command("/bin/sh", "-c", "read x; echo '{\"id\":1,\"result\":{\"codexHome\":\"/private/test\"}}'; read x; (echo $$ > '"+child+"'; sleep 30) & exit 0")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	_, closeRPC, err := startCodexAppServer(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := closeRPC(); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(child); err != nil {
-		t.Fatal(err)
-	}
+	testAppServerCloseWithChild(t, "exit")
 }
 
 func TestAppServerContextCancellationStopsProcessGroup(t *testing.T) {
 	old := appServerCommand
 	defer func() { appServerCommand = old }()
+	var cmd *exec.Cmd
 	appServerCommand = func(context.Context) *exec.Cmd {
-		return exec.Command("/bin/sh", "-c", "read x; echo '{\"id\":1,\"result\":{\"codexHome\":\"/private/test\"}}'; read x; sleep 30")
+		cmd = exec.Command("/bin/sh", "-c", "read x; echo '{\"id\":1,\"result\":{\"codexHome\":\"/private/test\"}}'; read x; sleep 30")
+		return cmd
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	_, closeRPC, err := startCodexAppServer(ctx)
@@ -57,6 +41,12 @@ func TestAppServerContextCancellationStopsProcessGroup(t *testing.T) {
 		}
 		if time.Now().After(deadline) {
 			t.Fatal("app server did not stop")
+		}
+		if err := process.ConfirmGroupExited(cmd.Process.Pid); err != nil {
+			t.Fatalf("cancellation did not prove group exit: %v", err)
+		}
+		if cmd.ProcessState == nil {
+			t.Fatal("cancellation left leader unreaped")
 		}
 		return
 	}

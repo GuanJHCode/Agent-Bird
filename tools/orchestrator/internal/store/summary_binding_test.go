@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -40,11 +39,7 @@ func newSummaryBindingFixture(t *testing.T) summaryBindingFixture {
 		t.Fatal(err)
 	}
 	body := []byte("private result body")
-	path := filepath.Join(root, "private-result.txt")
-	if err = os.WriteFile(path, body, 0600); err != nil {
-		t.Fatal(err)
-	}
-	event := contract.Event{Version: 1, ProducerID: host, RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, ExecutionEpoch: 1, CommandID: grant.CommandID, EventID: "result", Sequence: 1, EventRevision: 999, ActionSlot: "body-slot-is-not-persisted-slot", Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: &contract.ArtifactRef{Path: path, Size: int64(len(body)), SHA256: runtimeHash(string(body))}}
+	event := contract.Event{Version: 1, ProducerID: host, RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, ExecutionEpoch: 1, CommandID: grant.CommandID, EventID: "result", Sequence: 1, EventRevision: 999, ActionSlot: "body-slot-is-not-persisted-slot", Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: managedHostArtifactForTest(t, db, grant, "terminal", 0, body)}
 	if _, err = db.CommitHostEvent(ctx, event); err != nil {
 		t.Fatal(err)
 	}

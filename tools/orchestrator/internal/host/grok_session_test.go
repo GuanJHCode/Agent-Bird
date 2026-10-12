@@ -153,7 +153,7 @@ func TestGrokHostLaunchUsesAuthorizedSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: root, ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "grok-" + hashBytes([]byte(root))[:16], ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
 	socket := filepath.Join("/private/tmp", "codex-grok-"+grokSessionID(grant))
 	t.Cleanup(func() {
 		if err := os.Remove(socket); err != nil && !os.IsNotExist(err) {
@@ -171,4 +171,58 @@ func TestGrokHostLaunchUsesAuthorizedSession(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(home, "sessions", grokEncodeCWD(work), grokSessionID(grant))); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestGrokExistingAuthOnlyKeepsSessionSandboxAndSkipsRefresh(t *testing.T) {
+	root, _ := filepath.EvalSymlinks(t.TempDir())
+	home, work, scratch := filepath.Join(root, "home"), filepath.Join(root, "work"), filepath.Join(root, "scratch")
+	for _, path := range []string{home, work} {
+		if err := os.Mkdir(path, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("GROK_HOME", home)
+	profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, GrokSessionWrite: true, GrokExistingAuthOnly: true}
+	grant := contract.LaunchCommand{CommandID: "existing-auth-only", RunID: "run", TaskID: "task"}
+	// A missing pin would fail RefreshGrokAuth before it can invoke `models`.
+	// Successful preparation therefore proves this opt-in path did not refresh.
+	cmd := process.Command{Path: "/bin/true", PinnedPath: filepath.Join(root, "missing-grok"), PinnedSHA256: strings.Repeat("a", 64), Dir: work}
+	prepared, err := prepareAuthenticatedGrokCommand(context.Background(), cmd, profile, grant, scratch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := filepath.Join(home, "sessions", grokEncodeCWD(work), grokSessionID(grant))
+	socket := filepath.Join("/private/tmp", "codex-grok-"+grokSessionID(grant))
+	t.Cleanup(func() {
+		if err := os.Remove(socket); err != nil && !os.IsNotExist(err) {
+			t.Error(err)
+		}
+	})
+	for _, path := range []string{session, socket} {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("prepared directory %s: %v", path, err)
+		}
+		if !info.IsDir() || info.Mode().Perm() != 0700 {
+			t.Fatalf("prepared directory permissions %s: %#o", path, info.Mode().Perm())
+		}
+	}
+	if _, err := os.Stat(filepath.Join(scratch, "grok-session-intent.json")); err != nil {
+		t.Fatal(err)
+	}
+	if prepared.Path != "/usr/bin/sandbox-exec" || len(prepared.Args) < 6 || prepared.Args[0] != "-p" || prepared.Args[2] != "/bin/true" || !strings.Contains(prepared.Args[1], session) || !strings.Contains(prepared.Args[1], socket) {
+		t.Fatalf("session sandbox was not retained: %+v", prepared)
+	}
+	if !containsArgs(prepared.Args, "--session-id", grokSessionID(grant)) || !containsArgs(prepared.Args, "--leader-socket", filepath.Join(socket, "leader.sock")) {
+		t.Fatalf("session arguments absent: %+v", prepared.Args)
+	}
+}
+
+func containsArgs(args []string, flag, value string) bool {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == flag && args[i+1] == value {
+			return true
+		}
+	}
+	return false
 }

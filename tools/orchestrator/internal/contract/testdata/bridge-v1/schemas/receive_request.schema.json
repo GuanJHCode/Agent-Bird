@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-bird-bridge-v1/receive_request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 0,
+      "const": 1
+    },
+    "binding_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner_epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner_mode": {
+      "type": "string",
+      "enum": [
+        "managed",
+        "local",
+        "native"
+      ],
+      "minLength": 1
+    },
+    "owner_capability_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "control_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "batch_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "render_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding_id",
+    "owner_epoch",
+    "request_id",
+    "owner_mode",
+    "owner_capability_file",
+    "control_file",
+    "batch_id",
+    "attempt_id",
+    "render_sha256"
+  ]
+}

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func frozenReviewReceipt(t *testing.T, d, base, candidateOID, tree string) CandidateReceipt {
@@ -184,5 +185,108 @@ func TestCandidateReviewSnapshotRejectsSubmodule(t *testing.T) {
 	receipt.Changes = []CandidateChange{{Path: "submodule", Mode: "160000", BlobOID: base}}
 	if _, err := CandidateReviewSnapshot(context.Background(), receipt); err == nil {
 		t.Fatal("submodule accepted")
+	}
+}
+
+func TestCandidateReviewIndexChunksCompleteUTF8TextWithoutLosingSides(t *testing.T) {
+	d, base := repo(t)
+	if err := os.WriteFile(filepath.Join(d, "same.txt"), []byte(strings.Repeat("é", 20000)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "add", "same.txt")
+	git(t, d, "commit", "-qm", "base")
+	base = git(t, d, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(d, "same.txt"), []byte(strings.Repeat("é", 20000)+"candidate"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "add", "same.txt")
+	git(t, d, "commit", "-qm", "candidate")
+	candidateOID := git(t, d, "rev-parse", "HEAD")
+	receipt := frozenReviewReceipt(t, d, base, candidateOID, git(t, d, "rev-parse", "HEAD^{tree}"))
+	receipt.Changes = []CandidateChange{{Path: "same.txt", Mode: "100644", BlobOID: git(t, d, "rev-parse", candidateOID+":same.txt")}}
+
+	receiptHash := strings.Repeat("a", 64)
+	index, err := CandidateReviewIndex(context.Background(), receipt, receiptHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if index.Version != 1 || index.CandidateReceiptSHA256 != receiptHash || len(index.Chunks) < 3 || index.Chunks[0].Side != "base" || index.Chunks[len(index.Chunks)-1].Side != "candidate" {
+		t.Fatalf("index=%+v", index)
+	}
+	for _, chunk := range index.Chunks {
+		if chunk.Length < 1 || chunk.Length > indexedReviewChunkLimit || chunk.Content != "" {
+			t.Fatalf("unsafe chunk=%+v", chunk)
+		}
+	}
+	hydrated, err := HydrateReviewChunks(context.Background(), receipt, index.Chunks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents := map[string]string{}
+	for _, chunk := range hydrated {
+		if !utf8.ValidString(chunk.Content) || len(chunk.Content) != chunk.Length || chunk.SHA256 != reviewChunkDigest([]byte(chunk.Content)) {
+			t.Fatalf("invalid hydrated chunk: %+v", chunk)
+		}
+		contents[chunk.Path+"/"+chunk.Side] += chunk.Content
+	}
+	if contents["same.txt/base"] != strings.Repeat("é", 20000) || contents["same.txt/candidate"] != strings.Repeat("é", 20000)+"candidate" {
+		t.Fatal("hydration lost original logical side bytes")
+	}
+	if len(index.Pages) == 0 || len(index.Pages[0].ChunkOrdinals) > indexedReviewPageEntriesLimit {
+		t.Fatalf("pages=%+v", index.Pages)
+	}
+}
+
+func TestCandidateReviewIndexAcceptsLargeCompleteCandidateBeyondLegacySnapshotLimits(t *testing.T) {
+	d, base := repo(t)
+	changes := make([]CandidateChange, 0, 65)
+	for i := 0; i < 65; i++ {
+		path := fmt.Sprintf("indexed-%03d.txt", i)
+		if err := os.WriteFile(filepath.Join(d, path), []byte(strings.Repeat("é", 1100)), 0600); err != nil {
+			t.Fatal(err)
+		}
+		changes = append(changes, CandidateChange{Path: path, Mode: "100644"})
+	}
+	git(t, d, "add", ".")
+	git(t, d, "commit", "-qm", "large indexed candidate")
+	candidateOID := git(t, d, "rev-parse", "HEAD")
+	for i := range changes {
+		changes[i].BlobOID = git(t, d, "rev-parse", candidateOID+":"+changes[i].Path)
+	}
+	index, err := CandidateReviewIndex(context.Background(), CandidateReceipt{AttemptID: "attempt", RepoRoot: d, Worktree: d, CommonDir: CanonicalPath(filepath.Join(d, ".git")), BaseOID: base, CandidateOID: candidateOID, TreeOID: git(t, d, "rev-parse", "HEAD^{tree}"), Changes: changes}, strings.Repeat("f", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(index.Chunks) < 65 || len(index.Pages) < 2 || index.Chunks[0].Length > indexedReviewChunkLimit {
+		t.Fatalf("index lacks complete large coverage: chunks=%d pages=%d", len(index.Chunks), len(index.Pages))
+	}
+}
+
+func TestCandidateReviewIndexRejectsReceiptDriftAndRetainsEmptyFileMetadata(t *testing.T) {
+	d, base := repo(t)
+	if err := os.WriteFile(filepath.Join(d, "empty"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "add", "empty")
+	git(t, d, "commit", "-qm", "empty")
+	candidateOID := git(t, d, "rev-parse", "HEAD")
+	receipt := frozenReviewReceipt(t, d, base, candidateOID, git(t, d, "rev-parse", "HEAD^{tree}"))
+	receipt.Changes = []CandidateChange{{Path: "empty", Mode: "100644", BlobOID: git(t, d, "rev-parse", candidateOID+":empty")}}
+	index, err := CandidateReviewIndex(context.Background(), receipt, strings.Repeat("a", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, chunk := range index.Chunks {
+		if chunk.Path == "empty" && chunk.Side == "candidate" && chunk.Length == 0 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("empty metadata absent: %+v", index.Chunks)
+	}
+	receipt.TreeOID = base
+	if _, err := CandidateReviewIndex(context.Background(), receipt, strings.Repeat("a", 64)); err == nil {
+		t.Fatal("tree drift accepted")
 	}
 }

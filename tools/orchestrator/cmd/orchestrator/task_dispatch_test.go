@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"os"
 	"os/exec"
@@ -107,5 +108,50 @@ func TestDispatchSourceDoesNotExecutePathGit(t *testing.T) {
 	_, _ = dispatchSourceBase(context.Background(), root)
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatal("executed PATH-controlled Git during preflight")
+	}
+}
+
+func TestDispatchPublicJSONExecutionPolicyReachesPlan(t *testing.T) {
+	var req dispatchRequest
+	if err := json.Unmarshal([]byte(`{"version":1,"request_id":"policy","provider":"claude","provider_lock":"/private/pinned","directory":"/private/workspace","prompt":"review","role":"reviewer","acceptance":["review complete"],"model":"cli-default","max_attempts":3,"max_active_ms":1000,"execution_policy":{"version":1,"group_max_attempts":3,"group_max_active_ms":2000,"task_max_active_ms":1000,"segment_max_active_ms":500}}`), &req); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := dispatchPlan(req, adapter.ProviderLock{}, "run", strings.Repeat("a", 40))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Tasks) != 1 || plan.Tasks[0].ExecutionPolicy == nil || plan.Tasks[0].ExecutionPolicy.SegmentMaxActiveMS != 500 {
+		t.Fatal("public dispatch policy was dropped")
+	}
+	req.MaxActiveMS = 7_200_000
+	req.ExecutionPolicy.GroupMaxActiveMS = 7_200_000
+	req.ExecutionPolicy.TaskMaxActiveMS = 7_200_000
+	req.ExecutionPolicy.SegmentMaxActiveMS = 3_600_000
+	if err = validateDispatch(req); err != nil {
+		t.Fatalf("valid policy attempt with bounded segments rejected: %v", err)
+	}
+	plan, err = dispatchPlan(req, adapter.ProviderLock{}, "run", strings.Repeat("a", 40))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload adapter.InvocationPayload
+	if err = json.Unmarshal(plan.Tasks[0].AdapterPayload, &payload); err != nil || plan.Tasks[0].MaxActiveMS != 7_200_000 || payload.Profile.TimeoutMS != 3_600_000 {
+		t.Fatalf("attempt and segment caps conflated: %+v %+v %v", plan.Tasks[0], payload.Profile, err)
+	}
+	for _, attemptMS := range []int64{7_200_000, 1000} {
+		req.MaxActiveMS = attemptMS
+		req.ExecutionPolicy.SegmentMaxActiveMS = 0
+		plan, err = dispatchPlan(req, adapter.ProviderLock{}, "run", strings.Repeat("a", 40))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = json.Unmarshal(plan.Tasks[0].AdapterPayload, &payload); err != nil || payload.Profile.TimeoutMS != min(attemptMS, 3_600_000) {
+			t.Fatalf("default segment cap differs from admission: %+v %v", payload.Profile, err)
+		}
+	}
+	req.ExecutionPolicy = nil
+	req.MaxActiveMS = 7_200_000
+	if err = validateDispatch(req); err == nil {
+		t.Fatal("legacy dispatch attempt cap expanded")
 	}
 }

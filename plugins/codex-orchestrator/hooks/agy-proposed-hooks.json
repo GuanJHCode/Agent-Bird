@@ -1,0 +1,11 @@
+{
+  "codex-orchestrator-agy-bridge": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "/owned/isolated/codex-orchestrator/scripts/agent-bird-agy-hook",
+        "timeout": 3
+      }
+    ]
+  }
+}

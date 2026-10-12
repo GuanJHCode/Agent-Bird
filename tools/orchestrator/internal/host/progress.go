@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 	"unicode/utf8"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
@@ -64,6 +62,8 @@ func interruptionReason(ctx context.Context, requested bool, exit int) string {
 		return "deadline_exceeded"
 	case context.Canceled:
 		return "caller_cancelled"
+	case errDiagnosticsUnavailable:
+		return "diagnostics_unavailable"
 	}
 	if cause := context.Cause(ctx); cause != nil {
 		switch cause.Error() {
@@ -87,15 +87,10 @@ func (h *Host) recordProgress(a store.Attempt, runID, taskID string, meta launch
 	if err != nil {
 		return err
 	}
-	sp, err := events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID, "progress", fmt.Sprintf("%03d", index)))
+	ref, err := h.writeHostArtifact(meta, "progress", index, "progress", "provider-progress", body)
 	if err != nil {
 		return err
 	}
-	path, err := sp.WriteArtifact(body)
-	if err != nil {
-		return err
-	}
-	ref := &contract.ArtifactRef{ID: "provider-progress", Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}
 	if h.progressSink == nil {
 		return nil
 	}

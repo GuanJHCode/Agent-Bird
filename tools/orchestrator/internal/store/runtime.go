@@ -1,5 +1,7 @@
 package store
 
+import "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install"
+
 const (
 	defaultSegmentActiveMS = int64(60 * 60 * 1000)
 	defaultGroupActiveMS   = int64(120 * 60 * 1000)
@@ -15,18 +17,22 @@ const (
 )
 
 type HostLaunchSpec struct {
-	OriginContextID string
-	HostGeneration  string
-	Executable      string
+	ExecutionOwnerMode string `json:"-"`
+	OriginContextID    string
+	HostGeneration     string
+	Executable         string
 }
 
 type PlanSpec struct {
-	Run          RunSpec
-	Host         HostLaunchSpec
-	Tasks        []TaskSpec
-	LaunchID     string
-	LaunchToken  string
-	ControlToken string
+	ConfigSubmission     *install.ConfigSubmissionGuard `json:"-"`
+	NewBaseRework        *NewBaseReworkSpec             `json:"new_base_rework,omitempty"`
+	NewBaseAuthorization *NewBaseAuthorization          `json:"-"`
+	Run                  RunSpec
+	Host                 HostLaunchSpec
+	Tasks                []TaskSpec
+	LaunchID             string
+	LaunchToken          string
+	ControlToken         string
 }
 
 type SubmitReceipt struct {

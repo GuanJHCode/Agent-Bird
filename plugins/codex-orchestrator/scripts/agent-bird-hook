@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+# Hook output is silent until a controller explicitly supplies a binding path.
+# Only the installed/fixture plugin root selects the executable, never PATH.
+if [ -z "${AGENT_BIRD_BRIDGE_BINDING-}" ]; then
+  printf '%s\n' 'bridge_no_binding' >&2
+  exit 0
+fi
+root=${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT-}}
+if [ -z "$root" ]; then
+  printf '%s\n' 'bridge_hook_runtime_unavailable' >&2
+  exit 0
+fi
+binary="$root/bin/codex-orchestrator"
+if [ ! -f "$binary" ] || [ ! -x "$binary" ]; then
+  printf '%s\n' 'bridge_hook_runtime_unavailable' >&2
+  exit 0
+fi
+exec "$binary" bridge hook --provider claude --binding-file "$AGENT_BIRD_BRIDGE_BINDING"

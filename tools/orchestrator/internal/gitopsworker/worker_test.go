@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 type workerResponse struct {
@@ -39,6 +42,138 @@ func runWorkerOperation(t *testing.T, executable, spool, commandID, operation st
 		t.Fatalf("%s response=%q err=%v", operation, output.String(), err)
 	}
 	return response
+}
+
+func TestIntegrationPreflightRejectsUnfinishedGitLedger(t *testing.T) {
+	identity := map[string]any{"PID": 99, "PGID": 99, "Birth": "fixture-birth", "BirthKnown": true, "Executable": "/usr/bin/git", "ExecutableSHA256": strings.Repeat("b", 64), "StartedAt": "2026-10-07T12:00:00Z"}
+	git := func(phase string, process any) map[string]any {
+		return map[string]any{"version": 1, "kind": "git_process", "value": map[string]any{"phase": phase, "command_digest": strings.Repeat("a", 64), "process": process, "exit_code": 0}}
+	}
+	for _, tc := range []struct {
+		name     string
+		rows     []map[string]any
+		truncate bool
+		want     bool
+	}{
+		{"empty", nil, false, false},
+		{"complete", []map[string]any{git("intent", nil), git("spawned", identity), git("exited", identity)}, false, false},
+		{"intent", []map[string]any{git("intent", nil)}, false, true},
+		{"spawned", []map[string]any{git("spawned", identity)}, false, true},
+		{"unknown", []map[string]any{git("unknown", identity)}, false, true},
+		{"mismatched_exit", []map[string]any{git("intent", nil), git("spawned", identity), git("exited", map[string]any{"PID": 100, "Birth": "fixture-birth"})}, false, true},
+		{"partial_identity", []map[string]any{git("intent", nil), git("spawned", map[string]any{"PID": 99, "Birth": "fixture-birth"}), git("exited", map[string]any{"PID": 99, "Birth": "fixture-birth"})}, false, true},
+		{"orphan_exit", []map[string]any{git("exited", identity)}, false, true},
+		{"unstarted_pair", []map[string]any{git("spawned", identity), git("exited", identity)}, false, true},
+		{"duplicate", []map[string]any{git("intent", nil), git("spawned", identity), git("spawned", identity), git("exited", identity)}, false, true},
+		{"valid_json_without_newline", []map[string]any{git("intent", nil), git("spawned", identity), git("exited", identity)}, false, true},
+		{"integration", []map[string]any{{"kind": "integration_intent", "value": map[string]any{}}}, false, true},
+		{"truncated", []map[string]any{git("intent", nil), git("spawned", identity), git("exited", identity)}, true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.Chmod(root, 0700); err != nil {
+				t.Fatal(err)
+			}
+			j, err := openJournal(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, row := range tc.rows {
+				if err = j.append(row["kind"].(string), row["value"]); err != nil {
+					t.Fatal(err)
+				}
+			}
+			path := j.file.Name()
+			if tc.name == "valid_json_without_newline" {
+				info, err := os.Stat(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Truncate(path, info.Size()-1); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.truncate {
+				if err = os.WriteFile(path, []byte(`{"version":1,"kind":"git_process"`), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			err = j.integrationPreflight(context.Background())
+			j.close()
+			if (err != nil) != tc.want {
+				t.Fatalf("err=%v wantReject=%t", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestComposePreflightRejectsExistingCandidateLedgerAsUncertain(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	j, err := openJournal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.close()
+	if err = j.append("candidate_intent", map[string]any{"attempt_id": "already-started"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = j.composePreflight(context.Background()); !errors.Is(err, process.ErrProcessTreeUnknown) {
+		t.Fatalf("candidate replay was not uncertain: %v", err)
+	}
+}
+
+func TestWorkerIntegrationChecksOriginalJournalBeforeGit(t *testing.T) {
+	for _, locked := range []bool{false, true} {
+		t.Run(fmt.Sprint(locked), func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.Chmod(root, 0700); err != nil {
+				t.Fatal(err)
+			}
+			binary, err := filepath.EvalSymlinks(os.Args[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			// An invalid review would fail at a different boundary if Run failed
+			// to check the old journal before entering Git integration.
+			payload, _ := json.Marshal(map[string]any{"kind": "gitops", "operation": "integrate", "request": map[string]any{"repo_root": root, "target_worktree": root}})
+			inv, err := BuildInvocation(payload, binary, root, "replayed")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var envelope requestEnvelope
+			if err := readPrivateJSON(inv.Args()[3], &envelope); err != nil {
+				t.Fatal(err)
+			}
+			j, err := openJournal(envelope.JournalRoot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer j.close()
+			if locked {
+				if err := syscall.Flock(int(j.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := j.PersistIntegrationIntent(context.Background(), gitops.IntegrationIntent{}); err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(j.file.Name())
+			if err != nil {
+				t.Fatal(err)
+			}
+			var output bytes.Buffer
+			err = Run(context.Background(), inv.Args()[3], &output)
+			if locked && !errors.Is(err, syscall.EWOULDBLOCK) || !locked && !errors.Is(err, gitops.ErrIntegrationUncertain) {
+				t.Fatalf("journal gate missed: %v", err)
+			}
+			after, readErr := os.ReadFile(j.file.Name())
+			if readErr != nil || !bytes.Equal(before, after) || output.Len() != 0 {
+				t.Fatal("replay changed durable evidence", readErr)
+			}
+		})
+	}
 }
 
 func directoryBinding(t *testing.T, path string) gitops.DirectoryIdentity {
@@ -104,9 +239,16 @@ func TestBuildAndRunMaterializeUsesDurableSourceJournal(t *testing.T) {
 	if info, err := os.Stat(journal); err != nil || info.Mode().Perm() != 0600 || info.Size() == 0 {
 		t.Fatalf("journal info=%v err=%v", info, err)
 	}
+	assertMaterializeGitProcessJournal(t, journal)
 }
 
 func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {
+	for _, environment := range []bool{false, true} {
+		t.Run(fmt.Sprint(environment), func(t *testing.T) { workerIntegrationChain(t, environment) })
+	}
+}
+
+func workerIntegrationChain(t *testing.T, environment bool) {
 	repo := t.TempDir()
 	git := func(args ...string) string {
 		t.Helper()
@@ -185,6 +327,22 @@ func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	hookRoot := t.TempDir()
+	hookDir := filepath.Join(hookRoot, "final-hooks")
+	marker := filepath.Join(hookRoot, "post-merge-ran")
+	if err = os.Mkdir(hookDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(hookDir, "post-merge"), []byte("#!/bin/sh\nprintf hook > '"+marker+"'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if environment {
+		t.Setenv("GIT_CONFIG_COUNT", "1")
+		t.Setenv("GIT_CONFIG_KEY_0", "core.hooksPath")
+		t.Setenv("GIT_CONFIG_VALUE_0", hookDir)
+	} else {
+		git("config", "core.hooksPath", hookDir)
+	}
 	integrated := runWorkerOperation(t, executable, spool, "chain-integrate", "integrate", map[string]any{
 		"repo_root": repo, "target_worktree": repo, "target_ref": "refs/heads/main",
 		"target_base_oid": base, "candidate_oid": receipt.CandidateOID,
@@ -199,9 +357,71 @@ func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {
 	if err = json.Unmarshal(integrated.Result, &integrationOutcome); err != nil || integrationOutcome.State != gitops.IntegrationIntegrated || git("rev-parse", "HEAD") != receipt.CandidateOID {
 		t.Fatalf("integration failed: %+v", integrated)
 	}
+	integrationJournal, err := os.ReadFile(filepath.Join(spool, "gitops-journal", digest("chain-integrate"), "events.jsonl"))
+	if err != nil || !strings.Contains(string(integrationJournal), `"kind":"git_process"`) || !strings.Contains(string(integrationJournal), `"phase":"spawned"`) || !strings.Contains(string(integrationJournal), `"phase":"exited"`) {
+		t.Fatalf("final integrate lacks original Git process receipt: %q err=%v", integrationJournal, err)
+	}
+	if body, err := os.ReadFile(marker); err != nil || string(body) != "hook" {
+		t.Fatalf("final post-merge hook did not execute: %q %v", body, err)
+	}
+	pending := map[string]gitops.GitProcessRecord{}
+	completed := 0
+	for _, line := range bytes.Split(bytes.TrimSpace(integrationJournal), []byte("\n")) {
+		var record struct {
+			Kind  string          `json:"kind"`
+			Value json.RawMessage `json:"value"`
+		}
+		if json.Unmarshal(line, &record) != nil {
+			t.Fatal("invalid journal")
+		}
+		if record.Kind != "git_process" {
+			continue
+		}
+		var value gitops.GitProcessRecord
+		if json.Unmarshal(record.Value, &value) != nil {
+			t.Fatal("invalid git receipt")
+		}
+		if value.Phase == "intent" {
+			continue
+		}
+		if value.Process == nil || value.Process.PID <= 0 || value.Process.Birth == "" {
+			t.Fatal("unbound process receipt")
+		}
+		key := value.CommandDigest + ":" + fmt.Sprint(value.Process.PID) + ":" + value.Process.Birth
+		switch value.Phase {
+		case "spawned":
+			if _, exists := pending[key]; exists {
+				t.Fatal("duplicate spawn", key)
+			}
+			pending[key] = value
+		case "exited":
+			original, exists := pending[key]
+			if !exists || *original.Process != *value.Process {
+				t.Fatal("exit without matching original spawn", key)
+			}
+			delete(pending, key)
+			completed++
+		default:
+			t.Fatal("unsettled Git receipt", value.Phase)
+		}
+	}
+	if len(pending) != 0 || completed < 2 {
+		t.Fatalf("unpaired Git receipts: pending=%d completed=%d", len(pending), completed)
+	}
+	// compose stdout intentionally omits the full inventory; cleanup uses the
+	// durable compose journal's receipt rather than an unbounded terminal value.
+	composeJournal, err := openJournal(filepath.Join(spool, "gitops-journal", digest("chain-compose")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanupReceipt, found, err := composeJournal.LoadCandidateFreeze(context.Background())
+	composeJournal.close()
+	if err != nil || !found || len(cleanupReceipt.Files) == 0 {
+		t.Fatalf("missing full compose cleanup receipt: found=%v err=%v", found, err)
+	}
 
 	cleaned := runWorkerOperation(t, executable, spool, "chain-cleanup", "cleanup", map[string]any{
-		"root": composeWorktree, "candidate_receipt": receipt,
+		"root": composeWorktree, "candidate_receipt": cleanupReceipt,
 	})
 	var cleanupOutcome gitops.CleanupOutcome
 	if err = json.Unmarshal(cleaned.Result, &cleanupOutcome); err != nil || cleanupOutcome.State != gitops.CleanupRemoved || cleanupOutcome.PrivateRefState != "deleted" {
@@ -218,5 +438,56 @@ func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {
 		if info, statErr := os.Stat(journal); statErr != nil || info.Size() == 0 {
 			t.Fatalf("missing durable journal for %s: info=%v err=%v", commandID, info, statErr)
 		}
+	}
+}
+
+func TestComposeWorkerRefusesBusyJournalAsUncertain(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := filepath.Join(root, "compose")
+	payload, _ := json.Marshal(map[string]any{"kind": "gitops", "operation": "compose", "request": map[string]any{"repo_root": root, "worktree": work}})
+	inv, err := BuildInvocation(payload, binary, root, "busy-compose")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope requestEnvelope
+	if err = readPrivateJSON(inv.Args()[3], &envelope); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := openJournal(envelope.JournalRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.close()
+	if err = syscall.Flock(int(owner.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(owner.file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	err = Run(context.Background(), inv.Args()[3], &output)
+	var response struct {
+		Version   int    `json:"version"`
+		Status    string `json:"status"`
+		Operation string `json:"operation"`
+		Code      string `json:"code"`
+	}
+	if !errors.Is(err, process.ErrProcessTreeUnknown) || json.Unmarshal(output.Bytes(), &response) != nil || response.Status != "error" || response.Code != "compose_uncertain" {
+		t.Fatalf("live journal owner reported as definite failure: %v %s", err, output.Bytes())
+	}
+	after, err := os.ReadFile(owner.file.Name())
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("busy replay changed journal", err)
+	}
+	if _, err = os.Lstat(work); !os.IsNotExist(err) {
+		t.Fatal("busy replay created worktree", err)
 	}
 }

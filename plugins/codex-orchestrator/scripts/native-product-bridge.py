@@ -1001,7 +1001,19 @@ def main(args):
     return {"version": 1, "status": "ready"}
 
 
+def ledger_status(request_path_value):
+    request = stable_json(Path(request_path_value), private=True)
+    require(set(request) == {"version", "runtime", "bridge_root", "delivery_id"}
+            and request["version"] == 1 and isinstance(request["runtime"], dict)
+            and type(request["bridge_root"]) is str and type(request["delivery_id"]) is str,
+            "ledger_status_request")
+    modules = load_g0_runtime(request["runtime"])
+    return modules["bridge"].DeliveryLedger.read_status(request["bridge_root"], request["delivery_id"])
+
+
 async def async_main(args):
+    if len(args) == 3 and args[:2] == ["ledger-status", "--request"]:
+        return ledger_status(args[2])
     if args == ["helper"]:
         await run_helper()
         return None

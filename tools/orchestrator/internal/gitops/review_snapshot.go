@@ -6,9 +6,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 const (
@@ -16,6 +19,309 @@ const (
 	reviewSnapshotFileLimit = 64
 	reviewSnapshotJSONLimit = 256 * 1024
 )
+
+// The indexed path is intentionally opt-in. Its manifest is compact metadata;
+// chunk bytes are reconstructed only from the receipt's immutable Git blobs.
+const (
+	indexedReviewPathLimit        = 512
+	indexedReviewPathBytesLimit   = 64 * 1024
+	indexedReviewTextLimit        = 8 * 1024 * 1024
+	indexedReviewBlobReadLimit    = 8 * 1024 * 1024
+	indexedReviewChunkLimit       = 32 * 1024
+	indexedReviewChunkCountLimit  = 2048
+	indexedReviewPageEntriesLimit = 64
+	indexedReviewPageJSONLimit    = 64 * 1024
+	indexedReviewManifestLimit    = 1024 * 1024
+)
+
+type ReviewIndexChunk = contract.IndexedReviewChunk
+type ReviewIndexPage = contract.IndexedReviewPage
+type ReviewIndex = contract.IndexedReviewManifest
+
+func reviewChunkDigest(b []byte) string {
+	h := sha256.Sum256(b)
+	return hex.EncodeToString(h[:])
+}
+
+// ReviewIndexManifestSHA256 binds persisted metadata without serializing source
+// content into an accepted artifact.
+func ReviewIndexManifestSHA256(index ReviewIndex) string {
+	raw, err := json.Marshal(index)
+	if err != nil {
+		return ""
+	}
+	return reviewChunkDigest(raw)
+}
+
+// HydrateReviewChunks reads only the immutable blob ranges assigned by an
+// accepted manifest. It never rebuilds an index or discovers paths.
+func HydrateReviewChunks(ctx context.Context, receipt CandidateReceipt, chunks []ReviewIndexChunk) ([]ReviewIndexChunk, error) {
+	ctx = context.WithValue(ctx, candidateRunnerKey{}, true)
+	if err := validateReviewSnapshotReceipt(ctx, receipt); err != nil {
+		return nil, err
+	}
+	out := append([]ReviewIndexChunk(nil), chunks...)
+	byBlob := map[string][]int{}
+	retained := 0
+	for i := range out {
+		if out[i].Length < 0 || out[i].Length > indexedReviewChunkLimit || out[i].Offset < 0 || out[i].Offset > indexedReviewTextLimit || out[i].Length > indexedReviewTextLimit-out[i].Offset || out[i].BlobOID == "" {
+			return nil, fail(CodeInvalidInput, "review hydrate", fmt.Errorf("invalid chunk"))
+		}
+		retained += out[i].Length
+		if retained > 384*1024 {
+			return nil, fail(CodeInvalidInput, "review hydrate", fmt.Errorf("assigned text exceeds consumer limit"))
+		}
+		byBlob[out[i].BlobOID] = append(byBlob[out[i].BlobOID], i)
+	}
+	read := 0
+	for oid, positions := range byBlob {
+		sizeText, err := freezeGit(ctx, receipt.Worktree, nil, "cat-file", "-s", oid)
+		if err != nil {
+			return nil, err
+		}
+		var size int
+		if _, err = fmt.Sscanf(strings.TrimSpace(sizeText), "%d", &size); err != nil || size < 0 || size > indexedReviewBlobReadLimit || size > indexedReviewTextLimit-read {
+			return nil, fail(CodeInvalidInput, "review hydrate", fmt.Errorf("blob read exceeds limit"))
+		}
+		read += size
+		c := &hydrateCollector{chunks: out, positions: positions, expected: size, whole: sha256.New()}
+		if err = candidateGitStream(ctx, receipt.Worktree, c, "cat-file", "blob", oid); err != nil {
+			return nil, err
+		}
+		if c.seen != size {
+			return nil, fail(CodeUnknownObject, "review hydrate", fmt.Errorf("blob size changed"))
+		}
+		whole := hex.EncodeToString(c.whole.Sum(nil))
+		for _, pos := range positions {
+			if out[pos].WholeSHA256 != whole || len(out[pos].Content) != out[pos].Length || reviewChunkDigest([]byte(out[pos].Content)) != out[pos].SHA256 {
+				return nil, fail(CodeUnknownObject, "review hydrate", fmt.Errorf("chunk mismatch"))
+			}
+		}
+	}
+	return out, nil
+}
+
+type hydrateCollector struct {
+	chunks         []ReviewIndexChunk
+	positions      []int
+	expected, seen int
+	whole          hash.Hash
+}
+
+func (c *hydrateCollector) Write(p []byte) (int, error) {
+	start := c.seen
+	c.seen += len(p)
+	_, _ = c.whole.Write(p)
+	for _, pos := range c.positions {
+		q := &c.chunks[pos]
+		a, b := q.Offset, q.Offset+q.Length
+		lo, hi := a, b
+		if lo < start {
+			lo = start
+		}
+		if hi > c.seen {
+			hi = c.seen
+		}
+		if lo < hi {
+			q.Content += string(p[lo-start : hi-start])
+		}
+	}
+	return len(p), nil
+}
+
+// CandidateReviewIndex enumerates both immutable trees, preserving a distinct
+// logical side even when their blob OIDs match. It rejects unsupported entries
+// rather than presenting partial coverage as complete.
+func CandidateReviewIndex(ctx context.Context, receipt CandidateReceipt, receiptSHA256 string) (ReviewIndex, error) {
+	ctx = context.WithValue(ctx, candidateRunnerKey{}, true)
+	if len(receiptSHA256) != 64 {
+		return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("invalid candidate receipt digest"))
+	}
+	if err := validateReviewSnapshotReceipt(ctx, receipt); err != nil {
+		return ReviewIndex{}, err
+	}
+	baseTree, err := rev(ctx, receipt.Worktree, receipt.BaseOID+"^{tree}")
+	if err != nil {
+		return ReviewIndex{}, err
+	}
+	candidateTree, err := rev(ctx, receipt.Worktree, receipt.CandidateOID+"^{tree}")
+	if err != nil {
+		return ReviewIndex{}, err
+	}
+	if candidateTree != receipt.TreeOID {
+		return ReviewIndex{}, fail(CodeTargetDrift, "review index", fmt.Errorf("candidate tree differs from receipt"))
+	}
+	if err := verifyFrozenChanges(ctx, receipt.Worktree, receipt.BaseOID, candidateTree, receipt.Changes); err != nil {
+		return ReviewIndex{}, err
+	}
+	base, err := reviewTree(ctx, receipt.Worktree, baseTree)
+	if err != nil {
+		return ReviewIndex{}, err
+	}
+	candidate, err := reviewTree(ctx, receipt.Worktree, candidateTree)
+	if err != nil {
+		return ReviewIndex{}, err
+	}
+	paths, seen := make([]string, 0, len(base)+len(candidate)), map[string]bool{}
+	for p := range base {
+		seen[p] = true
+	}
+	for p := range candidate {
+		seen[p] = true
+	}
+	for p := range seen {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	if len(paths) > indexedReviewPathLimit {
+		return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("too many tracked paths"))
+	}
+	pathBytes := 0
+	index := ReviewIndex{Version: 1, Scope: "complete-tracked-text-base-and-candidate", CandidateReceiptSHA256: receiptSHA256, BaseOID: receipt.BaseOID, CandidateOID: receipt.CandidateOID, TreeOID: receipt.TreeOID}
+	for _, path := range paths {
+		pathBytes += len(path)
+		if pathBytes > indexedReviewPathBytesLimit {
+			return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("path bytes exceed limit"))
+		}
+		for _, side := range []struct {
+			name  string
+			entry reviewTreeEntry
+			ok    bool
+		}{{"base", base[path], base[path].oid != ""}, {"candidate", candidate[path], candidate[path].oid != ""}} {
+			if !side.ok {
+				continue
+			}
+			if err := appendIndexedReviewBlob(ctx, receipt.Worktree, path, side.name, side.entry, &index); err != nil {
+				return ReviewIndex{}, err
+			}
+		}
+	}
+	for start := 0; start < len(index.Chunks); start += indexedReviewPageEntriesLimit {
+		end := start + indexedReviewPageEntriesLimit
+		if end > len(index.Chunks) {
+			end = len(index.Chunks)
+		}
+		ordinals := make([]int, 0, end-start)
+		for _, chunk := range index.Chunks[start:end] {
+			ordinals = append(ordinals, chunk.Ordinal)
+		}
+		page := ReviewIndexPage{Ordinal: len(index.Pages), ChunkOrdinals: ordinals}
+		if raw, _ := json.Marshal(page); len(raw) > indexedReviewPageJSONLimit {
+			return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("page exceeds limit"))
+		}
+		index.Pages = append(index.Pages, page)
+	}
+	// Content is deliberately excluded by the json tag, so this marshal is the
+	// durable metadata manifest rather than a second content store.
+	if raw, _ := json.Marshal(index); len(raw) > indexedReviewManifestLimit {
+		return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("manifest exceeds limit"))
+	}
+	if err := contract.ValidateIndexedReviewManifest(index); err != nil {
+		return ReviewIndex{}, fail(CodeInvalidInput, "review index", err)
+	}
+	return index, nil
+}
+
+func appendIndexedReviewBlob(ctx context.Context, repo, path, side string, entry reviewTreeEntry, index *ReviewIndex) error {
+	sizeText, err := freezeGit(ctx, repo, nil, "cat-file", "-s", entry.oid)
+	if err != nil {
+		return err
+	}
+	var size int
+	if _, err = fmt.Sscanf(strings.TrimSpace(sizeText), "%d", &size); err != nil || size < 0 || size > indexedReviewBlobReadLimit {
+		return fail(CodeInvalidInput, "review index", fmt.Errorf("blob exceeds read limit"))
+	}
+	if size > indexedReviewTextLimit-indexedTextBytes(index.Chunks) {
+		return fail(CodeInvalidInput, "review index", fmt.Errorf("logical text exceeds limit"))
+	}
+	c := indexedChunkCollector{path: path, side: side, entry: entry, index: index, expected: size, whole: sha256.New()}
+	if err := candidateGitStream(ctx, repo, &c, "cat-file", "blob", entry.oid); err != nil {
+		return err
+	}
+	return c.finish()
+}
+
+func indexedTextBytes(chunks []ReviewIndexChunk) int {
+	n := 0
+	for _, c := range chunks {
+		n += c.Length
+	}
+	return n
+}
+
+type indexedChunkCollector struct {
+	path, side             string
+	entry                  reviewTreeEntry
+	index                  *ReviewIndex
+	expected, seen, offset int
+	pending, prefix        []byte
+	whole                  hash.Hash
+	invalid                bool
+}
+
+func (c *indexedChunkCollector) Write(p []byte) (int, error) {
+	c.seen += len(p)
+	if c.seen > c.expected || strings.IndexByte(string(p), 0) >= 0 {
+		c.invalid = true
+		return len(p), nil
+	}
+	_, _ = c.whole.Write(p)
+	if len(c.prefix) < 64 {
+		n := 64 - len(c.prefix)
+		if n > len(p) {
+			n = len(p)
+		}
+		c.prefix = append(c.prefix, p[:n]...)
+	}
+	c.pending = append(c.pending, p...)
+	for len(c.pending) >= indexedReviewChunkLimit {
+		end := indexedReviewChunkLimit
+		for end > 0 && !utf8.Valid(c.pending[:end]) {
+			end--
+		}
+		if end == 0 {
+			c.invalid = true
+			return len(p), nil
+		}
+		if err := c.append(c.pending[:end]); err != nil {
+			c.invalid = true
+			return len(p), nil
+		}
+		c.pending = append(c.pending[:0], c.pending[end:]...)
+	}
+	return len(p), nil
+}
+func (c *indexedChunkCollector) append(part []byte) error {
+	if len(c.index.Chunks) >= indexedReviewChunkCountLimit {
+		return fmt.Errorf("too many chunks")
+	}
+	c.index.Chunks = append(c.index.Chunks, ReviewIndexChunk{Ordinal: len(c.index.Chunks), Path: c.path, Side: c.side, Mode: c.entry.mode, BlobOID: c.entry.oid, Offset: c.offset, Length: len(part), SHA256: reviewChunkDigest(part)})
+	c.offset += len(part)
+	return nil
+}
+func (c *indexedChunkCollector) finish() error {
+	if c.invalid || c.seen != c.expected || !utf8.Valid(c.pending) || strings.HasPrefix(string(c.prefix), "version https://git-lfs.github.com/spec/v1\n") {
+		return fail(CodeUnknownObject, "review index", fmt.Errorf("unsupported tracked content"))
+	}
+	if len(c.pending) > 0 {
+		if err := c.append(c.pending); err != nil {
+			return fail(CodeInvalidInput, "review index", err)
+		}
+	} else if c.expected == 0 {
+		if err := c.append(nil); err != nil {
+			return fail(CodeInvalidInput, "review index", err)
+		}
+	}
+	whole := hex.EncodeToString(c.whole.Sum(nil))
+	start := len(c.index.Chunks)
+	for start > 0 && c.index.Chunks[start-1].BlobOID == c.entry.oid && c.index.Chunks[start-1].Path == c.path && c.index.Chunks[start-1].Side == c.side {
+		start--
+	}
+	for i := start; i < len(c.index.Chunks); i++ {
+		c.index.Chunks[i].WholeSHA256 = whole
+	}
+	return nil
+}
 
 type reviewSnapshotBlob struct {
 	Mode    string `json:"mode"`

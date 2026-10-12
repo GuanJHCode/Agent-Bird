@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func (s *Server) authorizePeer(ctx context.Context, conn net.Conn) (context.Cont
 	if err != nil {
 		return ctx, err
 	}
-	ancestors, err := process.Ancestry(pid)
+	ancestors, err := process.AncestryContext(ctx, pid)
 	if err != nil {
 		return ctx, err
 	}
@@ -49,47 +50,17 @@ func (s *Server) bindLocalOwner(ctx context.Context, raw json.RawMessage) (json.
 	if req.OriginBirth == "" || ancestry[req.OriginPID] != req.OriginBirth {
 		return nil, store.CodeError("owner_peer_mismatch")
 	}
-	g, err := s.db.CreateOwnerGrant(ctx, req.ControllerThread, req.OriginPID, req.OriginBirth)
+	publication := &localOwnerPublication{stateDir: s.stateDir}
+	defer publication.close()
+	g, rolledBack, err := s.db.PublishOwnerGrant(ctx, req.ControllerThread, req.OriginPID, req.OriginBirth, publication.publish)
 	if err != nil {
+		if rolledBack {
+			err = errors.Join(err, publication.removeAfterRollback())
+		}
 		return nil, err
 	}
-	root, err := filepath.EvalSymlinks(s.stateDir)
-	if err != nil {
-		return nil, err
-	}
-	dir := filepath.Join(root, "owners")
-	if err = os.MkdirAll(dir, 0700); err != nil {
-		return nil, err
-	}
-	canonical, err := filepath.EvalSymlinks(dir)
-	if err != nil || canonical != dir {
-		return nil, store.CodeError("owner_path_untrusted")
-	}
-	path := filepath.Join(dir, g.ID+".json")
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
-	if err != nil {
-		return nil, err
-	}
-	err = json.NewEncoder(f).Encode(g)
-	if err == nil {
-		err = f.Sync()
-	}
-	closeErr := f.Close()
-	if err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		return nil, err
-	}
-	d, err := os.Open(dir)
-	if err != nil {
-		return nil, err
-	}
-	err = d.Sync()
-	d.Close()
-	if err != nil {
-		return nil, err
-	}
+	path := publication.path
+
 	return json.Marshal(map[string]any{"version": 1, "owner_mode": "local", "owner_capability": path, "controller_thread": g.ControllerThread, "origin_pid": g.OriginPID, "origin_birth": g.OriginBirth, "origin_context_id": g.OriginContextID, "host_generation": g.HostGeneration})
 }
 func (s *Server) localOwner(ctx context.Context, path string) (store.OwnerGrant, error) {

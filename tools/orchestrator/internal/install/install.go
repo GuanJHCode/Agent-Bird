@@ -9,11 +9,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 var (
@@ -54,12 +57,18 @@ type DoctorReport struct {
 }
 
 type manifest struct {
-	SchemaVersion int            `json:"schema_version"`
-	PackageName   string         `json:"package_name"`
-	Version       string         `json:"version"`
-	BinaryPath    string         `json:"binary_path"`
-	BinarySHA256  string         `json:"binary_sha256"`
-	Files         []manifestFile `json:"files"`
+	SchemaVersion int                 `json:"schema_version"`
+	PackageName   string              `json:"package_name"`
+	Version       string              `json:"version"`
+	BinaryPath    string              `json:"binary_path"`
+	BinarySHA256  string              `json:"binary_sha256"`
+	Files         []manifestFile      `json:"files"`
+	Directories   []manifestDirectory `json:"directories,omitempty"`
+}
+
+type manifestDirectory struct {
+	Path     string                       `json:"path"`
+	Identity publicationDirectoryIdentity `json:"identity"`
 }
 
 type manifestFile struct {
@@ -73,8 +82,12 @@ type manifestFile struct {
 }
 
 type manifestReceipt struct {
-	Version        string `json:"version"`
-	ManifestSHA256 string `json:"manifest_sha256"`
+	Version                  string                        `json:"version"`
+	ManifestSHA256           string                        `json:"manifest_sha256"`
+	RequestSHA256            string                        `json:"request_sha256,omitempty"`
+	InstallIntentSHA256      string                        `json:"install_intent_sha256,omitempty"`
+	VersionDirectoryIdentity *publicationDirectoryIdentity `json:"version_directory_identity,omitempty"`
+	ManifestFileIdentity     *publicationFileIdentity      `json:"manifest_file_identity,omitempty"`
 }
 
 type uninstallIntent struct {
@@ -86,129 +99,58 @@ type uninstallIntent struct {
 }
 
 type pin struct {
-	TaskID  string `json:"task_id"`
-	Version string `json:"version"`
+	TaskID            string                               `json:"task_id"`
+	Version           string                               `json:"version"`
+	SchemaVersion     int                                  `json:"schema_version,omitempty"`
+	RunID             string                               `json:"run_id,omitempty"`
+	ConfigGeneration  *contract.ConfigGenerationRef        `json:"config_generation,omitempty"`
+	Authority         *contract.ConfigPreparationAuthority `json:"authority,omitempty"`
+	PreparationSHA256 string                               `json:"preparation_sha256,omitempty"`
 }
 
 var versionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$`)
 var idPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 
 func InstallPackage(options InstallOptions) (InstallResult, error) {
+	return installPackage(options, nil)
+}
+
+// checkpoint is private, scoped to this call, and never supplied by the CLI.
+func installPackage(options InstallOptions, checkpoint func(string) error) (InstallResult, error) {
 	if err := validateOptions(options); err != nil {
 		return InstallResult{}, err
 	}
 	var err error
-	if options.SourceRoot, err = canonicalManagedPath(options.SourceRoot); err != nil {
-		return InstallResult{}, err
-	}
-	if options.BinaryPath, err = canonicalManagedPath(options.BinaryPath); err != nil {
-		return InstallResult{}, err
-	}
-	if options.DestinationRoot, err = canonicalManagedPath(options.DestinationRoot); err != nil {
-		return InstallResult{}, err
-	}
-	if options.DataRoot, err = canonicalManagedPath(options.DataRoot); err != nil {
-		return InstallResult{}, err
-	}
-	if err := validatePluginSource(options.SourceRoot, options.Version); err != nil {
-		return InstallResult{}, err
-	}
-	if _, err := ValidateRuntimeBundle(options.SourceRoot); err != nil {
-		return InstallResult{}, err
-	}
-	if err := ensurePrivateDir(options.DestinationRoot); err != nil {
-		return InstallResult{}, err
-	}
-	if err := ensureDataSeparate(options.DestinationRoot, options.DataRoot); err != nil {
-		return InstallResult{}, err
-	}
-	if err := os.MkdirAll(filepath.Join(options.DestinationRoot, "versions"), 0o700); err != nil {
-		return InstallResult{}, err
-	}
-	if err := os.MkdirAll(filepath.Join(options.DestinationRoot, "pins"), 0o700); err != nil {
-		return InstallResult{}, err
-	}
-	if err := os.MkdirAll(filepath.Join(options.DestinationRoot, "manifests"), 0o700); err != nil {
-		return InstallResult{}, err
-	}
-	if err := os.MkdirAll(filepath.Join(options.DestinationRoot, "uninstall-intents"), 0o700); err != nil {
-		return InstallResult{}, err
-	}
-	lock, err := acquireInstallLock(options.DestinationRoot)
-	if err != nil {
-		return InstallResult{}, err
-	}
-	defer releaseInstallLock(lock)
-	versionRoot := filepath.Join(options.DestinationRoot, "versions", options.Version)
-	if _, err := os.Lstat(versionRoot); err == nil {
-		return InstallResult{}, ErrVersionExists
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return InstallResult{}, err
-	}
-	stage, err := makeStage(options.DestinationRoot, options.Version)
-	if err != nil {
-		return InstallResult{}, err
-	}
-	if err := copyTree(options.SourceRoot, stage); err != nil {
-		return InstallResult{}, err
-	}
-	runtimeIdentity, err := ValidateRuntimeBundle(stage)
-	if err != nil {
-		return InstallResult{}, err
-	}
-	binaryDest := filepath.Join(stage, "bin", "codex-orchestrator")
-	if err := os.MkdirAll(filepath.Dir(binaryDest), 0o700); err != nil {
-		return InstallResult{}, err
-	}
-	if info, statErr := os.Lstat(binaryDest); statErr == nil {
-		sourceHash, sourceErr := hashFile(options.BinaryPath)
-		installedHash, installedErr := hashFile(binaryDest)
-		if sourceErr != nil || installedErr != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o700 || sourceHash != installedHash {
-			return InstallResult{}, errors.New("packaged_binary_mismatch")
-		}
-	} else if errors.Is(statErr, os.ErrNotExist) {
-		if err := copyRegular(options.BinaryPath, binaryDest, 0o700); err != nil {
+	for _, target := range []*string{&options.SourceRoot, &options.BinaryPath, &options.DestinationRoot, &options.DataRoot} {
+		*target, err = canonicalManagedPath(*target)
+		if err != nil {
 			return InstallResult{}, err
 		}
-	} else {
-		return InstallResult{}, statErr
 	}
-	files, err := collectFiles(stage)
+	p, err := prepareInstallRequest(options)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return InstallResult{}, errors.Join(ErrInstallOriginalInputsRequired, err)
+		}
 		return InstallResult{}, err
 	}
-	binaryHash, err := hashFile(binaryDest)
-	if err != nil {
+	defer p.close()
+	if _, err = validatePayload(options.SourceRoot, false); err != nil {
 		return InstallResult{}, err
 	}
-	value := manifest{SchemaVersion: 1, PackageName: "codex-orchestrator", Version: options.Version, BinaryPath: "bin/codex-orchestrator", BinarySHA256: binaryHash, Files: files}
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
+	if err = validatePluginSource(options.SourceRoot, options.Version); err != nil {
 		return InstallResult{}, err
 	}
-	if err := writeExclusive(filepath.Join(stage, "manifest.json"), append(data, '\n'), 0o600); err != nil {
+	if _, err = ValidateRuntimeBundle(options.SourceRoot); err != nil {
 		return InstallResult{}, err
 	}
-	if err := os.Rename(stage, versionRoot); err != nil {
+	if err = ensurePrivateDir(options.DestinationRoot); err != nil {
 		return InstallResult{}, err
 	}
-	manifestPath := filepath.Join(versionRoot, "manifest.json")
-	manifestHash, err := hashFile(manifestPath)
-	if err != nil {
+	if err = ensureDataSeparate(options.DestinationRoot, options.DataRoot); err != nil {
 		return InstallResult{}, err
 	}
-	receiptData, _ := json.Marshal(manifestReceipt{Version: options.Version, ManifestSHA256: manifestHash})
-	if err := writeExclusive(filepath.Join(options.DestinationRoot, "manifests", options.Version+".json"), append(receiptData, '\n'), 0o600); err != nil {
-		return InstallResult{}, err
-	}
-	paths := make([]string, 0, len(files))
-	for _, file := range files {
-		paths = append(paths, file.Path)
-	}
-	sort.Strings(paths)
-	runtimeIdentity.Root = filepath.Join(versionRoot, "runtime", "g0")
-	runtimeIdentity.ManifestPath = filepath.Join(runtimeIdentity.Root, "runtime-manifest.json")
-	return InstallResult{Version: options.Version, VersionRoot: versionRoot, ManifestPath: manifestPath, ManifestSHA256: manifestHash, BinarySHA256: binaryHash, Files: paths, Runtime: runtimeIdentity}, nil
+	return installPublication(options, p, checkpoint)
 }
 
 func PinVersion(destinationRoot, taskID, version string) error {
@@ -238,7 +180,7 @@ func PinVersion(destinationRoot, taskID, version string) error {
 	if active, exists, readErr := readPin(path); readErr != nil {
 		return readErr
 	} else if exists {
-		if active.TaskID == taskID && active.Version == version {
+		if active.SchemaVersion == 0 && active.TaskID == taskID && active.Version == version {
 			return nil
 		}
 		return errors.New("pin_conflict")
@@ -275,6 +217,9 @@ func UnpinVersion(destinationRoot, taskID string) error {
 	if !exists {
 		return nil
 	}
+	if active.SchemaVersion == 2 || active.SchemaVersion == 3 {
+		return errors.New("config_use_terminal_proof_required")
+	}
 	if active.TaskID != taskID {
 		return errors.New("pin_conflict")
 	}
@@ -285,6 +230,12 @@ func UnpinVersion(destinationRoot, taskID string) error {
 }
 
 func verifyInstalledVersion(destinationRoot, version string) error {
+	if err := checkInstallPublicationPending(destinationRoot, version); err != nil {
+		return err
+	}
+	return verifyInstalledVersionContent(destinationRoot, version)
+}
+func verifyInstalledVersionContent(destinationRoot, version string) error {
 	versionRoot := filepath.Join(destinationRoot, "versions", version)
 	if info, err := os.Lstat(versionRoot); err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return errors.New("installed_version_invalid")
@@ -297,9 +248,28 @@ func verifyInstalledVersion(destinationRoot, version string) error {
 	manifestDigest := sha256.Sum256(manifestData)
 	manifestHash := hex.EncodeToString(manifestDigest[:])
 	receiptData, err := readOwnedRegular(filepath.Join(destinationRoot, "manifests", version+".json"), 0o600, 4096)
-	var receipt manifestReceipt
-	if err != nil || json.Unmarshal(receiptData, &receipt) != nil || receipt.Version != version || receipt.ManifestSHA256 != manifestHash {
+	receipt, receiptErr := decodeManifestReceipt(receiptData, version)
+	if err != nil || receiptErr != nil || receipt.ManifestSHA256 != manifestHash {
 		return errors.New("installed_version_invalid")
+	}
+	if receipt.RequestSHA256 != "" {
+		root, e := publicationOpenRoot(versionRoot)
+		if e != nil {
+			return errors.New("installed_version_invalid")
+		}
+		defer root.Close()
+		directoryInfo, e := root.Stat()
+		if e != nil {
+			return errors.New("installed_version_invalid")
+		}
+		directoryID, e := publicationDirectory(directoryInfo)
+		body, manifestID, e2 := publicationReadAt(root, "manifest.json", 4<<20)
+		if e != nil || e2 != nil || !reflect.DeepEqual(body, manifestData) {
+			return errors.New("installed_version_invalid")
+		}
+		if directoryID != *receipt.VersionDirectoryIdentity || manifestID != *receipt.ManifestFileIdentity || strictJSONBounded(body, &value, false, 4<<20) != nil || publicationValidateManifestTree(root, value) != nil || publicationSamePath(root, versionRoot) != nil {
+			return errors.New("installed_version_invalid")
+		}
 	}
 	binaryHash, err := hashFile(filepath.Join(versionRoot, filepath.FromSlash(value.BinaryPath)))
 	if err != nil || binaryHash != value.BinarySHA256 {
@@ -313,34 +283,7 @@ func verifyInstalledVersion(destinationRoot, version string) error {
 }
 
 func readPin(path string) (pin, bool, error) {
-	info, err := os.Lstat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return pin{}, false, nil
-	}
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 || info.Mode()&os.ModeSymlink != 0 {
-		return pin{}, false, errors.New("pin_invalid")
-	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || int(stat.Uid) != os.Geteuid() || stat.Nlink != 1 {
-		return pin{}, false, errors.New("pin_invalid")
-	}
-	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return pin{}, false, errors.New("pin_invalid")
-	}
-	defer file.Close()
-	opened, err := file.Stat()
-	if err != nil || !os.SameFile(info, opened) {
-		return pin{}, false, errors.New("pin_invalid")
-	}
-	data, err := io.ReadAll(io.LimitReader(file, 4097))
-	var value pin
-	decoder := json.NewDecoder(strings.NewReader(string(data)))
-	decoder.DisallowUnknownFields()
-	if err != nil || len(data) > 4096 || decoder.Decode(&value) != nil || decoder.Decode(&struct{}{}) != io.EOF || !idPattern.MatchString(value.TaskID) || !versionPattern.MatchString(value.Version) {
-		return pin{}, false, errors.New("pin_invalid")
-	}
-	return value, true, nil
+	return generationReadPinRecord(path)
 }
 
 func verifyPrivateDirectory(path string) error {
@@ -357,6 +300,9 @@ func verifyPrivateDirectory(path string) error {
 
 func readOwnedRegular(path string, mode os.FileMode, limit int64) ([]byte, error) {
 	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
 	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != mode {
 		return nil, errors.New("installed_file_unsafe")
 	}
@@ -396,10 +342,11 @@ func Doctor(destinationRoot string) (DoctorReport, error) {
 		return DoctorReport{}, err
 	}
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if strings.HasPrefix(entry.Name(), ".") {
+			report.Issues = append(report.Issues, "retained:"+entry.Name())
 			continue
 		}
-		if strings.HasPrefix(entry.Name(), ".") {
+		if !entry.IsDir() {
 			report.Issues = append(report.Issues, "retained:"+entry.Name())
 			continue
 		}
@@ -409,16 +356,27 @@ func Doctor(destinationRoot string) (DoctorReport, error) {
 			report.Issues = append(report.Issues, entry.Name()+":manifest")
 			continue
 		}
-		receiptData, receiptErr := os.ReadFile(filepath.Join(destinationRoot, "manifests", entry.Name()+".json"))
-		var receipt manifestReceipt
+		receiptData, receiptErr := readOwnedRegular(filepath.Join(destinationRoot, "manifests", entry.Name()+".json"), 0600, 4096)
+		receipt, parseErr := decodeManifestReceipt(receiptData, entry.Name())
 		manifestHash, hashErr := hashFile(filepath.Join(versionsDir, entry.Name(), "manifest.json"))
-		if receiptErr != nil || hashErr != nil || json.Unmarshal(receiptData, &receipt) != nil || receipt.ManifestSHA256 != manifestHash {
+		if receiptErr != nil || hashErr != nil || parseErr != nil || receipt.ManifestSHA256 != manifestHash {
 			report.Issues = append(report.Issues, entry.Name()+":manifest_hash")
 			continue
+		}
+		if receipt.RequestSHA256 != "" {
+			if verifyInstalledVersionContent(destinationRoot, entry.Name()) != nil {
+				report.Issues = append(report.Issues, entry.Name()+":publication_identity")
+			}
+			if pendingErr := checkInstallPublicationPending(destinationRoot, entry.Name()); pendingErr != nil && !errors.Is(pendingErr, ErrInstallPublicationPending) {
+				report.Issues = append(report.Issues, "install_conflict:"+entry.Name())
+			}
 		}
 		changed, changedErr := changedFiles(filepath.Join(versionsDir, entry.Name()), value, false)
 		if changedErr != nil || len(changed) > 0 {
 			report.Issues = append(report.Issues, entry.Name()+":files")
+		}
+		if _, payloadErr := validatePayload(filepath.Join(versionsDir, entry.Name()), true); payloadErr != nil {
+			report.Issues = append(report.Issues, entry.Name()+":payload")
 		}
 		if _, runtimeErr := ValidateRuntimeBundle(filepath.Join(versionsDir, entry.Name())); runtimeErr != nil {
 			issue := entry.Name() + ":runtime"
@@ -454,6 +412,12 @@ func Doctor(destinationRoot string) (DoctorReport, error) {
 			report.Issues = append(report.Issues, "uninstall_pending:"+version)
 		}
 	}
+	publicationIssues, err := doctorInstallPublications(destinationRoot)
+	if err != nil {
+		return DoctorReport{}, err
+	}
+	report.Issues = append(report.Issues, publicationIssues...)
+	report.Issues = append(report.Issues, doctorConfigGenerations(destinationRoot)...)
 	sort.Strings(report.Versions)
 	sort.Strings(report.Pins)
 	if len(report.Issues) > 0 {
@@ -477,6 +441,23 @@ func UninstallPackage(destinationRoot, version string) (UninstallResult, error) 
 		return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, err
 	}
 	defer releaseInstallLock(lock)
+	if err = configGenerationCheckUninstall(destinationRoot, version); err != nil {
+		return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot, filepath.Join(destinationRoot, "owned-config")}}, err
+	}
+	if err := checkUninstallPublicationRecords(destinationRoot, version); err != nil {
+		status := "retained"
+		if errors.Is(err, ErrInstallPublicationPending) {
+			status = "install_pending"
+		}
+		return UninstallResult{Version: version, Status: status, Retained: []string{versionRoot, filepath.Join(destinationRoot, "install-intents")}}, err
+	}
+	if err := checkInstallPublicationPending(destinationRoot, version); err != nil {
+		status := "retained"
+		if errors.Is(err, ErrInstallPublicationPending) {
+			status = "install_pending"
+		}
+		return UninstallResult{Version: version, Status: status, Retained: []string{versionRoot, filepath.Join(destinationRoot, "install-intents")}}, err
+	}
 	manifestPath := filepath.Join(versionRoot, "manifest.json")
 	receiptPath := filepath.Join(destinationRoot, "manifests", version+".json")
 	intentPath := filepath.Join(destinationRoot, "uninstall-intents", version+".json")
@@ -488,14 +469,20 @@ func UninstallPackage(destinationRoot, version string) (UninstallResult, error) 
 		return UninstallResult{Version: version, Status: status, Retained: []string{versionRoot}}, err
 	}
 
+	if err := configCheckUninstall(destinationRoot, version); err != nil {
+		return UninstallResult{Version: version, Status: "configured", Retained: []string{versionRoot}}, err
+	}
 	intent, resumed, err := readUninstallIntent(intentPath, version)
 	if err != nil {
 		return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot, intentPath}}, err
 	}
 	if !resumed {
-		receiptData, readErr := os.ReadFile(receiptPath)
-		var receipt manifestReceipt
-		if readErr != nil || json.Unmarshal(receiptData, &receipt) != nil || receipt.Version != version {
+		receiptData, readErr := readOwnedRegular(receiptPath, 0600, 4096)
+		receipt, parseErr := decodeManifestReceipt(receiptData, version)
+		if readErr != nil || parseErr != nil {
+			return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
+		}
+		if receipt.RequestSHA256 != "" && verifyInstalledVersionContent(destinationRoot, version) != nil {
 			return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
 		}
 		manifestHash, hashErr := hashFile(manifestPath)
@@ -549,6 +536,28 @@ func UninstallPackage(destinationRoot, version string) (UninstallResult, error) 
 	activeRoot := versionRoot
 	if errors.Is(versionErr, os.ErrNotExist) {
 		activeRoot = quarantineRoot
+	}
+	if intent.Manifest.Directories != nil {
+		receiptData, readErr := readOwnedRegular(receiptPath, 0600, 4096)
+		receipt, parseErr := decodeManifestReceipt(receiptData, version)
+		info, statErr := os.Lstat(activeRoot)
+		if readErr != nil || parseErr != nil || statErr != nil || receipt.RequestSHA256 == "" {
+			return UninstallResult{Version: version, Status: "retained", Retained: []string{activeRoot}}, ErrChangedFiles
+		}
+		id, identityErr := publicationDirectory(info)
+		if identityErr != nil || !info.IsDir() || id != *receipt.VersionDirectoryIdentity {
+			return UninstallResult{Version: version, Status: "retained", Retained: []string{activeRoot}}, ErrChangedFiles
+		}
+		manifestInfo, manifestErr := os.Lstat(filepath.Join(activeRoot, "manifest.json"))
+		if !(resumed && errors.Is(manifestErr, os.ErrNotExist)) {
+			if manifestErr != nil {
+				return UninstallResult{Version: version, Status: "retained", Retained: []string{activeRoot}}, ErrChangedFiles
+			}
+			manifestID, identityErr := publicationFile(manifestInfo)
+			if identityErr != nil || manifestID != *receipt.ManifestFileIdentity {
+				return UninstallResult{Version: version, Status: "retained", Retained: []string{activeRoot}}, ErrChangedFiles
+			}
+		}
 	}
 	changed, err := changedFiles(activeRoot, intent.Manifest, resumed)
 	if err != nil {
@@ -619,15 +628,15 @@ func readUninstallIntent(path, version string) (uninstallIntent, bool, error) {
 }
 
 func removeReceiptForIntent(path string, intent uninstallIntent) error {
-	data, err := os.ReadFile(path)
+	data, err := readOwnedRegular(path, 0600, 4096)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	var receipt manifestReceipt
-	if json.Unmarshal(data, &receipt) != nil || receipt.Version != intent.Version || receipt.ManifestSHA256 != intent.ManifestSHA256 {
+	receipt, parseErr := decodeManifestReceipt(data, intent.Version)
+	if parseErr != nil || receipt.ManifestSHA256 != intent.ManifestSHA256 {
 		return ErrChangedFiles
 	}
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -847,6 +856,10 @@ func copyRegular(source, destination string, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
+	if err = output.Chmod(mode); err != nil {
+		_ = output.Close()
+		return err
+	}
 	if _, err = io.Copy(output, input); err != nil {
 		_ = output.Close()
 		return err
@@ -899,6 +912,24 @@ func changedFiles(root string, value manifest, allowMissing bool) ([]string, err
 	}
 	knownDirectories[filepath.ToSlash(filepath.Dir("manifest.json"))] = true
 	var changed []string
+	for _, directory := range value.Directories {
+		if !publicationRelative(directory.Path) || !validPublicationDirectory(directory.Identity) {
+			return nil, errors.New("manifest_invalid")
+		}
+		knownDirectories[directory.Path] = true
+		info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(directory.Path)))
+		if allowMissing && errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil || !info.IsDir() {
+			changed = append(changed, directory.Path)
+			continue
+		}
+		identity, identityErr := publicationDirectory(info)
+		if identityErr != nil || identity != directory.Identity {
+			changed = append(changed, directory.Path)
+		}
+	}
 	for _, file := range value.Files {
 		path := filepath.Join(root, filepath.FromSlash(file.Path))
 		info, err := os.Lstat(path)

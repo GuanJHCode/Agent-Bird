@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,18 +22,59 @@ type reviewRetryFixture struct {
 	grant   contract.LaunchCommand
 	event   contract.Event
 	spec    RetrySpec
+	hello   contract.HostHello
 }
 
 func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) reviewRetryFixture {
 	t.Helper()
+	return newReviewRetryFixtureForProvider(t, adapter.ProviderClaude, terminal, sharedGroup...)
+}
+
+func newReviewRetryFixtureForProvider(t *testing.T, provider adapter.Provider, terminal string, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureWithConfig(t, provider, terminal, nil, sharedGroup...)
+}
+
+func newReviewRetryFixtureWithConfig(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureWithVector(t, provider, terminal, ref, false, sharedGroup...)
+}
+
+func newReviewRetryFixtureWithVector(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector bool, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureWithOptions(t, provider, terminal, ref, vector, false, sharedGroup...)
+}
+
+func newReviewRetryPolicyFixture(t *testing.T, provider adapter.Provider, vector bool) reviewRetryFixture {
+	return newReviewRetryFixtureWithOptions(t, provider, "", nil, vector, true)
+}
+
+func newReviewRetryFixtureWithOptions(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixturePlan(t, provider, terminal, ref, vector, policy, nil, sharedGroup...)
+}
+
+func newReviewRetryFixturePlan(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, decorate func([]TaskSpec) []TaskSpec, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureBound(t, provider, terminal, ref, vector, policy, decorate, nil, sharedGroup...)
+}
+
+func newReviewRetryFixtureBound(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, decorate func([]TaskSpec) []TaskSpec, bind func(*DB, PlanSpec) PlanSpec, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureArtifactMode(t, provider, terminal, ref, vector, policy, decorate, bind, false, sharedGroup...)
+}
+
+func newReviewRetryFixtureArtifactMode(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, decorate func([]TaskSpec) []TaskSpec, bind func(*DB, PlanSpec) PlanSpec, historical bool, sharedGroup ...bool) reviewRetryFixture {
+	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
+	if err := os.Chmod(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	db, err := Open(filepath.Join(dir, "state.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
 	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "claude-test", SHA256: strings.Repeat("a", 64)}}
+	lock.Provider, lock.Protocol = provider, adapter.ProtocolID(provider)
+	if provider == adapter.ProviderGrok {
+		lock.Binary = adapter.BinaryPin{Path: "/private/bin/grok", Version: "grok 1.0.34 (3736acbc8658)", SHA256: strings.Repeat("a", 64)}
+	}
 	target := adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}
 	ids := []string{"edit", "validate", "review", "integrate"}
 	var tasks []TaskSpec
@@ -46,9 +88,16 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
 			task.Dependencies = []string{ids[i-1]}
 			p.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: id, SourceTask: ids[i-1], Target: target}
 			if id == "review" {
-				p.Provider = "claude-code"
+				if vector {
+					p.CandidateAction.DependencyInputVersion = 1
+					task.Dependencies = []string{"validate", "edit"}
+				}
+				p.Provider = string(provider)
 				p.ProviderLock = lock
 				p.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 180000}
+				if provider == adapter.ProviderGrok {
+					p.Profile.GrokSessionWrite = true
+				}
 				p.Prompt = "independently review"
 			} else {
 				p.Kind = "candidate"
@@ -57,21 +106,46 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
 				p.CandidateAction.Command = []string{"/usr/bin/true"}
 			}
 		}
+		if ref != nil {
+			p.ConfigGeneration, p.ConfigModelSource = ref, "not-applicable"
+			if p.Profile != nil {
+				p.ConfigModelSource, p.Profile.Model = "saved-default", "a"
+			}
+		}
+		if id == "review" && policy {
+			task.MaxActiveMS = 500
+			task.ExecutionPolicy = &contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 3, GroupMaxActiveMS: 1_000, TaskMaxActiveMS: 600, SegmentMaxActiveMS: 200, Retry: &contract.RetryPolicy{Codes: []string{"probe_start_eagain", "probe_start_eintr"}, BackoffMS: []int64{1, 2}}}
+		}
 		task.AdapterPayload, _ = json.Marshal(p)
 		tasks = append(tasks, task)
 	}
 	if len(sharedGroup) > 0 && sharedGroup[0] {
 		tasks = append(tasks, TaskSpec{ID: "side-task", RunID: "run", MaxAttempts: 3, BudgetGroupID: "review", Dependencies: []string{"validate"}})
 	}
-	receipt, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
+	if decorate != nil {
+		tasks = decorate(tasks)
+	}
+
+	plan := PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks}
+	if bind != nil {
+		plan = bind(db, plan)
+		defer plan.ConfigSubmission.Close()
+	}
+	var receipt SubmitReceipt
+	if bind != nil {
+		receipt, err = db.SubmitPlan(ctx, plan)
+	} else {
+		receipt, err = submitExistingConfigHistory(t, db, ctx, plan)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "gen", PID: 10, Birth: "host", Executable: "/private/bin/orchestrator"}, 1)
+	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: plan.Run.OriginContextID, OriginPID: plan.Run.OriginPID, OriginBirth: plan.Run.OriginBirth, HostGeneration: plan.Host.HostGeneration, PID: 10, Birth: "host", Executable: plan.Host.Executable}
+	h, err := db.RegisterHost(ctx, hello, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := reviewRetryFixture{db: db, host: h, control: receipt.ControlToken}
+	f := reviewRetryFixture{db: db, host: h, control: receipt.ControlToken, hello: hello}
 	var seq int64
 	for _, id := range ids[:3] {
 		g, err := db.ClaimReady(ctx, h, 1, 2)
@@ -81,19 +155,29 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
 		if g.TaskID != id {
 			t.Fatalf("task=%s want=%s", g.TaskID, id)
 		}
+		if historical {
+			historicalHostGrantForTest(t, db, &g)
+		}
 		seq++
 		e := contract.Event{Version: 1, ProducerID: h, EventID: id + "-result", RunID: g.RunID, TaskID: id, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: seq, Kind: contract.EventResult, PayloadHash: runtimeHash("stopped")}
 		if id == "review" {
 			e.Kind = terminal
 			f.grant = g
+			if terminal == "" {
+				return f // genuine accepted validation input, before review events
+			}
 		} else {
 			body, _ := json.Marshal(map[string]any{"stage": id, "validation": map[string]any{"passed": true}, "candidate": map[string]any{"candidate_oid": strings.Repeat("b", 40)}})
-			path := filepath.Join(dir, id+".json")
-			if err = os.WriteFile(path, body, 0600); err != nil {
-				t.Fatal(err)
-			}
 			e.PayloadHash = runtimeHash(string(body))
-			e.Artifact = &contract.ArtifactRef{Path: path, Size: int64(len(body)), SHA256: e.PayloadHash}
+			if historical {
+				path := filepath.Join(dir, id+".json")
+				if err := os.WriteFile(path, body, 0600); err != nil {
+					t.Fatal(err)
+				}
+				e.Artifact = &contract.ArtifactRef{ID: id, Path: path, Size: int64(len(body)), SHA256: e.PayloadHash}
+			} else {
+				e.Artifact = managedHostArtifactForTest(t, db, g, "terminal", 0, body)
+			}
 		}
 		if _, err = db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatal(err)
@@ -124,6 +208,98 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
 		}
 	}
 	return f
+}
+
+func TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs(t *testing.T) {
+	testPolicyReviewPrelaunchInputs(t, adapter.ProviderClaude, "probe_start_eagain")
+}
+
+func TestPolicyRetryLegacyGrokReviewPrelaunchPreservesFrozenInputs(t *testing.T) {
+	testPolicyReviewPrelaunchInputs(t, adapter.ProviderGrok, "probe_start_eintr")
+}
+
+func testPolicyReviewPrelaunchInputs(t *testing.T, provider adapter.Provider, code string) {
+	t.Helper()
+	f := newReviewRetryPolicyFixture(t, provider, true)
+	ctx := context.Background()
+	original := f.grant
+	fixture := budgetBatchFixture{db: f.db, host: f.host, grant: original, sequence: 4}
+	e := policyRejection(t, &fixture, code)
+	if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	var queued int
+	if err := f.db.sql.QueryRow(`SELECT COUNT(*) FROM retry_decisions WHERE origin='policy'`).Scan(&queued); err != nil || queued != 1 {
+		tx, txErr := f.db.sql.BeginTx(ctx, nil)
+		if txErr == nil {
+			_, txErr = authorizePrelaunchReviewRetry(ctx, tx, e, string(original.AdapterPayload))
+			_ = tx.Rollback()
+		}
+		t.Fatalf("policy retry queued=%d err=%v authorization=%v", queued, err, txErr)
+	}
+	if _, err := f.db.sql.Exec(`UPDATE retry_decisions SET eligible_at_unix_ms=1 WHERE origin='policy'`); err != nil {
+		t.Fatal(err)
+	}
+	next, err := f.db.ClaimReady(ctx, f.host, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldPayload, _ := adapter.DecodeInvocationPayload(original.AdapterPayload)
+	nextPayload, _ := adapter.DecodeInvocationPayload(next.AdapterPayload)
+	nextPayload.Directory = oldPayload.Directory
+	if next.WorkRevision != original.WorkRevision || !reflect.DeepEqual(next.Input, original.Input) || !reflect.DeepEqual(next.DependencyInputs, original.DependencyInputs) || !reflect.DeepEqual(nextPayload, oldPayload) {
+		t.Fatal("policy retry changed frozen candidate review grant")
+	}
+	var attempts, policies int
+	if err = f.db.sql.QueryRow(`SELECT COUNT(*),(SELECT COUNT(*) FROM retry_decisions WHERE origin='policy') FROM attempts WHERE task_id='review'`).Scan(&attempts, &policies); err != nil || attempts != 2 || policies != 1 {
+		t.Fatalf("attempts=%d policies=%d err=%v", attempts, policies, err)
+	}
+}
+
+func TestPolicyRetryCandidateReviewRejectsReboundHost(t *testing.T) {
+	f := newReviewRetryPolicyFixture(t, adapter.ProviderClaude, true)
+	ctx := context.Background()
+	fixture := budgetBatchFixture{db: f.db, host: f.host, grant: f.grant, sequence: 4}
+	e := policyRejection(t, &fixture, "probe_start_eagain")
+	if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.RebindOwner(ctx, RebindOwnerSpec{RunID: f.grant.RunID, OriginContextID: f.hello.OriginContextID, OriginPID: 2, OriginBirth: "new-owner", HostGeneration: "new-generation", AttachmentProofSHA256: strings.Repeat("b", 64)}); err != nil {
+		t.Fatal(err)
+	}
+	hello := f.hello
+	hello.OriginPID, hello.OriginBirth, hello.HostGeneration = 2, "new-owner", "new-generation"
+	hello.PID, hello.Birth = 20, "new-host"
+	host, err := f.db.RegisterHost(ctx, hello, 1)
+	if err != nil || host != f.host {
+		t.Fatal("fixture did not replace physical Host under the same HostID", host, err)
+	}
+	if _, err = f.db.sql.Exec(`UPDATE retry_decisions SET eligible_at_unix_ms=1 WHERE origin='policy'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.ClaimReady(ctx, host, 1, 2); err == nil {
+		t.Fatal("replacement Host consumed original candidate policy retry")
+	}
+	var attempts int
+	if err = f.db.sql.QueryRow(`SELECT COUNT(*) FROM attempts WHERE task_id='review'`).Scan(&attempts); err != nil || attempts != 1 {
+		t.Fatal("rejected physical owner change consumed another attempt", attempts, err)
+	}
+}
+
+func TestReviewRetryGrantKeepsIndexedAssignment(t *testing.T) {
+	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: adapter.BinaryPin{Path: "/private/bin/grok", Version: "grok 1.0.34 (3736acbc8658)", SHA256: strings.Repeat("a", 64)}}
+	payload, err := json.Marshal(adapter.InvocationPayload{Provider: string(adapter.ProviderGrok), Directory: "/private/repo/review", ProviderLock: lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, GrokSessionWrite: true, TimeoutMS: 180000}, CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "validate", Target: adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}, ReviewIndex: &adapter.ReviewIndex{Version: 1, Mode: "indexed_candidate_review_v1", Shards: 3, ReviewOrdinal: 2}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := contract.LaunchCommand{RunID: "run", TaskID: "review", AttemptID: "next", AdapterPayload: payload}
+	if _, err = applyReviewRetryGrant(&command, reviewRetryDecision{Kind: reviewRetryKind, AdapterSHA256: runtimeHash(string(payload)), InputSHA256: strings.Repeat("b", 64)}); err != nil {
+		t.Fatal(err)
+	}
+	next, err := adapter.DecodeInvocationPayload(command.AdapterPayload)
+	if err != nil || next.CandidateAction.ReviewIndex == nil || next.CandidateAction.ReviewIndex.ReviewOrdinal != 2 || next.CandidateAction.ReviewIndex.Shards != 3 {
+		t.Fatalf("indexed retry changed assignment: %+v %v", next.CandidateAction, err)
+	}
 }
 
 func TestCandidateReviewRetryUsesFreshBoundAttemptWithoutResettingBudget(t *testing.T) {
@@ -469,20 +645,19 @@ func TestCandidateReviewRetryFencesEarlierSegmentOfRetiredAttempt(t *testing.T) 
 	}
 }
 
-func TestCandidateReviewRetryFailsClosedIfAnotherRunTakesItsOrdinal(t *testing.T) {
+func TestCandidateReviewRetryTaskLocalPromiseSurvivesOtherRun(t *testing.T) {
 	f := newReviewRetryFixture(t, contract.EventStopped)
 	ctx := context.Background()
 	if _, err := f.db.QueueRetry(ctx, f.spec); err != nil {
 		t.Fatal(err)
 	}
-	receipt, err := f.db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "other-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "other-origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "other-origin", HostGeneration: "other-generation", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{{ID: "other-task", RunID: "other-run", BudgetGroupID: "review", MaxAttempts: 3}}})
-	if err != nil {
+	// A reconciling Host is temporarily ineligible under global FIFO. A
+	// different task can claim group capacity, but cannot consume this task
+	// local promise or its committed decision binding.
+	if err := f.db.BeginHostReconcile(ctx, f.host); err != nil {
 		t.Fatal(err)
 	}
-	h, err := f.db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "other-origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "other-generation", PID: 20, Birth: "other-host", Executable: "/private/bin/orchestrator"}, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	h := reviewRetryOrdinalOtherHost(t, f.db)
 	other, err := f.db.ClaimReady(ctx, h, 1, 2)
 	if err != nil {
 		t.Fatal(err)
@@ -500,13 +675,78 @@ func TestCandidateReviewRetryFailsClosedIfAnotherRunTakesItsOrdinal(t *testing.T
 	if _, err = f.db.CommitHostEvent(ctx, e); err != nil {
 		t.Fatal(err)
 	}
-	if g, err := f.db.ClaimReady(ctx, f.host, 1, 2); err == nil {
-		p, _ := adapter.DecodeInvocationPayload(g.AdapterPayload)
-		t.Fatalf("retry missed ledger after shared ordinal changed: directory=%s", p.Directory)
+	if err = f.db.FinishHostReconcile(ctx, f.host); err != nil {
+		t.Fatal(err)
+	}
+	var attemptsBefore, segmentsBefore, reservationsBefore int
+	if err = f.db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM attempts),(SELECT COUNT(*) FROM segments),(SELECT COUNT(*) FROM budget_runtime)`).Scan(&attemptsBefore, &segmentsBefore, &reservationsBefore); err != nil {
+		t.Fatal(err)
+	}
+	if attemptsBefore != 4 || segmentsBefore != 4 || reservationsBefore != 4 {
+		t.Fatalf("ordinal fixture ledger=%d/%d/%d want 4/4/4", attemptsBefore, segmentsBefore, reservationsBefore)
+	}
+	retry, err := f.db.ClaimReady(ctx, f.host, 1, 2)
+	if err != nil || retry.TaskID != "review" {
+		t.Fatalf("task-local retry rejected after sibling claim: grant=%+v err=%v", retry, err)
+	}
+	var ordinal int
+	var bound string
+	if err = f.db.sql.QueryRow(`SELECT a.attempt_no,b.attempt_id FROM attempts a JOIN decision_attempt_bindings b ON b.attempt_id=a.id WHERE a.id=? AND b.action_slot=? AND b.task_id='review'`, retry.AttemptID, f.spec.ActionSlot).Scan(&ordinal, &bound); err != nil || ordinal != 2 || bound != retry.AttemptID {
+		t.Fatalf("promise/binding changed: ordinal=%d binding=%s err=%v", ordinal, bound, err)
+	}
+	var attemptsAfter, segmentsAfter, reservationsAfter int
+	if err = f.db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM attempts),(SELECT COUNT(*) FROM segments),(SELECT COUNT(*) FROM budget_runtime)`).Scan(&attemptsAfter, &segmentsAfter, &reservationsAfter); err != nil {
+		t.Fatal(err)
+	}
+	if attemptsAfter != attemptsBefore+1 || segmentsAfter != segmentsBefore+1 || reservationsAfter != reservationsBefore+1 {
+		t.Fatalf("retry did not consume exactly one capacity row: before=%d/%d/%d after=%d/%d/%d", attemptsBefore, segmentsBefore, reservationsBefore, attemptsAfter, segmentsAfter, reservationsAfter)
 	}
 	var count int
 	f.db.sql.QueryRow(`SELECT COUNT(*) FROM attempts WHERE task_id='review'`).Scan(&count)
-	if count != 1 {
-		t.Fatal("failed retry binding consumed another attempt")
+	if count != 2 {
+		t.Fatal("task-local retry attempt count changed")
+	}
+}
+
+// Only these ordinal/FIFO cases share this normal admission fixture.
+func reviewRetryOrdinalOtherHost(t *testing.T, db *DB) string {
+	t.Helper()
+	ctx := context.Background()
+	receipt, err := submitExistingConfigHistory(t, db, ctx, PlanSpec{Run: RunSpec{ID: "other-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "other-origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "other-origin", HostGeneration: "other-generation", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{{ID: "other-task", RunID: "other-run", BudgetGroupID: "review", MaxAttempts: 3}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "other-origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "other-generation", PID: 20, Birth: "other-host", Executable: "/private/bin/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return h
+}
+
+func TestCandidateReviewRetryReadyHostKeepsGlobalFIFOOrdinal(t *testing.T) {
+	f := newReviewRetryFixture(t, contract.EventStopped)
+	ctx := context.Background()
+	if _, err := f.db.QueueRetry(ctx, f.spec); err != nil {
+		t.Fatal(err)
+	}
+	h := reviewRetryOrdinalOtherHost(t, f.db)
+	if _, err := f.db.ClaimReady(ctx, h, 1, 2); !errors.Is(err, ErrNoReady) {
+		t.Fatalf("later Host overtook ready review retry: err=%v want no_ready_task", err)
+	}
+	var otherAttempts int
+	if err := f.db.sql.QueryRow(`SELECT COUNT(*) FROM attempts WHERE task_id='other-task'`).Scan(&otherAttempts); err != nil || otherAttempts != 0 {
+		t.Fatalf("FIFO refusal created other attempt: count=%d err=%v", otherAttempts, err)
+	}
+	review, err := f.db.ClaimReady(ctx, f.host, 1, 2)
+	if err != nil || review.TaskID != "review" || review.AttemptID == f.grant.AttemptID {
+		t.Fatalf("earlier queued review retry lost its ordinal: grant=%+v err=%v", review, err)
+	}
+	var ordinal int
+	if err = f.db.sql.QueryRow(`SELECT attempt_no FROM attempts WHERE id=?`, review.AttemptID).Scan(&ordinal); err != nil || ordinal != 2 {
+		t.Fatalf("earlier review ordinal=%d want 2 err=%v", ordinal, err)
+	}
+	other, err := f.db.ClaimReady(ctx, h, 1, 2)
+	if err != nil || other.TaskID != "other-task" {
+		t.Fatalf("later ready Host failed after FIFO predecessor claimed: grant=%+v err=%v", other, err)
 	}
 }

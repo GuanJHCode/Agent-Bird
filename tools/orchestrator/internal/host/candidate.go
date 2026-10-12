@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"reflect"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -20,33 +21,72 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 		return nil, func() {}, nil, nil
 	}
 	spec := value.CandidateWorkspace()
-	if spec.Version != 1 || profile == nil || profile.Role != adapter.Implementer || profile.Permission != adapter.WorkspaceWrite || grant.SessionID != "" {
+	if spec.Version != 1 || profile == nil || profile.Role != adapter.Implementer || profile.Permission != adapter.WorkspaceWrite || (grant.SessionID != "" && grant.Continuation == nil) {
 		return nil, func() {}, nil, errors.New("candidate_workspace_profile_invalid")
 	}
+	sourceGrant := grant
+	if c := grant.Continuation; c != nil {
+		if err := adapter.ValidateContinuationReference(c); err != nil {
+			return nil, func() {}, nil, err
+		}
+		if c.WorkspaceSourceSegmentID == "" || c.AdapterPayloadSHA256 != hashBytes(grant.AdapterPayload) || c.OwnerContextID != h.continuationOwner {
+			return nil, func() {}, nil, errors.New("continuation_workspace_binding_invalid")
+		}
+		sourceGrant.SegmentID = c.WorkspaceSourceSegmentID
+	}
 	binding := gitops.CandidateBinding{RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
+	binding.SegmentID = sourceGrant.SegmentID
 	if r := spec.Rework; r != nil {
 		if r.Version != 1 || r.RunID != grant.RunID || r.TaskID != grant.TaskID || r.PreviousWorkRevision+1 != grant.WorkRevision || r.PreviousCandidateOID != spec.BaseOID || r.CandidateEventID == "" || len(r.CandidateSHA256) != 64 || r.ReviewEventID == "" || len(r.ReviewSHA256) != 64 || r.Feedback == "" || r.Acceptance == "" {
 			return nil, func() {}, nil, errors.New("candidate_rework_binding_invalid")
 		}
 		binding.RevisionSHA256 = r.Digest()
 	}
-	key := hashText(grant.RunID + "\x00" + grant.TaskID + "\x00" + grant.AttemptID + "\x00" + grant.SegmentID)
+	if n := spec.NewBaseRework; n != nil {
+		if spec.Rework != nil {
+			return nil, func() {}, nil, errors.New("candidate_new_base_binding_invalid")
+		}
+		if err := n.Validate(grant.RunID, grant.TaskID, spec.BaseOID); err != nil {
+			return nil, func() {}, nil, err
+		}
+		if err := gitops.ValidateNewBaseTarget(ctx, spec.RepoRoot, n.TargetWorktree, n.TargetRef, n.IntegratedHEAD, n.SourceCommonDir, gitops.DirectoryIdentity(n.TargetDirectoryIdentity)); err != nil {
+			return nil, func() {}, nil, err
+		}
+		binding.NewBaseSHA256 = n.Digest()
+	}
+	key := hashText(grant.RunID + "\x00" + grant.TaskID + "\x00" + grant.AttemptID + "\x00" + sourceGrant.SegmentID)
 	journal, err := gitopsworker.OpenJournal(filepath.Join(h.spoolRoot, ".gitops-journal", key))
 	if err != nil {
 		return nil, func() {}, nil, err
 	}
 	ctx = gitops.WithCandidateJournal(ctx, journal)
 	closeJournal := func() { _ = journal.Close() }
-	prepared, err := gitops.PrepareWorkspace(ctx, gitops.MaterializeRequest{RepoRoot: spec.RepoRoot, Worktree: candidateDirectory(inv.WorkingDirectory(), grant, spec.AutoDirectory), AttemptID: grant.AttemptID, BaseOID: spec.BaseOID, CandidateOID: spec.BaseOID, OrderedInputOIDs: []string{spec.BaseOID}, PlanRevision: int64(grant.PlanRevision)}, binding, spec.Paths, "refs/orchestrator/g3/candidate-"+key, journal)
+	prepared, err := journal.LoadWorkspacePrepared(ctx)
+	if err != nil && err.Error() == "workspace_prepared_missing" && grant.Continuation == nil {
+		prepared, err = gitops.PrepareWorkspace(ctx, gitops.MaterializeRequest{RepoRoot: spec.RepoRoot, Worktree: candidateDirectory(inv.WorkingDirectory(), sourceGrant, spec.AutoDirectory), AttemptID: grant.AttemptID, BaseOID: spec.BaseOID, CandidateOID: spec.BaseOID, OrderedInputOIDs: []string{spec.BaseOID}, PlanRevision: int64(grant.PlanRevision)}, binding, spec.Paths, "refs/orchestrator/g3/candidate-"+key, journal)
+		if err == nil {
+			prepared.OwnerContextID = h.continuationOwner
+			prepared.AdapterPayloadSHA256 = hashBytes(grant.AdapterPayload)
+			err = journal.RecordWorkspacePrepared(ctx, prepared)
+		}
+	}
+	if err == nil && (prepared.Binding != binding || prepared.OwnerContextID != h.continuationOwner || prepared.AdapterPayloadSHA256 != hashBytes(grant.AdapterPayload) || prepared.Receipt.RepoRoot != spec.RepoRoot || prepared.Receipt.BaseOID != spec.BaseOID || prepared.Receipt.Worktree != candidateDirectory(inv.WorkingDirectory(), sourceGrant, spec.AutoDirectory) || !reflect.DeepEqual(prepared.Paths, spec.Paths) || prepared.PrivateRef != "refs/orchestrator/g3/candidate-"+key) {
+		err = errors.New("continuation_workspace_binding_invalid")
+	}
+	if err == nil {
+		err = gitops.ValidatePreparedWorkspace(ctx, prepared)
+	}
 	if err != nil {
 		closeJournal()
 		return nil, func() {}, nil, err
 	}
-	if err = journal.RecordWorkspacePrepared(ctx, prepared); err != nil {
-		closeJournal()
-		return nil, func() {}, nil, err
-	}
+	prepared.Binding.SegmentID = grant.SegmentID
 	return func(ctx context.Context, providerResult string) ([]byte, error) {
+		if n := spec.NewBaseRework; n != nil {
+			if err := gitops.ValidateNewBaseTarget(ctx, spec.RepoRoot, n.TargetWorktree, n.TargetRef, n.IntegratedHEAD, n.SourceCommonDir, gitops.DirectoryIdentity(n.TargetDirectoryIdentity)); err != nil {
+				return nil, err
+			}
+		}
 		if len(providerResult) > 512*1024 {
 			return nil, errors.New("candidate_provider_result_too_large")
 		}
@@ -54,6 +94,14 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 			return nil, err
 		}
 		ctx = gitops.WithCandidateJournal(ctx, journal)
+		if receipt, found, err := journal.LoadCandidateFreeze(ctx); err != nil {
+			return nil, err
+		} else if found {
+			if err = gitops.ValidateFrozenWorkspace(ctx, prepared, receipt); err != nil {
+				return nil, err
+			}
+			return gitops.CandidateArtifact(providerResult, receipt)
+		}
 		receipt, err := gitops.FreezeWorkspace(ctx, prepared, journal)
 		if err != nil {
 			return nil, err
@@ -79,7 +127,11 @@ func candidateFailure(err error) []byte {
 	if errors.As(err, &ge) {
 		code = string(ge.Code)
 	}
-	body, _ := json.Marshal(map[string]string{"status": "failed", "reason": "candidate_freeze_failed", "code": code})
+	diagnostic := map[string]any{"status": "failed", "reason": "candidate_freeze_failed", "code": code}
+	if code == "candidate_review_invalid" {
+		diagnostic["writer_version"] = 2
+	}
+	body, _ := json.Marshal(diagnostic)
 	return body
 }
 

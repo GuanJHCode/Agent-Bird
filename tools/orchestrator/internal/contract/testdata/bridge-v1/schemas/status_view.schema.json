@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-bird-bridge-v1/status_view",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 0,
+      "const": 1
+    },
+    "binding_id": {
+      "type": "string"
+    },
+    "owner_epoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cursor": {
+      "type": "string"
+    },
+    "next_cursor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pending": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "waiting_receipt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uncertain": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending_business_decision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "pending",
+        "waiting_receipt",
+        "uncertain",
+        "pending_business_decision"
+      ]
+    },
+    "batches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "batch_id": {
+            "type": "string"
+          },
+          "attempt_id": {
+            "type": "string"
+          },
+          "render_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "wire_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "state": {
+            "type": "string"
+          },
+          "delivery_receipts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "task_id": {
+                  "type": "string"
+                },
+                "delivery_id": {
+                  "type": "string"
+                },
+                "proof_mode": {
+                  "type": "string",
+                  "enum": [
+                    "collect"
+                  ]
+                },
+                "proof_sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "event_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "task_id",
+                "delivery_id",
+                "proof_mode",
+                "proof_sha256",
+                "event_ids"
+              ]
+            }
+          }
+        },
+        "required": [
+          "batch_id",
+          "attempt_id",
+          "render_sha256",
+          "wire_sha256",
+          "state",
+          "delivery_receipts"
+        ]
+      },
+      "maxItems": 8
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding_id",
+    "owner_epoch",
+    "cursor",
+    "next_cursor",
+    "counts",
+    "batches"
+  ],
+  "x-verifiedCursor": "coordinator authenticated opaque cursor scoped to binding, owner epoch, snapshot, and page"
+}

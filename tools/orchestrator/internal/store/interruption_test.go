@@ -32,6 +32,8 @@ func TestProfileInterruptionNeverOffersOrQueuesResume(t *testing.T) {
 	}
 	exit := -9
 	progress := contract.Event{Version: 1, ProducerID: host, EventID: host + ":progress", RunID: "r", TaskID: "t", AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: 1, Kind: "progress", PayloadHash: strings.Repeat("b", 64), Artifact: &contract.ArtifactRef{ID: "provider-progress", Path: "/private/progress.json", Size: 10, SHA256: strings.Repeat("b", 64)}}
+	progress.Artifact = managedHostArtifactForTest(t, db, g, "progress", 0, []byte("progress"))
+	progress.PayloadHash = progress.Artifact.SHA256
 	_, err = db.CommitHostEvent(ctx, contract.Event{Version: 1, ProducerID: host, EventID: host + ":prepared", RunID: "r", TaskID: "t", AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: 1, Kind: contract.EventPrepared, PayloadHash: strings.Repeat("c", 64)})
 	if err != nil {
 		t.Fatal(err)
@@ -58,6 +60,7 @@ func TestProfileInterruptionNeverOffersOrQueuesResume(t *testing.T) {
 	second := progress
 	second.EventID = host + ":progress-two"
 	second.Sequence = 2
+	second.Artifact = managedHostArtifactForTest(t, db, g, "progress", 1, []byte("progress"))
 	var total int64
 	if err = db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id='r'`).Scan(&total); err != nil {
 		t.Fatal(err)

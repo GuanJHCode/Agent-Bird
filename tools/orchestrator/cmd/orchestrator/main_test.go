@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -315,7 +316,7 @@ func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
 		"run_id": "force-run", "controller_thread": "force-thread", "plan_revision": 1,
 		"origin_context_id": "force-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
 		"host_generation": "force-generation",
-		"tasks":           []any{map[string]any{"id": "force-task", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + marker + " ]; then sleep 0.2; exit 0; else : > " + marker + "; sleep 30; fi"}, "directory": root}}},
+		"tasks":           []any{map[string]any{"id": "force-task", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + marker + " ]; then sleep 0.2; exit 0; else printf '%s\\n' \"$$\" > " + marker + "; sleep 30; fi"}, "directory": root}}},
 	}
 	requestPath := filepath.Join(root, "request.json")
 	data, _ := json.Marshal(request)
@@ -350,6 +351,27 @@ func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
+	capability, err := loadControlCapability(submitted.ControlFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootstrap, err := loadHostBootstrap(capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalHost := coreCLIReadHostIdentity(t, state, bootstrap.Hello.LaunchID)
+	workerBytes, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workerPID int
+	if _, err := fmt.Sscanf(string(workerBytes), "%d", &workerPID); err != nil {
+		t.Fatal(err)
+	}
+	workerBirth, err := process.Birth(workerPID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	data, err = os.ReadFile(filepath.Join(state, "coordinator.pid"))
 	if err != nil {
 		t.Fatal(err)
@@ -371,6 +393,37 @@ func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
 	after := taskStatus(t, ctx, bin, state, "force-task", submitted.ControlFile)
 	if after.SegmentID != before.SegmentID || after.Status == "completed" {
 		t.Fatalf("force restart dispatched work: before=%#v after=%#v", before, after)
+	}
+	// A coordinator crash preserves the original living Source and worker.
+	// Public resume must reject active work, without spawning another Source.
+	output, resumeErr := exec.CommandContext(ctx, bin, "resume", "--state-dir", state, "--task-id", "force-task", "--work-revision", "1", "--control-file", submitted.ControlFile).CombinedOutput()
+	if resumeErr == nil || !strings.Contains(string(output), "conflict") {
+		t.Fatalf("active resume unexpectedly admitted: %s %v", output, resumeErr)
+	}
+	currentHost := coreCLIReadHostIdentity(t, state, bootstrap.Hello.LaunchID)
+	if currentHost.PID != originalHost.PID || currentHost.Birth != originalHost.Birth || currentHost.Epoch <= originalHost.Epoch || currentHost.Status != "ready" {
+		t.Fatalf("warm reconnect replaced Host: before=%+v after=%+v", originalHost, currentHost)
+	}
+	if birth, err := process.Birth(workerPID); err != nil || birth != workerBirth {
+		t.Fatalf("crash replaced original worker: %q %v", birth, err)
+	}
+	if log, err := os.ReadFile(filepath.Join(state, "source-host.log")); err != nil || strings.Contains(string(log), "host_recovery_state_busy") {
+		t.Fatalf("warm ensure spawned another Host: %s %v", log, err)
+	}
+	recovery := coreCLIReadRecovery(t, bootstrap)
+	if recovery.Attempts != 1 || recovery.Pending || recovery.NextAttemptUnixMS == 0 {
+		t.Fatalf("restart reservation was reset/repeated: %+v", recovery)
+	}
+	runBinary(t, ctx, bin, "stop", "--state-dir", state, "--task-id", "force-task", "--work-revision", "1", "--control-file", submitted.ControlFile)
+	for {
+		stopped := taskStatus(t, ctx, bin, state, "force-task", submitted.ControlFile)
+		if stopped.Status == "interrupted" && stopped.SegmentID == before.SegmentID && stopped.SegmentStatus == "exited" {
+			break
+		}
+		if ctx.Err() != nil {
+			t.Fatalf("explicit stop lacked original exit: %+v", stopped)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 	runBinary(t, ctx, bin, "resume", "--state-dir", state, "--task-id", "force-task", "--work-revision", "1", "--control-file", submitted.ControlFile)
 	for {
@@ -518,7 +571,17 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Log("retained report fixture:", root)
+			return
+		}
+		_ = os.RemoveAll(root)
+	})
 	state, bin := filepath.Join(root, "state"), filepath.Join(root, "orchestrator")
 	t.Cleanup(func() {
 		if _, statErr := os.Stat(filepath.Join(state, "coordinator.pid")); statErr == nil {
@@ -534,6 +597,14 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	artifactHash := sha256.Sum256(artifactBody)
 	worker := filepath.Join(root, "worker.sh")
 	script := "#!/bin/sh\nset -eu\ndir=$(dirname \"$ORCHESTRATOR_REPORT_CAPABILITY\")\nartifact=$dir/result.txt\nrequest=$dir/report.json\nprintf 'reported\\n' > \"$artifact\"\nchmod 600 \"$artifact\"\nprintf '%s\\n' '{\"version\":1,\"event_id\":\"worker-result-1\",\"sequence\":1,\"kind\":\"result\",\"payload\":{\"status\":\"completed\",\"artifact\":{\"id\":\"result.txt\",\"path\":\"'\"$artifact\"'\",\"size\":9,\"sha256\":\"" + fmt.Sprintf("%x", artifactHash) + "\"}}}' > \"$request\"\nchmod 600 \"$request\"\n\"$ORCHESTRATOR_REPORT_EXECUTABLE\" report --capability-file \"$ORCHESTRATOR_REPORT_CAPABILITY\" --request \"$request\"\n"
+	// Both invocations use the public CLI while the original worker is live.
+	// The second one must replay its durable ACK without reopening the source.
+	marker := filepath.Join(root, "report-replayed")
+	script = strings.TrimSuffix(script, "\n") + " > \"$dir/first-ack.json\"\n" +
+		"rm \"$artifact\"\n" +
+		"\"$ORCHESTRATOR_REPORT_EXECUTABLE\" report --capability-file \"$ORCHESTRATOR_REPORT_CAPABILITY\" --request \"$request\" > \"$dir/second-ack.json\"\n" +
+		"cmp \"$dir/first-ack.json\" \"$dir/second-ack.json\"\n" +
+		"printf '%s\\n' \"$artifact\" > '" + marker + "'\n"
 	if err = os.WriteFile(worker, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -558,8 +629,14 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	if err = json.Unmarshal(runBinary(t, ctx, bin, "submit", "--state-dir", state, "--request", requestPath), &submitted); err != nil {
 		t.Fatal(err)
 	}
+	lastStatus := ""
 	for {
-		if status := taskStatus(t, ctx, bin, state, "report-task", submitted.ControlFile); status.Status == "completed" {
+		status := taskStatus(t, ctx, bin, state, "report-task", submitted.ControlFile)
+		if status.Status != lastStatus {
+			t.Logf("report task state: %+v", status)
+			lastStatus = status.Status
+		}
+		if status.Status == "completed" {
 			break
 		}
 		select {
@@ -574,14 +651,32 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	if err = json.Unmarshal(runBinary(t, ctx, bin, "collect", "--state-dir", state, "--task-id", "report-task", "--control-file", submitted.ControlFile), &collection); err != nil {
 		t.Fatal(err)
 	}
-	found := false
+	canonicalState, err := filepath.EvalSymlinks(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal("worker did not complete exact public report replay", err)
+	}
+	if _, err = os.Lstat(strings.TrimSpace(string(source))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("provider source was not removed", err)
+	}
+	found := 0
 	for _, event := range collection.Events {
 		if event.EventID == "worker-result-1" && strings.HasPrefix(event.ProducerID, "report-capability-") && event.Artifact != nil && event.Artifact.SHA256 == fmt.Sprintf("%x", artifactHash) {
-			found = true
+			found++
+			if !strings.HasPrefix(event.Artifact.Path, filepath.Join(canonicalState, "managed-artifacts")+string(filepath.Separator)) || event.Artifact.Size != int64(len(artifactBody)) {
+				t.Fatalf("report did not commit a managed artifact: %#v", event.Artifact)
+			}
+			retained, readErr := os.ReadFile(event.Artifact.Path)
+			if readErr != nil || string(retained) != string(artifactBody) {
+				t.Fatalf("managed report did not survive source removal: %q, %v", retained, readErr)
+			}
 		}
 	}
-	if !found {
-		t.Fatalf("durable worker report missing: %#v", collection.Events)
+	if found != 1 {
+		t.Fatalf("expected one durable worker report, got %d: %#v", found, collection.Events)
 	}
 }
 
@@ -636,6 +731,20 @@ func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
 			t.Fatalf("owner exit did not interrupt task: %#v", status)
 		case <-time.After(20 * time.Millisecond):
 		}
+	}
+	capability, err := loadControlCapability(submitted.ControlFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldBootstrap, err := loadHostBootstrap(capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldRecovery := coreCLIReadRecovery(t, oldBootstrap)
+	oldHost := coreCLIReadHostIdentity(t, state, capability.HostLaunchID)
+	oldLedger, err := os.ReadFile(filepath.Join(oldBootstrap.SpoolRoot, ".coordinator-recovery.json"))
+	if err != nil || oldRecovery.Version != 2 || oldHost.PID <= 0 || oldHost.Birth == "" {
+		t.Fatal("missing supervised recovery/Host identity", oldRecovery, oldHost, err)
 	}
 	newBirth, err := process.Birth(os.Getpid())
 	if err != nil {
@@ -725,6 +834,35 @@ func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
 	}
 	runBinary(t, ctx, bin, "rebind-owner", "--state-dir", state, "--request", rebindPath)
 	runBinary(t, ctx, bin, "resume", "--state-dir", state, "--task-id", "rebind-task", "--work-revision", "1", "--control-file", submitted.ControlFile)
+	newBootstrap, err := loadHostBootstrap(capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newRecovery := coreCLIReadRecovery(t, newBootstrap)
+	if newRecovery.ScopeSHA256 == oldRecovery.ScopeSHA256 || newRecovery.Attempts != oldRecovery.Attempts || newRecovery.NextAttemptUnixMS != oldRecovery.NextAttemptUnixMS || newRecovery.Pending != oldRecovery.Pending || newRecovery.Unavailable != oldRecovery.Unavailable {
+		t.Fatalf("owner transition lost retained recovery state: before=%+v after=%+v", oldRecovery, newRecovery)
+	}
+	// Version2 tracks Owner recovery authority, not legacy LastPID/LastBirth.
+	// Resume returns after signed activation; runtime_hosts is the durable
+	// source for the replacement Host even if it has already naturally exited.
+	newHost := coreCLIReadHostIdentity(t, state, capability.HostLaunchID)
+	if newRecovery.Version != 2 || newHost.PID <= 0 || newHost.Birth == "" || (newHost.PID == oldHost.PID && newHost.Birth == oldHost.Birth) {
+		t.Fatal("owner rebind did not authenticate a replacement Host", oldHost, newHost)
+	}
+	newLedger, err := os.ReadFile(filepath.Join(newBootstrap.SpoolRoot, ".coordinator-recovery.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var oldFields, newFields map[string]json.RawMessage
+	if json.Unmarshal(oldLedger, &oldFields) != nil || json.Unmarshal(newLedger, &newFields) != nil {
+		t.Fatal("invalid supervised recovery ledger")
+	}
+	oldFields["scope_sha256"] = newFields["scope_sha256"]
+	oldCanonical, _ := json.Marshal(oldFields)
+	newCanonical, _ := json.Marshal(newFields)
+	if !bytes.Equal(oldCanonical, newCanonical) {
+		t.Fatal("owner rebind changed non-scope recovery fields")
+	}
 	for {
 		status := taskStatus(t, ctx, bin, state, "rebind-task", submitted.ControlFile)
 		if status.Status == "completed" {

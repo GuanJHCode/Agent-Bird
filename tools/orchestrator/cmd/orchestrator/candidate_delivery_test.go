@@ -20,24 +20,23 @@ func exerciseCandidateDelivery(t *testing.T, root, repo, base string, source con
 	git(repo, "worktree", "add", "-b", "delivery", target, base)
 	targetSpec := map[string]any{"worktree": target, "ref": "refs/heads/delivery", "base_oid": base}
 	input := func(g contract.LaunchCommand, r contract.Result) *contract.AcceptedInput {
-		info, err := os.Stat(r.ArtifactPath)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return &contract.AcceptedInput{DecisionCommandID: "accept-" + g.TaskID, AdapterPayload: g.AdapterPayload, Event: contract.Event{RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, Kind: contract.EventResult, EventID: "event-" + g.TaskID, EventRevision: 1, PayloadHash: r.OutputHash, Artifact: &contract.ArtifactRef{Path: r.ArtifactPath, SHA256: r.OutputHash, Size: info.Size()}}}
+		accepted := candidateAcceptedInput(t, root, g, r)
+		return &accepted
 	}
 	run := func(name string, payload map[string]any, from contract.LaunchCommand, r contract.Result, wantError ...bool) (contract.LaunchCommand, contract.Result) {
 		t.Helper()
 		body, _ := json.Marshal(payload)
 		grant := contract.LaunchCommand{RunID: source.RunID, TaskID: name, AttemptID: "attempt-" + name, SegmentID: "segment-" + name, CommandID: "command-" + name, ReservationID: "reservation-" + name, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: body, Input: input(from, r)}
-		inv, err := invocationForGrant(context.Background(), grant)
+		grant = candidateHostGrant(t, grant, "delivery-"+name)
+		grant.LaunchIntentHash, _ = contract.CandidateIntentHash(grant)
+		inv, err := invocationForGrant(context.Background(), grant, filepath.Join(root, "state", "host-spool"))
 		if err != nil {
 			if len(wantError) > 0 && wantError[0] {
 				return grant, contract.Result{Status: "failed"}
 			}
 			t.Fatalf("%s invocation: %v", name, err)
 		}
-		h, err := host.NewIPC(filepath.Join(root, "state", "host-spool", "delivery-"+name), "producer")
+		h, err := host.NewIPC(filepath.Join(root, "state", "host-spool", grant.HostID), grant.HostID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -69,6 +68,25 @@ func exerciseCandidateDelivery(t *testing.T, root, repo, base string, source con
 	}
 	a := action("validate", source.TaskID)
 	a["command"] = []string{"/usr/bin/grep", "-q", "worker implementation", "README"}
+	// Exercise the actual Host validation/finalization path separately from the
+	// legacy review chain. The index must survive in the durable artifact, not
+	// merely exist in a helper return value.
+	indexed := action("validate", source.TaskID)
+	indexed["command"] = a["command"]
+	indexed["review_index"] = map[string]any{"version": 1, "mode": "indexed_candidate_review_v1", "shards": 3, "review_ordinal": 0}
+	_, indexedResult := run("indexed-check", map[string]any{"kind": "candidate", "directory": filepath.Join(root, "indexed-validation"), "candidate_action": indexed}, source, result)
+	indexedBody, err := os.ReadFile(indexedResult.ArtifactPath)
+	if err != nil || indexedResult.Status != "result_ready" {
+		t.Fatalf("indexed validation failed: %s %v", indexedBody, err)
+	}
+	var indexedEvidence, originalEvidence host.CandidateDelivery
+	originalBody, err := os.ReadFile(result.ArtifactPath)
+	if err != nil || json.Unmarshal(originalBody, &originalEvidence) != nil || json.Unmarshal(indexedBody, &indexedEvidence) != nil {
+		t.Fatal("cannot decode durable validation artifact")
+	}
+	if indexedEvidence.Stage != "validate" || indexedEvidence.Validation == nil || !indexedEvidence.Validation.Passed || indexedEvidence.ReviewIndex == nil || len(indexedEvidence.ReviewIndex.Chunks) == 0 || indexedEvidence.CandidateReceiptSHA256 == "" || indexedEvidence.CandidateReceiptSHA256 != originalEvidence.CandidateReceiptSHA256 || indexedEvidence.ReviewIndex.CandidateReceiptSHA256 != originalEvidence.CandidateReceiptSHA256 || indexedEvidence.InputSHA256 != result.OutputHash {
+		t.Fatalf("validation lost accepted manifest binding: %s", indexedBody)
+	}
 	checked, checkResult := run("check", map[string]any{"kind": "candidate", "directory": filepath.Join(root, "validation"), "candidate_action": a}, source, result)
 	if checkResult.Status != "result_ready" {
 		t.Fatalf("validation failed: %+v", checkResult)

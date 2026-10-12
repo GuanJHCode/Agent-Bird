@@ -1,14 +1,14 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -51,7 +51,7 @@ func TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "orphan-command", ReservationID: "orphan-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", GrantedActiveMS: 2000}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "orphan-command", ReservationID: "orphan-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", GrantedActiveMS: 2000})
 	inv := launchInvocation{args: []string{binary, "-test.run=TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown"}, env: map[string]string{"G1_ORPHAN_LEADER": "1", "G1_ORPHAN_PID_FILE": pidFile}}
 	result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
 	childBody, readErr := os.ReadFile(pidFile)
@@ -85,28 +85,12 @@ func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 		_, _ = os.Stdout.WriteString("synthetic-result\n")
 		return
 	}
-	db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	db, h, grant := managedStoreHostFixture(t, "run", "task")
 	defer db.Close()
 	ctx := context.Background()
-	if err = db.CreateRun(ctx, store.RunSpec{ID: "run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreateTask(ctx, store.TaskSpec{ID: "task", RunID: "run", MaxAttempts: 3}); err != nil {
-		t.Fatal(err)
-	}
-	attempt, err := db.StartAttempt(ctx, "task", "segment-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h, err := New(db, filepath.Join(t.TempDir(), "spool"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	attempt := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
 	cmd := process.Command{Path: func() string { p, _ := filepath.EvalSymlinks(os.Args[0]); return p }(), Args: []string{"-test.run=TestSubmitHostCollectAckAndExplicitResume"}, Env: []string{"G1_HOST_HELPER=1"}}
-	result, err := h.Execute(ctx, attempt, "run", "task", cmd)
+	result, err := h.ExecuteLaunch(ctx, grant, launchInvocation{args: append([]string{cmd.Path}, cmd.Args...), env: map[string]string{"G1_HOST_HELPER": "1"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,10 +101,20 @@ func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 	if err != nil || !strings.Contains(string(artifact), "synthetic-result\n") {
 		t.Fatalf("artifact=%q err=%v", artifact, err)
 	}
-	if _, err = h.Collect(ctx, attempt); err != nil {
+	collected, err := h.Collect(ctx, attempt)
+	if err != nil {
 		t.Fatal(err)
 	}
-	sp, err := events.Open(filepath.Join(filepath.Dir(result.ArtifactPath)))
+	var exited *contract.Event
+	for i := range collected {
+		if collected[i].Kind == contract.EventExited {
+			exited = &collected[i]
+		}
+	}
+	if exited == nil || exited.AttemptID != attempt.ID || exited.SegmentID != attempt.SegmentID || exited.Process == nil || exited.Process.PID <= 0 || exited.Process.PGID <= 0 || exited.Process.Birth == "" {
+		t.Fatalf("managed lifecycle events=%#v", collected)
+	}
+	sp, err := h.spool(attempt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,23 +126,59 @@ func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 		t.Fatalf("launch metadata=%#v", launch)
 	}
 	proc, ok := launch["process"].(map[string]any)
-	if !ok || proc["pid"] == nil || proc["pgid"] == nil || proc["executable_sha256"] == "" || proc["birth_known"] != true || proc["birth"] == "" {
+	if !ok || proc["pid"] == nil || proc["pgid"] == nil || proc["executable_sha256"] == nil || proc["executable_sha256"] == "" || proc["birth_known"] != true || proc["birth"] == nil || proc["birth"] == "" {
 		t.Fatalf("process metadata=%#v", launch["process"])
+	}
+	if err = h.PublishAll(ctx, launchFailureDBSink{db}, 1); err != nil {
+		t.Fatal(err)
 	}
 	if err = h.Ack(ctx, attempt); err != nil {
 		t.Fatal(err)
 	}
-	next, err := db.StartSegment(ctx, attempt.ID, "segment-2")
+}
+
+func TestManagedStoreResumeClaimsNewSegmentAfterStoppedExit(t *testing.T) {
+	db, h, first := managedStoreHostFixture(t, "resume-run", "resume-task")
+	defer db.Close()
+	ctx := context.Background()
+	marker := filepath.Join(t.TempDir(), "started")
+	done := make(chan error, 1)
+	go func() {
+		_, err := h.ExecuteLaunch(ctx, first, launchInvocation{args: []string{"/bin/sh", "-c", `echo ready > "$MARKER"; while :; do sleep 0.02; done`}, env: map[string]string{"MARKER": marker}})
+		done <- err
+	}()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if _, err := os.Stat(marker); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("worker did not start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := h.StopSegment(context.Background(), first.SegmentID); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err == nil {
+		t.Fatal("stopped launch unexpectedly succeeded")
+	}
+	if err := h.PublishAll(ctx, launchFailureDBSink{db}, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueueResume(ctx, first.TaskID, first.WorkRevision); err != nil {
+		t.Fatal(err)
+	}
+	second, err := db.ClaimReady(ctx, first.HostID, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx2, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	if _, err = h.Execute(ctx2, next, "run", "task", cmd); err != nil {
-		t.Fatal(err)
+	if second.AttemptID != first.AttemptID || second.SegmentID == first.SegmentID || second.HostArtifacts == nil || second.HostArtifacts.TerminalReservationID == first.HostArtifacts.TerminalReservationID || second.HostArtifacts.ProgressReservationID == first.HostArtifacts.ProgressReservationID {
+		t.Fatalf("resume grant did not allocate an independent managed slot: first=%+v second=%+v", first, second)
 	}
-	if err = h.Ack(ctx, next); err != nil {
-		t.Fatal(err)
+	result, err := h.ExecuteLaunch(ctx, second, launchInvocation{args: []string{"/bin/sh", "-c", "echo resumed"}})
+	if err != nil || result.Status != "result_ready" {
+		t.Fatalf("resumed result=%+v err=%v", result, err)
 	}
 }
 
@@ -156,34 +186,18 @@ func TestAckKeepsSpoolWhenDatabaseCommitFails(t *testing.T) {
 	if os.Getenv("G1_HOST_HELPER") == "1" {
 		return
 	}
-	db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	db, h, grant := managedStoreHostFixture(t, "run-ack", "task-ack")
 	ctx := context.Background()
-	if err = db.CreateRun(ctx, store.RunSpec{ID: "run-ack", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreateTask(ctx, store.TaskSpec{ID: "task-ack", RunID: "run-ack", MaxAttempts: 3}); err != nil {
-		t.Fatal(err)
-	}
-	a, err := db.StartAttempt(ctx, "task-ack", "segment-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	spoolRoot := filepath.Join(t.TempDir(), "spool")
-	h, err := New(db, spoolRoot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+	spoolRoot := h.spoolRoot
 	cmd := process.Command{Path: func() string { p, _ := filepath.EvalSymlinks(os.Args[0]); return p }(), Args: []string{"-test.run=TestAckKeepsSpoolWhenDatabaseCommitFails"}, Env: []string{"G1_HOST_HELPER=1"}}
-	if _, err = h.Execute(ctx, a, "run-ack", "task-ack", cmd); err != nil {
+	if _, err := h.ExecuteLaunch(ctx, grant, launchInvocation{args: append([]string{cmd.Path}, cmd.Args...), env: map[string]string{"G1_HOST_HELPER": "1"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err = db.Close(); err != nil {
+	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err = h.Ack(ctx, a); err == nil {
+	if err := h.Ack(ctx, a); err == nil {
 		t.Fatal("expected database failure")
 	}
 	s, err := events.Open(filepath.Join(spoolRoot, a.ID, a.SegmentID))
@@ -197,6 +211,44 @@ func TestAckKeepsSpoolWhenDatabaseCommitFails(t *testing.T) {
 	if acked != 0 {
 		t.Fatalf("spool ack advanced to %d", acked)
 	}
+}
+
+// managedStoreHostFixture exercises the same SubmitPlan/RegisterHost/ClaimReady
+// lifecycle as a coordinator. The test Host still owns only its private spool.
+func managedStoreHostFixture(t *testing.T, runID, taskID string) (*store.DB, *Host, contract.LaunchCommand) {
+	t.Helper()
+	root := t.TempDir()
+	db, err := store.Open(filepath.Join(root, "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{
+		Run:   store.RunSpec{ID: runID, ControllerThread: "thread", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"},
+		Host:  store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "generation", Executable: "/private/fixture/host"},
+		Tasks: []store.TaskSpec{{ID: taskID, RunID: runID, MaxAttempts: 3, MaxActiveMS: 5000}},
+	})
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host", Executable: "/private/fixture/host"}, 1)
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	grant, err := db.ClaimReady(ctx, hostID, 1, 1)
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	h, err := New(db, filepath.Join(root, "host-spool", hostID))
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	h.producerID = hostID
+	return db, h, grant
 }
 
 type launchInvocation struct {
@@ -269,7 +321,7 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 			if newErr != nil {
 				t.Fatal(newErr)
 			}
-			grant := contract.LaunchCommand{CommandID: "structured-command-" + tc.mode, ReservationID: "structured-reservation-" + tc.mode, RunID: "run", TaskID: "task-" + tc.mode, AttemptID: "attempt-" + tc.mode, SegmentID: "segment-" + tc.mode, WorkRevision: index + 1, GrantedActiveMS: 2000}
+			grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "structured-command-" + tc.mode, ReservationID: "structured-reservation-" + tc.mode, RunID: "run", TaskID: "task-" + tc.mode, AttemptID: "attempt-" + tc.mode, SegmentID: "segment-" + tc.mode, WorkRevision: index + 1, GrantedActiveMS: 2000})
 			inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestStructuredProviderTerminalControlsOutcome"}, env: map[string]string{"G1_STRUCTURED_HELPER": tc.mode}}, provider: tc.provider}
 			result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
 			if runErr != nil {
@@ -335,7 +387,7 @@ func TestProviderSessionIsPublishedBeforeTerminalAndBindsResume(t *testing.T) {
 		t.Fatal(err)
 	}
 	release := filepath.Join(t.TempDir(), "release")
-	grant := contract.LaunchCommand{CommandID: "session-command", ReservationID: "session-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment-1", WorkRevision: 1, GrantedActiveMS: 3000}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "session-command", ReservationID: "session-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment-1", WorkRevision: 1, GrantedActiveMS: 3000})
 	inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestProviderSessionIsPublishedBeforeTerminalAndBindsResume"}, env: map[string]string{"G1_SESSION_HELPER": "1", "G1_SESSION_RELEASE": release}}, provider: "claude-code"}
 	type execution struct {
 		result contract.Result
@@ -384,6 +436,7 @@ func TestProviderSessionIsPublishedBeforeTerminalAndBindsResume(t *testing.T) {
 	resume.Answer = "continue"
 	resume.SessionKind = "session-id"
 	resume.SessionID = "forged-session"
+	resume = managedHostGrant(t, h, resume)
 	if _, err = h.ExecuteLaunch(context.Background(), resume, inv); err == nil || err.Error() != "resume_session_mismatch" {
 		t.Fatalf("mismatched resume err=%v", err)
 	}
@@ -393,26 +446,9 @@ func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	if os.Getenv("G1_HOST_HELPER") == "1" {
 		return
 	}
-	db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	db, h, grant := managedStoreHostFixture(t, "grant-run", "grant-task")
 	defer db.Close()
 	ctx := context.Background()
-	if err = db.CreateRun(ctx, store.RunSpec{ID: "grant-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreateTask(ctx, store.TaskSpec{ID: "grant-task", RunID: "grant-run", MaxAttempts: 3}); err != nil {
-		t.Fatal(err)
-	}
-	attempt, err := db.StartAttempt(ctx, "grant-task", "grant-segment")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h, err := New(db, filepath.Join(t.TempDir(), "spool"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	path, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
 		t.Fatal(err)
@@ -421,7 +457,8 @@ func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	// exit delay is not task work; keep race detection but omit that artificial
 	// delay from the 1.5s production grant exercised below.
 	inv := launchInvocation{args: []string{path, "-test.run=TestExecuteLaunchConsumesReservationAndUsesBoundedGrant"}, env: map[string]string{"G1_HOST_HELPER": "1", "GORACE": os.Getenv("GORACE") + " atexit_sleep_ms=0"}}
-	grant := contract.LaunchCommand{ReservationID: "reservation-1", RunID: "grant-run", TaskID: "grant-task", AttemptID: attempt.ID, SegmentID: attempt.SegmentID, GrantedActiveMS: 1500, DeadlineUnixMS: time.Now().Add(2 * time.Second).UnixMilli()}
+	grant.GrantedActiveMS = 1500
+	grant.DeadlineUnixMS = time.Now().Add(2 * time.Second).UnixMilli()
 	result, err := h.ExecuteLaunch(ctx, grant, inv)
 	if err != nil {
 		t.Fatal(err)
@@ -448,7 +485,7 @@ func TestStoppedLaunchPublishesStoppedThenExitedWithoutUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "stop-command", ReservationID: "stop-reservation", RunID: "stop-run", TaskID: "stop-task", AttemptID: "stop-attempt", SegmentID: "stop-segment", GrantedActiveMS: 10_000, WorkRevision: 1, ExecutionEpoch: 4}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "stop-command", ReservationID: "stop-reservation", RunID: "stop-run", TaskID: "stop-task", AttemptID: "stop-attempt", SegmentID: "stop-segment", GrantedActiveMS: 10_000, WorkRevision: 1, ExecutionEpoch: 4})
 	inv := launchInvocation{args: []string{path, "-test.run=TestStoppedLaunchPublishesStoppedThenExitedWithoutUnknown"}, env: map[string]string{"G1_STOP_HELPER": "1"}}
 	type execution struct {
 		result contract.Result
@@ -526,7 +563,7 @@ func TestIPCSourcePublishesOnlyAfterDurableAck(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := launchInvocation{args: []string{path, "-test.run=TestIPCSourcePublishesOnlyAfterDurableAck"}, env: map[string]string{"G1_HOST_HELPER": "1"}}
-	grant := contract.LaunchCommand{ReservationID: "ipc-reservation", RunID: "ipc-run", TaskID: "ipc-task", AttemptID: "ipc-attempt", SegmentID: "ipc-segment", GrantedActiveMS: 1500}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "ipc-command", ReservationID: "ipc-reservation", RunID: "ipc-run", TaskID: "ipc-task", AttemptID: "ipc-attempt", SegmentID: "ipc-segment", GrantedActiveMS: 1500})
 	if _, err = h.ExecuteLaunch(context.Background(), grant, inv); err != nil {
 		t.Fatal(err)
 	}
@@ -573,6 +610,9 @@ func TestParallelLaunchesPublishOneProducerSequence(t *testing.T) {
 		{CommandID: "parallel-a", ReservationID: "reservation-a", RunID: "run", TaskID: "task-a", AttemptID: "attempt-a", SegmentID: "segment-a", GrantedActiveMS: 2000, WorkRevision: 4},
 		{CommandID: "parallel-b", ReservationID: "reservation-b", RunID: "run", TaskID: "task-b", AttemptID: "attempt-b", SegmentID: "segment-b", GrantedActiveMS: 2000, WorkRevision: 5},
 	}
+	for index := range grants {
+		grants[index] = managedHostGrant(t, h, grants[index])
+	}
 	results := make(chan error, len(grants))
 	for _, grant := range grants {
 		grant := grant
@@ -603,21 +643,21 @@ func TestParallelLaunchesPublishOneProducerSequence(t *testing.T) {
 	}
 }
 
-func TestUnspawnedInvocationFailurePublishesFailedThenExited(t *testing.T) {
+func TestUnspawnedInvocationFailurePublishesRejectionWithoutExit(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "spool")
 	h, err := NewIPC(root, "launch-failure")
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "attempt-failure", TaskID: "task-failure", SegmentID: "segment-failure"}
-	if err = h.recordLaunchFailed(a, "run-failure", a.TaskID, launchMetadata{commandID: "command-failure", executionEpoch: 3}, errors.New("provider body must not persist")); err != nil {
+	if err = h.recordLaunchFailed(a, "run-failure", a.TaskID, metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "run-failure", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "command-failure", ExecutionEpoch: 3})), errors.New("provider body must not persist")); err != nil {
 		t.Fatal(err)
 	}
 	sink := &durableSink{}
 	if err = h.PublishAll(context.Background(), sink, 3); err != nil {
 		t.Fatal(err)
 	}
-	if len(sink.events) != 2 || sink.events[0].Kind != contract.EventFailed || sink.events[1].Kind != contract.EventExited || sink.events[0].CommandID != "command-failure" || sink.events[0].ExecutionEpoch != 3 || sink.events[0].Process != nil {
+	if len(sink.events) != 1 || sink.events[0].Kind != contract.EventLaunchRejected || sink.events[0].CommandID != "command-failure" || sink.events[0].ExecutionEpoch != 3 || sink.events[0].Process != nil || sink.events[0].ExitCode != nil || sink.events[0].ActiveMS != 0 {
 		t.Fatalf("events=%#v", sink.events)
 	}
 }
@@ -629,7 +669,7 @@ func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "attempt-a", TaskID: "task-a", SegmentID: "segment-a"}
-	if err = first.recordLaunchFailed(a, "run", a.TaskID, launchMetadata{commandID: "command-a", executionEpoch: 1}, errors.New("unspawned")); err != nil {
+	if err = first.recordLaunchFailed(a, "run", a.TaskID, metadataForLaunch(managedHostGrant(t, first, contract.LaunchCommand{RunID: "run", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "command-a", ExecutionEpoch: 1})), errors.New("unspawned")); err != nil {
 		t.Fatal(err)
 	}
 	// This is the unsafe legacy counter shape. It must not reserve sequence
@@ -642,14 +682,14 @@ func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := store.Attempt{ID: "attempt-b", TaskID: "task-b", SegmentID: "segment-b"}
-	if err = second.recordLaunchFailed(b, "run", b.TaskID, launchMetadata{commandID: "command-b", executionEpoch: 2}, errors.New("unspawned")); err != nil {
+	if err = second.recordLaunchFailed(b, "run", b.TaskID, metadataForLaunch(managedHostGrant(t, second, contract.LaunchCommand{RunID: "run", TaskID: b.TaskID, AttemptID: b.ID, SegmentID: b.SegmentID, CommandID: "command-b", ExecutionEpoch: 2})), errors.New("unspawned")); err != nil {
 		t.Fatal(err)
 	}
 	sink := &durableSink{}
 	if err = second.PublishAll(context.Background(), sink, 2); err != nil {
 		t.Fatal(err)
 	}
-	if len(sink.events) != 4 {
+	if len(sink.events) != 2 {
 		t.Fatalf("events=%#v", sink.events)
 	}
 	for index, event := range sink.events {
@@ -661,7 +701,7 @@ func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
 
 func TestGrantLedgerPreventsDuplicateExecutionAndClosesUnspawnedRecovery(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "spool")
-	grant := contract.LaunchCommand{CommandID: "command-ledger", ReservationID: "reservation-ledger", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 3, GrantedActiveMS: 1000}
+	grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command-ledger", ReservationID: "reservation-ledger", RunID: "run", HostID: "ledger-producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 3, GrantedActiveMS: 1000})
 	first, err := NewIPC(root, "ledger-producer")
 	if err != nil {
 		t.Fatal(err)
@@ -683,7 +723,7 @@ func TestGrantLedgerPreventsDuplicateExecutionAndClosesUnspawnedRecovery(t *test
 	if err = recovered.PublishAll(context.Background(), sink, 4); err != nil {
 		t.Fatal(err)
 	}
-	if len(sink.events) != 2 || sink.events[0].Kind != contract.EventFailed || sink.events[1].Kind != contract.EventExited {
+	if len(sink.events) != 1 || sink.events[0].Kind != contract.EventUnknown {
 		t.Fatalf("events=%#v", sink.events)
 	}
 	conflict := grant
@@ -760,7 +800,7 @@ func TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent(t *testing.T
 			if mode == "rejected" {
 				wantError = "event_status_invalid"
 			}
-			if before.TerminalSeen != (mode == "terminal") || after.TerminalSeen != (mode == "terminal") || before.TailPending != (mode == "tail") || after.TailPending != (mode == "tail") || before.WaitComplete || before.TreeConfirmed || after.WaitComplete || !after.TreeConfirmed || before.ProtocolError != wantError || after.ProtocolError != wantError {
+			if before.TerminalSeen != (mode == "terminal") || after.TerminalSeen != (mode == "terminal") || before.TailPending != (mode == "tail") || after.TailPending != (mode == "tail") || before.WaitComplete || before.TreeConfirmed || !after.WaitComplete || !after.TreeConfirmed || before.ProtocolError != wantError || after.ProtocolError != wantError {
 				t.Fatalf("incorrect safe snapshot: %s", body)
 			}
 			sink := &durableSink{}
@@ -813,10 +853,11 @@ func TestProtocolSnapshotAllowsStopWhileObserverIsBlocked(t *testing.T) {
 	if snapshot := collector.Snapshot(); snapshot.Available {
 		t.Fatal("snapshot claimed access while observer owns lock")
 	}
-	// The observer remains blocked throughout the unchanged Stop call. No EOF
-	// claim or diagnostic lock wait is required before terminating the group.
-	if err = p.Stop(ctx); err != nil {
-		t.Fatalf("owned fixture Stop err=%v", err)
+	// An expired Stop scope cannot prove original cmd.Wait while the output
+	// observer is blocked. UNKNOWN preserves the stronger tree-proof contract;
+	// it must not be substituted with process-group disappearance alone.
+	if err = p.Stop(ctx); !errors.Is(err, process.ErrProcessTreeUnknown) {
+		t.Fatalf("blocked original Wait received false exit proof: %v", err)
 	}
 	if snapshot := collector.Snapshot(); snapshot.Available {
 		t.Fatal("Stop was treated as collector EOF")
@@ -826,6 +867,9 @@ func TestProtocolSnapshotAllowsStopWhileObserverIsBlocked(t *testing.T) {
 	defer waitCancel()
 	if err = p.Wait(waitCtx); err != nil {
 		t.Fatal(err)
+	}
+	if err = p.ConfirmTreeExited(); err != nil {
+		t.Fatalf("observer release did not expose real original Wait/absence: %v", err)
 	}
 	if snapshot := collector.Snapshot(); !snapshot.Available || !snapshot.TerminalSeen {
 		t.Fatal("drained output unavailable after observer release")

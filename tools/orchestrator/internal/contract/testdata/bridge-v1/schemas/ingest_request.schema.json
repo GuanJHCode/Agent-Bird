@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-bird-bridge-v1/ingest_request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 0,
+      "const": 1
+    },
+    "binding_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner_epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hook_capability": {
+      "type": "string",
+      "minLength": 1,
+      "x-secret": true
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "minimum": 0,
+          "const": 1
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "owner_epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "provider_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "native_session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "native_event_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "session_started",
+            "turn_boundary",
+            "tool_observed",
+            "session_ended"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "minLength": 1,
+          "format": "date-time"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "native_hook": {
+              "type": "string",
+              "enum": [
+                "PreInvocation",
+                "SessionStart",
+                "UserPromptSubmit",
+                "PostToolUse",
+                "PostToolUseFailure",
+                "Stop",
+                "SessionEnd"
+              ]
+            },
+            "tool_name": {
+              "type": "string",
+              "enum": [
+                "Bash",
+                "Read",
+                "Write",
+                "Edit",
+                "Grep",
+                "Glob",
+                "Task",
+                "WebFetch",
+                "WebSearch",
+                "NotebookEdit"
+              ],
+              "x-secretFree": true
+            },
+            "tool_status": {
+              "type": "string",
+              "enum": [
+                "success",
+                "failure",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "native_hook"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "event_id",
+        "binding_id",
+        "owner_epoch",
+        "provider_id",
+        "native_session_id",
+        "native_event_id",
+        "kind",
+        "observed_at",
+        "metadata"
+      ],
+      "x-maxEncodedBytes": 65536,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "provider_id": {
+                "const": "agy"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "kind": {
+                "const": "turn_boundary"
+              },
+              "metadata": {
+                "properties": {
+                  "native_hook": {
+                    "const": "PreInvocation"
+                  }
+                },
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "tool_name"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "tool_status"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "metadata": {
+                "properties": {
+                  "native_hook": {
+                    "not": {
+                      "const": "PreInvocation"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding_id",
+    "owner_epoch",
+    "request_id",
+    "hook_capability",
+    "event"
+  ]
+}

@@ -1,12 +1,12 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"strings"
 	"time"
 )
@@ -14,43 +14,79 @@ import (
 func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	if _, err = d.queueResumeTx(ctx, tx, taskID, workRevision); err != nil {
+		return err
+	}
+	return owned.commit()
+}
+
+// queueResumeTx preserves the legacy queue/budget checks so authenticated owner
+// retirement and queue admission can commit in the same transaction.
+func (d *DB) queueResumeTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int) (int64, error) {
+	if err := requirePublishedTaskTx(ctx, tx, taskID); err != nil {
+		return 0, err
+	}
+	if err := resumeAdmissionTx(ctx, tx, taskID, workRevision, "interrupted"); err != nil {
+		return 0, err
+	}
+	sequence, err := takeReadySequence(ctx, tx)
+	if err != nil {
+		return 0, err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='resume_queued' WHERE id=?`, taskID); err != nil {
+		return 0, err
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=? WHERE task_id=?`, sequence, taskID); err != nil {
+		return 0, err
+	}
+	return sequence, nil
+}
+
+// Shared read-only admission for a new queue and a proved unclaimed live queue.
+// Rechecking allowance never resets or consumes its existing execution budget.
+func resumeAdmissionTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int, requiredStatus string) error {
+	var err error
 	var status, adapterPayload string
 	var revision int
 	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,r.adapter_payload FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision, &adapterPayload); err != nil {
-		return rollback(ErrNotFound)
+		return ErrNotFound
 	}
 	if err = checkTaskProvider(ctx, tx, taskID, nil); err != nil {
-		return rollback(err)
+		return err
 	}
 	if err := resumeProfileRestriction([]byte(adapterPayload)); err != nil {
-		return rollback(err)
+		return err
 	}
-	if revision != workRevision || status != "interrupted" {
-		return rollback(ErrConflict)
+	if revision != workRevision || status != requiredStatus {
+		return ErrConflict
 	}
 	var active int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, taskID).Scan(&active); err != nil || active != 0 {
 		if err == nil {
 			err = ErrConflict
 		}
-		return rollback(err)
+		return err
 	}
-	sequence, err := takeReadySequence(ctx, tx)
-	if err != nil {
-		return rollback(err)
+	b, e := readExecutionBudget(ctx, tx, taskID)
+	if e != nil {
+		return e
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='resume_queued' WHERE id=?`, taskID); err != nil {
-		return rollback(err)
+	if b.policy != nil {
+		var attemptID string
+		if e = tx.QueryRowContext(ctx, `SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, taskID).Scan(&attemptID); e != nil {
+			return e
+		}
+		if _, e = executionGrant(ctx, tx, taskID, attemptID); e != nil {
+			return e
+		}
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=? WHERE task_id=?`, sequence, taskID); err != nil {
-		return rollback(err)
-	}
-	return tx.Commit()
+	return nil
 }
 
 type AnswerSpec struct {
@@ -67,15 +103,20 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return "", err
 	}
-	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (string, error) { owned.close(); return "", e }
 	var taskStatus, questionStatus, answerHash, segmentID string
 	var workRevision, questionRevision int
 	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,q.question_revision,q.status,q.answer_hash,q.segment_id FROM runtime_questions q JOIN tasks t ON t.id=q.task_id JOIN task_runtime r ON r.task_id=t.id WHERE q.question_id=? AND q.task_id=?`, spec.QuestionID, spec.TaskID).Scan(&taskStatus, &workRevision, &questionRevision, &questionStatus, &answerHash, &segmentID); err != nil {
 		return rollback(ErrNotFound)
+	}
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
 	}
 	wantHash := runtimeHash(spec.Answer)
 	if workRevision != spec.WorkRevision || questionRevision != spec.QuestionRevision {
@@ -83,7 +124,7 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	}
 	if questionStatus != "open" {
 		if answerHash == wantHash {
-			_ = tx.Rollback()
+			owned.close()
 			return questionStatus, nil
 		}
 		return rollback(ErrConflict)
@@ -105,6 +146,9 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	if err = checkTaskProvider(ctx, tx, spec.TaskID, nil); err != nil {
 		return rollback(err)
 	}
+	if err = d.queueQuestionContinuation(ctx, tx, spec); err != nil {
+		return rollback(err)
+	}
 	sequence, err := takeReadySequence(ctx, tx)
 	if err != nil {
 		return rollback(err)
@@ -118,7 +162,7 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	if _, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=? WHERE task_id=?`, sequence, spec.TaskID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return "", err
 	}
 	return "resume_queued", nil
@@ -141,37 +185,58 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return "", err
 	}
-	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
-	var previousDecision, eventHash string
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (string, error) { owned.close(); return "", e }
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
+	}
+	// The slot is derived from producer+event content, so a replay is only the
+	// same decision when the stored task and event match as well.
+	var previousDecision, eventHash, storedTask, storedEvent string
 	var eventRevision int64
-	err = tx.QueryRowContext(ctx, `SELECT decision,event_hash,event_revision FROM review_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previousDecision, &eventHash, &eventRevision)
+	err = tx.QueryRowContext(ctx, `SELECT decision,event_hash,event_revision,task_id,event_id FROM review_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previousDecision, &eventHash, &eventRevision, &storedTask, &storedEvent)
 	if err == nil {
-		if previousDecision != spec.Decision || eventHash != strings.ToLower(spec.EventHash) || eventRevision != spec.EventRevision {
+		if previousDecision != spec.Decision || eventHash != strings.ToLower(spec.EventHash) || eventRevision != spec.EventRevision || storedTask != spec.TaskID || storedEvent != spec.EventID {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return previousDecision + "ed", nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return rollback(err)
 	}
-	var taskStatus, storedHash, storedSlot, body string
+	var taskStatus, storedHash, storedSlot, policy, body string
 	var workRevision int
 	var storedRevision int64
-	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,e.payload_hash,e.event_revision,e.action_slot,e.body_json FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN runtime_events e ON e.task_id=t.id WHERE t.id=? AND e.event_id=?`, spec.TaskID, spec.EventID).Scan(&taskStatus, &workRevision, &storedHash, &storedRevision, &storedSlot, &body); err != nil || taskStatus != "result_ready" || workRevision != spec.WorkRevision || storedRevision != spec.EventRevision || storedSlot != spec.ActionSlot || subtle.ConstantTimeCompare([]byte(storedHash), []byte(strings.ToLower(spec.EventHash))) != 1 {
+	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,e.payload_hash,e.event_revision,e.action_slot,r.completion_policy,e.body_json FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN runtime_events e ON e.task_id=t.id WHERE t.id=? AND e.event_id=?`, spec.TaskID, spec.EventID).Scan(&taskStatus, &workRevision, &storedHash, &storedRevision, &storedSlot, &policy, &body); err != nil || taskStatus != "result_ready" || workRevision != spec.WorkRevision || storedRevision != spec.EventRevision || storedSlot != spec.ActionSlot || subtle.ConstantTimeCompare([]byte(storedHash), []byte(strings.ToLower(spec.EventHash))) != 1 {
 		return rollback(ErrConflict)
 	}
 	var event contract.Event
 	if json.Unmarshal([]byte(body), &event) != nil || event.Kind != contract.EventResult {
 		return rollback(ErrConflict)
 	}
+	// An artifact-pinned task only reaches completed through a settlement that
+	// matched the plan digest, so an accept still sitting on result_ready means
+	// the artifact was missing or mismatched and cannot be substituted here.
+	if spec.Decision == "accept" && policy == "artifact" {
+		return rollback(ErrConflict)
+	}
 	var latestSegment string
 	if err = tx.QueryRowContext(ctx, `SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1`, spec.TaskID).Scan(&latestSegment); err != nil || latestSegment != event.SegmentID {
 		return rollback(ErrConflict)
+	}
+	if spec.Decision == "accept" {
+		if err = validateIndexedResultAccept(ctx, tx, event); err != nil {
+			return rollback(err)
+		}
+		if err = validateDAGResultTarget(ctx, tx, event); err != nil {
+			return rollback(err)
+		}
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO review_decisions(action_slot,task_id,event_id,event_revision,event_hash,decision,command_id,created_at) VALUES(?,?,?,?,?,?,?,?)`, spec.ActionSlot, spec.TaskID, spec.EventID, spec.EventRevision, strings.ToLower(spec.EventHash), spec.Decision, spec.CommandID, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return rollback(mapConflict(err))
@@ -179,6 +244,9 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 	status := "accepted"
 	if spec.Decision == "accept" {
 		if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='completed' WHERE id=?`, spec.TaskID); err != nil {
+			return rollback(err)
+		}
+		if err = d.completeDiagnosticsConsumption(ctx, tx, spec.TaskID); err != nil {
 			return rollback(err)
 		}
 		if err = releaseReady(ctx, tx); err != nil {
@@ -196,13 +264,20 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*),t.max_attempts FROM attempts a JOIN tasks t ON t.id=a.task_id WHERE a.task_id=?`, spec.TaskID).Scan(&attempts, &maxAttempts); err != nil {
 			return rollback(err)
 		}
-		if attempts >= maxAttempts || attempts >= 3 {
+		exhausted, e := executionExhausted(ctx, tx, spec.TaskID)
+		if e != nil {
+			return rollback(e)
+		}
+		if exhausted {
 			if err = blockFailedDependencies(ctx, tx); err != nil {
 				return rollback(err)
 			}
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = refreshNewBaseTargets(ctx, tx); err != nil {
+		return rollback(err)
+	}
+	if err = owned.commit(); err != nil {
 		return "", err
 	}
 	return status, nil
@@ -232,7 +307,25 @@ type RetryReceipt struct {
 	UseNextFallback bool   `json:"use_next_fallback"`
 }
 
-func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, error) {
+// This projects eligibility only. QueueRetry still checks the full source and
+// execution contract before creating a promise.
+func hasOpenPolicyRetryAction(ctx context.Context, tx *sql.Tx, taskID string) (bool, error) {
+	var open bool
+	err := tx.QueryRowContext(ctx, `WITH current_task AS (
+ SELECT t.id,r.work_revision,(SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1) AS segment_id
+ FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?
+), sources AS (
+ SELECT e.event_id,e.action_slot,e.body_json,e.delivery_status FROM runtime_events e JOIN current_task c ON e.task_id=c.id AND e.segment_id=c.segment_id AND json_extract(e.body_json,'$.work_revision')=c.work_revision
+ UNION ALL
+ SELECT e.event_id,e.action_slot,e.body_json,e.delivery_status FROM report_events e JOIN report_capabilities cap ON cap.capability_id=e.capability_id JOIN current_task c ON cap.task_id=c.id AND cap.segment_id=c.segment_id AND cap.work_revision=c.work_revision
+)
+SELECT EXISTS(SELECT 1 FROM sources e WHERE e.delivery_status='pending'
+ AND NOT EXISTS(SELECT 1 FROM runtime_decisions d WHERE d.action_slot=e.action_slot)
+ AND (json_extract(e.body_json,'$.kind')='failed' OR (json_extract(e.body_json,'$.kind')='result' AND EXISTS(SELECT 1 FROM review_decisions d WHERE d.event_id=e.event_id AND d.decision='reject'))))`, taskID).Scan(&open)
+	return open, err
+}
+
+func (d *DB) queueRetry(ctx context.Context, spec RetrySpec, configProof *retryConfigProof) (RetryReceipt, error) {
 	empty := RetryReceipt{}
 	if spec.TaskID == "" || spec.WorkRevision < 1 || spec.EventID == "" || spec.EventRevision < 1 || !validDigest(spec.EventHash) || spec.ActionSlot == "" || spec.SegmentID == "" || spec.NextAttemptNo < 2 || spec.CommandID == "" || len(spec.CommandID) > 128 {
 		return empty, CodeError("invalid_retry")
@@ -240,12 +333,18 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	spec.EventHash = strings.ToLower(spec.EventHash)
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	rollback := func(e error) (RetryReceipt, error) { _ = tx.Rollback(); return empty, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (RetryReceipt, error) { owned.close(); return empty, e }
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
+	}
 	var revisionPayload string
+	var dependents []string
 	if err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&revisionPayload); err == nil && revisionPayload != "" {
 		if _, parseErr := parseReviewRetry(revisionPayload); parseErr != nil {
 			return rollback(ErrConflict)
@@ -267,7 +366,7 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 		if existing.TaskID != spec.TaskID || existing.WorkRevision != spec.WorkRevision || existing.EventID != spec.EventID || eventRevision != spec.EventRevision || eventHash != spec.EventHash || existing.SegmentID != spec.SegmentID || existing.NextAttemptNo != spec.NextAttemptNo || existing.UseNextFallback != spec.UseNextFallback {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return existing, nil
 	}
 	if !errors.Is(existingErr, sql.ErrNoRows) {
@@ -288,20 +387,41 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	if (status != "failed" && !(managed && status == "interrupted")) || revision != spec.WorkRevision {
 		return rollback(ErrConflict)
 	}
-	var active, attempts int
+	var active int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, spec.TaskID).Scan(&active); err != nil || active != 0 {
 		if err == nil {
 			err = ErrConflict
 		}
 		return rollback(err)
 	}
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, budgetGroup).Scan(&attempts); err != nil {
+	b, e := readExecutionBudget(ctx, tx, spec.TaskID)
+	if e != nil {
+		return rollback(e)
+	}
+	if b.policy != nil && status == "failed" {
+		// A policy-failed slot is disposed by any durable ACK. Legacy tasks
+		// keep their existing contract; exact retry replay returned above.
+		var acknowledged bool
+		if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM runtime_decisions WHERE action_slot=?)`, spec.ActionSlot).Scan(&acknowledged); err != nil {
+			return rollback(err)
+		}
+		if acknowledged {
+			return rollback(ErrConflict)
+		}
+	}
+	if err = executionCapacity(ctx, tx, spec.TaskID, nil); err != nil {
 		return rollback(err)
 	}
-	if attempts >= maxAttempts || attempts >= 3 {
-		return rollback(ErrAttemptLimit)
+	if b.policy != nil {
+		if _, e = executionGrant(ctx, tx, spec.TaskID, ""); e != nil {
+			return rollback(e)
+		}
 	}
-	if spec.NextAttemptNo != attempts+1 {
+	nextOrdinal, ordinalErr := nextTaskAttemptOrdinal(ctx, tx, spec.TaskID)
+	if ordinalErr != nil {
+		return rollback(ordinalErr)
+	}
+	if spec.NextAttemptNo != nextOrdinal {
 		return rollback(ErrConflict)
 	}
 	var sourceTask, sourceSegment, sourceHash, sourceSlot, sourceBody string
@@ -336,9 +456,9 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 		if err != nil {
 			return rollback(err)
 		}
-		if err = d.storageAdmission(ctx, tx, sourceEvent.RunID, int64(len(revisionPayload)), false); err != nil {
-			return rollback(err)
-		}
+	}
+	if err = d.storageAdmission(ctx, tx, sourceEvent.RunID, int64(len(revisionPayload))+decisionBindingBytes(spec.ActionSlot, spec.TaskID, ""), false); err != nil {
+		return rollback(err)
 	}
 	adapterUpdate := ""
 	if spec.UseNextFallback {
@@ -356,6 +476,15 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	if err = checkTaskProvider(ctx, tx, spec.TaskID, replacement); err != nil {
 		return rollback(err)
 	}
+	if managed {
+		dependents, err = reviewRetryDependents(ctx, tx, spec.TaskID)
+		if err != nil {
+			return rollback(err)
+		}
+		if err = d.requireReviewRetryConfig(ctx, tx, spec.TaskID, dependents, configProof); err != nil {
+			return rollback(err)
+		}
+	}
 	sequence, err := takeReadySequence(ctx, tx)
 	if err != nil {
 		return rollback(err)
@@ -363,6 +492,9 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, spec.ActionSlot, spec.TaskID, spec.WorkRevision, spec.EventID, spec.EventRevision, spec.EventHash, spec.SegmentID, spec.NextAttemptNo, spec.UseNextFallback, spec.CommandID, now, revisionPayload); err != nil {
 		return rollback(mapConflict(err))
+	}
+	if err = d.reserveDecisionBindings(ctx, tx, []decisionAttemptBinding{{slot: spec.ActionSlot, task: spec.TaskID, revision: spec.WorkRevision}}); err != nil {
+		return rollback(err)
 	}
 	if managed {
 		if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET status='revoked' WHERE task_id=?`, spec.TaskID); err != nil {
@@ -380,7 +512,17 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	if err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if len(dependents) > 0 {
+		if err = restoreReviewRetryDependents(ctx, tx, dependents); err != nil {
+			return rollback(err)
+		}
+	}
+	if configProof != nil {
+		if err = configProof.verify(); err != nil {
+			return rollback(err)
+		}
+	}
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return RetryReceipt{Status: "retry_queued", TaskID: spec.TaskID, WorkRevision: spec.WorkRevision, EventID: spec.EventID, ActionSlot: spec.ActionSlot, SegmentID: spec.SegmentID, NextAttemptNo: spec.NextAttemptNo, UseNextFallback: spec.UseNextFallback}, nil

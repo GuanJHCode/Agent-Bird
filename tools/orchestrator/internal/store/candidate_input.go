@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"path/filepath"
+	"reflect"
 	"slices"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -18,94 +20,209 @@ func bindCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.Launc
 	if retryErr != nil {
 		return retryErr
 	}
+	return bindCandidateInputForDecision(ctx, tx, command, replay, retry, candidateArtifactLive)
+}
+
+func isV2Compose(raw json.RawMessage) bool {
+	var payload struct {
+		Kind   string `json:"kind"`
+		Action *struct {
+			Version                int      `json:"version"`
+			DependencyInputVersion int      `json:"dependency_input_version"`
+			Operation              string   `json:"operation"`
+			SourceTask             string   `json:"source_task"`
+			OrderedSourceTasks     []string `json:"ordered_source_tasks"`
+		} `json:"candidate_action"`
+	}
+	if json.Unmarshal(raw, &payload) != nil || payload.Kind != "candidate" || payload.Action == nil || payload.Action.Version != 2 || payload.Action.DependencyInputVersion != 2 || payload.Action.Operation != "compose" || payload.Action.SourceTask != "" || len(payload.Action.OrderedSourceTasks) < 2 || len(payload.Action.OrderedSourceTasks) > 63 {
+		return false
+	}
+	seen := make(map[string]bool, len(payload.Action.OrderedSourceTasks))
+	for _, task := range payload.Action.OrderedSourceTasks {
+		if task == "" || seen[task] {
+			return false
+		}
+		seen[task] = true
+	}
+	return true
+}
+
+// Reconstruct an already-issued candidate only as evidence for a decision.
+// The historical nil-grant branch still compares the original intent hash;
+// ClaimReady and PendingLaunches must use the live binder above.
+func bindHistoricalCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand) error {
+	retry, err := prepareReviewRetryGrant(ctx, tx, command)
+	if err != nil {
+		return err
+	}
+	return bindCandidateInputForDecision(ctx, tx, command, true, retry, candidateArtifactHistoricalProof)
+}
+
+type candidateArtifactUse int
+
+const (
+	candidateArtifactLive candidateArtifactUse = iota
+	candidateArtifactHistoricalProof
+)
+
+// An explicit already-validated decision breaks the legacy reconciliation
+// cycle. Ordinary callers still resolve their exact committed binding above.
+func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool, retry *reviewRetryDecision, use candidateArtifactUse) error {
+	if use != candidateArtifactLive && use != candidateArtifactHistoricalProof || use == candidateArtifactHistoricalProof && !replay {
+		return ErrConflict
+	}
+	if use == candidateArtifactLive {
+		if err := candidateRunRetired(ctx, tx, command.RunID); err != nil {
+			return err
+		}
+	}
+	if err := bindHostArtifacts(ctx, tx, command, use != candidateArtifactHistoricalProof); err != nil {
+		return err
+	}
+	if err := bindCandidateInputContent(ctx, tx, command, replay, retry, use); err != nil {
+		return err
+	}
+	if err := validateBoundValidationRetry(ctx, tx, command); err != nil {
+		return err
+	}
+	if use == candidateArtifactHistoricalProof && command.HostArtifacts == nil {
+		return bindCandidateIntent(ctx, tx, command, true)
+	}
+	return nil
+}
+
+func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool, retry *reviewRetryDecision, use candidateArtifactUse) error {
+	if err := bindDiagnosticsForUse(ctx, tx, command, use); err != nil {
+		return err
+	}
 	var payload struct {
 		Workspace *struct {
-			Rework json.RawMessage `json:"rework"`
+			Rework        json.RawMessage `json:"rework"`
+			NewBaseRework json.RawMessage `json:"new_base_rework"`
 		} `json:"candidate_workspace"`
 		Action *struct {
-			Version    int    `json:"version"`
-			Operation  string `json:"operation"`
-			SourceTask string `json:"source_task"`
+			Version                int      `json:"version"`
+			DependencyInputVersion int      `json:"dependency_input_version,omitempty"`
+			Operation              string   `json:"operation"`
+			SourceTask             string   `json:"source_task"`
+			OrderedSourceTasks     []string `json:"ordered_source_tasks"`
 		} `json:"candidate_action"`
 	}
 	if json.Unmarshal(command.AdapterPayload, &payload) != nil {
 		return ErrConflict
 	}
+	if err := bindNewBaseProducer(ctx, tx, command); err != nil {
+		return err
+	}
 	if payload.Action == nil {
-		if payload.Workspace != nil && len(payload.Workspace.Rework) > 0 && string(payload.Workspace.Rework) != "null" {
+		if command.GitFilter != nil || payload.Workspace != nil && (len(payload.Workspace.Rework) > 0 && string(payload.Workspace.Rework) != "null" || len(payload.Workspace.NewBaseRework) > 0 && string(payload.Workspace.NewBaseRework) != "null") {
 			return bindCandidateIntent(ctx, tx, command, replay)
 		}
 		return nil
 	}
 	action := payload.Action
-	if action.Version != 1 || action.SourceTask == "" || (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate") {
-		return CodeError("invalid_candidate_action")
-	}
 	var depsJSON string
 	if err := tx.QueryRowContext(ctx, `SELECT dependencies_json FROM tasks WHERE id=? AND run_id=?`, command.TaskID, command.RunID).Scan(&depsJSON); err != nil {
 		return err
 	}
 	var deps []string
-	if json.Unmarshal([]byte(depsJSON), &deps) != nil || !slices.Contains(deps, action.SourceTask) {
+	if json.Unmarshal([]byte(depsJSON), &deps) != nil {
 		return CodeError("candidate_input_not_dependency")
 	}
-	var eventBody, sourcePayload, decision, actionSlot string
-	var eventRevision int64
-	err := tx.QueryRowContext(ctx, `SELECT e.body_json,r.adapter_payload,d.command_id,e.event_revision,e.action_slot FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN review_decisions d ON d.task_id=t.id AND d.decision='accept' JOIN runtime_events e ON e.event_id=d.event_id AND e.event_revision=d.event_revision AND e.payload_hash=d.event_hash JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id WHERE t.id=? AND t.run_id=? AND t.status='completed' AND s.status='exited' AND s.outcome='result' AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1) ORDER BY e.sequence DESC LIMIT 1`, action.SourceTask, command.RunID).Scan(&eventBody, &sourcePayload, &decision, &eventRevision, &actionSlot)
+	if action.Version == 2 && action.DependencyInputVersion == 2 && action.Operation == "compose" && action.SourceTask == "" {
+		if err := bindOrderedDependencyInputs(ctx, tx, command, deps, action.OrderedSourceTasks, replay, retry); err != nil {
+			return err
+		}
+		return bindCandidateIntent(ctx, tx, command, replay)
+	}
+	observation := false
+	if action.Operation == "filter_target_preflight" || action.Operation == "filter_target_review" || action.Operation == "filter_integrate" {
+		p, err := adapter.DecodeInvocationPayload(command.AdapterPayload)
+		observation = err == nil && (adapter.IsFilterTargetPreflight(p) || adapter.IsFilterTargetReview(p) || adapter.IsFilterIntegrate(p))
+	}
+	if action.Version != 1 || action.SourceTask == "" || (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate" && !observation) || !slices.Contains(deps, action.SourceTask) {
+		return CodeError("invalid_candidate_action")
+	}
+	input, err := acceptedCandidateInput(ctx, tx, command.RunID, action.SourceTask)
 	if err != nil {
-		return CodeError("candidate_input_not_accepted")
-	}
-	var event contract.Event
-	if json.Unmarshal([]byte(eventBody), &event) != nil || event.Kind != contract.EventResult || event.Artifact == nil || !validDigest(event.Artifact.SHA256) || event.Artifact.Size <= 0 || event.Artifact.Size > 1024*1024 {
-		return CodeError("candidate_input_invalid")
-	}
-	event.EventRevision, event.ActionSlot = eventRevision, actionSlot
-	var revision int
-	if err = tx.QueryRowContext(ctx, `SELECT work_revision FROM task_runtime WHERE task_id=?`, action.SourceTask).Scan(&revision); err != nil {
 		return err
 	}
-	if revision != event.WorkRevision {
+	command.Input = &input
+	if action.DependencyInputVersion < 0 || action.DependencyInputVersion > 1 {
+		return CodeError("candidate_dependency_inputs_invalid")
+	}
+	if action.DependencyInputVersion == 1 {
+		if err := bindDependencyInputs(ctx, tx, command, deps, replay, retry); err != nil {
+			return err
+		}
+	} else if command.DependencyInputs != nil {
 		return ErrConflict
 	}
-	command.Input = &contract.AcceptedInput{Event: event, AdapterPayload: json.RawMessage(sourcePayload), DecisionCommandID: decision}
+
 	if retry != nil && retry.InputSHA256 != retryInputHash(command.Input) {
 		return CodeError("candidate_review_retry_changed")
 	}
 	return bindCandidateIntent(ctx, tx, command, replay)
 }
 
+func acceptedCandidateInput(ctx context.Context, tx *sql.Tx, run, task string) (contract.AcceptedInput, error) {
+	var body, payload, decision, slot string
+	var revision int64
+	err := tx.QueryRowContext(ctx, `SELECT e.body_json,r.adapter_payload,d.command_id,e.event_revision,e.action_slot FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN review_decisions d ON d.task_id=t.id AND d.decision='accept' JOIN runtime_events e ON e.event_id=d.event_id AND e.event_revision=d.event_revision AND e.payload_hash=d.event_hash JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id WHERE t.id=? AND t.run_id=? AND t.status='completed' AND s.status='exited' AND s.outcome='result' AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1) ORDER BY e.sequence DESC LIMIT 1`, task, run).Scan(&body, &payload, &decision, &revision, &slot)
+	if err != nil {
+		return contract.AcceptedInput{}, CodeError("candidate_input_not_accepted")
+	}
+	var event contract.Event
+	if json.Unmarshal([]byte(body), &event) != nil || event.Kind != contract.EventResult || event.Artifact == nil || !validDigest(event.Artifact.SHA256) || event.Artifact.Size <= 0 || event.Artifact.Size > 1024*1024 {
+		return contract.AcceptedInput{}, CodeError("candidate_input_invalid")
+	}
+	event.EventRevision, event.ActionSlot = revision, slot
+	var current int
+	if tx.QueryRowContext(ctx, `SELECT work_revision FROM task_runtime WHERE task_id=?`, task).Scan(&current) != nil || current != event.WorkRevision {
+		return contract.AcceptedInput{}, ErrConflict
+	}
+	return contract.AcceptedInput{Event: event, AdapterPayload: json.RawMessage(payload), DecisionCommandID: decision}, nil
+}
+
 func bindCandidateIntent(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool) error {
-	// Execution epoch is transport ownership, not input identity. The event's
-	// persisted producer/revision/hash remains fixed across coordinator restart.
-	body, _ := json.Marshal(struct {
-		Plan    int
-		Payload json.RawMessage
-		Input   *contract.AcceptedInput
-	}{command.PlanRevision, command.AdapterPayload, command.Input})
-	hash := runtimeHash(command.RunID + "\x00" + command.TaskID + "\x00" + command.AttemptID + "\x00" + command.SegmentID + "\x00" + command.SlotToken + "\x00" + string(body))
+	hash, err := contract.CandidateIntentHash(*command)
+	if err != nil {
+		return err
+	}
 	if replay {
 		if hash != command.LaunchIntentHash {
 			return CodeError("candidate_input_changed")
 		}
-		return nil
+	} else {
+		command.LaunchIntentHash = hash
 	}
-	command.LaunchIntentHash = hash
-	_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET launch_intent_hash=? WHERE segment_id=?`, hash, command.SegmentID)
-	return err
+	if command.DependencyInputs != nil {
+		return contract.ValidateDependencyInputs(*command)
+	}
+	return nil
 }
 
 func validateCandidatePlan(tasks map[string]TaskSpec) error {
 	type kind struct {
 		Kind      string          `json:"kind"`
+		Provider  string          `json:"provider"`
 		Directory string          `json:"directory"`
 		Workspace json.RawMessage `json:"candidate_workspace"`
 		Action    *struct {
-			Version    int    `json:"version"`
-			Operation  string `json:"operation"`
-			SourceTask string `json:"source_task"`
-			Target     struct {
+			Version                int      `json:"version"`
+			DependencyInputVersion int      `json:"dependency_input_version,omitempty"`
+			Operation              string   `json:"operation"`
+			SourceTask             string   `json:"source_task"`
+			OrderedSourceTasks     []string `json:"ordered_source_tasks"`
+			Target                 struct {
 				Worktree string `json:"worktree"`
 			} `json:"target"`
+			ReviewIndex *struct {
+				Version       int    `json:"version"`
+				Mode          string `json:"mode"`
+				Shards        int    `json:"shards"`
+				ReviewOrdinal int    `json:"review_ordinal"`
+			} `json:"review_index"`
 		} `json:"candidate_action"`
 	}
 	parsed := map[string]kind{}
@@ -129,23 +246,133 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		if a.Target.Worktree != "" && managedWorkspaces[filepath.Clean(a.Target.Worktree)] {
 			return CodeError("candidate_target_is_managed_workspace")
 		}
+		if a.Version == 2 && a.DependencyInputVersion == 2 && a.Operation == "compose" {
+			if a.SourceTask != "" || p.Kind != "candidate" || task.CompletionPolicy != "" && task.CompletionPolicy != "owner_review" || len(task.Dependencies) < 2 || len(task.Dependencies) > 63 || len(a.OrderedSourceTasks) != len(task.Dependencies) || len(task.FallbackPayloads) > 0 {
+				return CodeError("candidate_dependency_inputs_invalid")
+			}
+			seen := make(map[string]bool, len(task.Dependencies))
+			for _, dependency := range task.Dependencies {
+				if dependency == "" || seen[dependency] || tasks[dependency].CompletionPolicy != "" && tasks[dependency].CompletionPolicy != "owner_review" || len(tasks[dependency].FallbackPayloads) > 0 {
+					return CodeError("candidate_dependency_input_unsupported")
+				}
+				seen[dependency] = true
+			}
+			for _, source := range a.OrderedSourceTasks {
+				if source == "" || !seen[source] {
+					return CodeError("candidate_dependency_inputs_invalid")
+				}
+				delete(seen, source)
+			}
+			if len(seen) != 0 {
+				return CodeError("candidate_dependency_inputs_invalid")
+			}
+			continue
+		}
 		source, ok := tasks[a.SourceTask]
-		if a.Version != 1 || !ok || !slices.Contains(task.Dependencies, a.SourceTask) || task.CompletionPolicy != "" && task.CompletionPolicy != "owner_review" || source.CompletionPolicy != "" && source.CompletionPolicy != "owner_review" || len(task.FallbackPayloads) > 0 || len(source.FallbackPayloads) > 0 {
+		if a.Version != 1 || a.DependencyInputVersion < 0 || a.DependencyInputVersion > 1 || len(task.Dependencies) > 1 && a.DependencyInputVersion != 1 || !ok || !slices.Contains(task.Dependencies, a.SourceTask) || task.CompletionPolicy != "" && task.CompletionPolicy != "owner_review" || source.CompletionPolicy != "" && source.CompletionPolicy != "owner_review" || len(task.FallbackPayloads) > 0 || len(source.FallbackPayloads) > 0 {
+			if len(task.Dependencies) > 1 && a.DependencyInputVersion != 1 {
+				return CodeError("candidate_dependency_inputs_required")
+			}
 			return CodeError("invalid_candidate_dag")
 		}
+		if a.DependencyInputVersion == 1 {
+			if len(task.Dependencies) < 1 || len(task.Dependencies) > 63 {
+				return CodeError("candidate_dependency_inputs_invalid")
+			}
+			seen := make(map[string]bool, len(task.Dependencies))
+			for _, dependency := range task.Dependencies {
+				if dependency == "" || seen[dependency] {
+					return CodeError("candidate_dependency_inputs_invalid")
+				}
+				seen[dependency] = true
+				predecessor, exists := tasks[dependency]
+				if !exists || predecessor.CompletionPolicy != "" && predecessor.CompletionPolicy != "owner_review" {
+					return CodeError("candidate_dependency_input_unsupported")
+				}
+			}
+		}
+		currentPayload, currentErr := adapter.DecodeInvocationPayload(task.AdapterPayload)
+		sourcePayload, sourceErr := adapter.DecodeInvocationPayload(source.AdapterPayload)
+		filteredSource := sourceErr == nil && sourcePayload.GitFilter != nil
+		filteredCurrent := currentErr == nil && currentPayload.GitFilter != nil
+		if filteredSource || filteredCurrent {
+			expectedDependencies := 1
+			if adapter.IsFilterIntegrate(currentPayload) {
+				expectedDependencies = 2
+				if !adapter.IsFilterTargetReview(sourcePayload) {
+					return CodeError("git_filter_pipeline_unsupported")
+				}
+				pref, ok := tasks[sourcePayload.CandidateAction.SourceTask]
+				pp, pe := adapter.DecodeInvocationPayload(pref.AdapterPayload)
+				if !ok || pe != nil || !adapter.IsFilterTargetPreflight(pp) || !slices.Contains(task.Dependencies, pref.ID) || !reflect.DeepEqual(pp.GitFilter, currentPayload.GitFilter) || pp.CandidateAction.Target != currentPayload.CandidateAction.Target {
+					return CodeError("git_filter_pipeline_unsupported")
+				}
+			}
+			allowedSource := a.Operation == "validate" && sourcePayload.Kind == "provider" || a.Operation == "review" && sourcePayload.Kind == "candidate" && sourcePayload.CandidateAction != nil && sourcePayload.CandidateAction.Operation == "validate" || a.Operation == "filter_target_preflight" && sourcePayload.Kind == "" && sourcePayload.CandidateAction != nil && sourcePayload.CandidateAction.Operation == "review" || a.Operation == "filter_target_review" && adapter.IsFilterTargetPreflight(sourcePayload) && currentPayload.CandidateAction != nil && currentPayload.CandidateAction.Target == sourcePayload.CandidateAction.Target || a.Operation == "filter_integrate" && adapter.IsFilterTargetReview(sourcePayload) && currentPayload.CandidateAction.Target == sourcePayload.CandidateAction.Target
+			if !filteredSource || !filteredCurrent || !allowedSource || adapter.ValidateGitFilterPipelinePayload(sourcePayload) != nil || adapter.ValidateGitFilterPipelinePayload(currentPayload) != nil || len(task.Dependencies) != expectedDependencies || !reflect.DeepEqual(sourcePayload.GitFilter, currentPayload.GitFilter) {
+				return CodeError("git_filter_pipeline_unsupported")
+			}
+		}
 		previous := parsed[a.SourceTask]
+		if index := a.ReviewIndex; index != nil && (index.Version != 1 || index.Mode != "indexed_candidate_review_v1" || index.Shards < 1 || index.Shards > 63 || index.ReviewOrdinal < 0 || index.ReviewOrdinal >= index.Shards) {
+			return CodeError("invalid_candidate_review_index")
+		}
 		switch a.Operation {
 		case "validate":
-			if p.Kind != "candidate" || previous.Kind != "" || len(previous.Workspace) == 0 || string(previous.Workspace) == "null" {
+			composeSource := previous.Kind == "candidate" && isV2Compose(source.AdapterPayload)
+			producerSource := (previous.Kind == "" || previous.Kind == "provider" && filteredSource && filteredCurrent) && previous.Action == nil && len(previous.Workspace) > 0 && string(previous.Workspace) != "null"
+			if p.Kind != "candidate" || (!composeSource && !producerSource) {
 				return CodeError("invalid_candidate_dag")
 			}
 		case "review":
 			if p.Kind != "" || previous.Action == nil || previous.Action.Operation != "validate" {
 				return CodeError("invalid_candidate_dag")
 			}
+			if a.ReviewIndex != nil && p.Provider != "grok-build" {
+				return CodeError("invalid_candidate_review_index")
+			}
+			if (a.ReviewIndex == nil) != (previous.Action.ReviewIndex == nil) {
+				return CodeError("candidate_review_index_changed")
+			}
+			if a.ReviewIndex != nil && (a.ReviewIndex.Version != previous.Action.ReviewIndex.Version || a.ReviewIndex.Mode != previous.Action.ReviewIndex.Mode || a.ReviewIndex.Shards != previous.Action.ReviewIndex.Shards) {
+				return CodeError("candidate_review_index_changed")
+			}
+		case "filter_target_preflight":
+			if !adapter.IsFilterTargetPreflight(currentPayload) || previous.Action == nil || previous.Action.Operation != "review" || !filteredSource || !filteredCurrent {
+				return CodeError("invalid_candidate_dag")
+			}
+		case "filter_target_review":
+			if !adapter.IsFilterTargetReview(currentPayload) || !adapter.IsFilterTargetPreflight(sourcePayload) || currentPayload.CandidateAction.Target != sourcePayload.CandidateAction.Target {
+				return CodeError("invalid_candidate_dag")
+			}
+		case "filter_integrate":
+			if !adapter.IsFilterIntegrate(currentPayload) || !adapter.IsFilterTargetReview(sourcePayload) {
+				return CodeError("invalid_candidate_dag")
+			}
 		case "integrate":
 			if p.Kind != "candidate" || previous.Action == nil || previous.Action.Operation != "review" {
 				return CodeError("invalid_candidate_dag")
+			}
+			if stringMustJSON(a.ReviewIndex) != stringMustJSON(previous.Action.ReviewIndex) {
+				return CodeError("candidate_review_index_changed")
+			}
+			if a.ReviewIndex != nil {
+				if a.DependencyInputVersion != 1 || len(task.Dependencies) != a.ReviewIndex.Shards {
+					return CodeError("candidate_review_index_coverage_invalid")
+				}
+				ordinals := make(map[int]bool, a.ReviewIndex.Shards)
+				for _, dependency := range task.Dependencies {
+					review := parsed[dependency]
+					if review.Action == nil || review.Action.Operation != "review" || review.Action.SourceTask != previous.Action.SourceTask || review.Action.ReviewIndex == nil || review.Action.ReviewIndex.Version != a.ReviewIndex.Version || review.Action.ReviewIndex.Shards != a.ReviewIndex.Shards || review.Action.ReviewIndex.Mode != a.ReviewIndex.Mode || ordinals[review.Action.ReviewIndex.ReviewOrdinal] {
+						return CodeError("candidate_review_index_coverage_invalid")
+					}
+					ordinals[review.Action.ReviewIndex.ReviewOrdinal] = true
+				}
+				for ordinal := 0; ordinal < a.ReviewIndex.Shards; ordinal++ {
+					if !ordinals[ordinal] {
+						return CodeError("candidate_review_index_coverage_invalid")
+					}
+				}
 			}
 		default:
 			return CodeError("invalid_candidate_dag")
@@ -153,3 +380,5 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 	}
 	return nil
 }
+
+func stringMustJSON(v any) string { raw, _ := json.Marshal(v); return string(raw) }
