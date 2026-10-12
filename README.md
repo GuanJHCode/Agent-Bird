@@ -26,7 +26,7 @@ python3 "$HOME/.bird1/adapters/agent-bird.py" check --runtime "$HOME/.bird1"
 
 替换为本机已有可执行文件的路径。`--runtime` 必须是全新、较短的规范绝对路径，安装不会覆盖已有目录。有可用 AGY 账号时，可在 setup 中追加 `--provider-binary "agy=$HOME/.local/bin/agy"`。
 
-安装器校验包文件和所选 CLI 的版本、摘要、能力，仅为支持的目标生成私有 pin。缺少 pin 的目标明确失败；`check` 不验证账号资格。发起方 CLI 必须在 PATH 中。
+安装器校验包文件和所选 CLI 的版本、摘要、能力，仅为支持的目标生成私有 pin。rc.3 在创建 runtime 前校验全部参数并探测所选目标，仍可仅配置一个目标；安装时再次核对摘要。缺少 pin 的目标明确失败。rc.3 的 `check` 显示当前 pin 是否变化、平台构建身份及有上限的磁盘/残留目录统计；这些只读信息不授权自动清理，也不验证账号资格。发起方 CLI 必须在 PATH 中。
 
 安装不下载 Provider、不修改真实账号、全局配置或已有插件。启动器保存在 runtime/adapters，安装成功后无需保留解压目录。
 
@@ -66,7 +66,7 @@ Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和�
 
 默认子任务超时 120 秒，可通过 `timeout_ms` 调整，最大 1 小时。发起方预算默认 300 秒，`--timeout-seconds` 可调至 7200 秒。Ctrl-C 取消；只有 `process_exited=true` 才表示已有可信退出证明。失败且 `changes_known=false` 时，候选目录可能已有部分修改。
 
-派发/返回优化保留原有保护：同次调用复用已验证的能力探测；新协调器通过 `wait_call_terminal_v1` 等待已提交的进程终态，旧协调器回退到原状态查询。Host 离线但尚无退出证明时返回 `call_process_unknown`；已有可信退出不会因 Host 随后断开而丢失。完整结果的续页复用最多 1MiB 的已验证内存快照，每页仍核对所有权、事件和产物有效性；从 offset 0 开始读取会重新校验磁盘。
+派发/返回优化保留原有保护：同次调用复用已验证的能力探测；新协调器通过 `wait_call_terminal_v1` 等待已提交的进程终态，旧协调器回退到原状态查询。Host 离线但尚无退出证明时返回 `call_process_unknown`；已有可信退出不会因 Host 随后断开而丢失。只读结果查询在单次串行调用内绑定协调器 epoch，后续省去重复 Ready；协调器变化、响应错配或传输失败直接返回，不重发请求。停止操作保留原路径。完整结果的续页复用最多 1MiB 的已验证内存快照，每页仍核对所有权、事件和产物有效性；从 offset 0 开始读取会重新校验磁盘。
 
 ## 支持范围
 
@@ -83,7 +83,9 @@ Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和�
 
 Codex 通过 app-server 和受约束文件工具执行，不修改 Codex 源码。其 UTF-8 文件工具支持片段读取和单文件字面搜索（文件上限 1MiB），整文件读取和写入仍限 32KiB，每次累计写入 512KiB；不提供 shell/构建命令工具。Claude、Grok、AGY 继续使用各自已有的受约束原生文件工具，派发协议不依赖特定主脑。
 
-目标 Codex 可用 `search_file(path, query)` 定位最多 20 个匹配，返回字节偏移和行号；用 `read_file(path, offset, limit_bytes)` 读取片段（默认 4096、范围 4–16384 字节，保持 UTF-8 完整）。每次都返回完整文件 SHA256；续读传 `expectedSHA256` 可拒绝文件变化。编码任务优先用 `replace_text(path, expectedSHA256, old_text, new_text)`，仅接受唯一精确匹配，仍受声明路径、隔离候选目录、原写入预算和持久化凭据约束。工具清单变化会改变原有 `HostToolContractSHA256`；旧工具契约不能冒充新契约续接，数据库 schema 保持 41。
+目标 Codex 可用 `search_file(path, query, context_bytes=128)` 定位最多 20 个匹配，返回字节偏移、行号和受限上下文（可选 4–256 字节/匹配）；用 `read_file(path, offset, limit_bytes)` 读取片段（默认 4096、范围 4–16384 字节，保持 UTF-8 完整）。每次都返回完整文件 SHA256；续读传 `expectedSHA256` 可拒绝文件变化。编码任务优先用 `replace_text(path, expectedSHA256, old_text, new_text, verify_bytes=128)`，仅接受唯一精确匹配；可选 4–1024 字节的实际写后回读，`verified=true` 才代表回读摘要与持久化凭据一致，无需为同一确认再调用读取。仍受声明路径、隔离候选目录、原写入预算和持久化凭据约束。工具清单变化会改变原有 `HostToolContractSHA256`；旧工具契约不能冒充新契约续接，数据库 schema 保持 41。
+
+普通委派只加载约 3KiB 的技能入口；高级 CLI 契约保存在按需引用的 `legacy-cli.md`。调用阶段耗时写入私有 handle 旁的 `call-metrics.json`，也可见于 CLI 的 `timings_ms`，不会进入模型的紧凑结果。指标只用于定位开销，不作为退出或成功证明。
 
 暂不支持自动合并、递归或并发子任务、自动重试、失主自动恢复、Codex 续接、通用 filtered compose/rework/retry/continuation，以及完整 LFS/hooks/signing。超时不是完成：已有 Claude 编码尝试因超时结束，未计入成功编码验收。
 
@@ -114,6 +116,8 @@ cd tools/orchestrator
 go build ./...
 go test -count=1 ./cmd/orchestrator -run 'TestProviderCall|TestProviderProjection|TestCodexPluginWrite'
 ```
+
+普通功能分支的 CI 按改动选择检查；Go 包包含反向依赖及测试依赖。共享契约、工作流、未知/删除路径、main/master 和无法确定 diff 时保留全量检查，README-only 改动仅做 patch 检查。
 
 ## 卸载与许可
 
