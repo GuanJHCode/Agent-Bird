@@ -1,0 +1,1 @@
+TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -json -race -count=1 -run TestCleanupRecoveryScansOrderedPlanAndIdempotentSteps ./internal/gitopsworker

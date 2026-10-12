@@ -82,6 +82,125 @@ func (j *durableJournal) LoadCandidateFreeze(ctx context.Context) (gitops.Candid
 	return c, found, err
 }
 
+// LoadCleanupRecovery scans one inode-stable journal snapshot. Recovery
+// records are ordered authority: a plan is immutable and each next step is
+// authorized exactly once (an exact duplicate is an idempotent replay).
+func (j *durableJournal) LoadCleanupRecovery(ctx context.Context, receipt string) (state gitops.CleanupRecoveryState, err error) {
+	state.Step = -1
+	err = j.withLock(syscall.LOCK_SH, func() error {
+		if err := j.file.Sync(); err != nil {
+			return err
+		}
+		st, err := j.validJournalFile()
+		if err != nil {
+			return err
+		}
+		f, err := os.OpenFile(j.file.Name(), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		opened, err := f.Stat()
+		if err != nil || !os.SameFile(st, opened) {
+			return errors.New("gitops_journal_replaced")
+		}
+		initial := st.Size()
+		dec := json.NewDecoder(io.NewSectionReader(f, 0, initial))
+		dec.DisallowUnknownFields()
+		planDigest := ""
+		final := false
+		for {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			var raw json.RawMessage
+			err := dec.Decode(&raw)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return errors.New("gitops_journal_invalid")
+			}
+			var r struct {
+				Version int             `json:"version"`
+				Kind    string          `json:"kind"`
+				Value   json.RawMessage `json:"value"`
+			}
+			if decodeJournalStrict(raw, &r) != nil || r.Version != 1 || len(r.Value) > 1024*1024 {
+				return errors.New("gitops_journal_invalid")
+			}
+			switch r.Kind {
+			case "cleanup_intent":
+				var v gitops.CleanupIntent
+				if decodeJournalStrict(r.Value, &v) != nil || v.ReceiptSHA256 == "" {
+					return errors.New("gitops_journal_invalid")
+				}
+				if v.ReceiptSHA256 != receipt {
+					return errors.New("gitops_journal_foreign_cleanup")
+				}
+				if state.Found && state.Intent != v {
+					return errors.New("gitops_journal_binding_conflict")
+				}
+				state.Intent, state.Found = v, true
+			case "cleanup_plan":
+				var v gitops.CleanupPlan
+				if decodeJournalStrict(r.Value, &v) != nil || v.Intent.ReceiptSHA256 != receipt || gitops.CleanupPlanDigest(v) == "" {
+					return errors.New("gitops_journal_invalid")
+				}
+				d := gitops.CleanupPlanDigest(v)
+				if state.Plan != nil && planDigest != d {
+					return errors.New("gitops_journal_binding_conflict")
+				}
+				if state.Plan == nil {
+					state.Plan = &v
+					planDigest = d
+					state.Intent = v.Intent
+					state.Found = true
+				}
+			case "cleanup_step":
+				var v gitops.CleanupStep
+				if decodeJournalStrict(r.Value, &v) != nil || state.Plan == nil || v.ReceiptSHA256 != receipt || v.PlanSHA256 != planDigest || v.Index < 0 || v.Index >= gitops.CleanupPlanStepCount(*state.Plan) {
+					return errors.New("gitops_journal_invalid")
+				}
+				if final {
+					return errors.New("gitops_journal_binding_conflict")
+				}
+				if v.Index == state.Step {
+					continue
+				}
+				if v.Index != state.Step+1 {
+					return errors.New("gitops_journal_binding_conflict")
+				}
+				state.Step = v.Index
+			case "cleanup_outcome":
+				var v gitops.CleanupOutcome
+				if decodeJournalStrict(r.Value, &v) != nil || v.ReceiptSHA256 != receipt {
+					return errors.New("gitops_journal_invalid")
+				}
+				if state.Outcome.ReceiptSHA256 != "" && state.Outcome != v {
+					return errors.New("gitops_journal_binding_conflict")
+				}
+				if v.State == gitops.CleanupRemoved {
+					if state.Plan != nil && state.Step != gitops.CleanupPlanStepCount(*state.Plan)-1 {
+						return errors.New("gitops_journal_invalid")
+					}
+					final = true
+				}
+				state.Outcome, state.Found = v, true
+			}
+		}
+		latest, err := j.validJournalFile()
+		if err != nil || latest.Size() != initial {
+			if err != nil {
+				return err
+			}
+			return errors.New("gitops_journal_changed")
+		}
+		return nil
+	})
+	return state, err
+}
+
 // LoadCleanup reads one bounded, strict journal snapshot.  The pathname must
 // still name the inode held by this journal; otherwise a replacement could
 // fabricate a completion proof during replay.

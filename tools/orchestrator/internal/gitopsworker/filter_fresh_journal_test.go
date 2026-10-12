@@ -183,3 +183,28 @@ func TestCleanupHistoryRefusesConcurrentJournalWriter(t *testing.T) {
 		t.Fatal("read accepted a concurrently writable journal")
 	}
 }
+
+func TestCleanupRecoveryScansOrderedPlanAndIdempotentSteps(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "journal")
+	j, err := OpenFreshJournal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := gitops.CleanupPlan{Version: 1, Intent: gitops.CleanupIntent{ReceiptSHA256: "exact"}}
+	if err = j.PersistCleanupPlan(context.Background(), plan); err != nil {
+		t.Fatal(err)
+	}
+	digest := gitops.CleanupPlanDigest(plan)
+	for _, index := range []int{0, 0, 1, 2, 3, 4, 5} {
+		if err = j.PersistCleanupStep(context.Background(), gitops.CleanupStep{ReceiptSHA256: "exact", PlanSHA256: digest, Index: index}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = j.RecordCleanup(context.Background(), gitops.CleanupOutcome{ReceiptSHA256: "exact", State: gitops.CleanupRemoved}); err != nil {
+		t.Fatal(err)
+	}
+	state, err := j.LoadCleanupRecovery(context.Background(), "exact")
+	if err != nil || !state.Found || state.Plan == nil || state.Step != 5 || state.Outcome.State != gitops.CleanupRemoved {
+		t.Fatalf("state=%+v err=%v", state, err)
+	}
+}

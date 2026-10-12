@@ -462,12 +462,51 @@ func (j *durableJournal) append(kind string, value any) error {
 		return err
 	}
 	body = append(body, '\n')
+	if len(body) > 1024*1024 {
+		return errors.New("gitops_journal_record_too_large")
+	}
 	return j.withLock(syscall.LOCK_EX, func() error {
-		if _, err = j.file.Write(body); err != nil {
+		st, err := j.validJournalFile()
+		if err != nil {
 			return err
 		}
-		return j.file.Sync()
+		if st.Size()+int64(len(body)) > 16*1024*1024 {
+			return errors.New("gitops_journal_full")
+		}
+		if n, err := j.file.Write(body); err != nil || n != len(body) {
+			if err != nil {
+				return err
+			}
+			return io.ErrShortWrite
+		}
+		if err = j.file.Sync(); err != nil {
+			return err
+		}
+		latest, err := j.validJournalFile()
+		if err != nil || latest.Size() != st.Size()+int64(len(body)) {
+			if err != nil {
+				return err
+			}
+			return errors.New("gitops_journal_changed")
+		}
+		return nil
 	})
+}
+
+func (j *durableJournal) validJournalFile() (os.FileInfo, error) {
+	held, err := j.file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	named, err := os.Stat(j.file.Name())
+	if err != nil || !os.SameFile(held, named) {
+		return nil, errors.New("gitops_journal_replaced")
+	}
+	owner, ok := held.Sys().(*syscall.Stat_t)
+	if !held.Mode().IsRegular() || held.Mode().Perm() != 0600 || !ok || owner.Uid != uint32(os.Geteuid()) || owner.Nlink != 1 || held.Size() > 16*1024*1024 {
+		return nil, errors.New("gitops_journal_unsafe")
+	}
+	return held, nil
 }
 
 // withLock is shared by append and durable readers. The separately opened
@@ -508,6 +547,12 @@ func (j *durableJournal) PersistCleanupIntent(_ context.Context, value gitops.Cl
 }
 func (j *durableJournal) RecordCleanup(_ context.Context, value gitops.CleanupOutcome) error {
 	return j.append("cleanup_outcome", value)
+}
+func (j *durableJournal) PersistCleanupPlan(_ context.Context, value gitops.CleanupPlan) error {
+	return j.append("cleanup_plan", value)
+}
+func (j *durableJournal) PersistCleanupStep(_ context.Context, value gitops.CleanupStep) error {
+	return j.append("cleanup_step", value)
 }
 func (j *durableJournal) PersistCandidateIntent(_ context.Context, value gitops.CandidateIntent) error {
 	return j.append("candidate_intent", value)
@@ -646,3 +691,4 @@ func digest(value string) string {
 var _ gitops.Journal = (*durableJournal)(nil)
 var _ gitops.CandidateJournal = (*durableJournal)(nil)
 var _ gitops.PrivateRefJournal = (*durableJournal)(nil)
+var _ gitops.CleanupRecoveryJournal = (*durableJournal)(nil)

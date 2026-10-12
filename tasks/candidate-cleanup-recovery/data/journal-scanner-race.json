@@ -1,0 +1,8 @@
+{"Time":"2026-10-12T11:37:32.635247+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"}
+{"Time":"2026-10-12T11:37:33.411283+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Test":"TestCleanupRecoveryScansOrderedPlanAndIdempotentSteps"}
+{"Time":"2026-10-12T11:37:33.411349+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Test":"TestCleanupRecoveryScansOrderedPlanAndIdempotentSteps","Output":"=== RUN   TestCleanupRecoveryScansOrderedPlanAndIdempotentSteps\n"}
+{"Time":"2026-10-12T11:37:33.470505+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Test":"TestCleanupRecoveryScansOrderedPlanAndIdempotentSteps","Output":"--- PASS: TestCleanupRecoveryScansOrderedPlanAndIdempotentSteps (0.06s)\n"}
+{"Time":"2026-10-12T11:37:33.470555+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Test":"TestCleanupRecoveryScansOrderedPlanAndIdempotentSteps","Elapsed":0.06}
+{"Time":"2026-10-12T11:37:33.470616+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Output":"PASS\n"}
+{"Time":"2026-10-12T11:37:34.477093+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker\t1.841s\n"}
+{"Time":"2026-10-12T11:37:34.47713+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker","Elapsed":1.842}
