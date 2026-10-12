@@ -83,6 +83,46 @@ func TestCodexPluginCandidateToolsArePrivateAndDurable(t *testing.T) {
 			t.Fatalf("%s: %#v", tc.path, result)
 		}
 	}
+	read = callCodexReadTool(t, tools, "read_file", `{"path":"answer.txt"}`)
+	if e = json.Unmarshal([]byte(read.Text), &file); e != nil || !read.Success {
+		t.Fatal(read, e)
+	}
+	for _, tc := range []struct {
+		path, hash, old, replacement string
+		want                         bool
+	}{
+		{"answer.txt", "", "after", "new", false},
+		{"outside.txt", file.SHA256, "after", "new", false},
+		{"answer.txt", file.SHA256, "", "new", false},
+		{"answer.txt", file.SHA256, "missing", "new", false},
+		{"answer.txt", file.SHA256, "after", strings.Repeat("x", 32<<10), false},
+		{"answer.txt", file.SHA256, "after", "twice twice", true},
+		{"answer.txt", file.SHA256, "twice", "stale", false},
+	} {
+		args, _ := json.Marshal(map[string]string{"path": tc.path, "expectedSHA256": tc.hash, "old_text": tc.old, "new_text": tc.replacement})
+		result := callCodexReadTool(t, tools, "replace_text", string(args))
+		if result.Success != tc.want {
+			t.Fatalf("replace %s: %#v", tc.path, result)
+		}
+	}
+	read = callCodexReadTool(t, tools, "read_file", `{"path":"answer.txt"}`)
+	if e = json.Unmarshal([]byte(read.Text), &file); e != nil {
+		t.Fatal(e)
+	}
+	ambiguous, _ := json.Marshal(map[string]string{"path": "answer.txt", "expectedSHA256": file.SHA256, "old_text": "twice", "new_text": "bad"})
+	if callCodexReadTool(t, tools, "replace_text", string(ambiguous)).Success {
+		t.Fatal("ambiguous edit accepted")
+	}
+	changed, e := os.ReadFile(filepath.Join(candidate.Receipt.Worktree, "answer.txt"))
+	mode, statErr := os.Stat(filepath.Join(candidate.Receipt.Worktree, "answer.txt"))
+	if e != nil || statErr != nil || string(changed) != "twice twice\n" || mode.Mode().Perm() != 0755 {
+		t.Fatal("candidate replacement or mode", e, statErr)
+	}
+	for _, phase := range []string{"intent", "receipt"} {
+		if st, err := os.Stat(filepath.Join(prepared.Protected.Path, "codex-tool-000003-"+phase+".json")); err != nil || st.Mode().Perm() != 0600 {
+			t.Fatal("replacement missing durable evidence", err)
+		}
+	}
 	original, e := os.ReadFile(filepath.Join(repo, "answer.txt"))
 	if e != nil || string(original) != "before\n" {
 		t.Fatal("original changed", e)

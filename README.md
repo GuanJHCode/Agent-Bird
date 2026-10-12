@@ -81,11 +81,13 @@ Claude 发起方仅暴露委派所需工具，关闭本进程的技能列表和�
 
 本次使用的目标版本：Claude 2.1.296、Grok 1.0.50 (c58f321264ba)、AGY 1.3.3；Codex 目标严格固定 0.154.0 arm64 及其二进制摘要，使用该版本实际提供的 `gpt-5.6-sol`。较新的 Codex 可以作为发起方。模型和账号的后续可用性仍由 Provider 决定。
 
-Codex 通过 app-server 和受约束文件工具执行，不修改 Codex 源码。其文件工具支持 UTF-8 文件，每文件最多 32KiB、每次累计写入 512KiB；不提供 shell/构建命令工具。
+Codex 通过 app-server 和受约束文件工具执行，不修改 Codex 源码。其 UTF-8 文件工具支持片段读取和单文件字面搜索（文件上限 1MiB），整文件读取和写入仍限 32KiB，每次累计写入 512KiB；不提供 shell/构建命令工具。Claude、Grok、AGY 继续使用各自已有的受约束原生文件工具，派发协议不依赖特定主脑。
+
+目标 Codex 可用 `search_file(path, query)` 定位最多 20 个匹配，返回字节偏移和行号；用 `read_file(path, offset, limit_bytes)` 读取片段（默认 4096、范围 4–16384 字节，保持 UTF-8 完整）。每次都返回完整文件 SHA256；续读传 `expectedSHA256` 可拒绝文件变化。编码任务优先用 `replace_text(path, expectedSHA256, old_text, new_text)`，仅接受唯一精确匹配，仍受声明路径、隔离候选目录、原写入预算和持久化凭据约束。工具清单变化会改变原有 `HostToolContractSHA256`；旧工具契约不能冒充新契约续接，数据库 schema 保持 41。
 
 暂不支持自动合并、递归或并发子任务、自动重试、失主自动恢复、Codex 续接、通用 filtered compose/rework/retry/continuation，以及完整 LFS/hooks/signing。超时不是完成：已有 Claude 编码尝试因超时结束，未计入成功编码验收。
 
-这是候选版本，AGY 账号及其双向真实验收尚缺；不宣称四方正式 1.0 全部验收完成。已由 Agent Bird controller 启动的会话可以继续使用本连接的 MCP；任意外部既有会话的热挂接需要新的身份绑定协议，本版未开放。通用片段读取与局部修改工具也未纳入本轮优化。
+这是候选版本，AGY 账号及其双向真实验收尚缺；不宣称四方正式 1.0 全部验收完成。已由 Agent Bird controller 启动的会话可以继续使用本连接的 MCP；任意外部既有会话的热挂接需要新的身份绑定协议，本版未开放。
 
 ## rc.3 本轮验证
 

@@ -37,20 +37,33 @@ func hostToolChecker(method string, raw json.RawMessage, resume bool) error {
 }
 
 func TestHostToolsBoundTurnAndNativeResult(t *testing.T) {
-	for _, tc := range []struct{ early, success bool }{{false, true}, {true, true}, {false, false}} {
+	for _, tc := range []struct {
+		early, success bool
+		tool, args     string
+	}{
+		{false, true, "read_file", `{"path":"README.md"}`}, {true, true, "read_file", `{"path":"README.md"}`}, {false, false, "read_file", `{"path":"README.md"}`},
+		{false, true, "read_file", `{"path":"README.md","offset":0,"limit_bytes":4096}`},
+		{false, true, "search_file", `{"path":"README.md","query":"example"}`},
+		{false, true, "replace_text", `{"path":"README.md","expectedSHA256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","old_text":"before","new_text":"after"}`},
+	} {
 		early, success := tc.early, tc.success
 		t.Run(fmt.Sprintf("early_%v_success_%v", early, success), func(t *testing.T) {
 			calls := 0
-			request := hostToolRequest("read_file")
+			request := hostToolRequest(tc.tool)
+			arguments, err := strictValue([]byte(tc.args))
+			if err != nil {
+				t.Fatal(err)
+			}
+			request["arguments"] = arguments
 			send := func(p *fixturePeer) error {
 				return p.enc.Encode(map[string]any{"id": 17, "method": "item/tool/call", "params": request})
 			}
 			result := runScenario(t, fixtureScenario{
 				checkRequest: hostToolChecker,
 				input: func(o *Options) {
-					o.HostTools = &HostTools{OnTool: func(_ context.Context, call ToolCall) (ToolResult, error) {
+					o.HostTools = &HostTools{Writable: tc.tool == "replace_text", OnTool: func(_ context.Context, call ToolCall) (ToolResult, error) {
 						calls++
-						if call.ThreadID != "thread-1" || call.TurnID != "turn-1" || call.CallID != "tool-1" || call.Tool != "read_file" {
+						if call.ThreadID != "thread-1" || call.TurnID != "turn-1" || call.CallID != "tool-1" || call.Tool != tc.tool {
 							return ToolResult{}, ErrProtocol
 						}
 						return ToolResult{Text: "bounded file", Success: success}, nil
@@ -83,7 +96,7 @@ func TestHostToolsBoundTurnAndNativeResult(t *testing.T) {
 					if !success {
 						status = "failed"
 					}
-					item := map[string]any{"type": "dynamicToolCall", "id": "tool-1", "namespace": "agent_bird", "tool": "read_file", "arguments": request["arguments"], "status": status, "success": success, "contentItems": response["contentItems"], "durationMs": 1}
+					item := map[string]any{"type": "dynamicToolCall", "id": "tool-1", "namespace": "agent_bird", "tool": tc.tool, "arguments": request["arguments"], "status": status, "success": success, "contentItems": response["contentItems"], "durationMs": 1}
 					if err := p.notify("item/completed", map[string]any{"threadId": "thread-1", "turnId": "turn-1", "item": item, "completedAtMs": 3}); err != nil {
 						return err
 					}

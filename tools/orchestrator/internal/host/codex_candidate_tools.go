@@ -55,10 +55,13 @@ func openCodexCandidateTools(ctx context.Context, candidate gitops.PreparedWorks
 	read := tools.OnTool
 	tools.Writable = true
 	tools.OnTool = func(ctx context.Context, call codexsession.ToolCall) (codexsession.ToolResult, error) {
-		if call.Tool != "write_file" {
+		if call.Tool != "write_file" && call.Tool != "replace_text" {
 			return read(ctx, call)
 		}
 		fields, ok := codexWriteArguments(call.Arguments)
+		if call.Tool == "replace_text" {
+			fields, ok = codexReplacement(ctx, broker, call.Arguments)
+		}
 		if !ok || len(fields["content"]) > codexPluginToolFileBytes {
 			return codexPluginToolFailureResult(), nil
 		}

@@ -34,17 +34,17 @@ func codexBrokerTools(broker *codextools.Broker) *codexsession.HostTools {
 		if ctx.Err() != nil {
 			return codexPluginToolFailureResult(), nil
 		}
+		if call.Tool == "read_file" {
+			return codexPartialRead(ctx, broker, call.Arguments)
+		}
+		if call.Tool == "search_file" {
+			return codexSearchFile(ctx, broker, call.Arguments)
+		}
 		path, ok := codexPluginToolPath(call.Arguments)
 		if !ok {
 			return codexPluginToolFailureResult(), nil
 		}
 		switch call.Tool {
-		case "read_file":
-			content, sum, err := broker.Read(ctx, path)
-			if err != nil || len(content) > codexPluginToolFileBytes || !utf8.Valid(content) || ctx.Err() != nil {
-				return codexPluginToolFailureResult(), nil
-			}
-			return codexPluginToolJSON(map[string]string{"path": path, "sha256": sum, "content": string(content)})
 		case "list_files":
 			entries, err := broker.List(ctx, path)
 			if err != nil || ctx.Err() != nil {

@@ -76,11 +76,13 @@ func hostToolSpecs(writable bool) []any {
 		return map[string]any{"type": "function", "name": name, "description": description, "deferLoading": false, "inputSchema": map[string]any{"type": "object", "properties": properties, "required": fields, "additionalProperties": false}}
 	}
 	tools := []any{
-		makeTool("read_file", "Read one bounded UTF-8 file and its SHA-256.", map[string]any{"path": path}, []string{"path"}),
+		makeTool("read_file", "Read UTF-8 and full-file SHA-256. Prefer byte offset/limit_bytes (default 4096, max 16384); follow next_offset with expectedSHA256 to reject changed files. Without a range, max 32KiB.", map[string]any{"path": path, "offset": map[string]any{"type": "integer", "minimum": json.Number("0")}, "limit_bytes": map[string]any{"type": "integer", "minimum": json.Number("4")}, "expectedSHA256": map[string]any{"type": "string"}}, []string{"path"}),
 		makeTool("list_files", "List one bounded directory in the authorized workspace.", map[string]any{"path": path}, []string{"path"}),
+		makeTool("search_file", "Find a literal UTF-8 query (max 256 bytes) in one file. Return up to 20 non-overlapping byte offsets and 1-based lines plus full-file SHA-256; use read_file for context.", map[string]any{"path": path, "query": map[string]any{"type": "string"}}, []string{"path", "query"}),
 	}
 	if writable {
 		tools = append(tools, makeTool("write_file", "Replace a bounded UTF-8 file only when expectedSHA256 matches; empty hash creates a new file.", map[string]any{"path": path, "expectedSHA256": map[string]any{"type": "string"}, "content": map[string]any{"type": "string"}}, []string{"path", "expectedSHA256", "content"}))
+		tools = append(tools, makeTool("replace_text", "Replace exactly one occurrence of old_text with new_text in a declared UTF-8 file (max 32KiB). Requires current full-file expectedSHA256; rejects absent or ambiguous matches.", map[string]any{"path": path, "expectedSHA256": map[string]any{"type": "string"}, "old_text": map[string]any{"type": "string"}, "new_text": map[string]any{"type": "string"}}, []string{"path", "expectedSHA256", "old_text", "new_text"}))
 	}
 	return []any{map[string]any{"type": "namespace", "name": "agent_bird", "description": "Agent Bird constrained workspace tools v1", "tools": tools}}
 }
@@ -100,7 +102,7 @@ func (s *sessionState) hostToolClaim(value map[string]any, id string) (*hostTool
 		return nil, ErrPolicy
 	}
 	tool := str(value["tool"])
-	if tool != "read_file" && tool != "list_files" && (tool != "write_file" || !s.options.HostTools.Writable) {
+	if tool != "read_file" && tool != "list_files" && tool != "search_file" && ((tool != "write_file" && tool != "replace_text") || !s.options.HostTools.Writable) {
 		return nil, ErrPolicy
 	}
 	args, err := json.Marshal(value["arguments"])

@@ -359,7 +359,7 @@ func (h *Host) runManagedCodexTurn(ctx context.Context, client *codexrpc.Client,
 	}
 	prompt := strings.TrimSuffix(p.Descriptor.Prompt, "\n\n"+adapter.ManagedTaskInstruction())
 	if tools != nil {
-		prompt += "\nUse agent_bird.read_file and agent_bird.list_files with relative paths for all project inspection. If write_file is available, edit only declared paths using the SHA256 returned by read_file (empty expectedSHA256 only for new files). Read back edits using read_file. Shell execution is unavailable. Do not invoke other tools or delegate."
+		prompt += "\nUse only agent_bird workspace tools with relative paths; no shell or delegation. Prefer search_file and bounded read_file ranges over whole files. If writable, prefer replace_text for small edits using the current full-file SHA256; write_file creates files with an empty expectedSHA256. Edit only declared paths and read back the changed range."
 	}
 	out, err := codexsession.Run(ctx, client, p.Projection, codexsession.Options{
 		HostTools:        tools,
