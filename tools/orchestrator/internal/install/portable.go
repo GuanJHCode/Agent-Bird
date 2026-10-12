@@ -71,8 +71,17 @@ func installPortableWithPolicy(source, destination, state string, strictCollectO
 	if metadata.PayloadSchema == 1 {
 		kind, e := validatePayloadDirectory(source, false, true)
 		paths := payloadPaths(kind)
-		if paths != nil && metadata.Files[skillReferencePath] != "" {
-			paths[skillReferencePath] = 0600
+		innerData, innerErr := readOwnedRegular(filepath.Join(source, payloadManifestName), 0600, 1024*1024)
+		var inner payloadManifest
+		if innerErr != nil || strictJSON(innerData, &inner) != nil {
+			return "", errors.New("portable_payload_invalid")
+		}
+		if paths != nil {
+			for _, file := range inner.Files {
+				if file.Path == skillReferencePath {
+					paths[skillReferencePath] = 0600
+				}
+			}
 		}
 		if e != nil || kind != "collect-only-hooks" || len(metadata.Files) != len(paths)+1 {
 			return "", errors.New("portable_payload_invalid")

@@ -8,7 +8,7 @@ import (
 )
 
 func TestPortableSkillReferenceClosedAndOptional(t *testing.T) {
-	for _, variant := range []string{"old", "reference", "changed", "unlisted", "wrong-mode", "unknown"} {
+	for _, variant := range []string{"old", "reference", "changed", "unlisted", "wrong-mode", "unknown", "outer-omitted"} {
 		t.Run(variant, func(t *testing.T) {
 			root := t.TempDir()
 			source := b07Payload(t, root)
@@ -44,6 +44,9 @@ func TestPortableSkillReferenceClosedAndOptional(t *testing.T) {
 			for _, file := range payload.Files {
 				metadata.Files[file.Path] = file.SHA256
 			}
+			if variant == "outer-omitted" {
+				delete(metadata.Files, rel)
+			}
 			metadata.Files[payloadManifestName], _ = hashFile(filepath.Join(source, payloadManifestName))
 			body, _ = json.Marshal(metadata)
 			if err = os.WriteFile(filepath.Join(source, "portable.json"), body, 0600); err != nil {
@@ -64,6 +67,9 @@ func TestPortableSkillReferenceClosedAndOptional(t *testing.T) {
 			if variant != "old" && variant != "reference" {
 				if err == nil {
 					t.Fatal("invalid reference installed")
+				}
+				if variant == "outer-omitted" && err.Error() != "portable_payload_invalid" {
+					t.Fatalf("cross-manifest omission escaped preflight: %v", err)
 				}
 				if _, err = os.Lstat(dest); !os.IsNotExist(err) {
 					t.Fatal("rejection created destination")
