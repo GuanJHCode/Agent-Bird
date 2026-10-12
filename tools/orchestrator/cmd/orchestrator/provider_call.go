@@ -216,15 +216,16 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 	}
 	// On timeout/cancellation, stop through the original task route and wait for
 	// its durable terminal state. A timeout is never represented as exit proof.
+	boundReader := newBoundProviderCallReader(h.StateDir)
 	reader := func(c context.Context, kind ipc.Kind, payload any) (json.RawMessage, error) {
 		started := time.Now()
-		response, err := call(c, h.StateDir, kind, payload)
+		response, err := boundReader(c, kind, payload)
 		if kind == ipc.KindCallResult {
 			metrics.add("result_rpc", started)
 		} else {
 			metrics.add("control_rpc", started)
 		}
-		return response.Payload, err
+		return response, err
 	}
 	terminal, err := awaitProviderCall(ctx, control, reader)
 	if err != nil && ctx.Err() != nil {
