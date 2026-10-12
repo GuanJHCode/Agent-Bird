@@ -17,21 +17,22 @@ type RunSummary struct {
 }
 
 type SummaryTask struct {
-	DiagnosticsFailure  *contract.DiagnosticsFailure `json:"diagnostics_failure,omitempty"`
-	EffectiveBudget     *EffectiveBudgetSnapshot     `json:"effective_budget,omitempty"`
-	ExecutionPolicy     *contract.ExecutionPolicy    `json:"execution_policy,omitempty"`
-	NextRetryAtUnixMS   int64                        `json:"next_retry_at_unix_ms,omitempty"`
-	TaskID              string                       `json:"task_id"`
-	Status              string                       `json:"status"`
-	Group               string                       `json:"group"`
-	WorkRevision        int                          `json:"work_revision"`
-	ActiveSegments      int                          `json:"active_segments"`
-	AllowedActions      []string                     `json:"allowed_actions"`
-	ReviewableResult    *ReviewableResultBinding     `json:"reviewable_result,omitempty"`
-	ResumeBlockedReason string                       `json:"resume_blocked_reason,omitempty"`
-	StopReason          string                       `json:"stop_reason,omitempty"`
-	LatestProgress      *contract.ArtifactRef        `json:"latest_progress,omitempty"`
-	ContinuationSource  *ContinuationSourceBinding   `json:"continuation_source,omitempty"`
+	TemporaryWorkspaceCleanup *contract.TemporaryWorkspaceCleanup `json:"temporary_workspace_cleanup,omitempty"`
+	DiagnosticsFailure        *contract.DiagnosticsFailure        `json:"diagnostics_failure,omitempty"`
+	EffectiveBudget           *EffectiveBudgetSnapshot            `json:"effective_budget,omitempty"`
+	ExecutionPolicy           *contract.ExecutionPolicy           `json:"execution_policy,omitempty"`
+	NextRetryAtUnixMS         int64                               `json:"next_retry_at_unix_ms,omitempty"`
+	TaskID                    string                              `json:"task_id"`
+	Status                    string                              `json:"status"`
+	Group                     string                              `json:"group"`
+	WorkRevision              int                                 `json:"work_revision"`
+	ActiveSegments            int                                 `json:"active_segments"`
+	AllowedActions            []string                            `json:"allowed_actions"`
+	ReviewableResult          *ReviewableResultBinding            `json:"reviewable_result,omitempty"`
+	ResumeBlockedReason       string                              `json:"resume_blocked_reason,omitempty"`
+	StopReason                string                              `json:"stop_reason,omitempty"`
+	LatestProgress            *contract.ArtifactRef               `json:"latest_progress,omitempty"`
+	ContinuationSource        *ContinuationSourceBinding          `json:"continuation_source,omitempty"`
 }
 
 type ContinuationSourceBinding struct {
@@ -173,6 +174,10 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 	}
 	for i := range summary.Tasks {
 		task := &summary.Tasks[i]
+		task.TemporaryWorkspaceCleanup, e = readTemporaryWorkspaceCleanup(ctx, tx, task.TaskID)
+		if e != nil {
+			return RunSummary{}, e
+		}
 		b, e := readExecutionBudget(ctx, tx, task.TaskID)
 		if e != nil {
 			return RunSummary{}, e

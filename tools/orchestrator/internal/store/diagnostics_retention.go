@@ -91,8 +91,11 @@ func diagnosticRetentionGuard(ctx context.Context, tx *sql.Tx, row diagnosticDel
 			return DiagnosticsRetentionGuard{}, invalid
 		}
 		switch event.Kind {
-		case contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventProgress, contract.EventSession, contract.EventQuestion, contract.EventResult, contract.EventExited, contract.EventStopped, contract.EventFailed, contract.EventLaunchRejected, contract.EventUnknown:
+		case contract.EventTemporaryWorkspaceCleanup, contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventProgress, contract.EventSession, contract.EventQuestion, contract.EventResult, contract.EventExited, contract.EventStopped, contract.EventFailed, contract.EventLaunchRejected, contract.EventUnknown:
 		default:
+			return DiagnosticsRetentionGuard{}, invalid
+		}
+		if contract.ValidateTemporaryWorkspaceCleanupEvent(event) != nil {
 			return DiagnosticsRetentionGuard{}, invalid
 		}
 		r.BodySHA256 = runtimeHash(string(body))

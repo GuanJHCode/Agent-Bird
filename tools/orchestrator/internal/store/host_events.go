@@ -13,6 +13,9 @@ import (
 )
 
 func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifactGate *hostArtifactGate) (contract.DurableAck, error) {
+	if err := contract.ValidateTemporaryWorkspaceCleanupEvent(event); err != nil {
+		return contract.DurableAck{}, err
+	}
 	if err := contract.ValidateDiagnosticsFailure(event); err != nil {
 		return contract.DurableAck{}, err
 	}
@@ -116,6 +119,9 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	if err = tx.QueryRowContext(ctx, `SELECT s.host_id,a.task_id,s.attempt_id,t.run_id FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE s.segment_id=? AND s.command_id=?`, event.SegmentID, event.CommandID).Scan(&storedHost, &taskID, &attemptID, &runID); err != nil || storedHost != event.ProducerID || taskID != event.TaskID || attemptID != event.AttemptID || runID != event.RunID {
 		return rollback(ErrConflict)
 	}
+	if err = validateTemporaryWorkspaceCleanup(ctx, tx, event, historical); err != nil {
+		return rollback(err)
+	}
 	if event.DiagnosticsFailure != nil && event.DiagnosticsFailure.Detailed || event.StopReason == "diagnostics_unavailable" {
 		bound := contract.LaunchCommand{RunID: event.RunID, TaskID: event.TaskID, AttemptID: event.AttemptID, SegmentID: event.SegmentID, HostID: event.ProducerID, CommandID: event.CommandID}
 		if err = bindExistingDiagnostics(ctx, tx, &bound); err != nil || bound.Diagnostics == nil {
@@ -150,7 +156,7 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	deliveryStatus := "pending"
-	if historical || event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventSession || event.Kind == contract.EventExited {
+	if historical || event.Kind == contract.EventTemporaryWorkspaceCleanup || event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventSession || event.Kind == contract.EventExited {
 		deliveryStatus = "internal"
 	}
 	actionSlot := "action-" + runtimeHash(event.ProducerID + "\x00" + event.EventID)[:32]
@@ -240,6 +246,8 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		return nil
 	}
 	switch event.Kind {
+	case contract.EventTemporaryWorkspaceCleanup:
+		return nil
 	case contract.EventLaunchRejected:
 		return applyLaunchRejection(ctx, tx, event)
 	case contract.EventPrepared, contract.EventSpawned, contract.EventRunning:

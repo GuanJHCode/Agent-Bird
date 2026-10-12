@@ -83,7 +83,7 @@ func ValidateTemporaryWorkspaceCleanupEvent(e Event) error {
 		return nil
 	}
 	digest, err := TemporaryWorkspaceCleanupDigest(*e.TemporaryWorkspaceCleanup)
-	if err != nil || e.Kind != EventTemporaryWorkspaceCleanup || e.PayloadHash != digest || e.Artifact != nil || e.ExitCode != nil || e.Failure != nil || e.DiagnosticsFailure != nil || e.ValidationToolCleanup != nil || e.GitFilterCleanup != nil || e.GitFilterCarrierCleanup != nil || e.StopReason != "" {
+	if err != nil || e.Kind != EventTemporaryWorkspaceCleanup || e.PayloadHash != digest || e.Artifact != nil || e.ExitCode != nil || e.Failure != nil || e.DiagnosticsFailure != nil || e.ValidationToolCleanup != nil || e.GitFilterCleanup != nil || e.GitFilterCarrierCleanup != nil || e.StopReason != "" || e.Process != nil || e.ActiveMS != 0 || e.QuestionID != "" || e.QuestionRevision != 0 || e.QuestionKind != "" || e.SessionKind != "" || e.SessionID != "" {
 		return errors.New("temporary_workspace_cleanup_invalid")
 	}
 	return nil
