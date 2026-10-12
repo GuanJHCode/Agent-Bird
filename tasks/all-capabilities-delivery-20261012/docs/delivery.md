@@ -6,6 +6,8 @@ ACP 容量与诊断 GC 已通过定向验证和独立审查。B2/C/Host evidence
 
 验证只覆盖受控本地进程与明确协议。真实模型/账号、原 TUI/Hook 五窗口、Intel/Windows、物理断电/洪峰和 Formal60 不在本次通过范围；Formal60 历史 FAILED 保留。Codex Worker 执行域仍受嵌套 Seatbelt 限制，未放宽原有写入/网络防护。
 
-其他 artifact/report、失败现场、worktree/ref pin 的自动回收尚缺实体清单、保留时钟、持久 resolved/abandon 与恢复 pin 释放转换。已向用户询问清理规则，不按 created_at 直接删除 immutable/recovery 资源。
+其他 artifact/report、失败现场、worktree/ref pin 的自动回收尚缺实体清单、保留时钟、持久 resolved/abandon 与恢复 pin 释放转换。用户已选择显式确认已解决后按保留期回收，并保留恢复索引；继续实施该独立后续批次，不按 created_at 直接删除 immutable/recovery 资源。
 
 本候选只作本地集成。未替换用户安装、注册 Hook、推送或发布。原根用户补丁继续保留。
+
+本阶段候选包与来源已通过[独立核验](../../closure-package-provenance/docs/all-capabilities-20261012.md)，后续清理实现需重新评估包。

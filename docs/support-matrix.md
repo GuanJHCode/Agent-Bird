@@ -46,3 +46,6 @@ Grok 候选审查由 Host 提供完整 base/candidate Git 文本树，限制为 
 显式 `indexed_candidate_review_v1` 分块路径支持更大的不可变候选，容量、DAG字段与配置选择见[Provider运行时](provider-runtime.md#大候选分块审查)。本机受控Provider已验证65个以上文件、三分块实际prompt消费、Store逐阶段接受、Source Host恢复及最终Git合并；真实模型分块效果尚未验收。
 
 当前macOS arm64本地候选包 `0.1.0-closure.4e1229c3ffbd` 已完成[同源码双构建/双打包与私有安装管理验收](../tasks/closure-package-provenance/docs/filter-bridge-current-20261010.md)：12条实际命令覆盖install/replay/Doctor/uninstall，28个包文件与24项source closure核对通过。包固定本机Python路径/hash；没有替换用户安装或注册Hook，不代表跨机器安装、真实TUI/Provider或Formal60资源资格。该包证据只绑定其source，不自动覆盖后续生产修改。
+
+
+2026-10-12 本地候选包已刷新为 `0.1.0-closure.855141c9739a`，source `855141c9739a95046c15bbb9657f93f7adf1c94e`；[打包与来源核验](../tasks/closure-package-provenance/docs/all-capabilities-20261012.md)覆盖本轮已实现能力。旧包记录保留为历史证据，没有替换用户安装。
