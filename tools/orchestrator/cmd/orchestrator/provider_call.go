@@ -117,6 +117,7 @@ func providerCallEntry(ctx context.Context, args []string, out io.Writer) error 
 }
 
 func executeProviderCall(parent context.Context, req providerCallRequest, stateArg string) (result providerCallResult, retErr error) {
+	parent = adapter.WithProbeCache(parent)
 	result = providerCallResult{Version: 1, Provider: req.Provider, ChangedFiles: []string{}}
 	if err := normalizeProviderCall(&req); err != nil {
 		return result, err
