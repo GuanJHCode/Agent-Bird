@@ -72,7 +72,7 @@ func validateTemporaryWorkspaceCleanup(ctx context.Context, tx *sql.Tx, e contra
 		if err = rows.Scan(&body); err != nil {
 			return err
 		}
-		if len(body) > 65536 || contract.DecodeBridgeStrict(body, &observed) != nil || observed.Version != 1 || observed.ProducerID != e.ProducerID || observed.RunID != e.RunID || observed.TaskID != e.TaskID || observed.AttemptID != e.AttemptID || observed.SegmentID != e.SegmentID || observed.CommandID != e.CommandID || observed.WorkRevision != e.WorkRevision || observed.Sequence >= e.Sequence || observed.ExecutionEpoch == 0 || observed.Failure != nil || observed.StopReason != "" {
+		if len(body) > 65536 || contract.DecodeOwnerRuntimeStrict(body, &observed) != nil || observed.Version != 1 || observed.ProducerID != e.ProducerID || observed.RunID != e.RunID || observed.TaskID != e.TaskID || observed.AttemptID != e.AttemptID || observed.SegmentID != e.SegmentID || observed.CommandID != e.CommandID || observed.WorkRevision != e.WorkRevision || observed.Sequence >= e.Sequence || observed.ExecutionEpoch == 0 || observed.Failure != nil || observed.StopReason != "" {
 			return invalid
 		}
 		if n == 0 && observed.Kind != contract.EventResult || n == 1 && (observed.Kind != contract.EventExited || observed.ExitCode == nil || *observed.ExitCode != 0) || n > 1 {

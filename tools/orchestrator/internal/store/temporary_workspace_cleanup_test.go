@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
@@ -187,5 +189,54 @@ func TestTemporaryWorkspaceCleanupSurvivesOwnerRework(t *testing.T) {
 	s, err := db.TaskSnapshot(ctx, g.TaskID)
 	if err != nil || s.Status != "ready" || s.WorkRevision != 2 || s.TemporaryWorkspaceCleanup == nil || s.TemporaryWorkspaceCleanup.Code != "cleanup_pending" {
 		t.Fatal("observation altered replacement business state", s, err)
+	}
+}
+
+func TestTemporaryWorkspaceCleanupAndRetentionReadManagedHostReceipt(t *testing.T) {
+	db, g, result, _ := hostArtifactEventFixture(t)
+	ctx := context.Background()
+	if _, err := db.sql.Exec(`UPDATE task_runtime SET adapter_payload=? WHERE task_id=?`, `{"kind":"candidate","directory":"/private/tmp/owned-validation","candidate_action":{"version":1,"operation":"validate","auto_directory":true,"source_task":"producer","command":["/usr/bin/true"]}}`, g.TaskID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.CommitHostEvent(ctx, result); err != nil {
+		t.Fatal(err)
+	}
+	exit := result
+	exit.Kind, exit.EventID, exit.Sequence, exit.PayloadHash = contract.EventExited, "managed-exited", 2, runtimeHash("exited")
+	code := 0
+	exit.ExitCode = &code
+	if _, err := db.CommitHostEvent(ctx, exit); err != nil {
+		t.Fatal(err)
+	}
+	pending := diagnosticOutcomeEvent(g, contract.EventTemporaryWorkspaceCleanup, 3)
+	pending.TemporaryWorkspaceCleanup = &contract.TemporaryWorkspaceCleanup{Version: 1, Operation: "validate", State: "pending", Worktree: "/private/tmp/owned-validation.attempt-" + runtimeHash(g.RunID + "\x00" + g.TaskID + "\x00" + g.AttemptID + "\x00" + g.SegmentID)[:24], ReceiptSHA256: strings.Repeat("a", 64)}
+	pending.PayloadHash, _ = contract.TemporaryWorkspaceCleanupDigest(*pending.TemporaryWorkspaceCleanup)
+	if _, err := db.CommitHostEvent(ctx, pending); err != nil {
+		t.Fatal("managed Host receipt rejected by observation decoder", err)
+	}
+	tx, err := db.sql.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	row := diagnosticDeliveryRow{reservation: g.HostArtifacts.TerminalReservationID, namespace: g.HostArtifacts.ScopeSHA256, scope: diagnostics.Scope{Version: 1, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, ProducerID: g.HostID}}
+	facts, err := diagnosticDeletionFacts(ctx, tx, row, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = diagnosticRetentionGuard(ctx, tx, row, facts, time.Now().Add(time.Second).UTC().Format(time.RFC3339Nano)); err != nil {
+		t.Fatal("managed Host receipt or cleanup observation rejected by retention decoder", err)
+	}
+	var body string
+	if err = tx.QueryRowContext(ctx, `SELECT body_json FROM runtime_events WHERE sequence=1`).Scan(&body); err != nil {
+		t.Fatal(err)
+	}
+	// RawMessage support must keep duplicate-key rejection at every depth.
+	body = strings.Replace(body, `"scope_sha256":`, `"scope_sha256":"forged","scope_sha256":`, 1)
+	if _, err = tx.ExecContext(ctx, `UPDATE runtime_events SET body_json=? WHERE sequence=1`, body); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = diagnosticRetentionGuard(ctx, tx, row, facts, time.Now().Add(time.Second).UTC().Format(time.RFC3339Nano)); err == nil {
+		t.Fatal("opaque receipt duplicate accepted")
 	}
 }
