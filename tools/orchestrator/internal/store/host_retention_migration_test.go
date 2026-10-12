@@ -3,11 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
-
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 // downgradeHostRetentionSchema constructs the complete v39 shape. It removes
@@ -20,6 +16,10 @@ func downgradeHostRetentionSchema(t *testing.T, db *DB) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
+	var retained int
+	if err = tx.QueryRow(`SELECT (SELECT count(*) FROM host_artifact_deletions)+(SELECT count(*) FROM host_artifact_deletion_slots)+(SELECT count(*) FROM host_artifact_pins)+(SELECT count(*) FROM host_artifact_resolutions)+(SELECT count(*) FROM host_gc_policies)`).Scan(&retained); err != nil || retained != 0 {
+		t.Fatal("cannot discard populated retention ledgers", retained, err)
+	}
 	var namespaceColumn int
 	if err = tx.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('host_artifact_cleanup_authorities') WHERE name='namespace_json'`).Scan(&namespaceColumn); err != nil {
 		t.Fatal(err)
@@ -82,10 +82,15 @@ UPDATE schema_meta SET version=39;`); err != nil {
 }
 
 func TestHostRetentionMigration(t *testing.T) {
-	db, g, e, _ := hostArtifactEventFixture(t)
-	private, _ := privateHostRetentionLaunchFixture(t)
+	f := newHostRetentionFixture(t, false, false)
+	db, g, e := f.db, f.grant, f.event
+	generic, _ := quotaFixture(t)
+	var genericAuthorities int
+	if err := generic.sql.QueryRow(`SELECT count(*) FROM host_artifact_cleanup_authorities`).Scan(&genericAuthorities); err != nil || genericAuthorities != 0 {
+		t.Fatal("generic Store minted cleanup capability", genericAuthorities, err)
+	}
 	var newAuthorities int
-	if err := private.sql.QueryRow(`SELECT COUNT(*) FROM host_artifact_cleanup_authorities`).Scan(&newAuthorities); err != nil || newAuthorities != 2 {
+	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM host_artifact_cleanup_authorities`).Scan(&newAuthorities); err != nil || newAuthorities != 2 {
 		t.Fatal("private runtime dispatch did not create cleanup authorities", newAuthorities, err)
 	}
 	if _, err := db.CommitHostEvent(context.Background(), e); err != nil {
@@ -93,10 +98,11 @@ func TestHostRetentionMigration(t *testing.T) {
 	}
 	var before string
 	var authorities int
-	if err := db.sql.QueryRow(`SELECT json_array((SELECT json_group_array(json_array(id,state,retained_bytes)) FROM managed_artifact_reservations WHERE class IN ('terminal','progress') ORDER BY id),(SELECT json_group_array(json_array(id,reservation_id,proof_json)) FROM managed_artifact_refs ORDER BY id),(SELECT json_group_array(json_array(event_id,body_json)) FROM runtime_events ORDER BY event_id)),(SELECT COUNT(*) FROM host_artifact_cleanup_authorities)`).Scan(&before, &authorities); err != nil || authorities != 0 {
+	if err := db.sql.QueryRow(`SELECT json_array((SELECT json_group_array(json_array(id,state,retained_bytes)) FROM managed_artifact_reservations WHERE class IN ('terminal','progress') ORDER BY id),(SELECT json_group_array(json_array(id,reservation_id,proof_json)) FROM managed_artifact_refs ORDER BY id),(SELECT json_group_array(json_array(event_id,body_json)) FROM runtime_events ORDER BY event_id)),(SELECT COUNT(*) FROM host_artifact_cleanup_authorities)`).Scan(&before, &authorities); err != nil || authorities != 2 {
 		t.Fatal(before, authorities, err)
 	}
 	downgradeHostRetentionSchema(t, db)
+	usage, globalUsage := continuationQuotaUsage(t, db)
 	path := db.path
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
@@ -111,31 +117,8 @@ func TestHostRetentionMigration(t *testing.T) {
 	if err = opened.sql.QueryRow(`SELECT json_array((SELECT json_group_array(json_array(id,state,retained_bytes)) FROM managed_artifact_reservations WHERE class IN ('terminal','progress') ORDER BY id),(SELECT json_group_array(json_array(id,reservation_id,proof_json)) FROM managed_artifact_refs ORDER BY id),(SELECT json_group_array(json_array(event_id,body_json)) FROM runtime_events ORDER BY event_id)),(SELECT version FROM schema_meta),(SELECT COUNT(*) FROM host_artifact_cleanup_authorities),(SELECT COUNT(*) FROM host_gc_policies)`).Scan(&after, &version, &migratedAuthorities, &policies); err != nil || after != before || version != currentSchemaVersion || migratedAuthorities != 0 || policies != 0 {
 		t.Fatal(after, before, version, migratedAuthorities, policies, err, g.SegmentID)
 	}
-}
-
-func privateHostRetentionLaunchFixture(t *testing.T) (*DB, contract.LaunchCommand) {
-	t.Helper()
-	root := t.TempDir()
-	if err := os.Chmod(root, 0700); err != nil {
-		t.Fatal(err)
+	newUsage, newGlobalUsage := continuationQuotaUsage(t, opened)
+	if newUsage != usage || newGlobalUsage != globalUsage {
+		t.Fatal("migration changed existing quota ledger", usage, newUsage, globalUsage, newGlobalUsage)
 	}
-	db, err := Open(filepath.Join(root, "state.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { db.Close() })
-	ctx := context.Background()
-	receipt, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "private-run", ControllerThread: "master", PlanRevision: 1, OriginContextID: "origin", OriginPID: 7, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/host"}, Tasks: []TaskSpec{{ID: "private-task", RunID: "private-run", MaxAttempts: 1}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	host, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "birth", HostGeneration: "gen", PID: 9, Birth: "host", Executable: "/private/bin/host"}, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	launch, err := db.ClaimReady(ctx, host, 1, 2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return db, launch
 }

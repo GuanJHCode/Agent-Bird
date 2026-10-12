@@ -1,0 +1,77 @@
+{
+  "production_source": "5fe4bc20c9be1d25c32f78383817aff8426b03fe",
+  "checks": {
+    "store-final-1": {
+      "top": 4,
+      "sub": 8,
+      "failed": [],
+      "skipped": [],
+      "exit": 0,
+      "stderr_bytes": 0
+    },
+    "migration-final-1": {
+      "top": 2,
+      "sub": 0,
+      "failed": [],
+      "skipped": [],
+      "exit": 0,
+      "stderr_bytes": 0
+    },
+    "namespace-race-2": {
+      "top": 1,
+      "sub": 3,
+      "failed": [],
+      "skipped": [],
+      "exit": 0,
+      "stderr_bytes": 0
+    },
+    "public-final-1": {
+      "top": 1,
+      "sub": 0,
+      "failed": [],
+      "skipped": [],
+      "exit": 0,
+      "stderr_bytes": 0
+    },
+    "build": {
+      "exit": 0,
+      "stderr_bytes": 0
+    }
+  },
+  "source_files": {
+    "tools/orchestrator/cmd/orchestrator/diagnostics_read_test.go": "21998722716f0b80dac9da8595abb0ba5ef327afb8a1dd792d4a6e0814521263",
+    "tools/orchestrator/cmd/orchestrator/host_retention.go": "06073feda67cc8fbe723b7597800018b6f5d5d15296d92649cd46df7a4d4055a",
+    "tools/orchestrator/cmd/orchestrator/host_retention_test.go": "12a2da1e9b7249fd58b0f8f78251b8ce9e84ee659470db41973e00b1539a1e0b",
+    "tools/orchestrator/cmd/orchestrator/main.go": "c7613aa4023087794c0de4a1b9ba92a2145a283536584655de9ae3c706fad234",
+    "tools/orchestrator/internal/artifacts/host_namespace.go": "48eec98f48d4a2a747eada5ddd25215dd7a8c2346e08ec0eefcb62a2182d72b0",
+    "tools/orchestrator/internal/artifacts/host_slot_deletion.go": "e43b200da66b7b019a4c08b86362e1f2ae56fb6577ce4bd99babda519e3f07e6",
+    "tools/orchestrator/internal/artifacts/host_slot_deletion_test.go": "66ade86440c424e1582e32b15a18ae2711aa6bae8e4a154675e332447fcded74",
+    "tools/orchestrator/internal/coordinator/diagnostics_gc.go": "f8e7e2031508d65944607b5921b5706fddf6d994716da37912d2149313cc1aa2",
+    "tools/orchestrator/internal/coordinator/host_retention.go": "38beae803f29b15daadd9c25b3252ebaad722411fbc41ea0d31f2d2846da3b39",
+    "tools/orchestrator/internal/coordinator/server.go": "d2643c3a3721ddc694849f25711731fc018935d5a25cfe4d758b754b3501db8a",
+    "tools/orchestrator/internal/ipc/ipc.go": "0ff90828c8a71b7eaf1a0430e3df75630b1970c2b327c6da9d7b2b47d3af3c50",
+    "tools/orchestrator/internal/store/delivery.go": "c75b58b416473871e74eca17853f498403d92f00a79c0fd013a1839042827d19",
+    "tools/orchestrator/internal/store/existing_owner_resume_migration_test.go": "e35a99c7d277ee27f8949036a79b1dc8cc21444c992584c53dd8e37998736e52",
+    "tools/orchestrator/internal/store/git_filter_resource_test.go": "9444336215eb66260149d3a8ef83b56878691e6cb447d58e958e0090d1a92d3b",
+    "tools/orchestrator/internal/store/host_artifact_grant.go": "28be4193e1673cd0c4bb99b1ab0927d526c5cfce003805de7f78dbe146b69401",
+    "tools/orchestrator/internal/store/host_artifact_grant_test.go": "12bdb62c0ff8fbbf14713d50064b437e4afea46b4b74674a9dfe4edae05dd198",
+    "tools/orchestrator/internal/store/host_artifact_intake.go": "96be65960d0659f390baec14c07076aa6eead4abd71c5b79eecb0f9c427ee48d",
+    "tools/orchestrator/internal/store/host_gc.go": "df159e6d8ce296897b5f5e137b1df993c7829812108d8c1c3d93d0e273f3a775",
+    "tools/orchestrator/internal/store/host_retention.go": "89043a9ef1d374d6cd0d1d4f9a35bfd77b8bc77208ee7b59424aff921972d5ab",
+    "tools/orchestrator/internal/store/host_retention_delete.go": "552d379b0fea54878042fe12d8dcb3cd6de00a8b6d20280c1d46c4d50f1493e6",
+    "tools/orchestrator/internal/store/host_retention_facts.go": "024fcebed63a9e67b1a08f571bb8930b813ab92bd8df144e516ef231a32c6b15",
+    "tools/orchestrator/internal/store/host_retention_migration_test.go": "6a846e7bb024c14bf8eaa17840d6c42df671620450af67070f0fa09b27e54078",
+    "tools/orchestrator/internal/store/host_retention_ops.go": "b58b8da1bc7949d53d117363738889dd3f24ea93c10ef71444e64b248561c002",
+    "tools/orchestrator/internal/store/host_retention_schema.go": "e2838f0e57af8bd8634d0924897429311d2782546cc3e877e55203ff238eb8f5",
+    "tools/orchestrator/internal/store/host_retention_test.go": "c8d7c10c7fdb79acb4a448096fbcb951f796077fa6c636500432ddda667a8996",
+    "tools/orchestrator/internal/store/initial_owner_recovery_migration_test.go": "3fadebbb78ca3c07f4b1e55cb5280d3c5d0a2e4ab80a3a948d37f993d94dd63f",
+    "tools/orchestrator/internal/store/legacy_artifact_accounting_test.go": "386ef6f0f1b80255a6aa9c6f8ec58db73498fd64a059962f8fa1b021c61ccd47",
+    "tools/orchestrator/internal/store/migrations.go": "3f583a19323d93b3d43c2b4c42b5dc394dddd24be6e17cf714d6cf9081c74470",
+    "tools/orchestrator/internal/store/new_base_proof.go": "b24944ac9e59203124a5b0b63ec2eeb47fbe42b520ed8d7a14f16848d8d8bb50",
+    "tools/orchestrator/internal/store/owner_bound_abandonment_migration_test.go": "5cde82bcbd528d9094428b8084b0cd9d20e26298e5dcd53515194d53e9ab3908",
+    "tools/orchestrator/internal/store/owner_recovery_handoff_migration_test.go": "2a1905bbb8c08b16d6ac11e0f66f292c5949946d9d7283aae11c8db175955b78",
+    "tools/orchestrator/internal/store/report_retention_test.go": "540da0e999daa0f862fe7b8b75bded3e4243e280139fde7fd48f8e409595fcd5",
+    "tools/orchestrator/internal/store/scheduling.go": "8ab648acde40a1c47b41fb68f5cb9df7fe9b3bae786b4be5381178a2f36ec76a",
+    "tools/orchestrator/internal/store/summary.go": "d63d30afcd3f81a37bef876b871f40191ba4255e4a8ab026affe3d1267386ba6"
+  }
+}
