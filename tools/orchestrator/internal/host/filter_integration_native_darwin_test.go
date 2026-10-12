@@ -50,7 +50,19 @@ func filterIntegrationBindNativeHelper(t *testing.T, ctx context.Context, h *Hos
 }
 func filterIntegrationNativeFinal(t *testing.T, ctx context.Context, db *store.DB, h *Host, hostID, root, repo string, guard *validationNativeCleanup) {
 	t.Helper()
-	g, err := db.ClaimReady(ctx, hostID, 1, 2)
+	var g contract.LaunchCommand
+	pendingBefore, err := db.PendingLaunches(ctx, hostID, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pendingBefore) == 1 && pendingBefore[0].TaskID == "integrate" {
+		g = pendingBefore[0]
+		if _, e := os.Lstat(filepath.Join(h.spoolRoot, g.AttemptID, g.SegmentID)); !os.IsNotExist(e) {
+			t.Fatal("continuation diagnostic refuses any prior final-stage spool")
+		}
+	} else {
+		g, err = db.ClaimReady(ctx, hostID, 1, 2)
+	}
 	if err != nil || g.TaskID != "integrate" || g.GitFilterCarrier == nil || g.Input == nil || g.Input.Event.TaskID != "target-review" || g.DependencyInputs == nil || len(g.DependencyInputs.Inputs) != 2 {
 		t.Fatalf("integration grant=%+v err=%v", g, err)
 	}
@@ -63,7 +75,7 @@ func filterIntegrationNativeFinal(t *testing.T, ctx context.Context, db *store.D
 		t.Fatal(err)
 	}
 	guard.pending++
-	result, err := h.ExecuteLaunch(ctx, g, validationNativeInvocation{launchInvocation: launchInvocation{dir: payload.Directory}, payload: payload})
+	result, err := h.ExecuteLaunch(ctx, g, filterInvocation{payload: payload})
 	if err != nil || result.Status != "result_ready" {
 		t.Fatalf("integration result=%+v err=%v", result, err)
 	}
