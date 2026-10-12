@@ -1,9 +1,7 @@
-# Candidate retention checkpoint
+# Candidate retention delivered
 
-Production implementation final7f15c9d (schema41), independent reviews PASS. Root integration worktree remains the only writer. Product tree still238e890 until evidence/package acceptance completes. All implementation, native and review workers idle/completed.
+Product integration fast-forwarded to b97811a, clean. Candidate source525d7d3 (production code7f15c9d) was independently reviewed and packaged; subsequent commits only record evidence/docs. Main agent compared every changed Go file between source and product, zero mismatch, and confirmed original user diff unchanged. Integration record: data/integration-verification.json.
 
-Final accepted scopes/evidence and limitations are in validation.md; user-facing commands and retention semantics are in usage.md. Final source includes root-rewritten source origin/held namespace and maintenance supervision, Host duplicate registration recovery, all-run/recursive downstream consumption fences, strict failure resolution, default-off GC, six CLI actions and bounded public receipts.
+Schema41 retention, Host exact replay, source origin/seal, permanent run/downstream consumer fences, fresh maintenance actor and six CLI controls are implemented. Final focused/race/migration/native/public evidence, explicit scope exclusions and unresolved external validation boundaries are in validation.md; commands in usage.md. Final package0.1.0-closure.525d7d30fca9 accepted with12 commands, deterministic builds/packages and task-owned lifecycle validation.
 
-Root raw final native/public 2topPASS0F0S/exit0/stderr0. Core focused/race, downstream corrected fixture, migration and independent review evidence are validated. The initial failing downstream race fixture and interrupted/untriaged old broad worker test remain documented, not success evidence. No active root exec sessions at checkpoint.
-
-Package accepted from clean525d7d3, version0.1.0-closure.525d7d30fca9; deterministic binary/package and12commands passed. Duplicate task-owned binaries/package removed with recorded hashes; deliverable package-a retained. Next: commit package evidence, fast-forward product tree and verify tree/user-diff integrity. Keep the deliverable package and raw evidence; remove only task-owned duplicate build/package/install scratch. No real user runtime GC, installation replacement, Hook change or push.
+No active implementation/test sessions; workers finished. Keep candidate integration worktree because it contains the deliverable package-a, source and raw evidence. Only verified duplicate standalone binaries/package-b and the owned temporary repair script were deleted. No real user runtime collection, installation replacement, Hook change or push.
