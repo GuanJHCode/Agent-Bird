@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import textwrap
 import unittest
 
@@ -47,7 +48,15 @@ class GrokPluginACPTest(unittest.TestCase):
                         trace.write_text(json.dumps(seen))
                         result = {"sessionId": "session-1"}
                     elif method == "session/prompt":
-                        print(json.dumps({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "session-1", "update": {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "Bird ready"}}}}), flush=True)
+                        print(json.dumps({"jsonrpc": "2.0", "id": 77, "method": "session/request_permission", "params": {"sessionId": "session-1"}}), flush=True)
+                        seen["permission_reply"] = json.loads(next(sys.stdin))
+                        for update in (
+                            {"sessionUpdate": "agent_thought_chunk", "content": {"text": "private", "signature": "secret"}},
+                            {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "Bird ready", "signature": "hidden"}},
+                            {"sessionUpdate": "tool_call", "toolCallId": "tool-1", "toolName": "agent_bird_call", "rawInput": {"secret": "no"}},
+                        ):
+                            print(json.dumps({"jsonrpc": "2.0", "method": "session/update", "params": {"sessionId": "session-1", "update": update}}), flush=True)
+                        trace.write_text(json.dumps(seen))
                         result = {}
                     else:
                         raise SystemExit("unexpected method " + repr(method))
@@ -63,12 +72,14 @@ class GrokPluginACPTest(unittest.TestCase):
                 "--provider-locks", str(locks),
                 "--directory", str(workdir),
                 "--prompt", "call Bird once",
-                "--timeout", "10",
+                "--timeout-seconds", "10",
             ], text=True, capture_output=True, env=env, check=False, timeout=20)
             self.assertEqual(result.returncode, 0, result.stderr)
             summary = json.loads(result.stdout)
             self.assertEqual(summary["session_id"], "session-1")
-            self.assertEqual(summary["updates"][0]["update"]["sessionUpdate"], "agent_message_chunk")
+            self.assertEqual([item["update"]["sessionUpdate"] for item in summary["updates"]], ["agent_message_chunk", "tool_call"])
+            self.assertNotIn("signature", result.stdout)
+            self.assertNotIn("private", result.stdout)
             observed = json.loads(trace.read_text())
             self.assertEqual(observed["args"][:4], ["controller", "start", "--provider", "grok"])
             self.assertIn("--no-leader", observed["args"])
@@ -76,6 +87,7 @@ class GrokPluginACPTest(unittest.TestCase):
             self.assertEqual(observed["manifest"]["mcpServers"]["agent_bird"]["args"], ["mcp", "--state-dir", str(state.resolve()), "--provider-locks", str(locks.resolve())])
             self.assertEqual(observed["manifest"]["mcpServers"]["agent_bird"]["cwd"], str(workdir.resolve()))
             self.assertEqual(observed["session_new"]["mcpServers"], [])
+            self.assertEqual(observed["permission_reply"]["result"]["outcome"], "cancelled")
 
     def test_timeout_terminates_controller_process_group(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -99,6 +111,38 @@ class GrokPluginACPTest(unittest.TestCase):
             ], text=True, capture_output=True, env=os.environ | {"ACP_TEST_PID": str(pid_file)}, check=False, timeout=15)
             self.assertEqual(result.returncode, 1)
             self.assertIn("timed out waiting for ACP initialize", result.stderr)
+            pid = int(pid_file.read_text())
+            with self.assertRaises(ProcessLookupError):
+                os.kill(pid, 0)
+
+    def test_sigterm_terminates_controller_process_group(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            workdir = root / "project"; state = root / "state"; locks = root / "locks"
+            for path in (workdir, state, locks): path.mkdir()
+            skill = root / "skill.md"; skill.write_text("skill\n")
+            pid_file = root / "pid"
+            controller = root / "sleeping-controller.py"
+            controller.write_text(textwrap.dedent("""\
+                #!/usr/bin/env python3
+                import os, pathlib, sys, time
+                pathlib.Path(os.environ["ACP_TEST_PID"]).write_text(str(os.getpid()))
+                sys.stdin.readline()
+                time.sleep(60)
+            """)); controller.chmod(0o700)
+            runner = subprocess.Popen([
+                sys.executable, str(SCRIPT), "--binary", str(controller), "--skill-path", str(skill),
+                "--state-dir", str(state), "--provider-locks", str(locks), "--directory", str(workdir),
+                "--prompt", "never reaches model", "--timeout-seconds", "30",
+            ], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=os.environ | {"ACP_TEST_PID": str(pid_file)})
+            deadline = time.monotonic() + 5
+            while not pid_file.exists() and time.monotonic() < deadline:
+                time.sleep(0.02)
+            self.assertTrue(pid_file.exists())
+            runner.terminate()
+            _, stderr = runner.communicate(timeout=10)
+            self.assertEqual(runner.returncode, 1)
+            self.assertIn("cancelled by SIGTERM", stderr)
             pid = int(pid_file.read_text())
             with self.assertRaises(ProcessLookupError):
                 os.kill(pid, 0)

@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Run one Grok ACP session with a process-local Agent Bird MCP plugin.
-
-The plugin is created under the controller state directory and is passed only to
-this non-leader Grok agent process.  No Grok home, project config, trust store,
-or credentials are changed.
-"""
+"""Run one Grok ACP session with a process-local Agent Bird MCP plugin."""
 import argparse
 import json
 import os
@@ -19,8 +14,16 @@ import threading
 import time
 from typing import Any
 
+MAX_QUEUE = 64
+MAX_UPDATES = 64
+PUBLIC_UPDATE_KINDS = {"agent_message_chunk", "tool_call", "tool_call_update"}
+
 
 class ACPError(RuntimeError):
+    pass
+
+
+class Cancelled(ACPError):
     pass
 
 
@@ -57,13 +60,11 @@ def write_plugin(plugin_root: Path, binary: Path, state_dir: Path, locks: Path, 
     manifest = {
         "name": "agent-bird-session",
         "version": "0.0.0",
-        "mcpServers": {
-            "agent_bird": {
-                "command": str(binary),
-                "args": ["mcp", "--state-dir", str(state_dir), "--provider-locks", str(locks)],
-                "cwd": str(directory),
-            }
-        },
+        "mcpServers": {"agent_bird": {
+            "command": str(binary),
+            "args": ["mcp", "--state-dir", str(state_dir), "--provider-locks", str(locks)],
+            "cwd": str(directory),
+        }},
     }
     manifest_path = metadata / "plugin.json"
     manifest_path.write_text(json.dumps(manifest, separators=(",", ":")) + "\n", encoding="utf-8")
@@ -71,12 +72,37 @@ def write_plugin(plugin_root: Path, binary: Path, state_dir: Path, locks: Path, 
     plugin_root.chmod(0o700)
 
 
-def collect(stream: Any, destination: queue.Queue[str | None]) -> None:
+def collect_stdout(stream: Any, destination: queue.Queue[str | None], stop: threading.Event) -> None:
     try:
         for line in iter(stream.readline, ""):
-            destination.put(line)
+            while not stop.is_set():
+                try:
+                    destination.put(line, timeout=0.1)
+                    break
+                except queue.Full:
+                    continue
     finally:
-        destination.put(None)
+        try:
+            destination.put_nowait(None)
+        except queue.Full:
+            pass
+
+
+def drain(stream: Any) -> None:
+    for _ in iter(stream.readline, ""):
+        pass
+
+
+def close_and_join(process: subprocess.Popen[str], readers: list[threading.Thread], stop: threading.Event) -> None:
+    stop.set()
+    for stream in (process.stdin, process.stdout, process.stderr):
+        if stream is not None:
+            try:
+                stream.close()
+            except OSError:
+                pass
+    for reader in readers:
+        reader.join(timeout=2)
 
 
 def terminate(process: subprocess.Popen[str]) -> tuple[int | None, str]:
@@ -96,10 +122,47 @@ def terminate(process: subprocess.Popen[str]) -> tuple[int | None, str]:
         return process.wait(timeout=10), "killed"
 
 
-def request(process: subprocess.Popen[str], output: queue.Queue[str | None], request_id: int, method: str, params: dict[str, Any], deadline: float, updates: list[dict[str, Any]]) -> dict[str, Any]:
-    assert process.stdin is not None
-    process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params}, separators=(",", ":")) + "\n")
+def write_rpc(process: subprocess.Popen[str], value: dict[str, Any]) -> None:
+    if process.stdin is None:
+        raise ACPError("Grok ACP stdin is closed")
+    process.stdin.write(json.dumps(value, separators=(",", ":")) + "\n")
     process.stdin.flush()
+
+
+def public_update(params: dict[str, Any]) -> dict[str, Any] | None:
+    update = params.get("update")
+    if not isinstance(update, dict):
+        return None
+    kind = update.get("sessionUpdate")
+    if kind not in PUBLIC_UPDATE_KINDS:
+        return None
+    public: dict[str, Any] = {"sessionUpdate": kind}
+    if kind == "agent_message_chunk":
+        content = update.get("content")
+        if isinstance(content, dict) and isinstance(content.get("text"), str):
+            public["content"] = {"type": "text", "text": content["text"]}
+    else:
+        for key in ("toolCallId", "title", "kind", "status", "toolName"):
+            value = update.get(key)
+            if isinstance(value, (str, int, float, bool)):
+                public[key] = value
+    session_id = params.get("sessionId")
+    return {"sessionId": session_id, "update": public} if isinstance(session_id, str) else {"update": public}
+
+
+def reply_server_request(process: subprocess.Popen[str], message: dict[str, Any]) -> None:
+    request_id = message.get("id")
+    method = message.get("method")
+    if method == "session/request_permission":
+        write_rpc(process, {"jsonrpc": "2.0", "id": request_id, "result": {"outcome": "cancelled"}})
+        return
+    write_rpc(process, {"jsonrpc": "2.0", "id": request_id, "error": {
+        "code": -32601, "message": f"unsupported ACP server request: {method}",
+    }})
+
+
+def request(process: subprocess.Popen[str], output: queue.Queue[str | None], request_id: int, method: str, params: dict[str, Any], deadline: float, updates: list[dict[str, Any]]) -> dict[str, Any]:
+    write_rpc(process, {"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
     while True:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -114,10 +177,16 @@ def request(process: subprocess.Popen[str], output: queue.Queue[str | None], req
             message = json.loads(line)
         except json.JSONDecodeError as exc:
             raise ACPError("Grok ACP emitted non-JSON stdout") from exc
-        if message.get("method") == "session/update":
-            params_value = message.get("params")
-            if isinstance(params_value, dict):
-                updates.append(params_value)
+        inbound_method = message.get("method")
+        if isinstance(inbound_method, str):
+            if inbound_method == "session/update":
+                params_value = message.get("params")
+                if isinstance(params_value, dict):
+                    published = public_update(params_value)
+                    if published is not None and len(updates) < MAX_UPDATES:
+                        updates.append(published)
+            elif "id" in message:
+                reply_server_request(process, message)
             continue
         if message.get("id") != request_id:
             continue
@@ -129,8 +198,7 @@ def request(process: subprocess.Popen[str], output: queue.Queue[str | None], req
         return result
 
 
-def main() -> int:
-    args = parse_args()
+def run(args: argparse.Namespace) -> int:
     if args.timeout_seconds <= 0:
         raise ACPError("--timeout-seconds must be positive")
     binary = args.binary.resolve()
@@ -140,29 +208,31 @@ def main() -> int:
     locks = checked_directory(args.provider_locks, "provider locks directory")
     directory = checked_directory(args.directory, "directory")
     skill = skill_path(binary, args.skill_path)
-    plugin_root = Path(tempfile.mkdtemp(prefix="grok-plugin-acp-", dir=state_dir))
+    plugin_root: Path | None = None
     process: subprocess.Popen[str] | None = None
-    stderr_lines: queue.Queue[str | None] = queue.Queue()
+    readers: list[threading.Thread] = []
+    stop = threading.Event()
     try:
+        plugin_root = Path(tempfile.mkdtemp(prefix="grok-plugin-acp-", dir=state_dir))
         write_plugin(plugin_root, binary, state_dir, locks, directory)
         command = [
             str(binary), "controller", "start", "--provider", "grok", "--state-dir", str(state_dir),
-            "--skill-path", str(skill), "--",
-            "--allow", "MCPTool(agent_bird__agent_bird_call)",
+            "--skill-path", str(skill), "--", "--allow", "MCPTool(agent_bird__agent_bird_call)",
             "agent", "--no-leader", "--plugin-dir", str(plugin_root), "stdio",
         ]
-        process = subprocess.Popen(
-            command, cwd=directory, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, start_new_session=True,
-        )
+        process = subprocess.Popen(command, cwd=directory, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, text=True, start_new_session=True)
         assert process.stdout is not None and process.stderr is not None
-        stdout_lines: queue.Queue[str | None] = queue.Queue()
-        threading.Thread(target=collect, args=(process.stdout, stdout_lines), daemon=True).start()
-        threading.Thread(target=collect, args=(process.stderr, stderr_lines), daemon=True).start()
+        stdout_lines: queue.Queue[str | None] = queue.Queue(maxsize=MAX_QUEUE)
+        readers = [
+            threading.Thread(target=collect_stdout, args=(process.stdout, stdout_lines, stop), daemon=True),
+            threading.Thread(target=drain, args=(process.stderr,), daemon=True),
+        ]
+        for reader in readers:
+            reader.start()
         deadline = time.monotonic() + args.timeout_seconds
         request(process, stdout_lines, 1, "initialize", {
-            "protocolVersion": 1,
-            "clientCapabilities": {},
+            "protocolVersion": 1, "clientCapabilities": {},
             "clientInfo": {"name": "agent-bird-grok-plugin-acp", "version": "1"},
         }, deadline, [])
         created = request(process, stdout_lines, 2, "session/new", {"cwd": str(directory), "mcpServers": []}, deadline, [])
@@ -171,17 +241,37 @@ def main() -> int:
             raise ACPError("ACP session/new returned no sessionId")
         updates: list[dict[str, Any]] = []
         request(process, stdout_lines, 3, "session/prompt", {
-            "sessionId": session_id,
-            "prompt": [{"type": "text", "text": args.prompt}],
+            "sessionId": session_id, "prompt": [{"type": "text", "text": args.prompt}],
         }, deadline, updates)
         code, shutdown = terminate(process)
+        close_and_join(process, readers, stop)
         process = None
-        print(json.dumps({"session_id": session_id, "updates": updates, "source_exit_code": code, "shutdown": shutdown}, separators=(",", ":")))
+        readers = []
+        print(json.dumps({"session_id": session_id, "updates": updates,
+                          "source_exit_code": code, "shutdown": shutdown}, separators=(",", ":")))
         return 0
     finally:
         if process is not None:
-            terminate(process)
-        shutil.rmtree(plugin_root, ignore_errors=True)
+            try:
+                terminate(process)
+            finally:
+                close_and_join(process, readers, stop)
+        if plugin_root is not None:
+            shutil.rmtree(plugin_root, ignore_errors=True)
+
+
+def main() -> int:
+    args = parse_args()
+    previous: dict[int, Any] = {}
+    def cancelled(signum: int, _frame: Any) -> None:
+        raise Cancelled(f"cancelled by {signal.Signals(signum).name}")
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        previous[signum] = signal.signal(signum, cancelled)
+    try:
+        return run(args)
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
 
 
 if __name__ == "__main__":
