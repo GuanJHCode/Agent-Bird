@@ -91,6 +91,7 @@ Codex 通过 app-server 和受约束文件工具执行，不修改 Codex 源码�
 
 ## rc.3 本轮验证
 
+- 局部文件工具已通过真实 Claude→Codex 插件修改：22,525 字节文件先搜索定位，两次各读取 17 字节，使用 `replace_text` 完成一次精确替换，结果为 `result_ready`、`process_exited=true`。已核对候选文件、0600 持久化写入凭据及原项目未变；整条调用约 63 秒，不据此宣称固定 token 或速度提升比例。相关定向 race、参数边界测试及独立审查通过。
 - 新包安装、依赖检查通过；Claude→Codex 通过真实插件读取项目并调用 `agent_bird_result` 回读同一任务结果，SHA 一致，未重复启动目标。Claude 初始化工具为 2 个、技能为 0 个，无 ToolSearch 轮次。
 - Claude→Grok 的完整长文本回显在 120 秒超时，返回 `call_timeout`、`process_exited=true`；发起方停止，未重试。该用例不算长结果成功验收。大结果截断、UTF-8 分页、跨连接隔离由定向测试验证。
 - 本轮有针对性的单元和 race 回归通过；原发布版的 `TestSlotFreedOnOneHostDispatchesTaskStarvingOnAnotherHost`、`TestServerRoutesControlToBoundHostAndDurablyCollects` 在本机 Host 注册阶段出现 EOF，已在未修改的 `131949c` 上复现，未计入通过。未重复全量测试或长时间压力测试。
