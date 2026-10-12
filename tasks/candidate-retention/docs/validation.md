@@ -25,3 +25,9 @@ Across the applicable evidence above: 18 distinct top-level tests and 18 subtest
 Ordinary new producer/v2 compose only. Filtered, historical/unsealed, continuation/rework/new-base producer and incomplete/UNKNOWN process histories remain retained. Neither an old journal pathname nor copied origin grants collection authority. A missing original Git Wait stays uncertain; kernel observation is not fabricated as a prior Wait. Individual filesystem syscalls do not have a strict wall-clock cancellation guarantee.
 
 Real external Provider sessions, native TUI/Hook user windows, Intel/Windows, long-run RSS/flood and historical Formal60/outer Seatbelt execution-domain issues are outside this focused acceptance. No real installation/Hook/account was replaced; no push/release occurred. The older855141c package does not cover this batch; a new exact-source package is required after the final evidence commit.
+
+## Final package
+
+Clean source `525d7d30fca936396c317272ee9485903cea8e1c` produced `0.1.0-closure.525d7d30fca9`. Binary SHA256 `01de574498197ecd88e35711a2554f85bb2441b89e220955f2f96055a276b964`. Two deterministic builds and packages matched; all13 verifier commands exit0/stderr0. Independent main-agent inventory checked28 package files and24 source mappings, zero mismatches. Task-owned install/replay/Doctor/uninstall/Doctor preserved the runtime sentinel; no real install changed.
+
+Full receipt and raw command evidence: `tasks/closure-package-provenance/data/candidate-retention-525d7d3/`. Deliverable retained at that task's `tmp/candidate-retention-525d7d3/package-a/` in the candidate-retention integration worktree. The two duplicate standalone binaries and duplicate package-b were removed after exact identity/hash checks; package-a, sentinel, audit metadata and raw evidence remain. Cleanup ledger: `data/package-cleanup.json`.
