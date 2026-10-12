@@ -274,6 +274,9 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			meta.temporaryWorkspace = &temporaryWorkspaceCleanup{operation: action.Operation}
 		}
 		meta.integrationAction = action.Operation == "integrate"
+		if filtered == nil && action.Version == 2 && action.DependencyInputVersion == 2 && action.Operation == "compose" && action.AutoDirectory {
+			meta.candidateResourceKind = "compose"
+		}
 		if _, err := adapter.ValidationRetryPayload(grant.AdapterPayload); action.Operation == "validate" && err == nil {
 			meta.validationGrant = &grant
 			if control.validationStarter != nil {
@@ -303,6 +306,10 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	if managed, ok := inv.(interface {
 		CandidateWorkspace() *adapter.CandidateWorkspace
 	}); ok && managed.CandidateWorkspace() != nil {
+		workspace := managed.CandidateWorkspace()
+		if filtered == nil && workspace.Version == 1 && workspace.AutoDirectory && grant.Continuation == nil && workspace.Rework == nil && workspace.NewBaseRework == nil {
+			meta.candidateResourceKind = "producer"
+		}
 		cmd.Dir = candidateDirectory(cmd.Dir, grant, managed.CandidateWorkspace().AutoDirectory)
 		if profile != nil && profile.GrokSessionWrite {
 			if meta.outputProvider != string(adapter.ProviderGrok) {
@@ -402,6 +409,7 @@ type launchMetadata struct {
 	outputProvider           string
 	questionRevision         int
 	temporaryWorkspace       *temporaryWorkspaceCleanup
+	candidateResourceKind    string
 }
 
 // temporaryWorkspaceCleanup is shared by preparation and terminal publication.
@@ -1089,6 +1097,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, err
 		}
 		if status == "result_ready" {
+			eventCount += h.registerCandidateResource(ctx, spool, runID, taskID, a, meta, content)
 			eventCount += h.cleanupPublishedTemporaryWorkspace(ctx, spool, runID, taskID, a, meta)
 		}
 		h.finishAttempt(a.ID, status, persistDB)
@@ -1153,6 +1162,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, err
 	}
 	if status == "result_ready" {
+		eventCount += h.registerCandidateResource(ctx, spool, runID, taskID, a, meta, content)
 		eventCount += h.cleanupPublishedTemporaryWorkspace(ctx, spool, runID, taskID, a, meta)
 	}
 	if persistDB {
@@ -1212,6 +1222,7 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 }
 
 type structuredEventFields struct {
+	CandidateResource         json.RawMessage
 	GitFilterCarrierCleanup   *contract.GitFilterCarrierCleanup
 	GitFilterCleanup          *contract.GitFilterCleanup
 	DiagnosticsFailure        *contract.DiagnosticsFailure
@@ -1240,6 +1251,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	event.GitFilterCleanup = fields.GitFilterCleanup
 	event.GitFilterCarrierCleanup = fields.GitFilterCarrierCleanup
 	event.TemporaryWorkspaceCleanup = fields.TemporaryWorkspaceCleanup
+	event.CandidateResource = fields.CandidateResource
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}
