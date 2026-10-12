@@ -20,6 +20,7 @@ import (
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/admincli"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/candidatemaintenance"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
@@ -87,6 +88,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return sourceHost(ctx, args[1:])
 	case "gitops-worker":
 		return runGitopsWorker(ctx, args[1:], stdout)
+	case "candidate-maintenance-worker":
+		return candidateMaintenanceWorker(ctx, args[1:], stdout)
 	case "install", "doctor", "uninstall", "pin", "unpin", "config-plan", "config-apply", "config-remove":
 		return runAdmin(args[0], args[1:], stdout)
 	case "ensure-running":
@@ -237,6 +240,28 @@ func runGitopsWorker(ctx context.Context, args []string, stdout io.Writer) error
 		return err
 	}
 	return gitopsworker.Run(ctx, path, stdout)
+}
+func candidateMaintenanceWorker(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("candidate-maintenance-worker", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fd := fs.Int("bootstrap-fd", -1, "inherited grant")
+	if fs.Parse(args) != nil || fs.NArg() != 0 || *fd != 3 {
+		return codeError("candidate_maintenance_bootstrap_invalid")
+	}
+	f := os.NewFile(uintptr(*fd), "candidate-maintenance-bootstrap")
+	if f == nil {
+		return codeError("candidate_maintenance_bootstrap_invalid")
+	}
+	defer f.Close()
+	out, err := candidatemaintenance.Worker(ctx, f)
+	if err != nil {
+		if out.Version == 0 {
+			return err
+		}
+		_ = json.NewEncoder(stdout).Encode(out)
+		return err
+	}
+	return json.NewEncoder(stdout).Encode(out)
 }
 
 func runAdmin(operation string, args []string, stdout io.Writer) error {

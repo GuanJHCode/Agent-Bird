@@ -56,9 +56,10 @@ func Run(ctx context.Context, db Store, controller, token string, grant store.Ca
 	tree := h.ConfirmTreeExited()
 	out := store.CandidateMaintenanceOutcome{Version: 1, State: "pending", Code: "child_failed"}
 	if e == nil && tree == nil && h.ExitCode() == 0 {
-		out.State = "removed"
-		out.Code = ""
-		out.Cleanup = &gitops.CleanupOutcome{State: gitops.CleanupRemoved}
+		text, overflow := h.OutputSnapshot()
+		if overflow || len(text) > 8192 || json.Unmarshal([]byte(text), &out) != nil || out.Version != 1 || (out.State != "pending" && out.State != "removed") || len(out.Code) > 128 || (out.State == "removed" && (out.Cleanup == nil || out.Cleanup.State != gitops.CleanupRemoved || out.Code != "")) {
+			out = store.CandidateMaintenanceOutcome{Version: 1, State: "pending", Code: "child_outcome_invalid"}
+		}
 	}
 	if _, finish := db.FinishCandidateMaintenance(context.Background(), grant, id, out); finish != nil {
 		return out, finish
