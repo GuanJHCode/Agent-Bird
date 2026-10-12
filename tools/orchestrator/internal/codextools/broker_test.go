@@ -277,12 +277,15 @@ func TestExclusiveCandidateReplacesOnlyDeclaredUTF8Path(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(root, "other.txt"), []byte("other"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	if err = os.Chmod(filepath.Join(root, "note.txt"), 0755); err != nil {
+		t.Fatal(err)
+	}
 	var intents []WriteIntent
 	var receipts []WriteReceipt
 	opts := writableOptions()
 	opts.BeforeWrite = func(_ context.Context, in WriteIntent) error { intents = append(intents, in); return nil }
 	opts.AfterWrite = func(_ context.Context, receipt WriteReceipt) error { receipts = append(receipts, receipt); return nil }
-	b, err := OpenExclusiveCandidate(root, []string{"note.txt"}, opts)
+	b, err := OpenExclusiveCandidate(root, []string{"note.txt", "new.txt"}, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,6 +301,16 @@ func TestExclusiveCandidateReplacesOnlyDeclaredUTF8Path(t *testing.T) {
 	data, got, err := b.Read(context.Background(), "note.txt")
 	if err != nil || string(data) != "after" || got != receipt.SHA256 {
 		t.Fatalf("after=%q sha=%q err=%v", data, got, err)
+	}
+	if info, statErr := os.Stat(filepath.Join(root, "note.txt")); statErr != nil || info.Mode().Perm() != 0755 {
+		t.Fatalf("replacement mode=%v err=%v", info.Mode(), statErr)
+	}
+	created, err := b.Write(context.Background(), "new.txt", "", []byte("new"))
+	if err != nil || created.SHA256 != digest([]byte("new")) || len(intents) != 2 || len(receipts) != 2 || intents[1].ExpectedSHA256 != "" {
+		t.Fatalf("create=%+v intents=%+v receipts=%+v err=%v", created, intents, receipts, err)
+	}
+	if _, err = b.Write(context.Background(), "note.txt", "", []byte("must-not-overwrite")); !errors.Is(err, ErrConflict) {
+		t.Fatalf("empty expected overwrote existing target err=%v", err)
 	}
 	if _, err = b.Write(context.Background(), "other.txt", digest([]byte("other")), []byte("blocked")); !errors.Is(err, ErrConflict) {
 		t.Fatalf("undeclared replacement err=%v", err)

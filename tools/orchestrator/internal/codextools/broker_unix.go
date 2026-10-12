@@ -299,16 +299,23 @@ func (b *Broker) Write(ctx context.Context, path, expectedSHA256 string, content
 // on OpenExclusiveCandidate's Host-only no-concurrent-writer contract while
 // retaining descriptor anchoring and expected-content verification.
 func (b *Broker) replaceExclusive(ctx context.Context, path, expectedSHA256 string, content []byte) (WriteReceipt, error) {
-	if _, ok := b.exclusive[path]; !ok {
-		return WriteReceipt{}, ErrConflict
-	}
-	if !validSHA(expectedSHA256) || !utf8.Valid(content) || int64(len(content)) > maxFileBytes {
+	if _, ok := b.exclusive[path]; !ok || !utf8.Valid(content) || int64(len(content)) > maxFileBytes {
 		return WriteReceipt{}, ErrConflict
 	}
 	frozen := append([]byte(nil), content...)
 	if b.written > b.options.MaxWrittenBytes-int64(len(frozen)) {
 		return WriteReceipt{}, ErrBudget
 	}
+	if expectedSHA256 == "" {
+		return b.createExclusive(ctx, path, frozen)
+	}
+	if !validSHA(expectedSHA256) {
+		return WriteReceipt{}, ErrConflict
+	}
+	return b.replaceExistingExclusive(ctx, path, expectedSHA256, frozen)
+}
+
+func (b *Broker) replaceExistingExclusive(ctx context.Context, path, expectedSHA256 string, frozen []byte) (WriteReceipt, error) {
 	parts, err := filePath(path)
 	if err != nil {
 		return WriteReceipt{}, err
@@ -319,7 +326,7 @@ func (b *Broker) replaceExclusive(ctx context.Context, path, expectedSHA256 stri
 	}
 	defer parent.Close()
 	name := parts[len(parts)-1]
-	if _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256); err != nil {
+	if _, _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256); err != nil {
 		return WriteReceipt{}, err
 	}
 	intent := WriteIntent{Path: path, ExpectedSHA256: expectedSHA256, ContentSHA256: digest(frozen), Bytes: int64(len(frozen))}
@@ -329,8 +336,91 @@ func (b *Broker) replaceExclusive(ctx context.Context, path, expectedSHA256 stri
 	if err = b.ready(ctx); err != nil {
 		return WriteReceipt{}, err
 	}
-	if _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256); err != nil {
+	_, originalMode, err := b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256)
+	if err != nil {
 		return WriteReceipt{}, err
+	}
+	stage, stageName, stageID, err := stageFileMode(parent, originalMode.Perm())
+	if err != nil {
+		return WriteReceipt{}, err
+	}
+	published := false
+	defer func() {
+		if !published {
+			removeStageIfSame(parent, stageName, stageID)
+		}
+	}()
+	if _, err = stage.Write(frozen); err == nil {
+		err = stage.Sync()
+	}
+	if closeErr := stage.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = verifyStage(parent, stageName, stageID, intent.ContentSHA256); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = b.checkBinding(parts[:len(parts)-1], parent); err != nil {
+		return WriteReceipt{}, err
+	}
+	if _, _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = ctx.Err(); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = unix.Renameat(int(parent.Fd()), stageName, int(parent.Fd()), name); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, ErrUnknown
+	}
+	published = true
+	if _, _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, intent.ContentSHA256); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, ErrUnknown
+	}
+	if err = parent.Sync(); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, ErrUnknown
+	}
+	receipt := WriteReceipt{Path: path, SHA256: intent.ContentSHA256, Bytes: intent.Bytes}
+	b.written += receipt.Bytes
+	if err = b.options.AfterWrite(ctx, receipt); err != nil {
+		b.unknown = true
+		return WriteReceipt{}, fmt.Errorf("%w: %v", ErrUnknown, err)
+	}
+	return receipt, nil
+}
+
+// createExclusive keeps the exact same no-overwrite publication primitive as
+// ordinary Write, but only for a predeclared candidate path.
+func (b *Broker) createExclusive(ctx context.Context, path string, frozen []byte) (WriteReceipt, error) {
+	parts, err := filePath(path)
+	if err != nil {
+		return WriteReceipt{}, err
+	}
+	parent, err := b.openDir(parts[:len(parts)-1])
+	if err != nil {
+		return WriteReceipt{}, err
+	}
+	defer parent.Close()
+	name := parts[len(parts)-1]
+	if err = requireAbsent(parent, name); err != nil {
+		return WriteReceipt{}, ErrConflict
+	}
+	intent := WriteIntent{Path: path, ContentSHA256: digest(frozen), Bytes: int64(len(frozen))}
+	if err = b.options.BeforeWrite(ctx, intent); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = b.ready(ctx); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = b.checkBinding(parts[:len(parts)-1], parent); err != nil {
+		return WriteReceipt{}, err
+	}
+	if err = requireAbsent(parent, name); err != nil {
+		return WriteReceipt{}, ErrConflict
 	}
 	stage, stageName, stageID, err := stageFile(parent)
 	if err != nil {
@@ -357,21 +447,23 @@ func (b *Broker) replaceExclusive(ctx context.Context, path, expectedSHA256 stri
 	if err = b.checkBinding(parts[:len(parts)-1], parent); err != nil {
 		return WriteReceipt{}, err
 	}
-	if _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, expectedSHA256); err != nil {
-		return WriteReceipt{}, err
+	if err = requireAbsent(parent, name); err != nil {
+		return WriteReceipt{}, ErrConflict
 	}
 	if err = ctx.Err(); err != nil {
 		return WriteReceipt{}, err
 	}
-	if err = unix.Renameat(int(parent.Fd()), stageName, int(parent.Fd()), name); err != nil {
+	if err = unix.Linkat(int(parent.Fd()), stageName, int(parent.Fd()), name, 0); err != nil {
+		if errors.Is(err, unix.EEXIST) {
+			return WriteReceipt{}, ErrConflict
+		}
+		return WriteReceipt{}, err
+	}
+	if err = unlinkStage(parent, stageName, stageID); err != nil {
 		b.unknown = true
 		return WriteReceipt{}, ErrUnknown
 	}
 	published = true
-	if _, err = b.exclusiveCurrent(parts[:len(parts)-1], parent, name, intent.ContentSHA256); err != nil {
-		b.unknown = true
-		return WriteReceipt{}, ErrUnknown
-	}
 	if err = parent.Sync(); err != nil {
 		b.unknown = true
 		return WriteReceipt{}, ErrUnknown
@@ -385,30 +477,34 @@ func (b *Broker) replaceExclusive(ctx context.Context, path, expectedSHA256 stri
 	return receipt, nil
 }
 
-func (b *Broker) exclusiveCurrent(parts []string, parent *os.File, name, expectedSHA256 string) (identity, error) {
+func (b *Broker) exclusiveCurrent(parts []string, parent *os.File, name, expectedSHA256 string) (identity, os.FileMode, error) {
 	file, err := openFile(parent, name, unix.O_RDONLY|unix.O_NONBLOCK)
 	if err != nil {
-		return identity{}, ErrConflict
+		return identity{}, 0, ErrConflict
 	}
 	defer file.Close()
 	id, err := safeRegular(file)
 	if err != nil {
-		return identity{}, ErrConflict
+		return identity{}, 0, ErrConflict
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return identity{}, 0, ErrConflict
 	}
 	if err = b.checkBinding(parts, parent); err != nil {
-		return identity{}, err
+		return identity{}, 0, err
 	}
 	if err = sameAt(parent, name, file); err != nil {
-		return identity{}, ErrConflict
+		return identity{}, 0, ErrConflict
 	}
 	data, err := io.ReadAll(io.LimitReader(file, maxFileBytes+1))
 	if err != nil || int64(len(data)) > maxFileBytes || !utf8.Valid(data) || digest(data) != expectedSHA256 {
-		return identity{}, ErrConflict
+		return identity{}, 0, ErrConflict
 	}
 	if err = sameAt(parent, name, file); err != nil {
-		return identity{}, ErrConflict
+		return identity{}, 0, ErrConflict
 	}
-	return id, nil
+	return id, info.Mode(), nil
 }
 
 func (b *Broker) ready(ctx context.Context) error {
@@ -495,13 +591,20 @@ func requireAbsent(parent *os.File, name string) error {
 }
 
 func stageFile(parent *os.File) (*os.File, string, identity, error) {
+	return stageFileMode(parent, 0600)
+}
+
+func stageFileMode(parent *os.File, mode os.FileMode) (*os.File, string, identity, error) {
+	if mode.Perm() == 0 {
+		mode = 0600
+	}
 	for range 32 {
 		var random [16]byte
 		if _, err := rand.Read(random[:]); err != nil {
 			return nil, "", identity{}, err
 		}
 		name := ".codextools-" + hex.EncodeToString(random[:])
-		fd, err := unix.Openat(int(parent.Fd()), name, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+		fd, err := unix.Openat(int(parent.Fd()), name, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, uint32(mode.Perm()))
 		if errors.Is(err, unix.EEXIST) {
 			continue
 		}
@@ -509,6 +612,10 @@ func stageFile(parent *os.File) (*os.File, string, identity, error) {
 			return nil, "", identity{}, err
 		}
 		file := os.NewFile(uintptr(fd), name)
+		if err = file.Chmod(mode.Perm()); err != nil {
+			_ = file.Close()
+			return nil, "", identity{}, err
+		}
 		id, err := safeRegular(file)
 		if err != nil {
 			_ = file.Close()
