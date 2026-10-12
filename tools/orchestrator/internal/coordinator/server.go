@@ -779,7 +779,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 		err = hostRetentionControlError(err)
 	}
 	if candidateRetentionKind(message.Kind) {
-		err = hostRetentionControlError(err)
+		err = candidateRetentionControlError(err)
 	}
 	if err != nil {
 		responseKind = ipc.KindError

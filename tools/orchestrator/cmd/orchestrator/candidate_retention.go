@@ -55,7 +55,7 @@ func candidateRetentionCLI(ctx context.Context, action string, args []string, ou
 		if json.Unmarshal(raw, &r) != nil {
 			return codeError("candidate_retention_plan_invalid")
 		}
-		request, runID, kind = r, r.RunID, ipc.KindCandidateRetentionApply
+		request, runID, kind = store.CandidateRetentionApplyRequest{Plan: r}, r.RunID, ipc.KindCandidateRetentionApply
 	case "candidate-gc-enable", "candidate-gc-disable", "candidate-gc-status":
 		var r store.CandidateGCRequest
 		if json.Unmarshal(raw, &r) != nil {

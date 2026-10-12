@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/candidatemaintenance"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
@@ -122,10 +123,33 @@ func (s *Server) candidateRetentionControl(ctx context.Context, k ipc.Kind, raw 
 			a = "disable"
 		}
 		x, e := s.db.ControlCandidateGC(ctx, r.ControllerThread, r.ControlToken, a, r.Request)
+		if e == nil && k == ipc.KindCandidateGCEnable {
+			select {
+			case s.gcWake <- struct{}{}:
+			default:
+			}
+		}
 		if e != nil {
 			return nil, e
 		}
 		return json.Marshal(x)
 	}
 	return nil, store.CodeError("candidate_retention_request_invalid")
+}
+
+func candidateRetentionControlError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, context.Canceled) {
+		return store.CodeError("candidate_retention_cancelled")
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return store.CodeError("candidate_retention_timeout")
+	}
+	var code store.CodeError
+	if errors.As(err, &code) {
+		return code
+	}
+	return store.CodeError("candidate_retention_unavailable")
 }

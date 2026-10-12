@@ -74,15 +74,27 @@ func run(ctx context.Context, db Store, controller, token string, g store.Candid
 	// Every return after Start retains responsibility for the original Handle.
 	// A failed stop/tree observation leaves Store running; it must not authorize
 	// another generation while a prior actor may still be modifying the tree.
-	reaped := false
+	reaped, running, finishAttempted := false, false, false
 	defer func() {
 		w.Close()
 		r.Close()
 		if !reaped {
 			stop, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
 			_ = h.Stop(stop)
-			_ = h.Wait(stop)
+			waitErr := h.Wait(stop)
+			treeErr := h.ConfirmTreeExited()
+			cancel()
+			reaped = waitErr == nil && treeErr == nil
+			if !reaped {
+				err = errors.Join(err, waitErr, treeErr)
+			}
+		}
+		if running && reaped && !finishAttempted {
+			out = store.CandidateMaintenanceOutcome{Version: 1, State: "pending", Code: "bootstrap_delivery_failed"}
+			finish, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_, e := db.FinishCandidateMaintenance(finish, g, h.Identity(), out)
+			cancel()
+			err = errors.Join(err, e)
 		}
 	}()
 	if e != nil {
@@ -93,6 +105,7 @@ func run(ctx context.Context, db Store, controller, token string, g store.Candid
 	if _, e = db.MarkCandidateMaintenanceRunning(ctx, controller, token, g, id); e != nil {
 		return out, e
 	}
+	running = true
 	// File pipe deadlines prevent a misbehaving child from stranding admission.
 	deadline := time.Now().Add(5 * time.Second)
 	if until, ok := ctx.Deadline(); ok && until.Before(deadline) {
@@ -137,6 +150,7 @@ func run(ctx context.Context, db Store, controller, token string, g store.Candid
 	}
 	finish, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	finishAttempted = true
 	if _, e = db.FinishCandidateMaintenance(finish, g, id, out); e != nil {
 		return out, e
 	}

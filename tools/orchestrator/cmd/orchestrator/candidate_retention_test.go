@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
@@ -19,6 +21,31 @@ func TestCandidateRetentionPublicCLI(t *testing.T) {
 
 func testCandidateRetentionPublicRequests(t *testing.T, ctx context.Context, root, state, control, runID, token string, invoke func(...string) []byte) {
 	t.Helper()
+
+	planRequest := filepath.Join(root, "candidate-plan-request.json")
+	if err := writeExclusiveJSON(planRequest, store.CandidateRetentionPlanRequest{Version: 1, RunID: runID, RequestID: "candidate-empty-plan", Limit: 1}); err != nil {
+		t.Fatal(err)
+	}
+	var plan store.CandidateRetentionPlan
+	if err := json.Unmarshal(invoke("candidate-retention-plan", "--state-dir", state, "--control-file", control, "--request", planRequest), &plan); err != nil || plan.Validate() != nil || len(plan.Items) != 0 {
+		t.Fatal("plan", plan, err)
+	}
+	planFile := filepath.Join(root, "candidate-saved-plan.json")
+	if err := writeExclusiveJSON(planFile, plan); err != nil {
+		t.Fatal(err)
+	}
+	var applied store.CandidateRetentionApplyResult
+	if err := json.Unmarshal(invoke("candidate-retention-apply", "--state-dir", state, "--control-file", control, "--request", planFile), &applied); err != nil || applied.Version != 1 || applied.RunID != runID || applied.RequestID != plan.RequestID || applied.Results == nil || len(applied.Results) != 0 {
+		t.Fatal("apply", applied, err)
+	}
+	resolution := filepath.Join(root, "candidate-resolve-request.json")
+	if err := writeExclusiveJSON(resolution, store.CandidateRetentionResolutionRequest{Version: 1, RunID: runID, RequestID: "candidate-resolve", Resolution: "resolved", Reason: "test explicit resolution"}); err != nil {
+		t.Fatal(err)
+	}
+	err := run(ctx, []string{"candidate-retention-resolve", "--state-dir", state, "--control-file", control, "--request", resolution}, io.Discard, io.Discard)
+	if err == nil || !strings.Contains(err.Error(), "candidate_retention_pinned") {
+		t.Fatalf("resolve did not reach eligibility gate: %v", err)
+	}
 	for _, step := range []struct {
 		action             string
 		expected, revision int64

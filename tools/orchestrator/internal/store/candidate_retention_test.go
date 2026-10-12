@@ -250,7 +250,11 @@ func TestCandidateRetentionIncludesDownstreamConsumptionAndFences(t *testing.T) 
 			t.Fatal(e)
 		}
 	}
-	_, e = f.db.sql.Exec(`INSERT INTO new_base_lineage(run_id,source_run_id,source_task_id,source_event_id,source_event_revision,source_event_hash,command_id,request_sha256,context_json,launch_id,launch_token_hash,control_token_hash,created_at,admission_bytes) VALUES(?,?,?,?,?,?,'new-base-test',?,'{}',?,?,?,?,1)`, g.RunID, f.grant.RunID, f.grant.TaskID, f.event.EventID, f.event.EventRevision, f.event.PayloadHash, runtimeHash("newbase"), receipt.LaunchID, runtimeHash(receipt.LaunchToken), runtimeHash(receipt.ControlToken), f.at.Format(time.RFC3339Nano))
+	var sourceRevision int
+	if e = f.db.sql.QueryRow(`SELECT event_revision FROM runtime_events WHERE event_id=?`, f.event.EventID).Scan(&sourceRevision); e != nil {
+		t.Fatal(e)
+	}
+	_, e = f.db.sql.Exec(`INSERT INTO new_base_lineage(run_id,source_run_id,source_task_id,source_event_id,source_event_revision,source_event_hash,command_id,request_sha256,context_json,launch_id,launch_token_hash,control_token_hash,created_at,admission_bytes) VALUES(?,?,?,?,?,?,'new-base-test',?,'{}',?,?,?,?,1)`, g.RunID, f.grant.RunID, f.grant.TaskID, f.event.EventID, sourceRevision, f.event.PayloadHash, runtimeHash("newbase"), receipt.LaunchID, runtimeHash(receipt.LaunchToken), runtimeHash(receipt.ControlToken), f.at.Format(time.RFC3339Nano))
 	if e != nil {
 		t.Fatal(e)
 	}
