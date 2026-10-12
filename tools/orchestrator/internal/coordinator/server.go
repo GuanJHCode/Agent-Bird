@@ -74,6 +74,11 @@ type TaskControlRequest struct {
 	WorkRevision     int    `json:"work_revision,omitempty"`
 }
 
+type CallResultRequest struct {
+	TaskControlRequest
+	Offset int `json:"offset"`
+}
+
 type CollectRequest struct {
 	TaskControlRequest
 	Cursor             string `json:"cursor,omitempty"`
@@ -903,6 +908,16 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			return nil, err
 		}
 		return json.Marshal(snapshot)
+	case ipc.KindCallResult:
+		var request CallResultRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		result, err := s.db.ReadCallResult(ctx, request.TaskID, request.ControllerThread, request.ControlToken, request.Offset)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(result)
 	case ipc.KindCollect:
 		var request CollectRequest
 		if err := strictJSON(raw, &request); err != nil {

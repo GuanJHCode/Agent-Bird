@@ -26,3 +26,20 @@ filtered多阶段接线、LFS/hooks/signing、长资源优化及复杂retention�
 
 主会话独占 integration，负责共享协议和CLI；agy_resource 与 darwin_git 各保留原
 隔离 worktree，最多两子Agent，不递归。已有有效证据复用；仅受影响短链补测。
+
+## 已完成：可信结果分页读取
+
+新增 `call_result_v1` owner 鉴权查询，只有原 segment `exited`，或经过核验的
+`not_started + launch_rejected` 才返回终端内容。复用已提交 Host artifact receipt
+与完整性校验；每页至多8192 UTF-8字节，整件至多1MiB，返回原payload hash、终态与
+下一偏移。不ACK、不代替业务验收，也不把预启动拒绝写成进程退出。
+DB schema保持41；IPC版本保持1，新增查询kind，无迁移。
+
+独立审查原版发现 launch_rejected/64KiB 两项缺陷，已修正；主会话复核修正实现。
+有效验证：Store定向3顶层/9 named PASS，race同3顶层/9 named PASS，fail=0、skip=0。
+原始证据在外层本任务专属artifact目录
+`tasks/platform-followup-20261012/data/call-result-{count1,race-count1}.jsonl`；
+不是旧仓库产品源码。尚不构成真实Provider调用验收。
+
+首次原生调用在目标启动前返回 `current_codex_origin_ambiguous`：当前发起进程链有
+多个Codex；保留门禁，下一步使用显式Controller发起进程身份，不通过删改身份校验开放。
