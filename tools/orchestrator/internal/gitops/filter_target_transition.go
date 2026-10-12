@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -157,6 +158,9 @@ func (t *FilterTargetTransition) MergeWithHooks(ctx context.Context, hooks Filte
 			return CommandResult{}, err
 		}
 	}
+	if err := t.verifyPreStart(ctx); err != nil {
+		return CommandResult{}, err
+	}
 	record := func(phase string, id *process.Identity, exit int) error {
 		if err := target.journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: digest, Process: id, ExitCode: exit}); err != nil {
 			return err
@@ -164,6 +168,9 @@ func (t *FilterTargetTransition) MergeWithHooks(ctx context.Context, hooks Filte
 		return t.verifyRunning(ctx)
 	}
 	if err := record("intent", nil, -1); err != nil {
+		return CommandResult{}, err
+	}
+	if err := t.verifyPreStart(ctx); err != nil {
 		return CommandResult{}, err
 	}
 	p, err := process.Start(ctx, process.Command{Path: target.source.git.path, PinnedPath: target.source.git.path, PinnedSHA256: target.source.git.sha256, Args: args, Dir: dir, Env: env, ExactEnv: true})
@@ -244,6 +251,44 @@ func (t *FilterTargetTransition) MergeWithHooks(ctx context.Context, hooks Filte
 		return result, err
 	}
 	return result, nil
+}
+
+// verifyPreStart restores the complete readonly proof after callback windows
+// and before the one authorized merge process starts.  Its state check differs
+// from verifyInitial only because MergeWithHooks has already recorded this
+// attempt as running; target branch, index, and inventory remain immutable
+// until process.Start succeeds.
+func (t *FilterTargetTransition) verifyPreStart(ctx context.Context) error {
+	if t == nil || t.self != t || t.closed || !t.attempted || !t.running || t.final || t.pair == nil || !transitionContext(ctx) {
+		return fail(CodeIdentityChanged, "filter target transition pre-start", nil)
+	}
+	if err := t.pair.Verify(ctx); err != nil {
+		return err
+	}
+	if err := t.verifyDirectories(); err != nil {
+		return err
+	}
+	return t.verifyLock()
+}
+
+func (t *FilterTargetTransition) verifyLock() error {
+	if t.lock == nil || t.pair == nil || t.pair.target == nil {
+		return fail(CodeIdentityChanged, "filter target transition lock", nil)
+	}
+	held, err := t.lock.Stat()
+	if err != nil {
+		return fail(CodeIdentityChanged, "filter target transition lock", err)
+	}
+	path := filepath.Join(t.pair.target.source.commonDir, "g3-integration.lock")
+	named, err := os.Lstat(path)
+	if err != nil || !named.Mode().IsRegular() || !os.SameFile(named, held) {
+		return fail(CodeIdentityChanged, "filter target transition lock", err)
+	}
+	stat, ok := named.Sys().(*syscall.Stat_t)
+	if !ok || stat.Nlink != 1 || int64(stat.Uid) != int64(os.Getuid()) || named.Mode().Perm() != 0600 {
+		return fail(CodeIdentityChanged, "filter target transition lock", nil)
+	}
+	return nil
 }
 
 // verifyRunning intentionally excludes the readonly target index, inventory,

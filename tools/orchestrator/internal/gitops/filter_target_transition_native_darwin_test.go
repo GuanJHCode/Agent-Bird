@@ -93,3 +93,84 @@ func TestFilterTargetTransitionNativeFastForward(t *testing.T) {
 		t.Fatal("producer broker unknown")
 	}
 }
+
+func TestFilterTargetTransitionRejectsCallbackTargetDriftBeforeMergeStart(t *testing.T) {
+	for _, callback := range []string{"intent_journal"} {
+		t.Run(callback, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+			defer cancel()
+			f, repo, source, producer, base, _, accepted, _, prepared := filterTargetNativeAccepted(t, ctx)
+			defer func() {
+				cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cleanupCancel()
+				if _, err := producer.Cleanup(cleanupCtx); err != nil {
+					t.Errorf("producer cleanup: %v", err)
+				}
+				if err := producer.Close(); err != nil {
+					t.Errorf("producer close: %v", err)
+				}
+			}()
+			defer source.Close()
+			defer prepared.Close()
+
+			rawJournal := &rawFixtureJournal{}
+			journal := &filterTargetNativeJournal{rawFixtureJournal: rawJournal}
+			f.journal = nil // This negative path intentionally records only intent.
+			broker, scope := freezeBroker(t, f, ctx, source.manifest, "transition-"+callback, "transition-"+callback+"-command", "transition-"+callback+"-filter")
+			target, err := InspectFilteredTarget(ctx, source, broker, FilterTargetRequest{Worktree: repo, Ref: "refs/heads/main", BaseOID: base, AttemptID: "transition-" + callback, PlanRevision: 1, FilterScopeSHA256: scope, FilterReservationID: "transition-" + callback + "-filter"}, accepted, journal)
+			if err != nil {
+				t.Fatalf("inspect target: %v", err)
+			}
+			defer target.Close()
+			candidate, err := MaterializeFilteredCandidate(ctx, source, broker, MaterializeRequest{RepoRoot: repo, Worktree: filepath.Join(f.root, "candidate-"+callback), AttemptID: "transition-" + callback, BaseOID: accepted.BaseOID, CandidateOID: accepted.CandidateOID, OrderedInputOIDs: append([]string(nil), accepted.OrderedInputOIDs...), PlanRevision: accepted.PlanRevision, FilterScopeSHA256: scope, FilterReservationID: "transition-" + callback + "-filter"}, accepted, journal)
+			if err != nil {
+				t.Fatalf("materialize candidate: %v", err)
+			}
+			defer candidate.Close()
+			pair, err := BindFilteredTargetCandidate(ctx, target, candidate)
+			if err != nil {
+				t.Fatalf("bind pair: %v", err)
+			}
+			defer pair.Close()
+			transition, err := OpenFilterTargetTransition(ctx, pair)
+			if err != nil {
+				t.Fatalf("open transition: %v", err)
+			}
+			defer transition.Close()
+			records := len(rawJournal.records)
+
+			mutate := func() {
+				if err := os.WriteFile(filepath.Join(repo, ".git", "refs", "heads", "main"), []byte("0000000000000000000000000000000000000000\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(repo, ".git", "index"), []byte("DIRC"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(repo, "README"), []byte("callback drift\n"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			hooks := FilterTargetTransitionHooks{}
+			if callback == "bind" {
+				hooks.bindCommand = func(_ context.Context, digest string) (string, error) {
+					mutate()
+					return digest, nil
+				}
+			} else {
+				journal.afterGit = func(record GitProcessRecord) {
+					if record.Phase == "intent" {
+						mutate()
+					}
+				}
+			}
+			if _, err = transition.MergeWithHooks(ctx, hooks); err == nil {
+				t.Fatal("callback target drift accepted")
+			}
+			for _, record := range rawJournal.records[records:] {
+				if record.Phase == "spawned" {
+					t.Fatalf("merge Git started after %s callback drift", callback)
+				}
+			}
+		})
+	}
+}
