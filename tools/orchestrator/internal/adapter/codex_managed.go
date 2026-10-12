@@ -31,7 +31,7 @@ func BuildManagedCodexInvocation(req Request) (Invocation, error) {
 		return Invocation{}, invalid
 	}
 	p := *req.Profile
-	if p.Version != 1 || p.Role != Reviewer || p.Permission != ReadOnly || !p.CLIModelDefault || p.Model != "" || p.Reasoning != "" || p.GrokSessionWrite || p.TimeoutMS < 1 || p.TimeoutMS > 3600000 {
+	if p.Version != 1 || p.Role != Reviewer || p.Permission != ReadOnly || !p.CLIModelDefault || p.Model != "" || p.Reasoning != "" || p.GrokSessionWrite || p.GrokExistingAuthOnly || p.TimeoutMS < 1 || p.TimeoutMS > 3600000 {
 		return Invocation{}, invalid
 	}
 	if !managedCodexPath(req.Binary.Path) || req.Binary.Version != CodexVersion || req.Binary.SHA256 != CodexSHA256 || req.Lock.Version != 1 || req.Lock.Provider != ProviderCodex || req.Lock.Protocol != ProtocolID(ProviderCodex) || req.Lock.Binary != req.Binary || !managedCodexPath(req.CWD) || !utf8.ValidString(req.Prompt) || len(req.Prompt) > 65536 || strings.TrimSpace(req.Prompt) == "" || strings.ContainsRune(req.Prompt, 0) {

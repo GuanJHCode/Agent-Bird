@@ -70,3 +70,25 @@ MCP传输/取消依据：
 https://modelcontextprotocol.io/specification/2025-06-18/basic/transports
 https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/cancellation
 Codex进程配置与单工具策略依据：https://developers.openai.com/codex/mcp
+
+## 已完成：Grok现有账号执行路径
+
+新增可选profile/dispatch字段`grok_existing_auth_only`。统一call对Grok固定设置true：
+保留原session目录、socket、Seatbelt与账号写保护，跳过会更新原登录的`grok models`
+前置维护。精确准入本机`grok 1.0.50 (c58f321264ba) [stable]`并强制该字段；旧1.0.34
+未显式选择时保持原协议。非Grok拒绝该字段。共享DTO/CLI由主会话实施，Host由隔离
+worktree实施；双方交叉审查通过。Host定向2top PASS，adapter/dispatch回归22named
+PASS，fail=0、skip=0。当前只建立版本/参数与保护兼容性，尚未完成Grok真实调用验收。
+
+## 真实链路证据：Codex → Claude
+
+已通过原生Codex0.162.1发起、实际MCP `agent_bird_call`、Claude2.1.296目标执行。
+输入要求读取独立fixture README；返回包含文件标记`BIRD-CLAUDE-1012`，
+`status=result_ready`、`process_exited=true`，实际原Host终态经Store解析。
+使用用户任务专属临时安装根，未修改真实安装/账号/全局配置。Codex临时配置显式传递
+managed owner路径，并只为本次已授权的Agent-Bird工具设置进程级许可；不改文件、
+网络或状态保护。不是所有12方向通过。
+
+数据：`tasks/macos-1.0-20261012/data/codex-claude-source.jsonl`（原生MCP调用事件）
+与`codex-claude-argv.json`（进程级参数）。开发二进制`agent-bird-native2`无发布codeSHA
+声明；后续固定交付使用clean build。此证据未涵盖后续新增Codex目标或Grok接线。

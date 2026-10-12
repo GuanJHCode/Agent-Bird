@@ -69,7 +69,7 @@ func codexValidateOriginRecord(o codexOriginRecord) error {
 		return errCodexStateFile
 	}
 	p := o.Profile
-	if p.Version != 1 || p.Role != adapter.Reviewer || p.Permission != adapter.ReadOnly || !p.CLIModelDefault || p.Model != "" || p.Reasoning != "" || p.GrokSessionWrite || p.TimeoutMS < 1 || p.TimeoutMS > 3600000 {
+	if p.Version != 1 || p.Role != adapter.Reviewer || p.Permission != adapter.ReadOnly || !p.CLIModelDefault || p.Model != "" || p.Reasoning != "" || p.GrokSessionWrite || p.GrokExistingAuthOnly || p.TimeoutMS < 1 || p.TimeoutMS > 3600000 {
 		return errCodexStateFile
 	}
 	for _, path := range []string{o.Workspace, o.StatePath, o.ProtectedPath, o.Source.Home} {

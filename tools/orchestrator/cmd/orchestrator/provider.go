@@ -47,6 +47,7 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 		// Capability discovery is not task write authorization. Actual requests
 		// must explicitly opt in and Host derives their fresh session directory.
 		check.Profile.GrokSessionWrite = req.Provider == adapter.ProviderGrok
+		check.Profile.GrokExistingAuthOnly = req.Provider == adapter.ProviderGrok
 		if err = adapter.CheckCapabilities(check, help); err != nil {
 			reason = err.Error()
 		}

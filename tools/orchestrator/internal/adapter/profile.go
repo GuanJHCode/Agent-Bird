@@ -18,14 +18,15 @@ const (
 )
 
 type ExecutionProfile struct {
-	CLIModelDefault  bool            `json:"cli_model_default,omitempty"`
-	GrokSessionWrite bool            `json:"grok_session_write,omitempty"`
-	Version          int             `json:"version"`
-	Role             Role            `json:"role"`
-	Model            ModelID         `json:"model,omitempty"`
-	Reasoning        ReasoningEffort `json:"reasoning,omitempty"`
-	Permission       AccessMode      `json:"permission"`
-	TimeoutMS        int64           `json:"timeout_ms"`
+	GrokExistingAuthOnly bool            `json:"grok_existing_auth_only,omitempty"`
+	CLIModelDefault      bool            `json:"cli_model_default,omitempty"`
+	GrokSessionWrite     bool            `json:"grok_session_write,omitempty"`
+	Version              int             `json:"version"`
+	Role                 Role            `json:"role"`
+	Model                ModelID         `json:"model,omitempty"`
+	Reasoning            ReasoningEffort `json:"reasoning,omitempty"`
+	Permission           AccessMode      `json:"permission"`
+	TimeoutMS            int64           `json:"timeout_ms"`
 }
 
 type ProviderLock struct {
@@ -68,7 +69,7 @@ func validateProfile(req Request) error {
 	if p == nil {
 		return nil
 	}
-	if p.GrokSessionWrite && req.Provider != ProviderGrok {
+	if (p.GrokSessionWrite || p.GrokExistingAuthOnly) && req.Provider != ProviderGrok {
 		return errors.New("profile_provider_state_mismatch")
 	}
 	if req.Lock == nil {
@@ -93,8 +94,11 @@ func validateProfile(req Request) error {
 		return errors.New("reasoning_unsupported")
 	}
 	if req.Provider == ProviderGrok {
-		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
+		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" && req.Binary.Version != "grok 1.0.50 (c58f321264ba) [stable]" {
 			return errors.New("grok_version_not_verified")
+		}
+		if req.Binary.Version == "grok 1.0.50 (c58f321264ba) [stable]" && !p.GrokExistingAuthOnly {
+			return errors.New("grok_existing_auth_required")
 		}
 		if !p.GrokSessionWrite {
 			return errors.New("grok_session_write_required")

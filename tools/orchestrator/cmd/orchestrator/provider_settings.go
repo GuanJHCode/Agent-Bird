@@ -138,7 +138,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 		if lock != detected.Lock {
 			return codeError("provider_lock_invalid")
 		}
-		p := adapter.InvocationPayload{Directory: filepath.Dir(lock.Binary.Path), Provider: string(providers[0]), ProviderLock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, GrokSessionWrite: providers[0] == adapter.ProviderGrok}}
+		p := adapter.InvocationPayload{Directory: filepath.Dir(lock.Binary.Path), Provider: string(providers[0]), ProviderLock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, GrokSessionWrite: providers[0] == adapter.ProviderGrok, GrokExistingAuthOnly: providers[0] == adapter.ProviderGrok}}
 		raw, _ := json.Marshal(p)
 		if err := preflightProviders(ctx, []coordinator.TaskRequest{{AdapterPayload: raw}}); err != nil {
 			return err

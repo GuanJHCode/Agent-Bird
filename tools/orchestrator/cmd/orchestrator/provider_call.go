@@ -184,7 +184,7 @@ func executeProviderCall(parent context.Context, req providerCallRequest, stateA
 	if req.Mode == "workspace-write" {
 		role = adapter.Implementer
 	}
-	dispatch := dispatchRequest{Version: 1, RequestID: result.CallID, Provider: req.Provider, ProviderLock: req.ProviderLock, Directory: req.Directory, Prompt: req.Task, Role: role, Paths: req.Paths, Acceptance: []string{"Return the task result and describe any incomplete work."}, Model: "cli-default", MaxAttempts: 1, MaxActiveMS: req.TimeoutMS, GrokSessionWrite: req.Provider == "grok"}
+	dispatch := dispatchRequest{Version: 1, RequestID: result.CallID, Provider: req.Provider, ProviderLock: req.ProviderLock, Directory: req.Directory, Prompt: req.Task, Role: role, Paths: req.Paths, Acceptance: []string{"Return the task result and describe any incomplete work."}, Model: "cli-default", MaxAttempts: 1, MaxActiveMS: req.TimeoutMS, GrokSessionWrite: req.Provider == "grok", GrokExistingAuthOnly: req.Provider == "grok"}
 	var receipt bytes.Buffer
 	dispatchErr := withTaskRequest(dispatch, func(path string) error {
 		return taskDispatch(ctx, []string{"--request", path, "--state-dir", state}, &receipt)

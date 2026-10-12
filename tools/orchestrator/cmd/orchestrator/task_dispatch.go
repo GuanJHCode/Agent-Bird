@@ -23,20 +23,21 @@ import (
 )
 
 type dispatchRequest struct {
-	ExecutionPolicy  *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
-	Version          int                       `json:"version"`
-	RequestID        string                    `json:"request_id"`
-	Provider         string                    `json:"provider"`
-	ProviderLock     string                    `json:"provider_lock"`
-	Directory        string                    `json:"directory"`
-	Prompt           string                    `json:"prompt"`
-	Role             adapter.Role              `json:"role"`
-	Paths            []string                  `json:"paths,omitempty"`
-	Acceptance       []string                  `json:"acceptance"`
-	Model            string                    `json:"model,omitempty"`
-	MaxAttempts      int                       `json:"max_attempts"`
-	MaxActiveMS      int64                     `json:"max_active_ms"`
-	GrokSessionWrite bool                      `json:"grok_session_write,omitempty"`
+	GrokExistingAuthOnly bool                      `json:"grok_existing_auth_only,omitempty"`
+	ExecutionPolicy      *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
+	Version              int                       `json:"version"`
+	RequestID            string                    `json:"request_id"`
+	Provider             string                    `json:"provider"`
+	ProviderLock         string                    `json:"provider_lock"`
+	Directory            string                    `json:"directory"`
+	Prompt               string                    `json:"prompt"`
+	Role                 adapter.Role              `json:"role"`
+	Paths                []string                  `json:"paths,omitempty"`
+	Acceptance           []string                  `json:"acceptance"`
+	Model                string                    `json:"model,omitempty"`
+	MaxAttempts          int                       `json:"max_attempts"`
+	MaxActiveMS          int64                     `json:"max_active_ms"`
+	GrokSessionWrite     bool                      `json:"grok_session_write,omitempty"`
 }
 
 type dispatchReservation struct {
@@ -99,7 +100,7 @@ func validateDispatch(req dispatchRequest) error {
 	if p == adapter.ProviderGrok && !req.GrokSessionWrite {
 		return codeError("grok_session_write_required")
 	}
-	if p != adapter.ProviderGrok && req.GrokSessionWrite {
+	if p != adapter.ProviderGrok && (req.GrokSessionWrite || req.GrokExistingAuthOnly) {
 		return codeError("profile_provider_state_mismatch")
 	}
 	return nil
@@ -168,7 +169,7 @@ func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base st
 			profileTimeout = min(profileTimeout, req.ExecutionPolicy.SegmentMaxActiveMS)
 		}
 	}
-	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: profileTimeout, GrokSessionWrite: req.GrokSessionWrite}
+	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: profileTimeout, GrokSessionWrite: req.GrokSessionWrite, GrokExistingAuthOnly: req.GrokExistingAuthOnly}
 	if req.Model == "cli-default" {
 		profile.CLIModelDefault = true
 	} else {
