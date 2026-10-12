@@ -2,7 +2,7 @@
 
 `orchestrator platform capabilities` 是无参数、无状态的只读查询。它不打开数据库、拉起 Coordinator、读取账号配置或探测 Provider。schema_version 是此二进制写入的版本，不是磁盘上数据库的观测值；runtime_verified 恒为 false。
 
-返回外层 version=1、schema_version、code_sha、code_modified、contract、contract_sha256。Go build provenance 不可用时 code_sha=unknown/code_modified=true；有修改的构建不能将 revision 当作精确产品代码证明。
+返回外层 version=1、schema_version、code_sha、code_modified、contract、contract_sha256。普通 Go 构建返回 code_sha=unknown/code_modified=true。受控 build-platform.sh 固定脚本所在产品仓的干净 HEAD，通过 linker 注入构建声明；code_sha 不是签名或自证绑定，发布/验收仍须保存源码及二进制哈希回执。Go1.26.8 的自动 VCS 搜索只认 .git 目录，会忽略 linked worktree 的 .git 文件并误选外层仓库，故不能将它作为产品 SHA。脚本拒绝symlink invocation、非空GOFLAGS，以GOWORK=off构建并原子无覆盖发布。
 
 contract 固定顺序字段：version/os/arch/capabilities/events；capabilities 按源码固定顺序，每项 id/version/gate/reason/requires。gate=public 表示有公共接线但仍须逐任务准入；internal 表示私有底层，不授予公共动作；blocked 必须拒绝。客户端必须拒绝未知版本和未知 gate，不得由 missing/unknown 推断支持。
 

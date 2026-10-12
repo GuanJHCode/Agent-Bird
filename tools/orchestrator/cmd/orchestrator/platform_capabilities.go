@@ -1,10 +1,11 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"runtime"
-	"runtime/debug"
+	"strings"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
@@ -20,18 +21,7 @@ func platformCapabilities(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	revision := "unknown"
-	modified := true
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, s := range info.Settings {
-			if s.Key == "vcs.revision" {
-				revision = s.Value
-			}
-			if s.Key == "vcs.modified" {
-				modified = s.Value != "false"
-			}
-		}
-	}
+	revision, modified := platformSourceIdentity(platformCodeSHA, platformCodeClean)
 	return json.NewEncoder(stdout).Encode(struct {
 		Version         int             `json:"version"`
 		SchemaVersion   int             `json:"schema_version"`
@@ -41,4 +31,17 @@ func platformCapabilities(args []string, stdout io.Writer) error {
 		Contract        json.RawMessage `json:"contract"`
 		ContractSHA256  string          `json:"contract_sha256"`
 	}{1, store.SchemaVersion(), revision, modified, false, body, digest})
+}
+
+// Set only by a build that pins the actual product checkout. Go's automatic
+// VCS discovery can select an outer repository for a linked worktree (.git is
+// a file), so debug.ReadBuildInfo is deliberately not a product identity.
+var platformCodeSHA, platformCodeClean string
+
+func platformSourceIdentity(revision, clean string) (string, bool) {
+	raw, err := hex.DecodeString(revision)
+	if err != nil || len(raw) != 20 || strings.ToLower(revision) != revision || (clean != "true" && clean != "false") {
+		return "unknown", true
+	}
+	return revision, clean != "true"
 }
