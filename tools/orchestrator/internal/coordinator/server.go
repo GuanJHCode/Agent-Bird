@@ -747,8 +747,11 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 	if hostRetentionControlKind(message.Kind) && !store.ValidDiagnosticsToken(message.RequestID) {
 		err = store.CodeError("host_retention_request_invalid")
 	}
+	if candidateRetentionKind(message.Kind) && !store.ValidDiagnosticsToken(message.RequestID) {
+		err = store.CodeError("candidate_retention_request_invalid")
+	}
 	switch message.Kind {
-	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus, ipc.KindReportArtifactResolve, ipc.KindReportArtifactRetentionPlan, ipc.KindReportArtifactRetentionApply, ipc.KindReportGCEnable, ipc.KindReportGCDisable, ipc.KindReportGCStatus, ipc.KindHostArtifactResolve, ipc.KindHostArtifactRetentionPlan, ipc.KindHostArtifactRetentionApply, ipc.KindHostGCEnable, ipc.KindHostGCDisable, ipc.KindHostGCStatus:
+	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply, ipc.KindDiagnosticsGCEnable, ipc.KindDiagnosticsGCDisable, ipc.KindDiagnosticsGCStatus, ipc.KindReportArtifactResolve, ipc.KindReportArtifactRetentionPlan, ipc.KindReportArtifactRetentionApply, ipc.KindReportGCEnable, ipc.KindReportGCDisable, ipc.KindReportGCStatus, ipc.KindHostArtifactResolve, ipc.KindHostArtifactRetentionPlan, ipc.KindHostArtifactRetentionApply, ipc.KindHostGCEnable, ipc.KindHostGCDisable, ipc.KindHostGCStatus, ipc.KindCandidateRetentionResolve, ipc.KindCandidateRetentionPlan, ipc.KindCandidateRetentionApply, ipc.KindCandidateGCEnable, ipc.KindCandidateGCDisable, ipc.KindCandidateGCStatus:
 		if err == nil {
 			ctx, err = s.authorizePeer(ctx, conn)
 		}
@@ -775,6 +778,9 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 	if hostRetentionControlKind(message.Kind) {
 		err = hostRetentionControlError(err)
 	}
+	if candidateRetentionKind(message.Kind) {
+		err = hostRetentionControlError(err)
+	}
 	if err != nil {
 		responseKind = ipc.KindError
 		payload, _ = json.Marshal(ErrorResponse{Error: errorCode(err)})
@@ -784,6 +790,8 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
+	case ipc.KindCandidateRetentionResolve, ipc.KindCandidateRetentionPlan, ipc.KindCandidateRetentionApply, ipc.KindCandidateGCEnable, ipc.KindCandidateGCDisable, ipc.KindCandidateGCStatus:
+		return s.candidateRetentionControl(ctx, kind, raw)
 	case ipc.KindHostArtifactResolve, ipc.KindHostArtifactRetentionPlan, ipc.KindHostArtifactRetentionApply, ipc.KindHostGCEnable, ipc.KindHostGCDisable, ipc.KindHostGCStatus:
 		return s.hostRetentionControl(ctx, kind, raw)
 	case ipc.KindReportArtifactResolve, ipc.KindReportArtifactRetentionPlan, ipc.KindReportArtifactRetentionApply, ipc.KindReportGCEnable, ipc.KindReportGCDisable, ipc.KindReportGCStatus:

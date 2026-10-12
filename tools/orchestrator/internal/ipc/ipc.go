@@ -106,6 +106,12 @@ const (
 	KindDiagnosticsGCStatus          Kind = "diagnostics_gc_status"
 	KindDiagnosticsRetentionPlan     Kind = "diagnostics_retention_plan"
 	KindDiagnosticsRetentionApply    Kind = "diagnostics_retention_apply"
+	KindCandidateRetentionResolve    Kind = "candidate_retention_resolve"
+	KindCandidateRetentionPlan       Kind = "candidate_retention_plan"
+	KindCandidateRetentionApply      Kind = "candidate_retention_apply"
+	KindCandidateGCEnable            Kind = "candidate_gc_enable"
+	KindCandidateGCDisable           Kind = "candidate_gc_disable"
+	KindCandidateGCStatus            Kind = "candidate_gc_status"
 )
 
 var (
