@@ -110,3 +110,51 @@ func TestJournalFilterAttachmentStrictness(t *testing.T) {
 		}
 	})
 }
+
+func TestCleanupHistoryRequiresOneExactDurableBinding(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "journal")
+	journal, err := OpenFreshJournal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	intent := gitops.CleanupIntent{Root: "/owned/root", AttemptID: "attempt", ReceiptSHA256: "exact"}
+	outcome := gitops.CleanupOutcome{State: gitops.CleanupRemoved, Root: "/owned/root", ReceiptSHA256: "exact"}
+	if err = journal.PersistCleanupIntent(context.Background(), intent); err != nil {
+		t.Fatal(err)
+	}
+	if err = journal.RecordCleanup(context.Background(), outcome); err != nil {
+		t.Fatal(err)
+	}
+	if err = journal.Close(); err != nil {
+		t.Fatal(err)
+	}
+	journal, err = OpenJournal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer journal.Close()
+	gotIntent, gotOutcome, found, err := journal.LoadCleanup(context.Background(), "exact")
+	if err != nil || !found || !reflect.DeepEqual(gotIntent, intent) || !reflect.DeepEqual(gotOutcome, outcome) {
+		t.Fatalf("intent=%+v outcome=%+v found=%t err=%v", gotIntent, gotOutcome, found, err)
+	}
+
+	foreignRoot := filepath.Join(t.TempDir(), "foreign-journal")
+	foreign, err := OpenFreshJournal(foreignRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = foreign.PersistCleanupIntent(context.Background(), gitops.CleanupIntent{Root: "/foreign", ReceiptSHA256: "other"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = foreign.Close(); err != nil {
+		t.Fatal(err)
+	}
+	foreign, err = OpenJournal(foreignRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer foreign.Close()
+	if _, _, _, err = foreign.LoadCleanup(context.Background(), "exact"); err == nil {
+		t.Fatal("foreign cleanup journal accepted")
+	}
+}

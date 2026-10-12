@@ -68,6 +68,13 @@ type Journal interface {
 	RecordCleanup(context.Context, CleanupOutcome) error
 }
 
+// CleanupHistory is deliberately optional.  A missing root is never enough to
+// infer that a prior cleanup completed; only a journal that can strictly read
+// back this exact receipt binding may prove that outcome.
+type CleanupHistory interface {
+	LoadCleanup(context.Context, string) (CleanupIntent, CleanupOutcome, bool, error)
+}
+
 // CandidateJournal is kept separate from Journal so the G1 Store can add the
 // candidate-freeze records without changing its existing integration ABI.
 type CandidateJournal interface {
@@ -336,6 +343,7 @@ type CleanupIntent struct {
 	RootIdentity          string    `json:"root_identity"`
 	PrivateRef            string    `json:"private_ref,omitempty"`
 	PrivateRefExpectedOID string    `json:"private_ref_expected_oid,omitempty"`
+	ReceiptSHA256         string    `json:"receipt_sha256"`
 	CreatedAt             time.Time `json:"created_at"`
 }
 type CleanupOutcome struct {
@@ -346,6 +354,7 @@ type CleanupOutcome struct {
 	PrivateRef      string    `json:"private_ref,omitempty"`
 	PrivateRefState string    `json:"private_ref_state,omitempty"`
 	DetailDigest    string    `json:"detail_digest,omitempty"`
+	ReceiptSHA256   string    `json:"receipt_sha256"`
 	RecordedAt      time.Time `json:"recorded_at"`
 }
 
@@ -1231,20 +1240,42 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	if CanonicalPath(req.Root) != receipt.WorktreeIdentity {
 		return out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("root identity"))
 	}
-	if _, err := os.Stat(req.Root); os.IsNotExist(err) {
-		if receipt.PrivateRef != "" {
-			intent := CleanupIntent{Root: req.Root, AttemptID: receipt.AttemptID, CandidateOID: receipt.CommitOID, RootIdentity: receipt.WorktreeIdentity, PrivateRef: receipt.PrivateRef, PrivateRefExpectedOID: receipt.PrivateRefExpectedOID, CreatedAt: time.Now().UTC()}
-			if err := req.Journal.PersistCleanupIntent(ctx, intent); err != nil {
-				return out, err
-			}
-			if err := DeletePrivateRef(ctx, receipt.RepoRoot, receipt.PrivateRef, receipt.PrivateRefExpectedOID); err != nil {
-				out.Code = string(CodeTargetDrift)
-				return out, recordCleanup(ctx, req.Journal, out, err)
-			}
-			out.PrivateRefState = "deleted"
+	receiptSHA256 := receipt.hash()
+	out.ReceiptSHA256 = receiptSHA256
+	if history, ok := req.Journal.(CleanupHistory); ok {
+		intent, prior, found, err := history.LoadCleanup(ctx, receiptSHA256)
+		if err != nil {
+			return out, fail(CodeUnknownObject, "cleanup history", err)
 		}
-		out.State = CleanupRemoved
-		return out, recordCleanup(ctx, req.Journal, out, nil)
+		if found {
+			if intent.ReceiptSHA256 != receiptSHA256 || (prior.ReceiptSHA256 != "" && prior.ReceiptSHA256 != receiptSHA256) {
+				return out, fail(CodeUnknownObject, "cleanup history", fmt.Errorf("receipt binding conflict"))
+			}
+			if prior.State != CleanupRemoved {
+				return out, nil
+			}
+			if _, statErr := os.Lstat(req.Root); statErr == nil {
+				return out, fail(CodeIdentityChanged, "cleanup replay", fmt.Errorf("root recreated"))
+			} else if !os.IsNotExist(statErr) {
+				return out, statErr
+			}
+			if receipt.PrivateRef != "" {
+				_, exists, refErr := privateRefOID(ctx, receipt.RepoRoot, receipt.PrivateRef)
+				if refErr != nil {
+					return out, refErr
+				}
+				if exists {
+					return out, fail(CodeTargetDrift, "cleanup replay", fmt.Errorf("private ref recreated"))
+				}
+			}
+			return prior, nil
+		}
+	}
+	if _, err := os.Stat(req.Root); os.IsNotExist(err) {
+		// The root can be absent because a previous process stopped after its
+		// quarantine rename.  Preserve its private ref until a durable completed
+		// record proves the exact operation already removed both resources.
+		return out, nil
 	} else if err != nil {
 		return out, err
 	}
@@ -1295,7 +1326,7 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 			}
 		}
 	}
-	intent := CleanupIntent{Root: req.Root, AttemptID: receipt.AttemptID, CandidateOID: receipt.CommitOID, RootIdentity: receipt.WorktreeIdentity, PrivateRef: receipt.PrivateRef, PrivateRefExpectedOID: receipt.PrivateRefExpectedOID, CreatedAt: time.Now().UTC()}
+	intent := CleanupIntent{Root: req.Root, AttemptID: receipt.AttemptID, CandidateOID: receipt.CommitOID, RootIdentity: receipt.WorktreeIdentity, PrivateRef: receipt.PrivateRef, PrivateRefExpectedOID: receipt.PrivateRefExpectedOID, ReceiptSHA256: receiptSHA256, CreatedAt: time.Now().UTC()}
 	if err := req.Journal.PersistCleanupIntent(ctx, intent); err != nil {
 		return out, err
 	}
@@ -1400,6 +1431,7 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 		out.PrivateRefState = "deleted"
 	}
 	out.State, out.Code, out.RemovedFiles = CleanupRemoved, "", len(current)
+	out.ReceiptSHA256 = receiptSHA256
 	if journalErr := req.Journal.RecordCleanup(ctx, out); journalErr != nil {
 		out.State = CleanupPending
 		return out, journalErr
@@ -1433,6 +1465,31 @@ type cleanupReceiptBinding struct {
 	Files                 map[string]FileIdentity
 	PrivateRef            string
 	PrivateRefExpectedOID string
+}
+
+func (r cleanupReceiptBinding) hash() string {
+	var b strings.Builder
+	write := func(value string) { fmt.Fprintf(&b, "%d:%s;", len(value), value) }
+	write(r.AttemptID)
+	write(r.RepoRoot)
+	write(r.CommonDir)
+	write(r.CommitOID)
+	write(r.WorktreeIdentity)
+	fmt.Fprintf(&b, "%d:%d:%d:%d;", r.RootIdentity.Device, r.RootIdentity.Inode, r.RootIdentity.Mode, r.RootIdentity.UID)
+	write(r.PrivateRef)
+	write(r.PrivateRefExpectedOID)
+	paths := make([]string, 0, len(r.Files))
+	for path := range r.Files {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		id := r.Files[path]
+		write(path)
+		fmt.Fprintf(&b, "%d:%d:%d:%d:%d;", id.Device, id.Inode, id.Mode, id.Size, id.ModUnixNano)
+	}
+	sum := sha256.Sum256([]byte(b.String()))
+	return hex.EncodeToString(sum[:])
 }
 
 func cleanupReceipt(req CleanupRequest) (cleanupReceiptBinding, error) {
