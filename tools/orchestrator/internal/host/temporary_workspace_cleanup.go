@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
@@ -14,7 +15,7 @@ import (
 // cleanupPublishedTemporaryWorkspace runs only after the immutable business
 // Result and Exited records are durable. Cleanup observations are deliberately
 // separate records: their failure cannot recast a completed business result.
-func (h *Host) cleanupPublishedTemporaryWorkspace(ctx context.Context, spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata) {
+func (h *Host) cleanupPublishedTemporaryWorkspace(ctx context.Context, spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata) (appended int) {
 	cleanup := meta.temporaryWorkspace
 	if cleanup == nil || cleanup.journal == nil || cleanup.operation == "" || cleanup.receipt.Worktree == "" {
 		return
@@ -36,9 +37,11 @@ func (h *Host) cleanupPublishedTemporaryWorkspace(ctx context.Context, spool *ev
 	}
 
 	// The launch context may be cancelled immediately after a natural exit.
-	// Publication has already completed, so cleanup continues in this call's
-	// original scope without inheriting cancellation; no detached work exists.
-	cleanupCtx := context.WithoutCancel(ctx)
+	// Publication has already completed; allow a bounded cleanup window in this
+	// call even when the launch was cancelled. No detached work exists.
+	appended++
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
 	outcome, cleanupErr := gitops.Cleanup(cleanupCtx, gitops.CleanupRequest{
 		Root: cleanup.receipt.Worktree, Receipt: cleanup.receipt, Journal: cleanup.journal,
 	})
@@ -54,7 +57,10 @@ func (h *Host) cleanupPublishedTemporaryWorkspace(ctx context.Context, spool *ev
 	}
 	// A failed outcome is intentionally left as a durable pending observation.
 	// Do not return it to the business execution path.
-	_, _ = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventTemporaryWorkspaceCleanup, digest, nil, nil, nil, structuredEventFields{TemporaryWorkspaceCleanup: &final})
+	if _, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventTemporaryWorkspaceCleanup, digest, nil, nil, nil, structuredEventFields{TemporaryWorkspaceCleanup: &final}); err == nil {
+		appended++
+	}
+	return
 }
 
 func temporaryWorkspaceCleanupCode(err error, outcomeCode string) string {

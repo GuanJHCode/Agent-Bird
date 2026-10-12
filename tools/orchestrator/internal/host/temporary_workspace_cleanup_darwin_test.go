@@ -91,6 +91,9 @@ func TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
+	if result.EventCount != len(events) {
+		t.Fatalf("result count %d differs from durable records %d", result.EventCount, len(events))
+	}
 	for _, event := range events {
 		if _, err = db.CommitHostEvent(ctx, event); err != nil {
 			if event.TemporaryWorkspaceCleanup != nil {

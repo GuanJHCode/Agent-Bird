@@ -1089,7 +1089,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, err
 		}
 		if status == "result_ready" {
-			h.cleanupPublishedTemporaryWorkspace(ctx, spool, runID, taskID, a, meta)
+			eventCount += h.cleanupPublishedTemporaryWorkspace(ctx, spool, runID, taskID, a, meta)
 		}
 		h.finishAttempt(a.ID, status, persistDB)
 		return contract.Result{Status: status, ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, nil
@@ -1153,7 +1153,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, err
 	}
 	if status == "result_ready" {
-		h.cleanupPublishedTemporaryWorkspace(ctx, spool, runID, taskID, a, meta)
+		eventCount += h.cleanupPublishedTemporaryWorkspace(ctx, spool, runID, taskID, a, meta)
 	}
 	if persistDB {
 		if err = h.db.FinishAttempt(context.Background(), a.ID, status); err != nil {

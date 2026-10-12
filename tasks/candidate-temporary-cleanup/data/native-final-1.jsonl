@@ -1,0 +1,8 @@
+{"Time":"2026-10-12T10:22:35.443138+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"}
+{"Time":"2026-10-12T10:22:36.152212+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate"}
+{"Time":"2026-10-12T10:22:36.152297+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate","Output":"=== RUN   TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate\n"}
+{"Time":"2026-10-12T10:22:39.277301+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate","Output":"--- PASS: TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate (3.13s)\n"}
+{"Time":"2026-10-12T10:22:39.277392+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestTemporaryWorkspaceCleanupActualStoreSourceAcceptedValidate","Elapsed":3.13}
+{"Time":"2026-10-12T10:22:39.277484+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"PASS\n"}
+{"Time":"2026-10-12T10:22:39.279252+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host\t3.835s\n"}
+{"Time":"2026-10-12T10:22:39.279308+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Elapsed":3.836}
