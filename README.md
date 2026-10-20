@@ -1,5 +1,7 @@
 # Agent Bird
 
+[English](README.en.md)
+
 Agent Bird 让 **Codex、Claude、AGY、Grok 平等地调用彼此**。任意 Provider 都可以发起任务，通过同一个 `agent_bird_call` 插件工具启动目标 Provider，执行任务并取得结果。没有固定主脑，也不要求先运行 Codex。
 
 当前版本：**1.0.0-rc.2，macOS Apple Silicon 预发布版**。每次串行执行一个子任务，不递归委派。
