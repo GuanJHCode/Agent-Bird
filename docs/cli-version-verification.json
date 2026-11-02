@@ -1,0 +1,129 @@
+{
+  "candidate": "d7bc3d9420172e2418635630c7d646d8cf94dd9b",
+  "started_utc": "2026-11-02T07:38:30.810491+00:00",
+  "go_version": "go version go1.26.10 darwin/arm64",
+  "checks": [
+    {
+      "name": "test",
+      "command": [
+        "go",
+        "test",
+        "-count=1",
+        "-timeout",
+        "25m",
+        "-v",
+        "./..."
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-11-02T07:38:30.872150+00:00",
+      "finished_utc": "2026-11-02T07:40:40.992868+00:00",
+      "log_sha256": "6672f1dfabdffd22cdf308b92c5d57a12a8f4acd51d8bb2fdda516b39c957432",
+      "top_level_pass": 420,
+      "all_pass": 816,
+      "fail": 0,
+      "skip": 6,
+      "packages": 14,
+      "data_race": false,
+      "failed_tests": [],
+      "skipped_tests": [
+        "TestRealClaudeManagedCandidate (0.00s)",
+        "TestRealClaudeReviewerProfile (0.00s)",
+        "TestRealVersionMatrixRead (0.00s)",
+        "TestRealVersionMatrixInvocationStages (0.00s)",
+        "TestProbeCauseDecompositionObservation (0.00s)",
+        "TestS4StageTimingObservation (0.00s)"
+      ]
+    },
+    {
+      "name": "race",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "-timeout",
+        "25m",
+        "-v",
+        "./..."
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-11-02T07:40:40.998213+00:00",
+      "finished_utc": "2026-11-02T07:43:07.436000+00:00",
+      "log_sha256": "4f41328b7a1160f51dd24bbd867223688dea8568a4e10bcb5c8a5dcf7f898491",
+      "top_level_pass": 420,
+      "all_pass": 816,
+      "fail": 0,
+      "skip": 6,
+      "packages": 14,
+      "data_race": false,
+      "failed_tests": [],
+      "skipped_tests": [
+        "TestRealClaudeManagedCandidate (0.00s)",
+        "TestRealClaudeReviewerProfile (0.00s)",
+        "TestRealVersionMatrixRead (0.00s)",
+        "TestRealVersionMatrixInvocationStages (0.00s)",
+        "TestProbeCauseDecompositionObservation (0.00s)",
+        "TestS4StageTimingObservation (0.00s)"
+      ]
+    },
+    {
+      "name": "vet",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-11-02T07:43:07.441080+00:00",
+      "finished_utc": "2026-11-02T07:43:07.920297+00:00",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "exit_code": 0,
+      "started_utc": "2026-11-02T07:43:07.920541+00:00",
+      "finished_utc": "2026-11-02T07:43:08.460268+00:00",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "finished_utc": "2026-11-02T07:43:08.460528+00:00",
+  "post_status": "",
+  "manifest_mismatches": [],
+  "privacy_check": {
+    "tool": "gitleaks v8.30.1",
+    "findings": 0,
+    "personal_path_matches_in_imported_changes": 0
+  },
+  "scope": "Default Go suites only; six opt-in checks skipped. No real model calls, native TUI or public product installation acceptance.",
+  "package_checks": [
+    {
+      "command": [
+        "sh",
+        "-n",
+        "tasks/g1-g4-delivery/scripts/package-plugin.sh"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "sh",
+        "tasks/g1-g4-delivery/scripts/test-package-executable-modes.sh"
+      ],
+      "exit_code": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "cache_filter_probe",
+      "exit_code": 0,
+      "remaining": [
+        "lib",
+        "lib/keep.py"
+      ]
+    }
+  ]
+}
