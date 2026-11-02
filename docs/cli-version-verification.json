@@ -1,6 +1,6 @@
 {
-  "candidate": "d7bc3d9420172e2418635630c7d646d8cf94dd9b",
-  "started_utc": "2026-11-02T07:38:30.810491+00:00",
+  "candidate": "handover fixes on 613e3d0df3a87f082aebf4deef617fffbd4a389f (this file committed with the fixes)",
+  "base_candidate": "d7bc3d9420172e2418635630c7d646d8cf94dd9b",
   "go_version": "go version go1.26.10 darwin/arm64",
   "checks": [
     {
@@ -15,11 +15,9 @@
         "./..."
       ],
       "exit_code": 0,
-      "started_utc": "2026-11-02T07:38:30.872150+00:00",
-      "finished_utc": "2026-11-02T07:40:40.992868+00:00",
-      "log_sha256": "6672f1dfabdffd22cdf308b92c5d57a12a8f4acd51d8bb2fdda516b39c957432",
-      "top_level_pass": 420,
-      "all_pass": 816,
+      "log_sha256": "f915d6a3d75dfb30cbbf5c4b0f36a4563d8249e49df4873f576fffc7450a8ae1",
+      "top_level_pass": 430,
+      "all_pass": 834,
       "fail": 0,
       "skip": 6,
       "packages": 14,
@@ -47,11 +45,9 @@
         "./..."
       ],
       "exit_code": 0,
-      "started_utc": "2026-11-02T07:40:40.998213+00:00",
-      "finished_utc": "2026-11-02T07:43:07.436000+00:00",
-      "log_sha256": "4f41328b7a1160f51dd24bbd867223688dea8568a4e10bcb5c8a5dcf7f898491",
-      "top_level_pass": 420,
-      "all_pass": 816,
+      "log_sha256": "d8df3c4bd45cc7a678ce2b31206e64c904fe014dd8b4a55b7ea92f5424ed9096",
+      "top_level_pass": 430,
+      "all_pass": 834,
       "fail": 0,
       "skip": 6,
       "packages": 14,
@@ -73,10 +69,7 @@
         "vet",
         "./..."
       ],
-      "exit_code": 0,
-      "started_utc": "2026-11-02T07:43:07.441080+00:00",
-      "finished_utc": "2026-11-02T07:43:07.920297+00:00",
-      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "exit_code": 0
     },
     {
       "name": "build",
@@ -85,21 +78,13 @@
         "build",
         "./..."
       ],
-      "exit_code": 0,
-      "started_utc": "2026-11-02T07:43:07.920541+00:00",
-      "finished_utc": "2026-11-02T07:43:08.460268+00:00",
-      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "exit_code": 0
     }
   ],
-  "finished_utc": "2026-11-02T07:43:08.460528+00:00",
-  "post_status": "",
+  "post_status": "committed handover fix set; see git log on handoff/cli-version-compatibility-20261102",
   "manifest_mismatches": [],
-  "privacy_check": {
-    "tool": "gitleaks v8.30.1",
-    "findings": 0,
-    "personal_path_matches_in_imported_changes": 0
-  },
-  "scope": "Default Go suites only; six opt-in checks skipped. No real model calls, native TUI or public product installation acceptance.",
+  "manifest_files": 225,
+  "scope": "Default Go suites only; six opt-in checks skipped. No real model calls in this record. Known load flakes (pass isolated and in final runs): TestGrokHostLaunchUsesAuthorizedSession, TestTaskProbeProviderSelection. Pre-existing gofmt listing: internal/host/n04_pipe_sensitive_test.go (untouched, hash matches manifest).",
   "package_checks": [
     {
       "command": [
@@ -114,16 +99,13 @@
         "sh",
         "tasks/g1-g4-delivery/scripts/test-package-executable-modes.sh"
       ],
-      "exit_code": 0,
-      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "exit_code": 0
     },
     {
-      "name": "cache_filter_probe",
+      "name": "isolation_package_build",
       "exit_code": 0,
-      "remaining": [
-        "lib",
-        "lib/keep.py"
-      ]
+      "package_manifest_sha256": "64ad89461e73ccf4c13dc19e89f7052dd5250825aff1fe30d181589fd07b9a82",
+      "packaged_binary_sha256": "c6e48bf5fa5479403211b25439dc17d3ac57dd76530cf8462dc8b5538357685b"
     }
   ]
 }

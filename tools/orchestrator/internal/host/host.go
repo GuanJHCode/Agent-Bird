@@ -272,26 +272,37 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, ArtifactPath: path, OutputHash: hashBytes(body)}, errors.Join(cause, artifactErr, eventErr, phaseErr)
 	}
-	finalizeStopped := func(identity *process.Identity, exit int, cause error) (contract.Result, error) {
+	preSpawnExit := -1
+	// finalizeStopped records the stopped/exited pair. exit is nil when the
+	// leader's exit code has not been published (see the Stop path below):
+	// the in-memory result keeps the -1 sentinel, but no durable event may
+	// carry it as if it were a real exit code, which SIGHUP would also be.
+	finalizeStopped := func(identity *process.Identity, exit *int, cause error) (contract.Result, error) {
+		resultExit := -1
+		reasonExit := 0
+		if exit != nil {
+			resultExit = *exit
+			reasonExit = *exit
+		}
 		if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, identity, cause); err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+			return contract.Result{Status: "unknown", ExitCode: resultExit, EventCount: eventCount}, err
 		}
-		_, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventStopped, hashText("stopped:"+a.SegmentID), identity, &exit, nil, structuredEventFields{StopReason: interruptionReason(ctx, h.stopWasRequested(a.SegmentID), exit)})
+		_, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventStopped, hashText("stopped:"+a.SegmentID), identity, exit, nil, structuredEventFields{StopReason: interruptionReason(ctx, h.stopWasRequested(a.SegmentID), reasonExit)})
 		if err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+			return contract.Result{Status: "unknown", ExitCode: resultExit, EventCount: eventCount}, err
 		}
 		if err = publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, identity, nil); err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+			return contract.Result{Status: "unknown", ExitCode: resultExit, EventCount: eventCount}, err
 		}
-		if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), identity, &exit, nil); err != nil {
+		if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), identity, exit, nil); err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+			return contract.Result{Status: "unknown", ExitCode: resultExit, EventCount: eventCount}, err
 		}
 		h.finishAttempt(a.ID, "interrupted", persistDB)
-		return contract.Result{Status: "interrupted", ExitCode: exit, EventCount: eventCount}, cause
+		return contract.Result{Status: "interrupted", ExitCode: resultExit, EventCount: eventCount}, cause
 	}
 
 	startHash := hashText("segment_started:" + a.SegmentID)
@@ -304,7 +315,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
 	}
 	if h.stopWasRequested(a.SegmentID) {
-		return finalizeStopped(nil, -1, context.Canceled)
+		return finalizeStopped(nil, &preSpawnExit, context.Canceled)
 	}
 	if meta.prepareAction != nil {
 		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
@@ -321,28 +332,28 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 				return finalizeCandidateUnknown(prepareErr, nil, -1)
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
-				return finalizeStopped(nil, -1, context.Canceled)
+				return finalizeStopped(nil, &preSpawnExit, context.Canceled)
 			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}
 		prepared.Stdout = cmd.Stdout
 		cmd, meta.freezeCandidate = prepared, freeze
 		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
-			return finalizeStopped(nil, -1, context.Canceled)
+			return finalizeStopped(nil, &preSpawnExit, context.Canceled)
 		}
 	}
 	if meta.prepareProvider != nil {
 		prepared, prepareErr := meta.prepareProvider(ctx)
 		if prepareErr != nil {
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
-				return finalizeStopped(nil, -1, context.Canceled)
+				return finalizeStopped(nil, &preSpawnExit, context.Canceled)
 			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}
 		prepared.Stdout = cmd.Stdout
 		cmd = prepared
 		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
-			return finalizeStopped(nil, -1, context.Canceled)
+			return finalizeStopped(nil, &preSpawnExit, context.Canceled)
 		}
 	}
 	p, err := process.Start(ctx, cmd)
@@ -482,11 +493,25 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, stopErr
 		}
-		exit := p.ExitCode()
-		if protocol != nil {
-			_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, 20, started, interruptionReason(ctx, h.stopWasRequested(a.SegmentID), exit))
+		// Stop proved the group is gone, not that the exit code is published:
+		// a descendant holding the pipes can keep Wait blocked past this
+		// point. Give publication one bounded second; on timeout the code
+		// stays unpublished (nil) so no durable event records the sentinel.
+		var exitCode *int
+		publishCtx, cancelPublish := context.WithTimeout(context.Background(), time.Second)
+		if p.Wait(publishCtx) == nil {
+			code := p.ExitCode()
+			exitCode = &code
 		}
-		result, stoppedErr := finalizeStopped(&identity, exit, waitErr)
+		cancelPublish()
+		reasonExit := 0
+		if exitCode != nil {
+			reasonExit = *exitCode
+		}
+		if protocol != nil {
+			_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, 20, started, interruptionReason(ctx, h.stopWasRequested(a.SegmentID), reasonExit))
+		}
+		result, stoppedErr := finalizeStopped(&identity, exitCode, waitErr)
 		result.OutputHash = hashText(p.Output())
 		return result, stoppedErr
 	}
@@ -506,7 +531,8 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		if protocol != nil {
 			_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, 20, started, interruptionReason(ctx, h.stopWasRequested(a.SegmentID), p.ExitCode()))
 		}
-		return finalizeStopped(&identity, p.ExitCode(), context.Canceled)
+		publishedExit := p.ExitCode()
+		return finalizeStopped(&identity, &publishedExit, context.Canceled)
 	}
 	if protocol != nil {
 		exit := p.ExitCode()
@@ -539,7 +565,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 					}
 					return finalizeCandidateUnknown(&actionUncertain{content, context.Canceled}, &identity, exit)
 				}
-				return finalizeStopped(&identity, exit, context.Canceled)
+				return finalizeStopped(&identity, &exit, context.Canceled)
 			}
 			if err != nil {
 				kind, status = contract.EventFailed, "failed"
@@ -609,7 +635,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 				}
 				return finalizeCandidateUnknown(&actionUncertain{content, context.Canceled}, &identity, exit)
 			}
-			return finalizeStopped(&identity, exit, context.Canceled)
+			return finalizeStopped(&identity, &exit, context.Canceled)
 		}
 		if err != nil {
 			status = "failed"

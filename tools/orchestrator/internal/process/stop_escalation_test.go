@@ -38,6 +38,13 @@ while :; do sleep 0.05; done`
 	if elapsed := time.Since(started); elapsed < 250*time.Millisecond {
 		t.Fatalf("SIGKILL before the graceful window elapsed=%v", elapsed)
 	}
+	// Stop proves the group is gone, not that the exit code is published:
+	// settle it through an independent bounded Wait before reading it.
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer waitCancel()
+	if err = h.Wait(waitCtx); err != nil {
+		t.Fatalf("Wait after Stop: %v", err)
+	}
 	if h.ExitCode() != -int(syscall.SIGKILL) {
 		t.Fatalf("ignored terminator must be SIGKILLed: exit=%d", h.ExitCode())
 	}
@@ -73,7 +80,15 @@ while :; do sleep 0.05; done`
 	if err != nil || !strings.Contains(string(body), "done") {
 		t.Fatalf("cleanup not completed: marker=%q err=%v", body, err)
 	}
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer waitCancel()
+	if err = h.Wait(waitCtx); err != nil {
+		t.Fatalf("Wait after Stop: %v", err)
+	}
 	if h.ExitCode() != 0 {
 		t.Fatalf("graceful exit expected: exit=%d", h.ExitCode())
+	}
+	if err = h.ConfirmTreeExited(); err != nil {
+		t.Fatalf("tree not cleared: %v", err)
 	}
 }

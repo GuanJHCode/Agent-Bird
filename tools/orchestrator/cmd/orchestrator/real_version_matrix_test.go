@@ -1211,8 +1211,15 @@ func (c *matrixCoordinator) stopVerified() (matrixStopOutcome, error) {
 	case err == nil:
 		return c.awaitHolders(stopExited)
 	case errors.Is(err, errCoordinatorStillRunning):
-		// Identity is proven at this point, so escalating is safe. Surviving even
-		// KILL is reported, never treated as a completed cleanup.
+		// The proof above predates SIGTERM. A coordinator that exited on TERM
+		// leaves its pid free for reuse during the whole graceful window, so
+		// identity is proven again before the stronger signal. An identity
+		// that can no longer be proven is never killed and its scene stays.
+		if outcome, reErr, exited := c.reverifyForKill(); exited {
+			return c.awaitHolders(stopExited)
+		} else if reErr != nil {
+			return outcome, reErr
+		}
 		if killErr := c.probe.Signal(c.pid, syscall.SIGKILL); killErr != nil && !errors.Is(killErr, syscall.ESRCH) {
 			return stopSignalFailed, fmt.Errorf("coordinator %d did not exit within %s and could not be killed: %w", c.pid, c.grace(), killErr)
 		}
@@ -1226,6 +1233,48 @@ func (c *matrixCoordinator) stopVerified() (matrixStopOutcome, error) {
 	default:
 		return stopExitUnverified, err
 	}
+}
+
+// reverifyForKill re-proves, after the graceful window, that c.pid still
+// names the coordinator this case started: recorded birth, requested argv
+// and pid file must all still agree. exited reports that the pid vanished
+// while it was being re-proved, so no kill is needed at all. The checks and
+// the kill that follows are not atomic: a reuse inside the few probe
+// round-trips after the last check remains as a known residual, down from
+// the whole graceful window, and macOS pid wraparound keeps it narrow.
+func (c *matrixCoordinator) reverifyForKill() (matrixStopOutcome, error, bool) {
+	birth, birthErr := c.probe.Birth(c.pid)
+	if birthErr != nil {
+		aliveErr := c.probe.Signal(c.pid, 0)
+		switch {
+		case errors.Is(aliveErr, syscall.ESRCH):
+			return stopExited, nil, true
+		case aliveErr == nil, errors.Is(aliveErr, syscall.EPERM):
+			return stopIdentityUnknown, fmt.Errorf("pid %d is running but its birth could not be re-read before kill (%v); refusing to signal a process this case cannot pin", c.pid, birthErr), false
+		default:
+			return stopProbeFailed, fmt.Errorf("pid %d: birth re-read failed (%v) and existence is unknown (%v)", c.pid, birthErr, aliveErr), false
+		}
+	}
+	if c.birth == "" || birth != c.birth {
+		return stopPIDRecycled, fmt.Errorf("pid %d birth changed during the graceful window (%s -> %s); refusing to kill a recycled pid", c.pid, c.birth, birth), false
+	}
+	if c.expectedCommand != "" {
+		command, commandErr := c.probe.CommandLine(c.pid)
+		if commandErr != nil {
+			return stopProbeFailed, fmt.Errorf("pid %d carries the recorded birth but its command line could not be re-read before kill (%v); a same-second recycle would be indistinguishable", c.pid, commandErr), false
+		}
+		if !strings.Contains(command, c.expectedCommand) {
+			return stopPIDRecycled, fmt.Errorf("pid %d carries the recorded birth but now runs %q, not %q; refusing to kill", c.pid, command, c.expectedCommand), false
+		}
+	}
+	recorded, absent, pidErr := matrixCoordinatorPID(c.state)
+	switch {
+	case pidErr != nil:
+		return stopPIDFileUnreadable, pidErr, false
+	case !absent && recorded != c.pid:
+		return stopPIDFileMismatch, fmt.Errorf("pid file changed during the graceful window and now says %d, this case started %d; refusing to kill", recorded, c.pid), false
+	}
+	return "", nil, false
 }
 
 var errCoordinatorStillRunning = errors.New("coordinator still running")
@@ -1347,6 +1396,65 @@ func matrixPreserve(root, repo, name string, started time.Time) string {
 	return scene
 }
 
+// matrixSpoolRelative splits path below <state>/host-spool. The Host's own
+// metadata lives at fixed depths below it: the segment ledger and summary in
+// host-spool/<launch>/<attempt>/<segment>/, and the report capability in
+// host-spool/<launch>/.reports/<id>/. A file with the same basename anywhere
+// else — the segment scratch directory, the report artifact directory — sits
+// in provider-writable space and is not Host evidence.
+func matrixSpoolRelative(state, path string) ([]string, bool) {
+	relative, err := filepath.Rel(filepath.Join(state, "host-spool"), path)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return nil, false
+	}
+	return strings.Split(relative, string(filepath.Separator)), true
+}
+
+func matrixIsSegmentMetadata(state, path, name string) bool {
+	parts, ok := matrixSpoolRelative(state, path)
+	if !ok || len(parts) != 4 || parts[3] != name {
+		return false
+	}
+	for _, part := range parts[:3] {
+		if part == ".reports" || part == "scratch" {
+			return false
+		}
+	}
+	return true
+}
+
+func matrixIsReportCapability(state, path string) bool {
+	parts, ok := matrixSpoolRelative(state, path)
+	return ok && len(parts) == 4 && parts[1] == ".reports" && parts[3] == "capability.json" &&
+		parts[0] != ".reports" && parts[0] != "scratch" && parts[2] != "" && parts[2] != "." && parts[2] != ".."
+}
+
+// matrixCapabilityVerdict recomputes the production report-capability check
+// for one concrete capability path: resolve it, compare it with the resolved
+// report directory of its own launch, and require the capability id to
+// survive resolution.
+func matrixCapabilityVerdict(capability string) (string, string) {
+	spoolRoot := filepath.Dir(filepath.Dir(filepath.Dir(capability)))
+	resolvedCapability, capabilityErr := filepath.EvalSymlinks(capability)
+	resolvedRoot, rootErr := filepath.EvalSymlinks(spoolRoot)
+	switch {
+	case capabilityErr != nil:
+		return "reject", ""
+	case rootErr != nil:
+		return "launch_root_unresolvable", ""
+	default:
+		reports := filepath.Join(resolvedRoot, ".reports")
+		relative, relErr := filepath.Rel(reports, resolvedCapability)
+		parts := strings.Split(relative, string(filepath.Separator))
+		idKept := filepath.Base(capability) == "capability.json" &&
+			filepath.Dir(resolvedCapability) == filepath.Join(reports, filepath.Base(filepath.Dir(capability)))
+		if relErr == nil && len(parts) == 2 && parts[0] != ".." && parts[1] == "capability.json" && idKept {
+			return "pass", relative
+		}
+		return "reject", relative
+	}
+}
+
 func matrixDiagnose(state string) *matrixDiagnostics {
 	diagnostics := &matrixDiagnostics{CapabilityPathCheck: "not_evaluated"}
 	if canonical, err := filepath.EvalSymlinks(state); err == nil {
@@ -1360,11 +1468,17 @@ func matrixDiagnose(state string) *matrixDiagnostics {
 		base := filepath.Base(path)
 		switch {
 		case base == "capability.json":
-			capabilities = append(capabilities, path)
+			if matrixIsReportCapability(state, path) {
+				capabilities = append(capabilities, path)
+			}
 		case base == "launch.json":
-			launches = append(launches, path)
+			if matrixIsSegmentMetadata(state, path, "launch.json") {
+				launches = append(launches, path)
+			}
 		case base == "provider-diagnostics.json":
-			diagnosticsFiles = append(diagnosticsFiles, path)
+			if matrixIsSegmentMetadata(state, path, "provider-diagnostics.json") {
+				diagnosticsFiles = append(diagnosticsFiles, path)
+			}
 		case strings.HasPrefix(base, "event-"):
 			// Only the Host's own per-segment spool counts as evidence. The scratch
 			// directory and the report artifact directory are places a provider can
@@ -1422,24 +1536,13 @@ func matrixDiagnose(state string) *matrixDiagnostics {
 	}
 	sort.Strings(diagnostics.EventKinds)
 	// Replicate sandboxCommand's report-capability path check against the paths
-	// actually on disk: the guard compares a capability path built from the
-	// unresolved spool root with a reports directory derived from an
-	// EvalSymlinks'd scratch path. The result is the harness's own recomputation,
-	// not the guard's verdict, and is labelled as such wherever it is read.
+	// actually on disk, the way the guard itself performs it: resolve the
+	// capability path, compare it with the resolved report directory, and
+	// require the capability id to survive resolution. The result is the
+	// harness's own recomputation, not the guard's verdict, and is labelled
+	// as such wherever it is read.
 	if capability := matrixSolePath(capabilities, "report_capability", &diagnostics.AmbiguousSources); capability != "" {
-		launchRoot := filepath.Dir(filepath.Dir(filepath.Dir(capability)))
-		if resolved, err := filepath.EvalSymlinks(launchRoot); err == nil {
-			relative, relErr := filepath.Rel(filepath.Join(resolved, ".reports"), capability)
-			parts := strings.Split(relative, string(filepath.Separator))
-			diagnostics.CapabilityRel = relative
-			if relErr == nil && len(parts) == 2 && parts[0] != ".." && parts[1] == "capability.json" {
-				diagnostics.CapabilityPathCheck = "pass"
-			} else {
-				diagnostics.CapabilityPathCheck = "reject"
-			}
-		} else {
-			diagnostics.CapabilityPathCheck = "launch_root_unresolvable"
-		}
+		diagnostics.CapabilityPathCheck, diagnostics.CapabilityRel = matrixCapabilityVerdict(capability)
 	}
 	switch text := strings.TrimSpace(string(readMaybe(filepath.Join(state, "source-host.log")))); {
 	case text == "":
@@ -1729,6 +1832,14 @@ type matrixStopProbe struct {
 	signals    []syscall.Signal
 	birthRead  int
 	aliveReads int
+	// onTerm runs when SIGTERM is delivered. A case uses it to change the
+	// scripted identity or the pid file during the graceful window, which is
+	// exactly the interval in which a real pid can be recycled.
+	onTerm func()
+	// goneAtRecheck makes later existence probes report ESRCH once the birth
+	// has been read for the second time, modelling a pid that vanishes while
+	// its identity is being re-proved before SIGKILL.
+	goneAtRecheck bool
 }
 
 func (p *matrixStopProbe) Birth(int) (string, error) {
@@ -1753,6 +1864,9 @@ func (p *matrixStopProbe) Signal(_ int, sig syscall.Signal) error {
 	p.signals = append(p.signals, sig)
 	switch sig {
 	case 0:
+		if p.goneAtRecheck && p.birthRead >= 2 {
+			return syscall.ESRCH
+		}
 		at := p.aliveReads
 		p.aliveReads++
 		if at >= len(p.aliveErrs) {
@@ -1764,6 +1878,11 @@ func (p *matrixStopProbe) Signal(_ int, sig syscall.Signal) error {
 		return p.aliveErrs[at]
 	case syscall.SIGKILL:
 		return p.killErr
+	case syscall.SIGTERM:
+		if p.onTerm != nil {
+			p.onTerm()
+		}
+		return p.stopErr
 	default:
 		return p.stopErr
 	}
@@ -1804,10 +1923,19 @@ func TestMatrixCoordinatorStopKeepsSceneWhenExitIsUnproven(t *testing.T) {
 		holders       []int
 		holderGrace   time.Duration
 		exitGrace     time.Duration
-		want          matrixStopOutcome
-		wantSettled   bool
-		wantTerminals int
-		wantKills     int
+		// Identity and pid file as they stand after SIGTERM, inside the
+		// graceful window. Empty means unchanged.
+		termBirth      string
+		termBirthErr   error
+		termCommand    string
+		termCommandErr error
+		termPIDFile    string
+		// The pid vanishes while its identity is being re-proved.
+		termGoneAtRecheck bool
+		want              matrixStopOutcome
+		wantSettled       bool
+		wantTerminals     int
+		wantKills         int
 	}{
 		{
 			name: "birth query fails while the pid is absent",
@@ -1931,6 +2059,60 @@ func TestMatrixCoordinatorStopKeepsSceneWhenExitIsUnproven(t *testing.T) {
 			birth: startBirth, exitGrace: 60 * time.Millisecond,
 			want: stopExitTimeout, wantSettled: false, wantTerminals: 1, wantKills: 1,
 		},
+		{
+			name: "pid recycled during the graceful window",
+			// The coordinator exits on TERM and an unrelated process takes the
+			// pid before the window closes. Killing whatever now owns the pid
+			// would be a misdirected kill, so identity is proven again first.
+			capturedPID: 4242, capturedBirth: startBirth, pidFile: "4242",
+			birth: startBirth, termBirth: otherBirth, exitGrace: 60 * time.Millisecond,
+			want: stopPIDRecycled, wantSettled: false, wantTerminals: 1, wantKills: 0,
+		},
+		{
+			name:        "pid recycled within the same second during the window",
+			capturedPID: 4242, capturedBirth: startBirth, pidFile: "4242",
+			birth: startBirth, termCommand: "/sbin/launchd", exitGrace: 60 * time.Millisecond,
+			want: stopPIDRecycled, wantSettled: false, wantTerminals: 1, wantKills: 0,
+		},
+		{
+			name:        "birth unreadable during the graceful window",
+			capturedPID: 4242, capturedBirth: startBirth, pidFile: "4242",
+			birth: startBirth, termBirthErr: process.CodeError("process_birth_unknown"), exitGrace: 60 * time.Millisecond,
+			want: stopIdentityUnknown, wantSettled: false, wantTerminals: 1, wantKills: 0,
+		},
+		{
+			name:        "command line unreadable during the graceful window",
+			capturedPID: 4242, capturedBirth: startBirth, pidFile: "4242",
+			birth: startBirth, termCommandErr: process.CodeError("process_command_unknown"), exitGrace: 60 * time.Millisecond,
+			want: stopProbeFailed, wantSettled: false, wantTerminals: 1, wantKills: 0,
+		},
+		{
+			name:        "pid file retargeted during the graceful window",
+			capturedPID: 4242, capturedBirth: startBirth, pidFile: "4242",
+			birth: startBirth, termPIDFile: "9999", exitGrace: 60 * time.Millisecond,
+			want: stopPIDFileMismatch, wantSettled: false, wantTerminals: 1, wantKills: 0,
+		},
+		{
+			name:        "pid file unreadable during the graceful window",
+			capturedPID: 4242, capturedBirth: startBirth, pidFile: "4242",
+			birth: startBirth, termPIDFile: "unreadable", exitGrace: 60 * time.Millisecond,
+			want: stopPIDFileUnreadable, wantSettled: false, wantTerminals: 1, wantKills: 0,
+		},
+		{
+			name: "pid vanishes while being re-proved before the kill",
+			// Nothing is left to kill, so the holders alone decide the scene.
+			capturedPID: 4242, capturedBirth: startBirth, pidFile: "4242",
+			birth: startBirth, termBirthErr: process.CodeError("process_birth_unknown"), termGoneAtRecheck: true, exitGrace: 60 * time.Millisecond,
+			want: stopExited, wantSettled: true, wantTerminals: 1, wantKills: 0,
+		},
+		{
+			name: "pid file deleted during the graceful window",
+			// An absent file contradicts nothing, exactly as before TERM: the
+			// identity still stands on birth and argv, so the kill proceeds.
+			capturedPID: 4242, capturedBirth: startBirth, pidFile: "4242",
+			birth: startBirth, termPIDFile: "deleted", exitGrace: 60 * time.Millisecond,
+			want: stopExitTimeout, wantSettled: false, wantTerminals: 1, wantKills: 1,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1944,7 +2126,32 @@ func TestMatrixCoordinatorStopKeepsSceneWhenExitIsUnproven(t *testing.T) {
 			if command == "" {
 				command = expect
 			}
-			probe := &matrixStopProbe{birth: tc.birth, birthErr: tc.birthErr, command: command, commandErr: tc.commandErr, aliveErrs: tc.aliveErrs, stopErr: tc.stopErr, killErr: tc.killErr}
+			probe := &matrixStopProbe{birth: tc.birth, birthErr: tc.birthErr, command: command, commandErr: tc.commandErr, aliveErrs: tc.aliveErrs, stopErr: tc.stopErr, killErr: tc.killErr, goneAtRecheck: tc.termGoneAtRecheck}
+			if tc.termBirth != "" || tc.termBirthErr != nil || tc.termCommand != "" || tc.termCommandErr != nil || tc.termPIDFile != "" {
+				probe.onTerm = func() {
+					if tc.termBirth != "" {
+						probe.birth = tc.termBirth
+					}
+					if tc.termBirthErr != nil {
+						probe.birthErr = tc.termBirthErr
+					}
+					if tc.termCommand != "" {
+						probe.command = tc.termCommand
+					}
+					if tc.termCommandErr != nil {
+						probe.commandErr = tc.termCommandErr
+					}
+					if tc.termPIDFile == "deleted" {
+						_ = os.Remove(filepath.Join(state, "coordinator.pid"))
+					} else if tc.termPIDFile == "unreadable" {
+						path := filepath.Join(state, "coordinator.pid")
+						_ = os.Remove(path)
+						_ = os.Mkdir(path, 0700)
+					} else if tc.termPIDFile != "" {
+						_ = os.WriteFile(filepath.Join(state, "coordinator.pid"), []byte(tc.termPIDFile+"\n"), 0600)
+					}
+				}
+			}
 			coord := &matrixCoordinator{
 				state: state, pid: tc.capturedPID, birth: tc.capturedBirth,
 				expectedCommand: expect,
@@ -2352,6 +2559,149 @@ func TestMatrixDiagnoseIgnoresProviderWritableEventLookalikes(t *testing.T) {
 	}
 	if !strings.Contains(joined, "5:task_deadline_exceeded") || !strings.Contains(joined, "4:session") {
 		t.Fatalf("legitimate segment events lost: stops=%v kinds=%v", diagnostic.StopEvents, diagnostic.EventKinds)
+	}
+}
+
+// Metadata files carry the same risk as events: the ledger, the provider
+// summary and the report capability are all named by basename alone today, so
+// a provider can plant lookalikes in the directories it may write.
+func TestMatrixDiagnoseIgnoresProviderWritableMetadataLookalikes(t *testing.T) {
+	writeFile := func(t *testing.T, path, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	state := filepath.Join(t.TempDir(), "state")
+	segment := filepath.Join(state, "host-spool", "launch", "attempt", "segment")
+	scratch := filepath.Join(segment, "scratch")
+	reports := filepath.Join(state, "host-spool", "launch", ".reports", "real-cap")
+	artifacts := filepath.Join(reports, "artifacts")
+	// The Host's own files: the segment ledger and summary, and the report
+	// capability under this launch's report directory.
+	writeFile(t, filepath.Join(segment, "launch.json"), `{"phase":"exited","cause_code":"real-cause","executable":"/usr/bin/sandbox-exec"}`)
+	writeFile(t, filepath.Join(segment, "provider-diagnostics.json"), `{"captured_bytes":10}`)
+	writeFile(t, filepath.Join(reports, "capability.json"), `{"token":"report-token-deadbeef"}`)
+	// Provider-writable lookalikes with the same basenames.
+	writeFile(t, filepath.Join(scratch, "launch.json"), `{"phase":"FAKE_SCRATCH_PHASE","executable":"/bin/fake"}`)
+	writeFile(t, filepath.Join(scratch, "provider-diagnostics.json"), `{"captured_bytes":999}`)
+	writeFile(t, filepath.Join(scratch, "capability.json"), `{"token":"report-token-fake"}`)
+	writeFile(t, filepath.Join(artifacts, "launch.json"), `{"phase":"FAKE_ARTIFACT_PHASE"}`)
+	writeFile(t, filepath.Join(artifacts, "provider-diagnostics.json"), `{"captured_bytes":888}`)
+	writeFile(t, filepath.Join(artifacts, "capability.json"), `{"token":"report-token-fake2"}`)
+
+	diagnostic := matrixDiagnose(state)
+	if diagnostic.LaunchPhase != "exited" || diagnostic.LaunchCauseCode != "real-cause" {
+		t.Errorf("launch ledger taken from a lookalike: phase=%q cause=%q ambiguous=%v", diagnostic.LaunchPhase, diagnostic.LaunchCauseCode, diagnostic.AmbiguousSources)
+	}
+	if got := diagnostic.ProviderDiagnostics["captured_bytes"]; got != float64(10) {
+		t.Errorf("provider diagnostics taken from a lookalike: captured_bytes=%v ambiguous=%v", got, diagnostic.AmbiguousSources)
+	}
+	if !diagnostic.ReportCapabilityPresent {
+		t.Error("the launch report capability was lost")
+	}
+	if diagnostic.CapabilityPathCheck != "pass" {
+		t.Errorf("capability path check = %q (rel %q), want pass for the launch capability", diagnostic.CapabilityPathCheck, diagnostic.CapabilityRel)
+	}
+	if len(diagnostic.AmbiguousSources) != 0 {
+		t.Errorf("provider-writable lookalikes made the diagnosis ambiguous: %v", diagnostic.AmbiguousSources)
+	}
+
+	// With only lookalikes present there is no Host metadata to report.
+	bare := filepath.Join(t.TempDir(), "state")
+	bareScratch := filepath.Join(bare, "host-spool", "launch", "attempt", "segment", "scratch")
+	writeFile(t, filepath.Join(bareScratch, "launch.json"), `{"phase":"FAKE_SCRATCH_PHASE"}`)
+	writeFile(t, filepath.Join(bareScratch, "provider-diagnostics.json"), `{"captured_bytes":999}`)
+	writeFile(t, filepath.Join(bareScratch, "capability.json"), `{"token":"report-token-fake"}`)
+	bareDiagnostic := matrixDiagnose(bare)
+	if bareDiagnostic.LaunchPhase != "" || bareDiagnostic.ProviderDiagnostics != nil || bareDiagnostic.ReportCapabilityPresent {
+		t.Errorf("lookalike-only tree produced diagnostics: phase=%q provider=%v capability=%t", bareDiagnostic.LaunchPhase, bareDiagnostic.ProviderDiagnostics, bareDiagnostic.ReportCapabilityPresent)
+	}
+	if bareDiagnostic.CapabilityPathCheck != "not_evaluated" {
+		t.Errorf("capability check = %q, want not_evaluated without a launch capability", bareDiagnostic.CapabilityPathCheck)
+	}
+}
+
+// The diagnostic recomputation has to follow the production guard in
+// sandboxCommand: resolve the capability path, compare it with the resolved
+// report directory, and keep the capability id across resolution.
+func TestMatrixDiagnoseCapabilityCheckFollowsProductionGuard(t *testing.T) {
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := filepath.Join(base, "state")
+	ownDir := filepath.Join(state, "host-spool", "launch", ".reports", "own")
+	if err = os.MkdirAll(ownDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(ownDir, "capability.json"), []byte(`{"token":"report-token-deadbeef"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := matrixDiagnose(state).CapabilityPathCheck; got != "pass" {
+		t.Errorf("canonical capability check = %q, want pass", got)
+	}
+	// The same tree reached through a symlinked state prefix is the launch the
+	// production guard now accepts; the diagnostic must not reject it.
+	link := filepath.Join(base, "state-link")
+	if err = os.Symlink(state, link); err != nil {
+		t.Fatal(err)
+	}
+	if got := matrixDiagnose(link).CapabilityPathCheck; got != "pass" {
+		t.Errorf("symlinked-prefix capability check = %q, want pass", got)
+	}
+	// A capability redirected outside the tree is the only one the walk can
+	// see, and the check itself has to reject it.
+	redirected := filepath.Join(t.TempDir(), "state")
+	redirectedDir := filepath.Join(redirected, "host-spool", "launch", ".reports", "own")
+	// The target lives outside this state tree, so the redirected file is the
+	// only capability the walk can see and the check itself has to reject it.
+	redirectedVictim := filepath.Join(t.TempDir(), "victim", "capability.json")
+	if err = os.MkdirAll(filepath.Dir(redirectedVictim), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(redirectedVictim, []byte(`{"token":"victim-secret"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.MkdirAll(redirectedDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(redirectedVictim, filepath.Join(redirectedDir, "capability.json")); err != nil {
+		t.Fatal(err)
+	}
+	if got := matrixDiagnose(redirected).CapabilityPathCheck; got != "reject" {
+		t.Errorf("external capability check = %q, want reject", got)
+	}
+	// The id itself must survive resolution. A sibling target inside the same
+	// report directory resolves two elements deep, so only the id comparison
+	// rejects it; at the whole-tree level the second id instead makes the
+	// source ambiguous, which the sole-path rule already refuses to pick.
+	sibling := filepath.Join(t.TempDir(), "state")
+	siblingVictim := filepath.Join(sibling, "host-spool", "launch", ".reports", "victim", "capability.json")
+	siblingOwn := filepath.Join(sibling, "host-spool", "launch", ".reports", "own", "capability.json")
+	if err = os.MkdirAll(filepath.Dir(siblingVictim), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(siblingVictim, []byte(`{"token":"victim-secret"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.MkdirAll(filepath.Dir(siblingOwn), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(siblingVictim, siblingOwn); err != nil {
+		t.Fatal(err)
+	}
+	if verdict, _ := matrixCapabilityVerdict(siblingVictim); verdict != "pass" {
+		t.Errorf("sibling target verdict = %q, want pass for the id's own file", verdict)
+	}
+	if verdict, _ := matrixCapabilityVerdict(siblingOwn); verdict != "reject" {
+		t.Errorf("cross-id verdict = %q, want reject", verdict)
+	}
+	if got := matrixDiagnose(sibling).CapabilityPathCheck; got != "not_evaluated" {
+		t.Errorf("two-id tree check = %q, want not_evaluated (ambiguous source)", got)
 	}
 }
 

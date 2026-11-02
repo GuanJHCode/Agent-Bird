@@ -162,7 +162,7 @@
     },
     {
       "path": "tools/orchestrator/cmd/orchestrator/real_version_matrix_test.go",
-      "sha256": "74d8f1483a040b6f6e5a70413a5f6d37d19d10879a31e9dc89b073e6c4530da2",
+      "sha256": "a04713e3d47b420954b2107c36885258a9cb7340096872c18b4241f71c972a2d",
       "mode": "0o644"
     },
     {
@@ -243,6 +243,11 @@
     {
       "path": "tools/orchestrator/internal/adapter/admit.go",
       "sha256": "49a2561142fde0879c05978fc53d99470076554a813c418d1b0d576879a0831b",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/admit_test.go",
+      "sha256": "a3a17316e715e383e3898db052401bd569d9932b0b9d93b05bd51f6047109844",
       "mode": "0o644"
     },
     {
@@ -522,7 +527,7 @@
     },
     {
       "path": "tools/orchestrator/internal/host/host.go",
-      "sha256": "ee6ce551560bd04dd108cf5d23646e38a9cf9f66af1e1dbe0e58638ea732bf22",
+      "sha256": "b45309d5e546e0ad0103d3472a0b2bee22e9ee852535d642d66db94c6d9dcb60",
       "mode": "0o644"
     },
     {
@@ -613,6 +618,11 @@
     {
       "path": "tools/orchestrator/internal/host/source_test.go",
       "sha256": "e3928952932f59a08c470d9c01c3960f57789a19309d5503f4f6161fcac6e082",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/stop_exit_publish_test.go",
+      "sha256": "03f65a7c4e4db8cca59f2c55da3d58fa3308ada37a135100c7f0dad026fa869c",
       "mode": "0o644"
     },
     {
@@ -772,7 +782,7 @@
     },
     {
       "path": "tools/orchestrator/internal/process/process.go",
-      "sha256": "4d19d2bcf5906418c28f40066c143af1586ed86fe95145a04185b3cd6cfa3daa",
+      "sha256": "63bcaf81010ad622de5c20ba61384389d35a74a0a381e1712976870858b4d9dc",
       "mode": "0o644"
     },
     {
@@ -781,8 +791,18 @@
       "mode": "0o644"
     },
     {
+      "path": "tools/orchestrator/internal/process/start_failure_test.go",
+      "sha256": "29a1cc8beb36e9d85d12614ccace009cb054e4a89b33fde14719af95dcbc9167",
+      "mode": "0o644"
+    },
+    {
       "path": "tools/orchestrator/internal/process/stop_escalation_test.go",
-      "sha256": "c97a3b707ea52999fe9f3ca741b66615fdace610d94101cb9d990347b2285e75",
+      "sha256": "f84b32da166d25a5982a939561e72693999574669bf2dd402a17e9157d6300b6",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/orchestrator/internal/process/stop_exitcode_test.go",
+      "sha256": "aa61b1026ab3d752c887ea6fc8f1768e4b5c075cd6cccdc6eb66618d76c5b475",
       "mode": "0o644"
     },
     {
