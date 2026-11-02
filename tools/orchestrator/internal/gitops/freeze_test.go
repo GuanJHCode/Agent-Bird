@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 type unknownGitJournal struct{ count, failAt int }

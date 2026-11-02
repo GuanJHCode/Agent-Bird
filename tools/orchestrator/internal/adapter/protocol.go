@@ -279,17 +279,11 @@ func parseAGY(object map[string]json.RawMessage) (Event, error) {
 		if status == "SUCCESS" || status == "WAITING" {
 			text, err = stringNestedField(value, "response")
 		}
-		structured, structuredErr := objectFieldOptional(value, "structured_output")
-		if structuredErr != nil {
-			return Event{}, structuredErr
-		}
 		kind := EventResult
 		if status == "WAITING" {
 			kind = EventQuestion
 		}
-		// AGY's response is aggregate commentary. Only its final object envelope
-		// is authoritative for a native schema-constrained candidate review.
-		return Event{Kind: kind, SessionID: session, Status: status, Text: text, StructuredText: structured}, err
+		return Event{Kind: kind, SessionID: session, Status: status, Text: text}, err
 	default:
 		return Event{Kind: EventUnknown}, nil
 	}
@@ -308,20 +302,16 @@ func parseGrok(object map[string]json.RawMessage) (Event, error) {
 	case "text":
 		text, err := stringFieldOptional(object, "data")
 		return Event{Kind: EventMessage, SessionID: session, Text: text}, err
+	case "usage":
+		// Additive streaming-json record observed by 1.0.67. Token counts are
+		// not an answer and do not move the tool-boundary cursor.
+		return Event{Kind: EventDiagnostic, SessionID: session, Status: "usage"}, nil
+	case "tool_started", "tool_completed":
+		// Message boundary; tool names and outcomes stay provider-private.
+		return Event{Kind: EventProgress, SessionID: session, Status: typeName}, nil
 	case "end":
 		status, err := stringFieldOptional(object, "stopReason")
-		if err != nil {
-			return Event{}, err
-		}
-		structured := ""
-		if raw, exists := object["structuredOutput"]; exists {
-			var value map[string]json.RawMessage
-			if json.Unmarshal(raw, &value) != nil || value == nil {
-				return Event{}, errors.New("event_structured_output_invalid")
-			}
-			structured = string(raw)
-		}
-		return Event{Kind: EventResult, SessionID: session, Status: status, StructuredText: structured}, nil
+		return Event{Kind: EventResult, SessionID: session, Status: status}, err
 	case "error":
 		return Event{Kind: EventResult, SessionID: session, Status: "error"}, nil
 	case "result":
@@ -391,16 +381,4 @@ func stringFieldEitherOptional(object map[string]json.RawMessage, first, second 
 		return stringFieldOptional(object, second)
 	}
 	return "", nil
-}
-
-func objectFieldOptional(object map[string]json.RawMessage, name string) (string, error) {
-	value, ok := object[name]
-	if !ok {
-		return "", nil
-	}
-	var nested map[string]json.RawMessage
-	if err := json.Unmarshal(value, &nested); err != nil || nested == nil {
-		return "", fmt.Errorf("event_%s_invalid", name)
-	}
-	return string(value), nil
 }

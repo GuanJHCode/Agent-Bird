@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/install"
 )
 
 type InstallRequest struct {

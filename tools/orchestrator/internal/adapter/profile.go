@@ -55,7 +55,7 @@ func ValidModelID(value string) bool { return value == "" || modelID.MatchString
 var modelID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
 
 func validateProfile(req Request) error {
-	if req.Action != nil && req.Action.Operation == "review" && req.Provider != ProviderClaude && req.Provider != ProviderAGY && req.Provider != ProviderGrok {
+	if req.Action != nil && req.Action.Operation == "review" && req.Provider != ProviderClaude {
 		return errors.New("candidate_review_provider_unsupported")
 	}
 	if req.Lock != nil && (req.Lock.Version != 1 || req.Lock.Provider != req.Provider || req.Lock.Protocol == "" || req.Lock.Protocol != ProtocolID(req.Provider) || req.Lock.Binary != req.Binary) {
@@ -71,11 +71,14 @@ func validateProfile(req Request) error {
 	if req.Lock == nil {
 		return errors.New("provider_lock_invalid")
 	}
+	if err := AdmitVersion(req.Provider, req.Binary.Version); err != nil {
+		return err
+	}
 	if req.Session.ID != "" {
 		return errors.New("profile_resume_not_verified")
 	}
 	if req.Provider == ProviderCodex {
-		return errors.New("codex_trial_guard_not_ready")
+		return CodexTrialBlocked()
 	}
 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
 		return errors.New("execution_profile_invalid")
@@ -89,13 +92,8 @@ func validateProfile(req Request) error {
 	if p.Reasoning != "" && p.Reasoning != "low" && p.Reasoning != "medium" && p.Reasoning != "high" {
 		return errors.New("reasoning_unsupported")
 	}
-	if req.Provider == ProviderGrok {
-		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
-			return errors.New("grok_version_not_verified")
-		}
-		if !p.GrokSessionWrite {
-			return errors.New("grok_session_write_required")
-		}
+	if req.Provider == ProviderGrok && !p.GrokSessionWrite {
+		return errors.New("grok_session_write_required")
 	}
 	if req.Provider != ProviderClaude && req.Provider != ProviderCodex && req.Provider != ProviderAGY && req.Provider != ProviderGrok {
 		return errors.New("execution_profile_unsupported")
@@ -103,7 +101,7 @@ func validateProfile(req Request) error {
 	if len(req.Permission.Allow) > 0 || len(req.Permission.Deny) > 0 || (req.Permission.Mode != "" && req.Permission.Mode != "plan" && req.Permission.Mode != "default") {
 		return errors.New("profile_legacy_permission_conflict")
 	}
-	if p.Role == Implementer && req.Provider != ProviderClaude && req.Provider != ProviderGrok && req.Provider != ProviderAGY {
+	if p.Role == Implementer && req.Provider != ProviderClaude {
 		return errors.New("implementer_unsupported")
 	}
 	if p.Role == Implementer && req.Permission.Mode == "plan" {
@@ -133,23 +131,20 @@ func CheckCapabilities(req Request, help string) error {
 	if req.Provider == ProviderClaude {
 		flags = append(flags, "--disallowed-tools")
 	}
+	if usesCandidateReviewSchema(req) {
+		flags = append(flags, "--json-schema")
+	}
 	if req.Provider == ProviderAGY {
-		flags = []string{"--output-format", "--input-format", "--mode"}
+		// --add-dir is how the profile's own directory is declared as the AGY
+		// workspace. A build that does not advertise it cannot be pointed at that
+		// directory, so its capability is not established and it stays rejected.
+		flags = []string{"--output-format", "--input-format", "--mode", "--add-dir"}
 	}
 	if req.Provider == ProviderGrok {
 		flags = []string{"--output-format", "--permission-mode", "--no-subagents", "--disable-web-search", "--session-id", "--leader-socket", "--tools", "--deny"}
-		if req.Profile.Role == Implementer {
-			flags = append(flags, "--allow")
-		}
 	}
 	if req.Provider == ProviderCodex {
-		return errors.New("codex_trial_guard_not_ready")
-	}
-	if usesCandidateReviewSchema(req) {
-		flags = append(flags, "--json-schema")
-		if req.Provider == ProviderGrok {
-			flags = append(flags, "--prompt-file")
-		}
+		return CodexTrialBlocked()
 	}
 	if req.Profile.Model != "" {
 		flags = append(flags, "--model")

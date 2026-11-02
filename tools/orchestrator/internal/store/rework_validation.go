@@ -11,9 +11,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/gitops"
 )
 
 type reworkTask struct {

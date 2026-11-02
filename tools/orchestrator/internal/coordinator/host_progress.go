@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 type HostProgressRequest struct {

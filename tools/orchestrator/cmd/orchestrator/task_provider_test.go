@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 	"context"
 	"encoding/json"
 	"os"
@@ -22,7 +22,8 @@ func TestTaskProbeProviderSelection(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := privateTaskTemp(t)
 			binary := filepath.Join(root, "provider")
-			if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '--output-format --input-format --permission-mode --mode --disallowed-tools';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
+			version := map[adapter.Provider]string{adapter.ProviderClaude: "2.1.267 (Claude Code)", adapter.ProviderAGY: "1.2.3", adapter.ProviderGrok: "grok 1.0.30 (04b7ffed98c6) [stable]"}[tc.provider]
+			if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo '"+version+"';;\n--help) echo '--output-format --input-format --permission-mode --mode --add-dir --disallowed-tools';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
 				t.Fatal(err)
 			}
 			var out bytes.Buffer
@@ -41,7 +42,7 @@ func TestTaskProbeProviderSelection(t *testing.T) {
 			if got.Lock.Provider != tc.provider || got.Supported != tc.supported {
 				t.Fatalf("unexpected probe: %+v", got)
 			}
-			if !tc.supported && got.Reason != "grok_version_not_verified" {
+			if !tc.supported && got.Reason != "cli_version_below_baseline" {
 				t.Fatalf("lost guard: %+v", got)
 			}
 		})
@@ -104,7 +105,7 @@ func TestTaskRunGrokGuardBeforeAllocation(t *testing.T) {
 func TestTaskRunAGYReachesCapabilityCheck(t *testing.T) {
 	root := privateTaskTemp(t)
 	binary := filepath.Join(root, "agy")
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '--output-format --input-format';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
+	if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo 1.2.3;;\n--help) echo '--output-format --input-format';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	pin, err := adapter.Probe(context.Background(), adapter.ProviderAGY, binary)

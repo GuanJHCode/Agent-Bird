@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 // Recovery must bring back the registered Host without accepting its result or

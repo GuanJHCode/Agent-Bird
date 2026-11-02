@@ -15,8 +15,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 )
 
 // Task plans contain business scope, never owner/process or transport identity.
@@ -43,13 +43,11 @@ func taskEntry(ctx context.Context, args []string, out io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
-	case "dispatch":
-		return taskDispatch(ctx, args[1:], out)
 	case "run", "submit":
 		return taskSubmit(ctx, args[0], args[1:], out)
 	case "probe":
 		return taskProbe(ctx, args[1:], out)
-	case "inspect", "status", "collect", "wait", "reconcile", "accept", "ack", "answer", "rework", "resume", "stop", "recover-host":
+	case "inspect", "status", "collect", "accept", "ack", "answer", "rework", "resume", "stop", "recover-host":
 		return taskFollowup(ctx, args[0], args[1:], out)
 	default:
 		return codeError("invalid_args")
@@ -64,6 +62,8 @@ func taskProvider(name string) (adapter.Provider, string, error) {
 		return adapter.ProviderAGY, "agy", nil
 	case "grok", string(adapter.ProviderGrok):
 		return adapter.ProviderGrok, "grok", nil
+	case "codex", string(adapter.ProviderCodex):
+		return adapter.ProviderCodex, "codex", nil
 	default:
 		return "", "", codeError("task_provider_unsupported")
 	}
@@ -73,7 +73,7 @@ func taskProbe(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("task probe", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	binary := fs.String("binary", "", "provider executable; defaults to PATH lookup")
-	providerName := fs.String("provider", "claude", "claude, agy, or grok")
+	providerName := fs.String("provider", "claude", "claude, agy, grok, or codex")
 	if fs.Parse(args) != nil || fs.NArg() != 0 {
 		return codeError("invalid_args")
 	}
@@ -101,11 +101,6 @@ func taskProbe(ctx context.Context, args []string, out io.Writer) error {
 }
 
 func taskSubmit(ctx context.Context, action string, args []string, out io.Writer) error {
-	return taskSubmitPrepared(ctx, action, args, out, false)
-}
-
-// reusePreparing is internal to a locked, hash-verified dispatch reservation.
-func taskSubmitPrepared(ctx context.Context, action string, args []string, out io.Writer, reusePreparing bool) error {
 	fs := flag.NewFlagSet("task "+action, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	handle := fs.String("handle", "", "new private handle file; never reused")
@@ -119,7 +114,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 		fs.StringVar(&planPath, "request", "", "business plan JSON")
 	} else {
 		fs.StringVar(&model, "model", "", "model ID or cli-default")
-		fs.StringVar(&providerName, "provider", "claude", "claude, agy, or grok")
+		fs.StringVar(&providerName, "provider", "claude", "claude, agy, grok, or codex")
 		fs.BoolVar(&grokSessionWrite, "grok-session-write", false, "explicitly authorize this Grok task's new session directory writes")
 		fs.StringVar(&runID, "run-id", "", "unique run ID")
 		fs.StringVar(&dir, "directory", "", "read-only workspace")
@@ -174,28 +169,9 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 		return err
 	}
 	if _, err := os.Lstat(*handle); err == nil {
-		if !reusePreparing || action != "submit" {
-			return codeError("task_handle_exists")
-		}
-		var prior taskHandle
-		if err = readPrivateJSON(*handle, &prior); err != nil {
-			return err
-		}
-		expectedState, err := resolveState(*stateArg)
-		if err != nil {
-			return err
-		}
-		ids := make([]string, 0, len(plan.Tasks))
-		for _, task := range plan.Tasks {
-			ids = append(ids, task.ID)
-		}
-		if prior.Version != 1 || prior.RunID != plan.RunID || prior.StateDir != expectedState || !slices.Equal(prior.TaskIDs, ids) || prior.Status != "submitting" || prior.ControlFile != "" {
-			return codeError("dispatch_checkpoint_invalid")
-		}
+		return codeError("task_handle_exists")
 	} else if !os.IsNotExist(err) {
 		return err
-	} else if reusePreparing {
-		return codeError("dispatch_checkpoint_invalid")
 	}
 	if plan.RunID == "" || plan.PlanRevision < 1 {
 		return codeError("invalid_submit")
@@ -210,7 +186,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 		return err
 	}
 	// Observe identity before reserving anything; never fall back to a shell PID.
-	if _, err := currentOwner(ctx); err != nil {
+	if _, err := currentCodexOwner(ctx); err != nil {
 		return err
 	}
 	state, err := resolveState(*stateArg)
@@ -231,7 +207,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 		h.TaskIDs = append(h.TaskIDs, task.ID)
 	}
 	var ownerOut bytes.Buffer
-	if err = ownerBind(ctx, []string{"--current", "--state-dir", state}, &ownerOut); err != nil {
+	if err = ownerBind(ctx, []string{"--current-codex", "--state-dir", state}, &ownerOut); err != nil {
 		return err
 	}
 	var owner struct {
@@ -255,12 +231,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	}
 	// An interrupted submission leaves this reservation in place. Never infer
 	// from missing receipt/control that no launch happened, or silently resubmit.
-	if reusePreparing {
-		err = replacePrivateJSON(*handle, h)
-	} else {
-		err = writeExclusiveJSON(*handle, h)
-	}
-	if err != nil {
+	if err = writeExclusiveJSON(*handle, h); err != nil {
 		if errors.Is(err, os.ErrExist) {
 			return codeError("task_handle_exists")
 		}
@@ -269,19 +240,8 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	req := coordinator.SubmitRequest{RunID: plan.RunID, PlanRevision: plan.PlanRevision, Tasks: plan.Tasks, OwnerMode: "local", DeliveryMode: "collect", OwnerCapability: owner.OwnerCapability, ControllerThread: owner.ControllerThread, OriginContextID: owner.OriginContextID, OriginPID: owner.OriginPID, OriginBirth: owner.OriginBirth, HostGeneration: owner.HostGeneration}
 	var receipt bytes.Buffer
 	submitErr := withTaskRequest(req, func(path string) error {
-		return submitWithPreparedControl(ctx, []string{"--state-dir", state, "--request", path}, &receipt, func(controlPath string) error {
-			h.ControlFile = controlPath
-			return replacePrivateJSON(*handle, h)
-		})
+		return submit(ctx, []string{"--state-dir", state, "--request", path}, &receipt)
 	})
-	var rejected remoteError
-	if errors.As(submitErr, &rejected) {
-		h.Status = "rejected"
-		h.ControlFile = ""
-		if err = replacePrivateJSON(*handle, h); err != nil {
-			return err
-		}
-	}
 	var r struct {
 		Version     int    `json:"version"`
 		Status      string `json:"status"`
@@ -400,25 +360,21 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	path := fs.String("handle", "", "original task handle")
 	request, taskID, cursor := "", "", ""
 	includeDiagnostics := false
-	timeoutMS := 30000
 	revision := 0
 	mutation := action == "accept" || action == "ack" || action == "answer" || action == "rework" || action == "recover-host"
 	if mutation {
 		fs.StringVar(&request, "request", "", "explicit owner decision JSON")
 	} else {
 		fs.StringVar(&taskID, "task-id", "", "task in this handle")
-		if action == "collect" || action == "wait" {
+		if action == "collect" {
 			fs.StringVar(&cursor, "cursor", "", "opaque continuation cursor")
 			fs.BoolVar(&includeDiagnostics, "include-diagnostics", false, "include incomplete progress checkpoints")
-		}
-		if action == "wait" {
-			fs.IntVar(&timeoutMS, "timeout-ms", 30000, "bounded event wait, 1..30000 milliseconds")
 		}
 		if action == "resume" || action == "stop" {
 			fs.IntVar(&revision, "work-revision", 0, "observed revision")
 		}
 	}
-	if fs.Parse(args) != nil || fs.NArg() != 0 || *path == "" || (mutation && request == "") || timeoutMS < 1 || timeoutMS > 30000 || (action == "wait" && includeDiagnostics) {
+	if fs.Parse(args) != nil || fs.NArg() != 0 || *path == "" || (mutation && request == "") {
 		return codeError("invalid_args")
 	}
 	if err := privateHandleParent(*path); err != nil {
@@ -449,7 +405,7 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 			}
 		}
 	} else if taskID == "" {
-		if len(h.TaskIDs) > 1 && action != "inspect" && action != "reconcile" {
+		if len(h.TaskIDs) > 1 && action != "inspect" {
 			return codeError("task_id_required")
 		}
 		taskID = h.TaskIDs[0]
@@ -473,9 +429,6 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	if b.SocketPath != filepath.Join(h.StateDir, "coordinator.sock") {
 		return codeError("task_handle_scope_mismatch")
 	}
-	if action == "reconcile" {
-		return reconcileTaskHandle(ctx, *path, h, cap, out)
-	}
 	if mutation {
 		decision["control_file"], _ = json.Marshal(h.ControlFile)
 		return withTaskRequest(decision, func(p string) error {
@@ -485,13 +438,7 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	if action == "inspect" {
 		action = "summary"
 	}
-	if action == "wait" {
-		action = "wait-events"
-	}
 	forwarded := []string{action, "--state-dir", h.StateDir, "--task-id", taskID, "--control-file", h.ControlFile}
-	if action == "wait-events" {
-		forwarded = append(forwarded, "--timeout-ms", strconv.Itoa(timeoutMS))
-	}
 	if includeDiagnostics {
 		forwarded = append(forwarded, "--include-diagnostics")
 	}

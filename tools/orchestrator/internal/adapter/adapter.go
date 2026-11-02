@@ -19,6 +19,10 @@ const (
 	ProviderGrok   Provider = "grok-build"
 	ProviderCodex  Provider = "codex-cli"
 
+	// CodexVersion and CodexSHA256 identify the historical 0.154.0 baseline
+	// binary. They still block that exact identity when it is presented as
+	// another provider. They are not an allow-list for later stable releases;
+	// each run binds its own path, raw --version text, and SHA-256.
 	CodexVersion = "codex-cli 0.154.0"
 	CodexSHA256  = "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
 )
@@ -120,8 +124,8 @@ func BuildInvocation(req Request) (Invocation, error) {
 	if req.Binary.Version == "" || !hex64.MatchString(strings.ToLower(req.Binary.SHA256)) {
 		return Invocation{}, errors.New("binary_pin_invalid")
 	}
-	if req.Provider == ProviderCodex && (req.Binary.Version != CodexVersion || strings.ToLower(req.Binary.SHA256) != CodexSHA256) {
-		return Invocation{}, errors.New("codex_binary_pin_mismatch")
+	if err := AdmitVersion(req.Provider, req.Binary.Version); err != nil {
+		return Invocation{}, err
 	}
 	if req.CWD == "" || !filepath.IsAbs(req.CWD) || filepath.Clean(req.CWD) != req.CWD {
 		return Invocation{}, errors.New("cwd_invalid")
@@ -164,6 +168,13 @@ func BuildInvocation(req Request) (Invocation, error) {
 		input = userEvent(req.Prompt)
 	case ProviderAGY:
 		args = append(args, "--output-format", "stream-json", "--input-format", "stream-json")
+		// Not every released AGY in the frozen window treats the process working
+		// directory as its workspace. 1.2.3 answers a cwd-scoped read with "no
+		// active workspace" after searching from the user's home; 1.4.12 honors the
+		// working directory. Declare the directory explicitly so both endpoints of
+		// the window share one argv. This is the directory the profile already
+		// authorizes, so it widens no scope.
+		args = append(args, "--add-dir", req.CWD)
 		if req.Session.ID != "" {
 			args = append(args, "--conversation", req.Session.ID)
 		}
@@ -171,11 +182,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 	case ProviderGrok:
 		args = append(args, "-p", req.Prompt, "--output-format", "streaming-json")
 		if req.Profile != nil {
-			tools := "read_file,list_dir,grep"
-			if req.Profile.Role == Implementer {
-				tools += ",search_replace"
-			}
-			args = append(args, "--no-subagents", "--disable-web-search", "--tools", tools, "--deny", "MCPTool(*)")
+			args = append(args, "--no-subagents", "--disable-web-search", "--tools", "read_file,list_dir,grep", "--deny", "MCPTool(*)")
 		}
 		if req.Session.ID != "" {
 			args = append(args, "--resume", req.Session.ID)
@@ -195,16 +202,6 @@ func BuildInvocation(req Request) (Invocation, error) {
 		input = []byte(req.Prompt)
 	}
 	appendPermissionArgs(&args, req.Provider, req.Permission)
-	// Only the validated, managed implementation profile selects native edit
-	// approval. Legacy permission flags cannot opt into this mode.
-	if req.Profile != nil && req.Profile.Role == Implementer {
-		switch req.Provider {
-		case ProviderGrok:
-			args = append(args, "--permission-mode", "acceptEdits")
-		case ProviderAGY:
-			args = append(args, "--mode", "accept-edits")
-		}
-	}
 	if usesCandidateReviewSchema(req) {
 		args = append(args, "--json-schema", candidateReviewSchema)
 	}

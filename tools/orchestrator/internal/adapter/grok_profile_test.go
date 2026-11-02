@@ -48,32 +48,15 @@ func TestGrokRequiresExplicitSessionWriteAuthorization(t *testing.T) {
 	}
 	req = grokProfileRequest(t)
 	req.Provider = ProviderClaude
-	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("non-Grok accepted Grok write authorization")
+	req.Binary.Version = baselineRaw(ProviderClaude)
+	req.Lock.Provider, req.Lock.Protocol, req.Lock.Binary = req.Provider, ProtocolID(req.Provider), req.Binary
+	if _, err := BuildInvocation(req); err == nil || err.Error() != "profile_provider_state_mismatch" {
+		t.Fatalf("non-Grok write err=%v", err)
 	}
 	req = grokProfileRequest(t)
 	req.Binary.Version = "grok future"
 	req.Lock.Binary = req.Binary
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("unverified version accepted")
-	}
-}
-
-func TestGrokImplementationRequiresExactEditRuleCapability(t *testing.T) {
-	req := grokProfileRequest(t)
-	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
-	req.Permission.Mode = "default"
-	req.Workspace = &CandidateWorkspace{Version: 1}
-	help := "--output-format --permission-mode --no-subagents --disable-web-search --session-id --leader-socket --tools --deny"
-	if err := CheckCapabilities(req, help); err == nil {
-		t.Fatal("implementation accepted CLI without edit rule support")
-	}
-	if err := CheckCapabilities(req, help+" --allow <rule>"); err != nil {
-		t.Fatal(err)
-	}
-	req.Permission.Allow = []string{"Edit"}
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("legacy permission expansion accepted")
+	if _, err := BuildInvocation(req); err == nil || err.Error() != "cli_version_unparsed" {
+		t.Fatalf("unparsed version err=%v", err)
 	}
 }

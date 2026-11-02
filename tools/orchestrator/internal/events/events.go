@@ -13,7 +13,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 )
 
 type CodeError string

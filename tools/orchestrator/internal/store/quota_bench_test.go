@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 )
 
 func quotaFixture(t testing.TB) (*DB, contract.LaunchCommand) {

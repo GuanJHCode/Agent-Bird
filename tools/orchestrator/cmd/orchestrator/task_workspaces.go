@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"

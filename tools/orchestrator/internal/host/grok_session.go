@@ -1,14 +1,14 @@
 package host
 
 import (
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,22 +34,8 @@ func grokEncodeCWD(cwd string) string {
 	return result
 }
 
-// Authentication maintenance is separate from the model worker. This fixed,
-// pinned, non-generating command never changes the worker sandbox rules.
-func prepareAuthenticatedGrokCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, grant contract.LaunchCommand, scratch string) (process.Command, error) {
-	prepared, err := prepareGrokCommand(ctx, cmd, profile, grant, scratch)
-	if err != nil {
-		return cmd, err
-	}
-	pin := adapter.BinaryPin{Path: cmd.PinnedPath, SHA256: cmd.PinnedSHA256, Version: "grok 1.0.34 (3736acbc8658)"}
-	if err := adapter.RefreshGrokAuth(ctx, pin, cmd.Env); err != nil {
-		return cmd, err
-	}
-	return prepared, nil
-}
-
 func prepareGrokCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, grant contract.LaunchCommand, scratch string) (process.Command, error) {
-	if profile == nil || !profile.GrokSessionWrite || profile.Version != 1 || ((profile.Role != adapter.Reviewer || profile.Permission != adapter.ReadOnly) && (profile.Role != adapter.Implementer || profile.Permission != adapter.WorkspaceWrite)) || grant.CommandID == "" {
+	if profile == nil || !profile.GrokSessionWrite || profile.Version != 1 || profile.Role != adapter.Reviewer || profile.Permission != adapter.ReadOnly || grant.CommandID == "" {
 		return cmd, errors.New("grok_session_write_required")
 	}
 	if err := ctx.Err(); err != nil {

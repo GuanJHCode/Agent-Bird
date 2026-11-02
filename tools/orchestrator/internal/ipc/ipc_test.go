@@ -9,7 +9,7 @@ import (
 	"testing"
 	"testing/iotest"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 )
 
 func TestFragmentedWireRejectsUnsupportedProtocolVersions(t *testing.T) {

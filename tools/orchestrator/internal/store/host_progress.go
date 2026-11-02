@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 )
 
 func migrateHostProgress(tx *sql.Tx) error {

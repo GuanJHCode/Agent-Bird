@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 )
 
 // ValidateHostHello authenticates a launch and returns its persisted owner without

@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 )
 
 // Normalize only existing read-only workspaces before submission. Candidate

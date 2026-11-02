@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -36,7 +36,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if active >= slots {
 		return rollback(ErrNoSlot)
 	}
-	selected, err := selectReady(ctx, tx, launchID, limits)
+	selected, err := selectReady(ctx, tx, launchID, epoch, limits)
 	taskID, runID, taskStatus, budgetGroup := selected.taskID, selected.runID, selected.status, selected.group
 	workRevision, maxAttempts, maxActive, adapterPayload := selected.revision, selected.maxAttempts, selected.maxActive, selected.payload
 	if errors.Is(err, sql.ErrNoRows) {

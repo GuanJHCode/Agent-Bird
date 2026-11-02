@@ -1,7 +1,7 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
 func TestInterruptedProviderPublishesReasonAndIncompleteCheckpoint(t *testing.T) {

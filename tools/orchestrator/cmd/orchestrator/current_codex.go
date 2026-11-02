@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 var codexThreadPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)

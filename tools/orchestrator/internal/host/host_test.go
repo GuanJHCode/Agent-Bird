@@ -1,10 +1,10 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/events"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 	"context"
 	"encoding/json"
 	"errors"
@@ -308,6 +308,71 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestCodexExecCollectLoopAtHostLayer evidences Codex's collect loop at the Host
+// layer: a real child process emits the codex-jsonl sequence, ExecuteLaunch
+// parses it into a durable result event carrying the delivered answer, and
+// Collect returns that event to the owner.
+//
+// This is fixture-level evidence only and it deliberately does not touch the
+// Codex trial gate. host.ExecuteLaunch receives an already built InvocationView,
+// so it never passes through the cmd-layer LaunchAdmission where the gate lives,
+// and the real binary's exec loop still requires the remaining gate contracts
+// plus real authentication. Nothing here makes Codex triable.
+func TestCodexExecCollectLoopAtHostLayer(t *testing.T) {
+	if mode := os.Getenv("G1_CODEX_COLLECT_HELPER"); mode == "1" {
+		_, _ = os.Stdout.WriteString(`{"type":"thread.started","thread_id":"codex-collect-session"}` + "\n")
+		_, _ = os.Stdout.WriteString(`{"type":"item.completed","item":{"id":"draft","type":"agent_message","text":"first draft"}}` + "\n")
+		_, _ = os.Stdout.WriteString(`{"type":"item.completed","item":{"id":"final","type":"agent_message","text":"codex final answer"}}` + "\n")
+		_, _ = os.Stdout.WriteString(`{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":5,"cache_write_input_tokens":0,"output_tokens":4,"reasoning_output_tokens":2}}` + "\n")
+		os.Exit(0)
+	}
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "codex-collect-producer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := store.Attempt{ID: "codex-attempt", TaskID: "codex-task", SegmentID: "codex-segment"}
+	grant := contract.LaunchCommand{CommandID: "codex-collect-command", ReservationID: "codex-collect-reservation", RunID: "codex-run", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: 1, GrantedActiveMS: 5000}
+	inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestCodexExecCollectLoopAtHostLayer"}, env: map[string]string{"G1_CODEX_COLLECT_HELPER": "1"}}, provider: "codex-cli"}
+	result, err := h.ExecuteLaunch(context.Background(), grant, inv)
+	if err != nil {
+		t.Fatalf("codex exec at the Host layer: %v", err)
+	}
+	if result.Status != "result_ready" {
+		t.Fatalf("status=%q result=%#v", result.Status, result)
+	}
+	events, err := h.Collect(context.Background(), a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var terminal *contract.Event
+	for index := range events {
+		if events[index].Kind == contract.EventResult {
+			terminal = &events[index]
+		}
+	}
+	if terminal == nil {
+		t.Fatalf("no durable result event in the collect stream: %#v", events)
+	}
+	if terminal.Artifact == nil {
+		t.Fatalf("codex result event carries no artifact: %#v", terminal)
+	}
+	body, readErr := os.ReadFile(terminal.Artifact.Path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(body) != "codex final answer" {
+		t.Fatalf("delivered answer = %q, want the last agent_message", body)
+	}
+	if terminal.SessionID != "codex-collect-session" {
+		t.Fatalf("session binding lost: %#v", terminal)
 	}
 }
 

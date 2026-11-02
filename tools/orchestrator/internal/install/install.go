@@ -847,6 +847,15 @@ func copyRegular(source, destination string, mode os.FileMode) error {
 	if err != nil {
 		return err
 	}
+	// OpenFile masks the requested mode with the caller's umask, and the runtime
+	// identity check compares the staged mode against an exact value. Setting it
+	// on the descriptor before any content lands keeps one package from staging
+	// differently depending on who unpacked it.
+	if err = output.Chmod(mode); err != nil {
+		_ = output.Close()
+		_ = os.Remove(destination)
+		return err
+	}
 	if _, err = io.Copy(output, input); err != nil {
 		_ = output.Close()
 		return err

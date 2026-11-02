@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 )
 
 // This fixture models the currently pinned codex-cli 0.154.0 JSONL schema;

@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 // Real CLI/coordinator/source-Host/ACK/owner decisions, with a protocol fixture
@@ -95,7 +95,7 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	}
 	t.Setenv("CANDIDATE_FIXTURE_MODE", mode)
 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
-	lock := map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "fixture-v1", "sha256": hex.EncodeToString(sum[:])}}
+	lock := map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "2.1.267 (Claude Code)", "sha256": hex.EncodeToString(sum[:])}}
 	profile := func(role, permission string) map[string]any {
 		return map[string]any{"version": 1, "role": role, "permission": permission, "timeout_ms": 15000}
 	}

@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"context"
 	"encoding/json"
 )

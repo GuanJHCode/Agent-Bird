@@ -1,7 +1,7 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
 )
 
 type reportCapabilityFile struct {

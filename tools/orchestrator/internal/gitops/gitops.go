@@ -4,7 +4,7 @@
 package gitops
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"

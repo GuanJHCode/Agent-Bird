@@ -7,8 +7,8 @@ import (
 	"errors"
 	"path/filepath"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 )
 
 const reviewRetryKind = "candidate_review_retry"

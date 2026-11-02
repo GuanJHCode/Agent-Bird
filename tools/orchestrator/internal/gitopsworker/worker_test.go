@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/gitops"
 )
 
 type workerResponse struct {

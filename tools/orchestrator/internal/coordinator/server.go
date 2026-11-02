@@ -14,12 +14,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/install"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
 type TaskRequest struct {
@@ -469,7 +469,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
@@ -875,9 +875,10 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	if err = s.db.FinishHostReconcile(context.Background(), hostID); err != nil {
 		return
 	}
-	if err = s.dispatch(session, true); err != nil {
+	if _, err = s.dispatch(session, true); err != nil {
 		return
 	}
+	s.dispatchAll()
 	for {
 		incoming, readErr := ipc.Read(conn)
 		if readErr != nil || incoming.Epoch != s.epoch {
@@ -901,13 +902,14 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		}
 		s.dispatchPendingStops()
 		s.retireCompletedHosts()
+		s.dispatchAll()
 		s.mu.Lock()
 		_, stillRegistered := s.hosts[session.id]
 		s.mu.Unlock()
 		if !stillRegistered {
 			return
 		}
-		if err = s.dispatch(session, false); err != nil {
+		if _, err = s.dispatch(session, false); err != nil {
 			return
 		}
 	}
@@ -964,29 +966,31 @@ func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (b
 	return true, session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindDurableAck, RequestID: incoming.RequestID, Epoch: s.epoch, Payload: body})
 }
 
-func (s *Server) dispatch(session *hostSession, includePending bool) error {
+func (s *Server) dispatch(session *hostSession, includePending bool) (bool, error) {
+	launched := false
 	if includePending {
 		pending, err := s.db.PendingLaunches(context.Background(), session.id, s.epoch)
 		if err != nil {
-			return err
+			return false, err
 		}
 		for _, command := range pending {
 			if err = sendLaunch(session, s.epoch, command); err != nil {
-				return err
+				return false, err
 			}
 		}
 	}
 	for {
 		command, err := s.db.ClaimReady(context.Background(), session.id, s.epoch, 0)
 		if errors.Is(err, store.ErrNoReady) || errors.Is(err, store.ErrNoSlot) {
-			return nil
+			return launched, nil
 		}
 		if err != nil {
-			return err
+			return launched, err
 		}
 		if err = sendLaunch(session, s.epoch, command); err != nil {
-			return err
+			return launched, err
 		}
+		launched = true
 	}
 }
 
@@ -997,8 +1001,17 @@ func (s *Server) dispatchAll() {
 		hosts = append(hosts, host)
 	}
 	s.mu.Unlock()
-	for _, host := range hosts {
-		_ = s.dispatch(host, false)
+	for pass := 0; pass < 32; pass++ {
+		progressed := false
+		for _, host := range hosts {
+			launched, err := s.dispatch(host, false)
+			if err == nil && launched {
+				progressed = true
+			}
+		}
+		if !progressed {
+			return
+		}
 	}
 }
 

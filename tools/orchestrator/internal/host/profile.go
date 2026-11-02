@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string, grok ...grokSandbox) (process.Command, error) {
@@ -54,14 +54,32 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 			if !ok {
 				continue
 			}
+			// spoolRoot above is re-derived from the canonicalized scratch, while the
+			// capability path was built from the state directory exactly as the caller
+			// handed it over. Through a symlink those are two different prefixes, so
+			// the comparison and the rules have to be taken on the resolved path:
+			// sandbox-exec matches real paths, and an unresolved literal would both
+			// reject a launch's own capability as untrusted and leave the allow rule
+			// pointing at a path no process can reach.
+			resolvedCap, resolveErr := filepath.EvalSymlinks(capPath)
+			if resolveErr != nil {
+				return cmd, errors.New("report_capability_path_untrusted")
+			}
 			reports := filepath.Join(spoolRoot, ".reports")
-			relative, err := filepath.Rel(reports, capPath)
+			relative, err := filepath.Rel(reports, resolvedCap)
 			parts := strings.Split(relative, string(filepath.Separator))
 			if err != nil || len(parts) != 2 || parts[0] == ".." || parts[1] != "capability.json" {
 				return cmd, errors.New("report_capability_path_untrusted")
 			}
-			rules = append(rules, "(allow file-read* (literal "+strconv.Quote(capPath)+"))", "(allow file-read* file-write* (subpath "+strconv.Quote(filepath.Join(filepath.Dir(capPath), "artifacts"))+"))")
-			for parent := filepath.Dir(capPath); parent != state; parent = filepath.Dir(parent) {
+			// The capability id and the file name are the Host's own choice, so both
+			// must survive resolution. Trusting the resolved path alone would let a
+			// capability that is a symlink into another launch's report directory earn
+			// that launch's literal read plus its artifacts write.
+			if filepath.Base(capPath) != "capability.json" || filepath.Dir(resolvedCap) != filepath.Join(reports, filepath.Base(filepath.Dir(capPath))) {
+				return cmd, errors.New("report_capability_path_untrusted")
+			}
+			rules = append(rules, "(allow file-read* (literal "+strconv.Quote(resolvedCap)+"))", "(allow file-read* file-write* (subpath "+strconv.Quote(filepath.Join(filepath.Dir(resolvedCap), "artifacts"))+"))")
+			for parent := filepath.Dir(resolvedCap); parent != state; parent = filepath.Dir(parent) {
 				rules = append(rules, "(allow file-read-metadata (literal "+strconv.Quote(parent)+"))")
 			}
 		}

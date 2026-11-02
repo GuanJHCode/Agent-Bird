@@ -71,6 +71,9 @@ except (OSError, ValueError) as error:
 PY
 mkdir -m 700 "$out/plugin"
 cp -R "$plugin_source"/. "$out/plugin/"
+# Bytecode caches are build residue from running the packaged scripts, not part of
+# the plugin; left in place they ship the developer's layout into the user's root.
+find "$out/plugin" \( -name '__pycache__' -o -name '*.pyc' -o -name '*.pyo' \) -prune -delete
 # Empty source directories have no manifest identity and would be retained as
 # unknown objects by the installer. Remove them only from this fresh package.
 find "$out/plugin" -depth -type d -empty ! -path "$out/plugin" -delete

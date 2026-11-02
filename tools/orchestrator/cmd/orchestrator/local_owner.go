@@ -5,9 +5,9 @@ import (
 	"flag"
 	"io"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
 func ownerBind(ctx context.Context, args []string, out io.Writer) error {
@@ -15,17 +15,14 @@ func ownerBind(ctx context.Context, args []string, out io.Writer) error {
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
 	path := fs.String("request", "", "owner identity request")
-	currentLocal := fs.Bool("current", false, "observe this managed controller process scope")
 	current := fs.Bool("current-codex", false, "observe the calling native Codex session")
-	if fs.Parse(args) != nil || (*path == "" && !*current && !*currentLocal) || (*path != "" && (*current || *currentLocal)) || (*current && *currentLocal) || fs.NArg() != 0 {
+	if fs.Parse(args) != nil || (*path == "" && !*current) || (*path != "" && *current) || fs.NArg() != 0 {
 		return codeError("invalid_args")
 	}
 	var req coordinator.OwnerBindRequest
 	var err error
 	if *current {
 		req, err = currentCodexOwner(ctx)
-	} else if *currentLocal {
-		req, err = currentOwner(ctx)
 	} else {
 		err = readPrivateJSON(*path, &req)
 	}

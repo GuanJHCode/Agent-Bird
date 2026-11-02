@@ -1,79 +1,20 @@
 package host
 
 import (
+	"codex-cli-orchestration-design/tools/orchestrator/internal/gitops"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker"
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
-
-func TestCandidateReviewUsesItsOwnProviderLock(t *testing.T) {
-	implementer := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: adapter.BinaryPin{Path: "/private/bin/grok", Version: "grok 1.0.34 (3736acbc8658)", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
-	reviewer := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderAGY, Protocol: adapter.ProtocolID(adapter.ProviderAGY), Binary: adapter.BinaryPin{Path: "/private/bin/agy", Version: "1.2.5", SHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}
-	if err := validateCandidateSourceProvider(implementer, string(adapter.ProviderGrok)); err != nil {
-		t.Fatalf("Grok implementation lock rejected: %v", err)
-	}
-	if err := validateCandidateReviewProvider(reviewer, string(adapter.ProviderAGY), reviewer.Binary.Path, reviewer.Binary.SHA256); err != nil {
-		t.Fatalf("AGY review lock rejected after Grok implementation: %v", err)
-	}
-	if err := validateCandidateReviewProvider(reviewer, string(adapter.ProviderAGY), implementer.Binary.Path, implementer.Binary.SHA256); err == nil || err.Error() != "candidate_review_provider_mismatch" {
-		t.Fatalf("review accepted implementation pin: %v", err)
-	}
-	if err := validateCandidateReviewProvider(implementer, string(adapter.ProviderGrok), implementer.Binary.Path, implementer.Binary.SHA256); err != nil {
-		t.Fatalf("verified Grok review lock rejected: %v", err)
-	}
-}
-
-func TestCandidateReviewDirectoryUsesTheMaterializedAbsolutePath(t *testing.T) {
-	grant := contract.LaunchCommand{RunID: "run", TaskID: "review", AttemptID: "attempt", SegmentID: "segment", AdapterPayload: []byte(`{"directory":"/private/reviews/candidate","candidate_action":{"version":1,"operation":"review","auto_directory":true}}`)}
-	directory, err := candidateReviewDirectory(grant)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := candidateDirectory("/private/reviews/candidate", grant, true)
-	if directory != want {
-		t.Fatalf("review directory=%q want=%q", directory, want)
-	}
-}
-
-func TestCandidateReviewReadInstructionIsProviderSpecific(t *testing.T) {
-	if got := candidateReviewReadInstruction(adapter.ProviderAGY); got != "Begin with view_file on the relevant absolute paths under that directory" {
-		t.Fatalf("AGY instruction=%q", got)
-	}
-	if got := candidateReviewReadInstruction(adapter.ProviderClaude); strings.Contains(got, "view_file") || !strings.Contains(got, "read-only tools") {
-		t.Fatalf("Claude instruction=%q", got)
-	}
-}
-
-func TestDecodeCandidateReviewRejectsAnythingButOneStrictSchemaValue(t *testing.T) {
-	valid := `{"decision":"approve","summary":"reviewed"}`
-	decision, err := decodeCandidateReview(valid)
-	if err != nil || decision.Decision != "approve" || decision.Summary != "reviewed" {
-		t.Fatalf("valid structured review=%+v err=%v", decision, err)
-	}
-	for _, body := range []string{
-		"prose " + valid,
-		`{"decision":"approve"}`,
-		valid + "\n" + valid,
-		`{"decision":"approve","summary":"reviewed","extra":true}`,
-		`{"decision":"approve","summary":""}`,
-	} {
-		if _, err := decodeCandidateReview(body); err == nil || err.Error() != "candidate_review_invalid" {
-			t.Fatalf("accepted non-schema review %q: %v", body, err)
-		}
-	}
-}
 
 func TestCandidateFailureClassifiesActionWithoutErrorText(t *testing.T) {
 	for _, tc := range []struct{ message, code string }{

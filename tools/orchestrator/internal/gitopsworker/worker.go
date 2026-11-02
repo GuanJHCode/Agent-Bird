@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/gitops"
 )
 
 type requestEnvelope struct {

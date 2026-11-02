@@ -5,9 +5,9 @@ import (
 	"flag"
 	"io"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
 type reworkFile struct {

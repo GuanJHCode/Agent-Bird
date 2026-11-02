@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"slices"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 )
 
 // Never allocate a new task whose Host events the live coordinator cannot
@@ -30,17 +30,12 @@ func checkCoordinatorTasks(capabilities []string, tasks []coordinator.TaskReques
 	for _, task := range tasks {
 		for _, raw := range append([]json.RawMessage{task.AdapterPayload}, task.Fallbacks...) {
 			var payload struct {
-				Provider string `json:"provider"`
-				Profile  *struct {
-					GrokSessionWrite bool   `json:"grok_session_write"`
-					Permission       string `json:"permission"`
+				Profile *struct {
+					GrokSessionWrite bool `json:"grok_session_write"`
 				} `json:"profile"`
 			}
 			if err := json.Unmarshal(raw, &payload); err != nil {
 				return codeError("invalid_adapter_payload")
-			}
-			if payload.Profile != nil && payload.Profile.Permission == "workspace-write" && (payload.Provider == "grok-build" || payload.Provider == "antigravity-cli") && !slices.Contains(capabilities, "isolated_provider_coding_v1") {
-				return codeError("coordinator_upgrade_required")
 			}
 			if payload.Profile != nil && payload.Profile.GrokSessionWrite && !slices.Contains(capabilities, "grok_readonly_v1") {
 				return codeError("coordinator_upgrade_required")

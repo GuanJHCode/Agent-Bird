@@ -58,12 +58,21 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 			Message            json.RawMessage `json:"message"`
 			ToolName           json.RawMessage `json:"tool_name"`
 			DecisionReasonType json.RawMessage `json:"decision_reason_type"`
-			Event              struct {
-				ContentBlock *block `json:"content_block"`
-			} `json:"event"`
-			PermissionDenials []struct{} `json:"permission_denials"`
+			Event              json.RawMessage `json:"event"`
+			PermissionDenials  []struct{}      `json:"permission_denials"`
 		}
 		if json.Unmarshal(scanner.Bytes(), &event) != nil {
+			result.Events["unparsed"]++
+			continue
+		}
+		// Providers disagree about the shape of "event": Anthropic-shaped output
+		// carries an object, AGY names each lifecycle step with a string. Only an
+		// object can hold a content_block, so a string is read as "nothing to
+		// count" rather than as unparseable output.
+		var streamEvent struct {
+			ContentBlock *block `json:"content_block"`
+		}
+		if len(event.Event) != 0 && !isJSONString(event.Event) && json.Unmarshal(event.Event, &streamEvent) != nil {
 			result.Events["unparsed"]++
 			continue
 		}
@@ -126,8 +135,8 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 		for _, b := range message.Content {
 			count(b)
 		}
-		if event.Event.ContentBlock != nil {
-			count(*event.Event.ContentBlock)
+		if streamEvent.ContentBlock != nil {
+			count(*streamEvent.ContentBlock)
 		}
 		result.PermissionDenials += len(event.PermissionDenials)
 	}
@@ -135,4 +144,9 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 		result.Truncated = true
 	}
 	return result
+}
+
+func isJSONString(raw json.RawMessage) bool {
+	trimmed := strings.TrimLeft(string(raw), " \t\r\n")
+	return len(trimmed) > 0 && trimmed[0] == '"'
 }

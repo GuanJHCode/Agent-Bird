@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 )
 
 // Bind only a direct DAG predecessor's owner-accepted, exited Host result.

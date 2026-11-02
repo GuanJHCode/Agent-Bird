@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
 )
 
 func TestSummaryPersistsOwnerScopeAndDoesNotDispatch(t *testing.T) {

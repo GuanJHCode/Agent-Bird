@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
@@ -72,7 +72,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 	hash := sha256.Sum256(contents)
-	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "max_active_ms": 20000, "adapter": map[string]any{"provider": "claude-code", "directory": root, "prompt": "fixture", "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 20000}, "provider_lock": map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]any{"path": provider, "version": "fixture-v1", "sha256": hex.EncodeToString(hash[:])}}}}}
+	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "max_active_ms": 20000, "adapter": map[string]any{"provider": "claude-code", "directory": root, "prompt": "fixture", "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 20000}, "provider_lock": map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]any{"path": provider, "version": "2.1.267 (Claude Code)", "sha256": hex.EncodeToString(hash[:])}}}}}
 
 	write(owner)
 	var submitted struct {

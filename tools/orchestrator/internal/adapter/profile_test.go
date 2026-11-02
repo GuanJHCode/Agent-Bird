@@ -9,7 +9,7 @@ import (
 func profileRequest(t *testing.T, profile string) Request {
 	t.Helper()
 	req := Request{Provider: ProviderClaude, Binary: pinForTest(), CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
-	if err := json.Unmarshal([]byte(`{"Profile":`+profile+`,"Lock":{"version":1,"provider":"claude-code","protocol":"claude-stream-json-v1","binary":{"Path":"/private/bin/agent","Version":"1.2.3","SHA256":"`+strings.Repeat("a", 64)+`"}}}`), &req); err != nil {
+	if err := json.Unmarshal([]byte(`{"Profile":`+profile+`,"Lock":{"version":1,"provider":"claude-code","protocol":"claude-stream-json-v1","binary":{"Path":"/private/bin/agent","Version":"`+baselineRaw(ProviderClaude)+`","SHA256":"`+strings.Repeat("a", 64)+`"}}}`), &req); err != nil {
 		t.Fatal(err)
 	}
 	return req
@@ -30,8 +30,9 @@ func TestProfileControlsModelReasoningAndRole(t *testing.T) {
 func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
 	req := profileRequest(t, `{"version":1,"role":"reviewer","model":"gemini-3.8-flash-low","reasoning":"low","permission":"read-only","timeout_ms":9000}`)
 	req.Provider = ProviderAGY
-	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
-	help := "--input-format --output-format --mode --model --effort"
+	req.Binary.Version = baselineRaw(ProviderAGY)
+	req.Lock.Provider, req.Lock.Protocol, req.Lock.Binary = req.Provider, ProtocolID(req.Provider), req.Binary
+	help := "--input-format --output-format --mode --add-dir --model --effort"
 	if err := CheckCapabilities(req, help); err != nil {
 		t.Fatal(err)
 	}
@@ -49,8 +50,47 @@ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
 		t.Fatal("accepted CLI without native plan capability")
 	}
 	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
-	if _, err := BuildInvocation(req); err == nil || err.Error() != "managed_workspace_required" {
-		t.Fatalf("unmanaged AGY editing accepted: %v", err)
+	if _, err := BuildInvocation(req); err == nil {
+		t.Fatal("unverified AGY editing accepted")
+	}
+}
+
+// AGY 1.2.3 does not treat the process working directory as its workspace: a
+// cwd-scoped read comes back as "no active workspace" after it searches from the
+// user's home instead. 1.4.12 does honor the working directory. Declaring the
+// profile's own directory keeps both endpoints of the frozen window on one argv.
+// The directory is the one the profile already authorizes, so this widens no
+// scope; a CLI that does not advertise the flag stays rejected.
+func TestAGYInvocationDeclaresProfileWorkspaceExplicitly(t *testing.T) {
+	for _, raw := range []string{"1.2.3", "1.4.12"} {
+		req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
+		req.Provider = ProviderAGY
+		req.Binary.Version = raw
+		req.Lock.Provider, req.Lock.Protocol, req.Lock.Binary = req.Provider, ProtocolID(req.Provider), req.Binary
+		if err := CheckCapabilities(req, "--input-format --output-format --mode --add-dir"); err != nil {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		if err := CheckCapabilities(req, "--input-format --output-format --mode"); err == nil {
+			t.Fatalf("%s: accepted a CLI that cannot be pointed at the profile workspace", raw)
+		}
+		inv, err := BuildInvocation(req)
+		if err != nil {
+			t.Fatalf("%s: %v", raw, err)
+		}
+		args := inv.Args()
+		declared := false
+		for i, arg := range args {
+			if arg != "--add-dir" {
+				continue
+			}
+			if i+1 >= len(args) || args[i+1] != req.CWD {
+				t.Fatalf("%s: --add-dir does not name the profile directory: %#v", raw, args)
+			}
+			declared = true
+		}
+		if !declared {
+			t.Fatalf("%s: profile workspace not declared: %#v", raw, args)
+		}
 	}
 }
 
@@ -93,8 +133,8 @@ func TestCodexTypedProfileExplicitlyRejectsUnavailableProtocol(t *testing.T) {
 	req.Binary.Version = CodexVersion
 	req.Binary.SHA256 = CodexSHA256
 	req.Lock.Binary = req.Binary
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("typed Codex profile silently ignored model")
+	if _, err := BuildInvocation(req); err == nil || err.Error() != "codex_trial_guard_not_ready" {
+		t.Fatalf("typed Codex profile err=%v", err)
 	}
 }
 
@@ -127,43 +167,15 @@ func TestCandidateReviewRequiresNativeStructuredOutput(t *testing.T) {
 func TestCandidateReviewRequiresVerifiedStructuredProvider(t *testing.T) {
 	req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
 	req.Provider = ProviderAGY
-	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
+	req.Binary.Version = baselineRaw(ProviderAGY)
+	req.Lock.Provider, req.Lock.Protocol, req.Lock.Binary = req.Provider, ProtocolID(req.Provider), req.Binary
 	req.Action = &CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
-	inv, err := BuildInvocation(req)
-	if err != nil {
-		t.Fatalf("AGY candidate review rejected: %v", err)
-	}
-	if !strings.Contains(strings.Join(inv.Args(), " "), "--json-schema") {
-		t.Fatal("AGY candidate review lacks native schema")
-	}
-	if err := CheckCapabilities(req, "--input-format --output-format --mode"); err == nil {
-		t.Fatal("AGY candidate review accepted missing native schema capability")
-	}
-	if err := CheckCapabilities(req, "--input-format --output-format --mode --json-schema"); err != nil {
-		t.Fatalf("AGY candidate review capability rejected: %v", err)
+	if _, err := BuildInvocation(req); err == nil {
+		t.Fatal("unverified candidate review provider admitted without structured channel")
 	}
 	req.Action = nil
 	if _, err := BuildInvocation(req); err != nil {
 		t.Fatalf("ordinary AGY read-only task regressed: %v", err)
-	}
-}
-
-func TestGrokCandidateReviewRequiresSchemaAndPrivatePromptInput(t *testing.T) {
-	req := grokProfileRequest(t)
-	req.Action = &CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
-	inv, err := BuildInvocation(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(strings.Join(inv.Args(), " "), "--json-schema") {
-		t.Fatal("review lacks native schema")
-	}
-	help := "--output-format --permission-mode --no-subagents --disable-web-search --session-id --leader-socket --tools --deny --json-schema"
-	if err := CheckCapabilities(req, help); err == nil {
-		t.Fatal("accepted missing private prompt input")
-	}
-	if err := CheckCapabilities(req, help+" --prompt-file"); err != nil {
-		t.Fatal(err)
 	}
 }
 

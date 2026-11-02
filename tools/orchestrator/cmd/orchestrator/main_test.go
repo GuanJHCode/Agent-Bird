@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
@@ -266,24 +266,40 @@ func TestInvocationRejectsChangedPinBeforeExecutingVersionProbe(t *testing.T) {
 func TestCodexTrialInvocationIsBlockedBeforePinReadOrVersionProbe(t *testing.T) {
 	root := t.TempDir()
 	canary := filepath.Join(root, "must-not-exist")
-	cases := []map[string]any{
-		{"provider": string(adapter.ProviderCodex), "binary_version": "alias-version", "binary_sha256": strings.Repeat("a", 64)},
-		{"provider": string(adapter.ProviderClaude), "binary_version": adapter.CodexVersion, "binary_sha256": strings.Repeat("a", 64)},
-		{"provider": string(adapter.ProviderClaude), "binary_version": "alias-version", "binary_sha256": strings.ToUpper(adapter.CodexSHA256)},
+	cases := []struct {
+		fields map[string]any
+		want   string
+	}{
+		{map[string]any{"provider": string(adapter.ProviderCodex), "binary_version": "alias-version", "binary_sha256": strings.Repeat("a", 64)}, "cli_version_unparsed"},
+		{map[string]any{"provider": string(adapter.ProviderCodex), "binary_version": "codex-cli 0.160.0", "binary_sha256": strings.Repeat("b", 64)}, "codex_trial_guard_not_ready"},
+		{map[string]any{"provider": string(adapter.ProviderClaude), "binary_version": adapter.CodexVersion, "binary_sha256": strings.Repeat("a", 64)}, "codex_trial_guard_not_ready"},
+		{map[string]any{"provider": string(adapter.ProviderClaude), "binary_version": "alias-version", "binary_sha256": strings.ToUpper(adapter.CodexSHA256)}, "codex_trial_guard_not_ready"},
 	}
-	for i, fields := range cases {
-		fields["binary_path"] = canary
-		fields["directory"] = root
-		fields["prompt"] = "inspect"
-		fields["permission_mode"] = "plan"
-		payload, _ := json.Marshal(fields)
+	for i, tc := range cases {
+		tc.fields["binary_path"] = canary
+		tc.fields["directory"] = root
+		tc.fields["prompt"] = "inspect"
+		tc.fields["permission_mode"] = "plan"
+		payload, _ := json.Marshal(tc.fields)
 		_, err := invocationForGrant(context.Background(), contract.LaunchCommand{AdapterPayload: payload})
-		if err == nil || err.Error() != "codex_trial_guard_not_ready" {
+		if err == nil || err.Error() != tc.want {
 			t.Fatalf("case %d: err=%v", i, err)
 		}
 	}
 	if _, statErr := os.Stat(canary); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("blocked Codex path was touched: %v", statErr)
+	}
+}
+
+func TestFakeInvocationSkipsProviderVersionWindow(t *testing.T) {
+	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
+	payload, _ := json.Marshal(map[string]any{"kind": "fake", "args": []string{"/bin/echo", "ok"}, "directory": t.TempDir()})
+	if _, err := invocationForGrant(context.Background(), contract.LaunchCommand{AdapterPayload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	payload, _ = json.Marshal(map[string]any{"kind": "fake", "provider": string(adapter.ProviderCodex), "args": []string{"/bin/echo", "ok"}, "directory": t.TempDir()})
+	if _, err := invocationForGrant(context.Background(), contract.LaunchCommand{AdapterPayload: payload}); err == nil || err.Error() != "cli_version_unparsed" {
+		t.Fatalf("fake Codex label err=%v", err)
 	}
 }
 
@@ -412,7 +428,7 @@ func TestCLIProviderQuestionAnswerAndOwnerAccept(t *testing.T) {
 	answerCapture := filepath.Join(root, "answer-input")
 	provider := filepath.Join(root, "agy-provider")
 	script := "#!/bin/sh\n" +
-		"if [ \"${1-}\" = --version ]; then echo 1.0.0; exit 0; fi\n" +
+		"if [ \"${1-}\" = --version ]; then echo 1.2.3; exit 0; fi\n" +
 		"case \" $* \" in\n" +
 		"  *\" --conversation session-1 \"*) IFS= read -r answer; printf '%s\\n' \"$answer\" > \"" + answerCapture + "\"; printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"session-1\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"session-1\",\"status\":\"SUCCESS\",\"response\":\"done\"}}' ;;\n" +
 		"  *) printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"session-1\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"session-1\",\"status\":\"WAITING\",\"response\":\"Choose the narrow API\"}}' ;;\n" +
@@ -434,7 +450,7 @@ func TestCLIProviderQuestionAnswerAndOwnerAccept(t *testing.T) {
 		"run_id": "question-run", "controller_thread": "question-thread", "plan_revision": 1,
 		"origin_context_id": "question-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
 		"host_generation": "question-generation",
-		"tasks":           []any{map[string]any{"id": "question-task", "max_attempts": 3, "completion_policy": "owner_review", "adapter": map[string]any{"provider": "antigravity-cli", "binary_path": provider, "binary_version": "1.0.0", "binary_sha256": fmt.Sprintf("%x", digest), "directory": root, "prompt": "Start", "permission_mode": "default"}}},
+		"tasks":           []any{map[string]any{"id": "question-task", "max_attempts": 3, "completion_policy": "owner_review", "adapter": map[string]any{"provider": "antigravity-cli", "binary_path": provider, "binary_version": "1.2.3", "binary_sha256": fmt.Sprintf("%x", digest), "directory": root, "prompt": "Start", "permission_mode": "default"}}},
 	}
 	body, _ := json.Marshal(request)
 	if err = os.WriteFile(requestPath, body, 0600); err != nil {

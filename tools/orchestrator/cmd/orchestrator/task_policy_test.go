@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 	"context"
 	"encoding/json"
 	"os"

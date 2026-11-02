@@ -75,7 +75,9 @@ verify the brief, artifacts and actual test evidence before approving the bound
 candidate. Prefer 30-second `wait-events` over status polling and retain cursors
 and receipt paths for recovery after context compression.
 
-Codex JSONL currently uses the pinned 0.154.0 contract. Structured records above
+Provider versions are a frozen inclusive window of published stable releases, recorded in `internal/adapter/compatibility_catalog.json` (queried 2026-11-02). Claude is 2.1.267–2.1.316, AGY 1.2.3–1.4.12, Grok 1.0.34–1.0.70, and Codex 0.154.0–0.166.0. The runtime does not resolve `latest` on each launch. A run still pins the absolute binary, the raw `--version` text, and its SHA-256. To move the ceiling, replace that catalog from the official release source and re-check the new binary; do not turn the check into a network lookup. Codex task launch remains `codex_trial_guard_not_ready`. Pre-release, nightly, and dev builds stay outside the window.
+
+Codex JSONL keeps the `codex-jsonl-0.154.0` contract family. Structured records above
 64 KiB fail with a bounded artifact containing `status: incomplete` and reason
 `provider_critical_event_too_large`; earlier messages are never used as the final
 answer after that failure. This conservatively includes oversized structured

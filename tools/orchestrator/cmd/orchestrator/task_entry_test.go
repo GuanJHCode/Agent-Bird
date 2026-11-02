@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"os"
 	"path/filepath"
 	"testing"
@@ -77,7 +77,7 @@ func TestTaskHandleScopeRejectsForeignTaskBeforeReadingControl(t *testing.T) {
 	if err = writeExclusiveJSON(path, h); err != nil {
 		t.Fatal(err)
 	}
-	for _, action := range []string{"inspect", "collect", "wait"} {
+	for _, action := range []string{"inspect", "collect"} {
 		err = run(context.Background(), []string{"task", action, "--handle", path, "--task-id", "foreign"}, &bytes.Buffer{}, &bytes.Buffer{})
 		if err == nil || err.Error() != "task_handle_scope_mismatch" {
 			t.Fatalf("%s: %v", action, err)
@@ -143,12 +143,12 @@ func TestTaskRunChecksProviderBeforeBinding(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := privateTaskTemp(t)
 			bin := filepath.Join(root, "provider")
-			body := []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '" + tc.help + "';;\n*) exit 99;;\nesac\n")
+			body := []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo '2.1.267 (Claude Code)';;\n--help) echo '" + tc.help + "';;\n*) exit 99;;\nesac\n")
 			if err := os.WriteFile(bin, body, 0700); err != nil {
 				t.Fatal(err)
 			}
 			hash := sha256.Sum256(body)
-			lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: "claude-stream-json-v1", Binary: adapter.BinaryPin{Path: bin, Version: "fixture-v1", SHA256: hex.EncodeToString(hash[:])}}
+			lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: "claude-stream-json-v1", Binary: adapter.BinaryPin{Path: bin, Version: "2.1.267 (Claude Code)", SHA256: hex.EncodeToString(hash[:])}}
 			lockPath := filepath.Join(root, "lock.json")
 			if err := writeExclusiveJSON(lockPath, lock); err != nil {
 				t.Fatal(err)

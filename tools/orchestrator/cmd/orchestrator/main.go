@@ -18,18 +18,18 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/admincli"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/nativebridgecli"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/admincli"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/host"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/install"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/nativebridgecli"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
 type codeError string
@@ -42,7 +42,7 @@ func (e remoteError) Error() string { return string(e) }
 
 func main() {
 	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
-		_ = json.NewEncoder(os.Stderr).Encode(map[string]any{"version": 1, "status": "error", "error": errorCode(err)})
+		_ = json.NewEncoder(os.Stderr).Encode(errorResponse(err))
 		os.Exit(2)
 	}
 }
@@ -54,24 +54,16 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	switch args[0] {
 	case "runtime-status":
 		return runtimeStatus(ctx, args[1:], stdout)
-	case "routing":
-		return routingEntry(ctx, args[1:], stdout)
 	case "provider":
 		return providerSettingsEntry(ctx, args[1:], stdout)
 	case "task":
 		return taskEntry(ctx, args[1:], stdout)
 	case "preflight":
 		return preflight(args[1:], stdout)
-	case "marketplace-check":
-		return marketplaceCheck(ctx, args[1:], stdout)
-	case "codex-plugin-activate":
-		return codexPluginActivate(ctx, args[1:], stdout)
 	case "plugin-run":
 		return pluginRun(ctx, args[1:], stdout)
 	case "owner-bind":
 		return ownerBind(ctx, args[1:], stdout)
-	case "controller":
-		return controllerEntry(ctx, args[1:])
 	case "provider-probe", "provider-lock":
 		return providerControl(ctx, args[0], args[1:], stdout)
 	case "serve":
@@ -270,11 +262,6 @@ func serve(parent context.Context, args []string, stderr io.Writer) error {
 }
 
 func submit(ctx context.Context, args []string, stdout io.Writer) error {
-	return submitWithPreparedControl(ctx, args, stdout, nil)
-}
-
-// Persist the high-level recovery route before any submission can reach the coordinator.
-func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Writer, onPrepared func(string) error) error {
 	fs := flag.NewFlagSet("submit", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
@@ -350,27 +337,23 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 			if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1" && pinErr.Error() == "running_package_invalid" {
 				continue
 			}
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return pinErr
 		}
 		pinned = append(pinned, task.ID)
 	}
-	if onPrepared != nil {
-		if err = onPrepared(controlPath); err != nil {
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
-			_ = os.Remove(controlPath)
-			_ = os.Remove(bootstrapPath)
-			return err
-		}
-	}
 	request.LaunchID, request.LaunchToken, request.ControlToken = launchID, launchToken, controlToken
 	response, err := call(ctx, state, ipc.KindSubmit, request)
 	if err != nil {
 		var rejected remoteError
 		if errors.As(err, &rejected) {
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return err
@@ -1036,8 +1019,12 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		}
 		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
 	}
-	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
-		return nil, codeError("codex_trial_guard_not_ready")
+	// Fake fixtures have no provider version. A fake that still presents the
+	// historical Codex identity keeps the trial guard.
+	if payload.Kind != "fake" || payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+		if err := adapter.LaunchAdmission(adapter.Provider(payload.Provider), payload.BinaryVersion, payload.BinarySHA256); err != nil {
+			return nil, err
+		}
 	}
 	if grant.Answer != "" {
 		if grant.QuestionID == "" || grant.QuestionRevision < 1 || grant.SessionKind == "" || grant.SessionID == "" || payload.Kind == "fake" {
@@ -1415,6 +1402,24 @@ func writePID(state string) error {
 		return err
 	}
 	return os.Rename(stage, path)
+}
+
+func errorResponse(err error) map[string]any {
+	payload := map[string]any{"version": 1, "status": "error", "error": errorCode(err)}
+	var rejected *adapter.VersionError
+	if errors.As(err, &rejected) && rejected != nil {
+		payload["provider"] = rejected.Provider
+		payload["normalized"] = rejected.Normalized
+		payload["baseline"] = rejected.Baseline
+		payload["ceiling"] = rejected.Ceiling
+		payload["reason"] = rejected.Code
+	}
+	var trial *adapter.TrialBlockedError
+	if errors.As(err, &trial) && trial != nil {
+		payload["reason"] = trial.Error()
+		payload["missing"] = trial.Missing
+	}
+	return payload
 }
 
 func errorCode(err error) string {

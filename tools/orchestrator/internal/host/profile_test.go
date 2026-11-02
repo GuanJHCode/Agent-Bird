@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
 
 type profiledInvocation struct {
@@ -99,6 +99,97 @@ func TestProfileSandboxCannotReadControlCredentials(t *testing.T) {
 	}
 }
 
+func TestProfileReportCapabilitySurvivesSymlinkedStateDirectory(t *testing.T) {
+	// The Host builds the capability path from the spool root exactly as handed
+	// over, but canonicalizes only the scratch path. A state directory reached
+	// through a symlink therefore puts the two on different prefixes, and the
+	// launch used to be refused with report_capability_path_untrusted, which the
+	// launch ledger collapses to the opaque "launch_failed".
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := filepath.Join(root, "state")
+	link := filepath.Join(root, "state-link")
+	reportDir := filepath.Join(state, "host-spool", "launch", ".reports", "own")
+	if err = os.MkdirAll(reportDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(state, link); err != nil {
+		t.Fatal(err)
+	}
+	canonicalCapability := filepath.Join(reportDir, "capability.json")
+	if err = os.WriteFile(canonicalCapability, []byte("test-capability"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	capability := filepath.Join(link, "host-spool", "launch", ".reports", "own", "capability.json")
+	scratch := filepath.Join(link, "host-spool", "launch", "attempt", "segment", "scratch")
+	profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}
+	cmd, err := sandboxCommand(context.Background(), process.Command{Path: "/bin/cat", Args: []string{capability}, Dir: root, Env: []string{"ORCHESTRATOR_REPORT_CAPABILITY=" + capability}}, profile, scratch)
+	if err != nil {
+		t.Fatalf("own capability refused through a symlinked state directory: %v", err)
+	}
+	out, err := exec.Command(cmd.Path, cmd.Args...).Output()
+	if err != nil || string(out) != "test-capability" {
+		t.Fatalf("own report capability unavailable inside the sandbox: out=%q err=%v\nrules: %v", out, err, cmd.Args)
+	}
+	// The fix must not widen the trust boundary: another launch's capability stays
+	// unreadable even when it is addressed through the same symlink.
+	victimReal := filepath.Join(state, "host-spool", "victim-launch", ".reports", "victim", "capability.json")
+	if err = os.MkdirAll(filepath.Dir(victimReal), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(victimReal, []byte("victim-secret"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	victim := filepath.Join(link, "host-spool", "victim-launch", ".reports", "victim", "capability.json")
+	cross, err := sandboxCommand(context.Background(), process.Command{Path: "/bin/cat", Args: []string{victim}, Dir: root, Env: []string{"ORCHESTRATOR_REPORT_CAPABILITY=" + capability}}, profile, scratch)
+	if err != nil {
+		t.Fatalf("sandbox build for the cross-launch probe: %v", err)
+	}
+	if out, err = exec.Command(cross.Path, cross.Args...).Output(); err == nil || len(out) != 0 {
+		t.Fatalf("cross-launch report capability readable through a symlinked state directory: out=%q err=%v", out, err)
+	}
+}
+
+func TestProfileReportCapabilityMayNotBeRedirectedAtAnotherCapabilityID(t *testing.T) {
+	// The capability id and file name are chosen by the Host, so they have to
+	// survive path resolution. Two ids under one launch's report directory are the
+	// case that matters: a cross-launch symlink is already rejected because it does
+	// not sit under this launch's .reports, but a sibling id resolves to a path that
+	// is two elements deep and would otherwise earn that id's literal read plus its
+	// artifacts write.
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := filepath.Join(root, "state")
+	reports := filepath.Join(state, "host-spool", "own-launch", ".reports")
+	ownDir := filepath.Join(reports, "own")
+	victim := filepath.Join(reports, "victim", "capability.json")
+	own := filepath.Join(ownDir, "capability.json")
+	for _, dir := range []string{ownDir, filepath.Dir(victim)} {
+		if err = os.MkdirAll(dir, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = os.WriteFile(victim, []byte("victim-secret"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(victim, own); err != nil {
+		t.Fatal(err)
+	}
+	scratch := filepath.Join(state, "host-spool", "own-launch", "attempt", "segment", "scratch")
+	profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}
+	cmd, err := sandboxCommand(context.Background(), process.Command{Path: "/bin/cat", Args: []string{own}, Dir: root, Env: []string{"ORCHESTRATOR_REPORT_CAPABILITY=" + own}}, profile, scratch)
+	if err == nil {
+		t.Fatalf("a capability redirected at a sibling id passed the trust check; rules: %v", cmd.Args)
+	}
+	if err.Error() != "report_capability_path_untrusted" {
+		t.Fatalf("wrong refusal: %v", err)
+	}
+}
+
 func TestProfileCannotReadAnotherReportCapability(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -148,7 +239,7 @@ func TestLaunchRechecksProviderPinAfterInvocationWasBuilt(t *testing.T) {
 			if err = os.WriteFile(binary, source, 0700); err != nil {
 				t.Fatal(err)
 			}
-			pin := adapter.BinaryPin{Path: binary, Version: "test", SHA256: hashBytes(source)}
+			pin := adapter.BinaryPin{Path: binary, Version: "2.1.267 (Claude Code)", SHA256: hashBytes(source)}
 			req := adapter.Request{Provider: adapter.ProviderClaude, Binary: pin, CWD: root, Prompt: "inspect", Permission: adapter.Permission{Mode: "plan"}}
 			if typed {
 				req.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}
