@@ -137,8 +137,7 @@ func invocationArgs(t *testing.T, provider Provider, raw string) []string {
 
 func TestCodexLaunchKeepsTrialGuardAndOwnDigest(t *testing.T) {
 	pin := codexPinForTest()
-	pin.Version = "codex-cli 0.160.0"
-	pin.SHA256 = strings.Repeat("b", 64)
+
 	invocation, err := BuildInvocation(Request{Provider: ProviderCodex, Binary: pin, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}})
 	if err != nil {
 		t.Fatal(err)
@@ -146,11 +145,13 @@ func TestCodexLaunchKeepsTrialGuardAndOwnDigest(t *testing.T) {
 	if !strings.Contains(strings.Join(invocation.Args(), " "), "--model gpt-5.6-luna") {
 		t.Fatal("version window changed the pinned model")
 	}
-	req := Request{Provider: ProviderCodex, Binary: pin, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}, Profile: &ExecutionProfile{Version: 1, Role: Reviewer, Permission: ReadOnly, TimeoutMS: 1000}, Lock: &ProviderLock{Version: 1, Provider: ProviderCodex, Protocol: ProtocolID(ProviderCodex), Binary: pin}}
+	unverified := pin
+	unverified.Version, unverified.SHA256 = "codex-cli 0.160.0", strings.Repeat("b", 64)
+	req := Request{Provider: ProviderCodex, Binary: unverified, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}, Profile: &ExecutionProfile{Version: 1, Role: Reviewer, Permission: ReadOnly, TimeoutMS: 1000}, Lock: &ProviderLock{Version: 1, Provider: ProviderCodex, Protocol: ProtocolID(ProviderCodex), Binary: unverified}}
 	if _, err = BuildInvocation(req); err == nil || err.Error() != "codex_trial_guard_not_ready" {
 		t.Fatalf("in-range Codex profile err=%v", err)
 	}
-	if err = ValidatePin(pin, "0.160.0", pin.SHA256); err == nil || err.Error() != "binary_version_mismatch" {
+	if err = ValidatePin(pin, "0.154.0", pin.SHA256); err == nil || err.Error() != "binary_version_mismatch" {
 		t.Fatalf("normalized text replaced raw identity: %v", err)
 	}
 }

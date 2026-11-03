@@ -132,6 +132,17 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		meta.outputProvider = structured.OutputProvider()
 	}
 	cmd := invocationCommand(inv)
+	if meta.outputProvider == string(adapter.ProviderCodex) {
+		defer cleanupCodexAuth(filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+		pinned, ok := inv.(interface{ Pin() adapter.BinaryPin })
+		if !ok {
+			return contract.Result{}, errors.New("codex_guard_pin_missing")
+		}
+		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
+			return codexCommand(ctx, cmd, pinned.Pin(), profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+		}
+		return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
+	}
 	if value, ok := inv.(interface {
 		CandidateAction() *adapter.CandidateAction
 	}); ok && value.CandidateAction() != nil {
@@ -155,6 +166,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			wrapped, err := sandboxCommand(ctx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
 			return wrapped, freeze, closeCandidate, err
 		}
+
 	} else if profile != nil && profile.Permission == adapter.WorkspaceWrite {
 		return contract.Result{}, errors.New("managed_workspace_required")
 	} else if profile != nil && profile.GrokSessionWrite {

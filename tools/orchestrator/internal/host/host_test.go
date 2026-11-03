@@ -271,7 +271,15 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 			}
 			grant := contract.LaunchCommand{CommandID: "structured-command-" + tc.mode, ReservationID: "structured-reservation-" + tc.mode, RunID: "run", TaskID: "task-" + tc.mode, AttemptID: "attempt-" + tc.mode, SegmentID: "segment-" + tc.mode, WorkRevision: index + 1, GrantedActiveMS: 2000}
 			inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestStructuredProviderTerminalControlsOutcome"}, env: map[string]string{"G1_STRUCTURED_HELPER": tc.mode}}, provider: tc.provider}
-			result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
+			var result contract.Result
+			var runErr error
+			if tc.provider == "codex-cli" {
+				// Synthetic JSONL tests only the parser and terminal outcome. Native
+				// admission is tested separately and must reject this unpinned fixture.
+				result, runErr = h.execute(context.Background(), store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}, grant.RunID, grant.TaskID, invocationCommand(inv), false, launchMetadata{outputProvider: tc.provider})
+			} else {
+				result, runErr = h.ExecuteLaunch(context.Background(), grant, inv)
+			}
 			if runErr != nil {
 				t.Fatal(runErr)
 			}
@@ -311,16 +319,9 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 	}
 }
 
-// TestCodexExecCollectLoopAtHostLayer evidences Codex's collect loop at the Host
-// layer: a real child process emits the codex-jsonl sequence, ExecuteLaunch
-// parses it into a durable result event carrying the delivered answer, and
-// Collect returns that event to the owner.
-//
-// This is fixture-level evidence only and it deliberately does not touch the
-// Codex trial gate. host.ExecuteLaunch receives an already built InvocationView,
-// so it never passes through the cmd-layer LaunchAdmission where the gate lives,
-// and the real binary's exec loop still requires the remaining gate contracts
-// plus real authentication. Nothing here makes Codex triable.
+// TestCodexExecCollectLoopAtHostLayer verifies only JSONL parsing and collection.
+// It calls the internal executor with a synthetic producer, deliberately below
+// the production native guard. It is never native launch/authentication evidence.
 func TestCodexExecCollectLoopAtHostLayer(t *testing.T) {
 	if mode := os.Getenv("G1_CODEX_COLLECT_HELPER"); mode == "1" {
 		_, _ = os.Stdout.WriteString(`{"type":"thread.started","thread_id":"codex-collect-session"}` + "\n")
@@ -341,7 +342,7 @@ func TestCodexExecCollectLoopAtHostLayer(t *testing.T) {
 	a := store.Attempt{ID: "codex-attempt", TaskID: "codex-task", SegmentID: "codex-segment"}
 	grant := contract.LaunchCommand{CommandID: "codex-collect-command", ReservationID: "codex-collect-reservation", RunID: "codex-run", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: 1, GrantedActiveMS: 5000}
 	inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestCodexExecCollectLoopAtHostLayer"}, env: map[string]string{"G1_CODEX_COLLECT_HELPER": "1"}}, provider: "codex-cli"}
-	result, err := h.ExecuteLaunch(context.Background(), grant, inv)
+	result, err := h.execute(context.Background(), a, grant.RunID, grant.TaskID, invocationCommand(inv), false, launchMetadata{outputProvider: "codex-cli"})
 	if err != nil {
 		t.Fatalf("codex exec at the Host layer: %v", err)
 	}

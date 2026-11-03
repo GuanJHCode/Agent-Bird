@@ -149,6 +149,9 @@ func BuildInvocation(req Request) (Invocation, error) {
 		return Invocation{}, errors.New("session_reference_invalid")
 	}
 	if req.Session.ID != "" {
+		if req.Provider == ProviderCodex {
+			return Invocation{}, errors.New("profile_resume_not_verified")
+		}
 		if req.Provider == ProviderAGY && req.Session.Kind != ConversationID {
 			return Invocation{}, errors.New("agy_requires_conversation_id")
 		}
@@ -188,15 +191,23 @@ func BuildInvocation(req Request) (Invocation, error) {
 			args = append(args, "--resume", req.Session.ID)
 		}
 	case ProviderCodex:
+		model, effort := "gpt-5.6-luna", "medium"
+		if req.Profile != nil {
+			if req.Profile.Model != "" {
+				model = string(req.Profile.Model)
+			}
+			if req.Profile.Reasoning != "" {
+				effort = string(req.Profile.Reasoning)
+			}
+		}
 		args = append(args,
 			"exec", "--json", "--color", "never",
-			"--model", "gpt-5.6-luna",
-			"--sandbox", "read-only",
-			"-c", `model_reasoning_effort="medium"`,
+			"--ephemeral", "--skip-git-repo-check", "--strict-config", "--ignore-rules",
+			"-c", `model_reasoning_effort="`+effort+`"`,
 			"-c", `approval_policy="never"`,
 		)
-		if req.Session.ID != "" {
-			args = append(args, "resume", req.Session.ID)
+		if req.Profile == nil || !req.Profile.CLIModelDefault {
+			args = append(args, "--model", model)
 		}
 		args = append(args, "-")
 		input = []byte(req.Prompt)

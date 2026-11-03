@@ -332,6 +332,10 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if _, err = adapter.BuildInvocation(req); err != nil {
 				return err
 			}
+			// Validate the typed lock before admission; neither step reads a binary.
+			if err = adapter.LaunchAdmission(req.Provider, req.Binary.Version, req.Binary.SHA256); err != nil {
+				return err
+			}
 			if err = adapter.VerifyExecutable(req.Binary, req.Binary.Version); err != nil {
 				return err
 			}
@@ -342,7 +346,11 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if err = adapter.VerifyExecutable(req.Binary, strings.TrimSpace(actual)); err != nil {
 				return err
 			}
-			help, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--help")
+			helpArgs := []string{"--help"}
+			if req.Provider == adapter.ProviderCodex {
+				helpArgs = []string{"exec", "--help"}
+			}
+			help, err := adapter.ProbeOutput(ctx, req.Binary.Path, helpArgs...)
 			if err != nil {
 				return err
 			}

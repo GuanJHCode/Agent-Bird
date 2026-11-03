@@ -75,7 +75,9 @@ verify the brief, artifacts and actual test evidence before approving the bound
 candidate. Prefer 30-second `wait-events` over status polling and retain cursors
 and receipt paths for recovery after context compression.
 
-Provider versions are a frozen inclusive window of published stable releases, recorded in `internal/adapter/compatibility_catalog.json` (queried 2026-11-02). Claude is 2.1.267–2.1.316, AGY 1.2.3–1.4.12, Grok 1.0.34–1.0.70, and Codex 0.154.0–0.166.0. The runtime does not resolve `latest` on each launch. A run still pins the absolute binary, the raw `--version` text, and its SHA-256. To move the ceiling, replace that catalog from the official release source and re-check the new binary; do not turn the check into a network lookup. Codex task launch remains `codex_trial_guard_not_ready`. Pre-release, nightly, and dev builds stay outside the window.
+Provider versions are a frozen inclusive window of published stable releases, recorded in `internal/adapter/compatibility_catalog.json` (queried 2026-11-02). Claude is 2.1.267–2.1.316, AGY 1.2.3–1.4.12, Grok 1.0.34–1.0.70, and Codex 0.154.0–0.166.0. The runtime does not resolve `latest` on each launch. A run still pins the absolute binary, the raw `--version` text, and its SHA-256. To move the ceiling, replace that catalog from the official release source and re-check the new binary; do not turn the check into a network lookup. Pre-release, nightly, and dev builds stay outside the window.
+
+This development branch admits Codex native launch only for the exact verified 0.154.0 and 0.166.0 main and Code Mode companion identities. Catalog admission alone is insufficient. Installed runtime receipts, a fresh trusted read-only ChatGPT login projection, and exclusive native-guard refresh-tripwire injection are required. The pinned native main is trusted; its model tools use the named `orchestrator_readonly` sandbox. Workspace writes, resume, arbitrary configuration and pre-existing refresh overrides are rejected. Other catalog-admitted Codex identities retain the complete four-contract `codex_trial_guard_not_ready` diagnostic. See [current acceptance](../../docs/cli-version-handoff.md); this capability has not been published to public main/master.
 
 Codex JSONL keeps the `codex-jsonl-0.154.0` contract family. Structured records above
 64 KiB fail with a bounded artifact containing `status: incomplete` and reason
@@ -161,8 +163,9 @@ New requests use separate protocol, Execution Profile and Provider Lock objects;
 see [configuration and recovery](../../docs/provider-runtime.md) for exact JSON,
 `provider-probe` / confirmed `provider-lock`, and the persisted concurrency policy.
 Legacy invocation fields remain accepted within their existing boundary; they are
-not a fallback for a rejected profile. Typed Codex/AGY/Grok and typed session
-resume are explicitly unsupported until their capability gates are verified.
+not a fallback for a rejected profile. Typed reviewer profiles support Claude,
+AGY, explicitly authorized Grok session writes, and the exact Codex native pins
+described above. Typed session resume remains unsupported.
 
 `owner-bind --request <private-json>` registers a local main-agent identity using
 kernel peer ancestry and PID birth. Submit with `owner_mode=local` and

@@ -67,22 +67,36 @@ func CodexTrialMissing() []string {
 	return []string{
 		"verified_auth_metadata_source_missing",
 		"exec_refresh_tripwire_not_applied",
-		"native_auth_admission_pinned_0.154.0",
+		"native_auth_admission_exact_pin",
 		"codex_exec_collect_loop_not_evidenced",
 	}
 }
 
 // LaunchAdmission decides before any binary read. A nil result means the
 // caller still has to verify the pin, digest, and capabilities.
+// CodexNativePins is deliberately narrower than the frozen version catalog.
+// Additions require native refresh-tripwire, named tool-policy and real
+// read/collect/ACK/accept evidence for the exact binary.
+func CodexNativePins() map[string]string {
+	return map[string]string{CodexVersion: CodexSHA256, "codex-cli 0.166.0": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1"}
+}
+
 func LaunchAdmission(provider Provider, rawVersion, sha string) error {
-	if rawVersion == CodexVersion || strings.EqualFold(sha, CodexSHA256) {
-		return CodexTrialBlocked()
+	if provider != ProviderCodex {
+		for raw, digest := range CodexNativePins() {
+			if rawVersion == raw || strings.EqualFold(sha, digest) {
+				return CodexTrialBlocked()
+			}
+		}
 	}
 	if err := AdmitVersion(provider, rawVersion); err != nil {
 		return err
 	}
 	if provider == ProviderCodex {
-		return CodexTrialBlocked()
+		want, ok := CodexNativePins()[rawVersion]
+		if !ok || !strings.EqualFold(sha, want) {
+			return CodexTrialBlocked()
+		}
 	}
 	return nil
 }

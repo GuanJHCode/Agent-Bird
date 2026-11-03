@@ -3,6 +3,7 @@ package adapter
 import (
 	"errors"
 	"regexp"
+	"strings"
 )
 
 type Role string
@@ -78,7 +79,10 @@ func validateProfile(req Request) error {
 		return errors.New("profile_resume_not_verified")
 	}
 	if req.Provider == ProviderCodex {
-		return CodexTrialBlocked()
+		want, ok := CodexNativePins()[req.Binary.Version]
+		if !ok || !strings.EqualFold(req.Binary.SHA256, want) {
+			return CodexTrialBlocked()
+		}
 	}
 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
 		return errors.New("execution_profile_invalid")
@@ -144,12 +148,12 @@ func CheckCapabilities(req Request, help string) error {
 		flags = []string{"--output-format", "--permission-mode", "--no-subagents", "--disable-web-search", "--session-id", "--leader-socket", "--tools", "--deny"}
 	}
 	if req.Provider == ProviderCodex {
-		return CodexTrialBlocked()
+		flags = []string{"--json", "--color", "--model", "--config", "--ephemeral", "--skip-git-repo-check", "--strict-config", "--ignore-rules"}
 	}
 	if req.Profile.Model != "" {
 		flags = append(flags, "--model")
 	}
-	if req.Profile.Reasoning != "" {
+	if req.Profile.Reasoning != "" && req.Provider != ProviderCodex {
 		flags = append(flags, "--effort")
 	}
 	if req.Session.ID != "" {

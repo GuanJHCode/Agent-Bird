@@ -5,15 +5,17 @@
 ## 控制接口
 
 ```text
-provider enable --provider <claude|grok|agy> --provider-lock <confirmed-lock.json>
-provider disable --provider <claude|grok|agy>
+provider enable --provider <claude|grok|agy|codex> --provider-lock <confirmed-lock.json>
+provider disable --provider <claude|grok|agy|codex>
 provider status
-provider model --provider <claude|grok|agy> --model <model-id|cli-default>
-provider default-model --provider <claude|grok|agy> --model <model-id|cli-default>
-task probe --provider <claude|grok|agy>
+provider model --provider <claude|grok|agy|codex> --model <model-id|cli-default>
+provider default-model --provider <claude|grok|agy|codex> --model <model-id|cli-default>
+task probe --provider <claude|grok|agy|codex>
 ```
 
 这些参数由 Skill 自动组织。Provider lock、handle、请求文件生成在 owner-only 任务目录内，不应提交 Git。第一次使用或二进制摘要变化需核对真实指纹；普通 probe 不登录、不执行模型。
+
+交接分支的 Codex 只接受已验收的 0.154.0／0.166.0 双二进制固定摘要、安装 receipt 和新鲜登录态的只读投影。native guard 独占注入 refresh tripwire；固定 native 主进程受信，模型工具受命名只读 profile 约束。写入、resume、已有 override 和其他 native 身份均拒绝。此研发能力尚未发布到公开 main/master，详见[当前交接](cli-version-handoff.md)。
 
 ## 隔离与配置
 

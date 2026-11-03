@@ -34,13 +34,19 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 	reason := versionPolicy.Reason
 	var missing []string
 	if versionPolicy.Admitted && req.Provider == adapter.ProviderCodex {
-		reason = "codex_trial_guard_not_ready"
-		missing = adapter.CodexTrialMissing()
+		if gateErr := adapter.LaunchAdmission(req.Provider, lock.Binary.Version, lock.Binary.SHA256); gateErr != nil {
+			reason = gateErr.Error()
+			missing = adapter.CodexTrialMissing()
+		}
 	} else if versionPolicy.Admitted && req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
 		reason = "execution_profile_unsupported"
 	}
 	if versionPolicy.Admitted {
-		help, helpErr := adapter.ProbeOutput(ctx, req.BinaryPath, "--help")
+		helpArgs := []string{"--help"}
+		if req.Provider == adapter.ProviderCodex {
+			helpArgs = []string{"exec", "--help"}
+		}
+		help, helpErr := adapter.ProbeOutput(ctx, req.BinaryPath, helpArgs...)
 		if helpErr != nil {
 			return helpErr
 		}

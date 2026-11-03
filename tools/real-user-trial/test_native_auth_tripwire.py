@@ -54,6 +54,11 @@ DIAGNOSTIC_CONTEXT_OPT_IN = (
     os.environ.get("CODEX_RUN_NATIVE_AUTH_DIAGNOSTIC_CONTEXT") == "1"
 )
 NATIVE_BINARY_INPUT = os.environ.get("CODEX_TRIAL_NATIVE_BINARY")
+NATIVE_VERSION_INPUT = os.environ.get("CODEX_TRIAL_NATIVE_VERSION", "0.154.0")
+NATIVE_TEST_PINS = {
+    "0.154.0": EXPECTED_NATIVE_SHA256,
+    "0.166.0": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+}
 MANAGED_CONFIG_PATHS = (
     Path("/etc/codex/config.toml"),
     Path("/etc/codex/requirements.toml"),
@@ -313,7 +318,7 @@ def _verify_native_binary(raw: str) -> Path:
         or not info.st_mode & 0o111
     ):
         raise AssertionError("native_binary_identity_invalid")
-    if _stable_sha256(binary) != EXPECTED_NATIVE_SHA256:
+    if _stable_sha256(binary) != NATIVE_TEST_PINS.get(NATIVE_VERSION_INPUT):
         raise AssertionError("native_binary_sha256_mismatch")
     current = os.lstat(binary)
     fields = ("st_dev", "st_ino", "st_uid", "st_mode", "st_size", "st_mtime_ns")
@@ -809,7 +814,7 @@ def _verify_synthetic_diagnostic_preconditions(
     expected_auth = _synthetic_auth_bytes()
     if current_auth != expected_auth or home.auth_bytes != expected_auth:
         raise AssertionError("diagnostic_auth_not_synthetic")
-    if _stable_sha256(binary) != EXPECTED_NATIVE_SHA256:
+    if _stable_sha256(binary) != NATIVE_TEST_PINS.get(NATIVE_VERSION_INPUT):
         raise AssertionError("diagnostic_native_binary_changed")
 
     child_environment = dict(environment)
@@ -962,7 +967,7 @@ def _verify_initialize_user_agent(response: Mapping[str, object]) -> str:
     user_agent = result.get("userAgent") if isinstance(result, dict) else None
     match = (
         re.fullmatch(
-            r"native-auth-tripwire-fixture/(0\.154\.0)(?: [\x20-\x7E]*)?",
+            r"native-auth-tripwire-fixture/(0\.154\.0|0\.166\.0)(?: [\x20-\x7E]*)?",
             user_agent,
         )
         if isinstance(user_agent, str)
@@ -974,13 +979,16 @@ def _verify_initialize_user_agent(response: Mapping[str, object]) -> str:
 
 
 class _BoundedStdioJsonlClient:
-    def __init__(self, process: subprocess.Popen[bytes]) -> None:
+    def __init__(self, process: subprocess.Popen[bytes], *, response_timeout: float = 5) -> None:
         if process.stdin is None or process.stdout is None:
             raise AssertionError("native_stdio_pipe_missing")
+        if not 0 < response_timeout <= 20:
+            raise AssertionError("native_stdio_timeout_invalid")
         self._stdin = process.stdin
         self._stdout = process.stdout
         self._buffer = bytearray()
         self._bytes_read = 0
+        self._response_timeout = response_timeout
 
     def send(self, packet: Mapping[str, object]) -> None:
         payload = json.dumps(packet, separators=(",", ":")).encode("utf-8") + b"\n"
@@ -993,7 +1001,7 @@ class _BoundedStdioJsonlClient:
             raise NativeStdioProtocolError("stdio_stdin_closed") from None
 
     def read_line(self) -> bytes:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + self._response_timeout
         while True:
             newline = self._buffer.find(b"\n")
             if newline >= 0:
@@ -1040,7 +1048,8 @@ def _request_refresh_without_model_turn(client: _BoundedStdioJsonlClient) -> Non
         }
     )
     initialized = _receive_bounded_jsonl_response(client.read_line, 1)
-    _verify_initialize_user_agent(initialized)
+    if _verify_initialize_user_agent(initialized) != NATIVE_VERSION_INPUT:
+        raise NativeStdioProtocolError("initialize_user_agent_mismatch")
     client.send({"method": "initialized"})
     client.send(
         {
@@ -1060,7 +1069,7 @@ def _run_fixed_native(
     environment: Mapping[str, str],
     profile: str,
 ) -> None:
-    if _stable_sha256(binary) != EXPECTED_NATIVE_SHA256:
+    if _stable_sha256(binary) != NATIVE_TEST_PINS.get(NATIVE_VERSION_INPUT):
         raise AssertionError("native_binary_changed_before_launch")
     profile_path = home.root / "sandbox.sb"
     _write_exclusive(profile_path, profile.encode("utf-8"))

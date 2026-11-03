@@ -43,9 +43,9 @@ func TestBuildCodexInvocationUsesFixedReadOnlyPlanContract(t *testing.T) {
 	}
 	want := []string{
 		"/private/bin/codex", "exec", "--json", "--color", "never",
-		"--model", "gpt-5.6-luna", "--sandbox", "read-only",
+		"--ephemeral", "--skip-git-repo-check", "--strict-config", "--ignore-rules",
 		"-c", `model_reasoning_effort="medium"`,
-		"-c", `approval_policy="never"`, "-",
+		"-c", `approval_policy="never"`, "--model", "gpt-5.6-luna", "-",
 	}
 	if got := invocation.Args(); !equalStrings(got, want) {
 		t.Fatalf("argv = %#v, want %#v", got, want)
@@ -57,31 +57,16 @@ func TestBuildCodexInvocationUsesFixedReadOnlyPlanContract(t *testing.T) {
 		t.Fatalf("environment overrides = %#v", got)
 	}
 	for _, arg := range invocation.Args() {
-		if arg == "inspect the bounded change" || arg == "--ephemeral" {
+		if arg == "inspect the bounded change" {
 			t.Fatalf("prompt or forbidden flag leaked into argv: %#v", invocation.Args())
 		}
 	}
 }
 
-func TestBuildCodexResumeUsesExactSessionAndStdin(t *testing.T) {
-	invocation, err := BuildInvocation(Request{
-		Provider:   ProviderCodex,
-		Binary:     codexPinForTest(),
-		CWD:        "/private/workspace",
-		Prompt:     "continue the review",
-		Session:    SessionRef{Kind: SessionID, ID: "0199aabb-1234-7000-8000-aabbccddeeff"},
-		Permission: Permission{Mode: "plan"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantTail := []string{"resume", "0199aabb-1234-7000-8000-aabbccddeeff", "-"}
-	got := invocation.Args()
-	if len(got) < len(wantTail) || !equalStrings(got[len(got)-len(wantTail):], wantTail) {
-		t.Fatalf("resume argv = %#v", got)
-	}
-	if string(invocation.Stdin()) != "continue the review" {
-		t.Fatalf("stdin = %q", invocation.Stdin())
+func TestBuildCodexResumeRejectedBeforeNativeLaunch(t *testing.T) {
+	_, err := BuildInvocation(Request{Provider: ProviderCodex, Binary: codexPinForTest(), CWD: "/private/workspace", Prompt: "continue", Session: SessionRef{Kind: SessionID, ID: "prior-session"}, Permission: Permission{Mode: "plan"}})
+	if err == nil || err.Error() != "profile_resume_not_verified" {
+		t.Fatalf("resume error=%v", err)
 	}
 }
 

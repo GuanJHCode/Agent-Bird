@@ -1053,7 +1053,11 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		return nil, err
 	}
 	if request.Profile != nil {
-		help, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--help")
+		helpArgs := []string{"--help"}
+		if request.Provider == adapter.ProviderCodex {
+			helpArgs = []string{"exec", "--help"}
+		}
+		help, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, helpArgs...)
 		if err != nil {
 			return nil, err
 		}

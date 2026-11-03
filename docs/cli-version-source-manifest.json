@@ -1,13 +1,109 @@
 {
+  "scope": "Final source snapshot; baseline entries plus installed plugin sources, affected native tests and task scripts. Excludes raw data, private paths/credentials, generated evidence and this manifest.",
   "files": [
+    {
+      "path": "docs/provider-runtime.md",
+      "sha256": "81b6a0925001047f6af4dbe0c201cf8e517bd058d56c54717cee421893c089b8",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/.codex-plugin/plugin.json",
+      "sha256": "baccfe4ba37f2de20f3a87783eb04a3076eb1dff3b5b9a5134fc252e5e1574ea",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/defaults.json",
+      "sha256": "d87cce1addf8d6b66930adb465abb5438214b09ac691e351a0b64865687acda5",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/native_bridge/__init__.py",
+      "sha256": "41d9d039fb2d04cf66f9c76480381d829a96931ed1e1a7a327d6e40e3aa2b872",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/native_bridge/bridge.py",
+      "sha256": "b3ffeeec7a310395262b950a73b4a4661677364ea8ea77a05f07fb0178c29795",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/auth_guard.py",
+      "sha256": "d61d1d250474d9af88ef59aaa3a200ae8b0bd0cdcce7c27c86bdcdc9931155cf",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/auth_wire.py",
+      "sha256": "660572ff577d3d1302811c1107e7ae47f9447f82fce87857e669b0f733aaad79",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/codex_exec.py",
+      "sha256": "af10b45965a5b67b9a2e78b200d1896af03ddf97c9a5fcc982891176ce5fd556",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/rpc_policy.py",
+      "sha256": "a4417dcf54e48c96b827f13a41c47043a4fbf0950988a95e78a35aab2e2f6f85",
+      "mode": "0o644"
+    },
+    {
+      "path": "plugins/codex-orchestrator/scripts/invoke.sh",
+      "sha256": "3520004d29f11c91c0c9c7e0b77646c2c98b759f0542cec4251367dd541fff5e",
+      "mode": "0o755"
+    },
+    {
+      "path": "plugins/codex-orchestrator/scripts/native-product-bridge.py",
+      "sha256": "36d3265484088a8242d6c4751664ac0b712dd87423e57279d305628834086ba0",
+      "mode": "0o755"
+    },
+    {
+      "path": "plugins/codex-orchestrator/skills/orchestrate/SKILL.md",
+      "sha256": "ee1d62f863cb2ba64adae89a00d7b4c69db46d0effdaf04158a1de4974d48845",
+      "mode": "0o644"
+    },
+    {
+      "path": "tasks/cli-production-rollout/scripts/configure_matrix.py",
+      "sha256": "fd0e2463f10080b9a3ce91af365dcc725726456c6b61c07094c97644ef483d3e",
+      "mode": "0o644"
+    },
+    {
+      "path": "tasks/cli-production-rollout/scripts/inventory_versions.py",
+      "sha256": "cc5f56df160ff5d1a7b833ccda8826093f1793cf4b8ba1c5405c541a2c319fed",
+      "mode": "0o644"
+    },
     {
       "path": "tasks/g1-g4-delivery/scripts/package-plugin.sh",
       "sha256": "ab11ee18eb301650a9ff15fc1c56b3e351fa4725f88a584cb9a881db6e864daa",
       "mode": "0o755"
     },
     {
+      "path": "tools/native-product-bridge/README.md",
+      "sha256": "f1ed1237428c48916beb4d99f2783c9b28efd21a45c527fca0b08525b9e3049a",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/native-product-bridge/test_bridge.py",
+      "sha256": "0eba4522c8daa3649acb1d702c4dbef4552b66d43672e60957601d272adde554",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/native-product-bridge/test_entrypoint.py",
+      "sha256": "fbdc4e4b74dd633eb2be85149f747d0980f2ee2f2e2acba7f25ac16ab00185eb",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/native-product-bridge/test_local_product_driver.py",
+      "sha256": "e933551e4112d910001807cad24908e824ad549cbc710dcf4ed3e2ba6865f515",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/native-product-bridge/test_local_service_chain.py",
+      "sha256": "b893ea04c75e2fccb953fd9c68eaca757efc281fd12a38ee0e3229aefe654305",
+      "mode": "0o644"
+    },
+    {
       "path": "tools/orchestrator/README.md",
-      "sha256": "9249d647986295e9493ff10eea77dcf11c88f42f49db7dccea0eb0ea29ceb7a7",
+      "sha256": "bb9a8c89c04395f17e2fd3acb8df63c94d8892c52e34bcea9216845d1ae5232e",
       "mode": "0o644"
     },
     {
@@ -92,7 +188,7 @@
     },
     {
       "path": "tools/orchestrator/cmd/orchestrator/main.go",
-      "sha256": "1da9263b007444e387241d405622efd571eeb3d7d6d6eb07fe15965b311dea78",
+      "sha256": "ff8f92a31d069efc7ba2a35d494514b2a28d151332b4a2e0dcd40911bd4ea0c6",
       "mode": "0o644"
     },
     {
@@ -122,17 +218,17 @@
     },
     {
       "path": "tools/orchestrator/cmd/orchestrator/provider.go",
-      "sha256": "7160b72df01a60a13bf4d0ff258545690354d7b8a6f39eec5e194ab174df31ed",
+      "sha256": "b3fd01ec00b9bf9a12c0d7876810e0b953eca5ac2c8d2d79b7f64729aa45bc50",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/cmd/orchestrator/provider_models_test.go",
-      "sha256": "e2dedbd6f45908325dfb617496fd27a1180472e58126491999852047080b70a6",
+      "sha256": "9fc7cb95c55909f5ac2af37bfe4d44f195355d1200910684358293ec8bb4ce4b",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/cmd/orchestrator/provider_settings.go",
-      "sha256": "17b268d2651b64b1fc1bcf61daf110ee4dc65391891831c6021aa7f45034176b",
+      "sha256": "a53404aa83dc64ad394c6e94eab5ec2cce82aecbc44ac9ff67e21b8e5713e764",
       "mode": "0o644"
     },
     {
@@ -162,7 +258,7 @@
     },
     {
       "path": "tools/orchestrator/cmd/orchestrator/real_version_matrix_test.go",
-      "sha256": "a04713e3d47b420954b2107c36885258a9cb7340096872c18b4241f71c972a2d",
+      "sha256": "616a8cb2fcaa2b218c1d6f42747c8fcc3c8862786f9cc5878e6a2f4a09b23b64",
       "mode": "0o644"
     },
     {
@@ -182,7 +278,7 @@
     },
     {
       "path": "tools/orchestrator/cmd/orchestrator/task_entry.go",
-      "sha256": "4635d1700c880127c369867a5bc5647b5b69f3eaaabbcf6cb7d7fe4cbadcd0bd",
+      "sha256": "91d21b680b3786d80a58d5200de2b233b597077903aa514fad3450a99d3d3498",
       "mode": "0o644"
     },
     {
@@ -212,7 +308,7 @@
     },
     {
       "path": "tools/orchestrator/cmd/orchestrator/version_cli_test.go",
-      "sha256": "a151b48121c5c1e06087742fe8cd3dad657ca96da0c91d67c53485655618eb96",
+      "sha256": "46122ca7276f2549f4234a2fbf54a1dcf80151d456a1f9f4cdeb8b6b3324fa6a",
       "mode": "0o644"
     },
     {
@@ -232,22 +328,22 @@
     },
     {
       "path": "tools/orchestrator/internal/adapter/adapter.go",
-      "sha256": "2dcce6fbcad21f4f7b7b4582a5a76376b7f563fc229fa54b96e40cf43a629ecd",
+      "sha256": "547e2ab7e390295e2a88ad436ecc6ae7d411e36483a8147e4c1cf090dd62b07c",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/internal/adapter/adapter_test.go",
-      "sha256": "424b1aff5abbb2f038c70a74859b5c9cbfd9a2c8c046957640a544c31099acaf",
+      "sha256": "f229ddaf90d4ef3f27988803e46ed971f8c32bca9e01f9e7fdf82497129af4b6",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/internal/adapter/admit.go",
-      "sha256": "49a2561142fde0879c05978fc53d99470076554a813c418d1b0d576879a0831b",
+      "sha256": "da109942c6ae6cccd3a5f9e41781e8ceddc24eda15796274184d6ac665e23fa1",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/internal/adapter/admit_test.go",
-      "sha256": "a3a17316e715e383e3898db052401bd569d9932b0b9d93b05bd51f6047109844",
+      "sha256": "1d5a8f1fa16ab79c886e8cc64c70561bd56adcaea99545150aaae8e71073ec68",
       "mode": "0o644"
     },
     {
@@ -262,7 +358,7 @@
     },
     {
       "path": "tools/orchestrator/internal/adapter/compatibility_test.go",
-      "sha256": "4a79c327cd7573cb1f5eb19b4835c6232843df291a4893d1019002a08245932f",
+      "sha256": "9fd6ca75601d220f9a5217d0d091e14bd1150b2a907ce710a0e162bc634125d7",
       "mode": "0o644"
     },
     {
@@ -302,12 +398,12 @@
     },
     {
       "path": "tools/orchestrator/internal/adapter/profile.go",
-      "sha256": "7e9c46d8e498c3743531f30b466a0425f83e74c5fe19afcb2367b2790c9bd573",
+      "sha256": "70d4002f4f84faa0b20fc49375948488bb9fdacd438cb04990c20516c2823943",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/internal/adapter/profile_test.go",
-      "sha256": "339b7576fb6e6809acfa6d35f256fe8f7279dee7e774568ca7aec1aa5ea1e513",
+      "sha256": "538e125eb98ad862c0fc42e6f1fa2b0848a89250c3a8989c069cd6a2c7520817",
       "mode": "0o644"
     },
     {
@@ -506,6 +602,16 @@
       "mode": "0o644"
     },
     {
+      "path": "tools/orchestrator/internal/host/codex.go",
+      "sha256": "6e385c514328ebe65e433afde15f69c68e83eddeaf0c49be54eee79387348e4f",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/codex_test.go",
+      "sha256": "f2a9b1de8a6f7847cde4d45432b051c45fd8d4e5251e562c982d9cea49e7cc64",
+      "mode": "0o644"
+    },
+    {
       "path": "tools/orchestrator/internal/host/delivery.go",
       "sha256": "41c81cfb86210f545c95fe6a0dcb2d27ccb95c2363eb829c53a1ae4db846e6fd",
       "mode": "0o644"
@@ -527,12 +633,12 @@
     },
     {
       "path": "tools/orchestrator/internal/host/host.go",
-      "sha256": "b45309d5e546e0ad0103d3472a0b2bee22e9ee852535d642d66db94c6d9dcb60",
+      "sha256": "61efcef00c7d3bbaa75b5e06e3306852dd06ab8fb60ade8aacbff243d7a9681b",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/internal/host/host_test.go",
-      "sha256": "c9892d883a29f9ec661fad6cd36c45d7cdaf65509bf3578f9c4274d6d4d885e3",
+      "sha256": "dd1f57d8ac2a59d89a7546731c49ccaa06381f9427dccc3d28c62e3568b58421",
       "mode": "0o644"
     },
     {
@@ -592,17 +698,17 @@
     },
     {
       "path": "tools/orchestrator/internal/host/provider_diagnostics.go",
-      "sha256": "c2f163b6eebc82efeeadd55e47b1b4626000fab9c9331126829f88e938588dce",
+      "sha256": "f5de3d39db5f35fe525a5cd9cc50d821aae44b29ce9db2dcda924b4ba19a2086",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/internal/host/provider_diagnostics_test.go",
-      "sha256": "89b74fcfc938ac36657efa9a4a344da1cf2d9875da986f2c0c67ed93843e470c",
+      "sha256": "f7a1b4534d916d03a28595c153962292c65fdd7a8cbb614c8ebfe1f38541f97e",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/internal/host/report.go",
-      "sha256": "9b7343c2e2fa82527dc5275c6716884d8c497b3207935662c0b5ec19fec55530",
+      "sha256": "9898b873fc3483ca11b04927ef2f09e5d3dba5f68f7aba0d1249a02be1a80cd0",
       "mode": "0o644"
     },
     {
@@ -658,6 +764,16 @@
     {
       "path": "tools/orchestrator/internal/install/anchored_unix.go",
       "sha256": "eb8dd14f13e7fc713877df1888a74e11f95bd7864ef043e255e72aa5632123b3",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/codex_runtime.go",
+      "sha256": "94c9d783edfbda47dd3e23034cec8777f26f6a40023321b81f33693e256c7152",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/codex_runtime_test.go",
+      "sha256": "ec20f32314406ad323741d4ac93ec8fc63e29df3297229e72271573a1f2b8b07",
       "mode": "0o644"
     },
     {
@@ -992,12 +1108,12 @@
     },
     {
       "path": "tools/orchestrator/internal/store/provider_controls.go",
-      "sha256": "6a82330422223011a7e8a071871cd90b6a0690d067bce57a4857ffa60bf32c38",
+      "sha256": "f11c22d6834474dab85493dfddb6a5ba35f2e9039ca9820c7e264623210c41de",
       "mode": "0o644"
     },
     {
       "path": "tools/orchestrator/internal/store/provider_controls_test.go",
-      "sha256": "2624f027d49f62e9ed85f576a75e49d4e502c36b7c4a5f698f4ffdbb1045176d",
+      "sha256": "595a264c087499c4fdf4799053dbe4eb5b831a9d1bf540ecc47e5b12af269fff",
       "mode": "0o644"
     },
     {
@@ -1123,6 +1239,41 @@
     {
       "path": "tools/orchestrator/internal/store/unknown_terminal_ordering_test.go",
       "sha256": "c9ad84d4c4457f7cc4892993dfa120227c796aa469d98ded5e42812472cd53b2",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/real-user-trial/test_auth_guard.py",
+      "sha256": "7a09ba819540806f222a347f9b1d4b0503a0a4d85acc8056902e9fba9c4da736",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/real-user-trial/test_auth_wire.py",
+      "sha256": "b688bcc26193b7ed149b90d91d76aa06cdc98490520622567a993dff917daea9",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/real-user-trial/test_codex_exec.py",
+      "sha256": "35cbe14ff2140470ba4ac029fb3c31dcd717be7151e1457759c502f83ee903ac",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/real-user-trial/test_native_auth_tripwire.py",
+      "sha256": "5b9651f4b012197faed1719e29481bb57bee10f74272793d69dccd3361c86a48",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/real-user-trial/test_native_auth_trusted166.py",
+      "sha256": "15aad8eb5d7e12e7487ff33cea185da1fa8d7f403ac0f4de93345e2c843ea80c",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/real-user-trial/test_native_codex_policy.py",
+      "sha256": "5b58069b45b748334d952ec372b4ef7469930760b6d82fed32a257328491ce83",
+      "mode": "0o644"
+    },
+    {
+      "path": "tools/real-user-trial/test_rpc_policy.py",
+      "sha256": "0a36f59497060111ba8f34ec7e0c70a63be660fef23c0d74a486e33f3c854098",
       "mode": "0o644"
     }
   ]

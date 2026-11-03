@@ -244,3 +244,10 @@ func TestProviderProtocolDiagnosticsExposeOnlyFixedErrorCategories(t *testing.T)
 		}
 	}
 }
+
+func TestCodexGuardDiagnosticsRetainOnlyAllowlistedCodes(t *testing.T) {
+	report := providerDiagnostics("{\"type\":\"codex_auth_guard\",\"code\":\"native_login_status_unverified\"}\n{\"type\":\"codex_auth_guard\",\"code\":\"PRIVATE_SENTINEL\"}\n")
+	if report.CodexAuthGuardCodes["native_login_status_unverified"] != 1 || report.CodexAuthGuardCodes["other"] != 1 || len(report.CodexAuthGuardCodes) != 2 {
+		t.Fatalf("codes=%v", report.CodexAuthGuardCodes)
+	}
+}

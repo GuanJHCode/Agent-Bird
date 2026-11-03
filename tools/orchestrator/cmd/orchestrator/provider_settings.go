@@ -57,7 +57,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 	}
 	fs := flag.NewFlagSet("provider "+action, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	name := fs.String("provider", "", "claude, grok, agy; status defaults to all")
+	name := fs.String("provider", "", "claude, grok, agy, codex; status defaults to all")
 	stateArg := fs.String("state-dir", "", "private runtime state")
 	binary := fs.String("binary", "", "provider executable for enable probe")
 	lockPath := fs.String("provider-lock", "", "confirmed unchanged provider lock for enable")
@@ -82,7 +82,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 		if action != "status" {
 			return codeError("invalid_args")
 		}
-		names = []string{"claude", "grok", "agy"}
+		names = []string{"claude", "grok", "agy", "codex"}
 	}
 	var providers []adapter.Provider
 	for _, name := range names {
@@ -133,9 +133,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 		if lock != detected.Lock {
 			return codeError("provider_lock_invalid")
 		}
-		p := adapter.InvocationPayload{Directory: filepath.Dir(lock.Binary.Path), Provider: string(providers[0]), ProviderLock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, GrokSessionWrite: providers[0] == adapter.ProviderGrok}}
-		raw, _ := json.Marshal(p)
-		if err := preflightProviders(ctx, []coordinator.TaskRequest{{AdapterPayload: raw}}); err != nil {
+		if err := preflightProviders(ctx, []coordinator.TaskRequest{providerEnablePreflight(providers[0], lock)}); err != nil {
 			return err
 		}
 	}
@@ -203,4 +201,12 @@ func resolveTaskModels(ctx context.Context, state, owner string, tasks []coordin
 		}
 	}
 	return nil
+}
+
+// A capability-only enable probe still passes the actual typed invocation
+// contract, including Codex's required nonempty prompt. It never runs a model.
+func providerEnablePreflight(provider adapter.Provider, lock adapter.ProviderLock) coordinator.TaskRequest {
+	payload := adapter.InvocationPayload{Directory: filepath.Dir(lock.Binary.Path), Provider: string(provider), ProviderLock: &lock, Prompt: "Provider capability discovery only.", Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, GrokSessionWrite: provider == adapter.ProviderGrok}}
+	raw, _ := json.Marshal(payload)
+	return coordinator.TaskRequest{AdapterPayload: raw}
 }

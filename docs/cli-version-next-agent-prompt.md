@@ -1,45 +1,44 @@
-# 后续 Agent 接手提示词
+# 当前接手提示词（2026-11-03）
+
+Codex 生产只读链路、native guard 独占注入、受信投影和两个精确 native pin 已实现。最终隔离包与真实闭环、自动化数量见 [当前交接](cli-version-handoff.md) 和 [机器验收记录](cli-version-verification.json)。当前实际提交以交接分支 HEAD 和源码摘要为准；`55741e2` 是历史基线，不是继续修复旧矩阵/进程问题的指令。
 
 ```text
-接手仓库 https://github.com/GuanJHCode/Agent-Bird.git，分支
-handoff/cli-version-compatibility-20261102。
-先记录实际 HEAD，阅读 docs/cli-version-handoff.md、
-docs/cli-version-verification.json 和 docs/cli-version-source-manifest.json。
+接手 https://github.com/GuanJHCode/Agent-Bird.git
+分支 handoff/cli-version-compatibility-20261102。
+先核对实际 HEAD、工作区、docs/cli-version-source-manifest.json 的每项摘要；
+保护已有改动。读取 cli-version-handoff.md、cli-version-verification.json、
+tasks/cli-production-rollout/docs/progress.md 和 version-inventory.json。
 
-目标：完成 CLI 版本兼容剩余实现与验收。当前版本目录和 per-run pin 已落地；
-不能把版本准入、fixture 通过或一次端点成功写成所有版本都能真实派发。
-本分支是 Go 研发模块快照。公开 main/master 独立演进，保留其产品功能；
-整合时选择性移植，不能直接整体合并快照、强推或删除公开产品入口。
+已完成的生产实现不重新立项：Codex 0.154.0/0.166.0 精确 main+companion pin、
+安装 receipt/helper/interpreter 校验、真实登录态只读投影、native guard 唯一
+refresh tripwire 注入、来源/过期/变化/任何已有override拒绝、Host exec/collect。
+用户已批准固定摘要native主进程受信，由原生命名只读profile约束模型工具；
+不要恢复会导致工具二次sandbox失败的外层Seatbelt路线，也不要在Go重复注入。
 
-优先处理三个已经定位的矩阵脚本缺口：
-1. stopVerified 的 SIGKILL 升级前重新核验 birth、argv 和 PID 文件。
-   先写 TERM 后 PID 被复用、身份查询失败等确定性反例；身份不明保留现场。
-2. matrixDiagnose 对 capability/launch/provider-diagnostics 的采样
-   必须绑定 Host 元数据的精确路径和身份，排除 scratch、artifacts 仿冒。
-3. capability 诊断与生产 sandbox 的路径解析、capability id 约束一致，
-   补合法符号链接前缀及跨 id/越界的正反例。
+按当前验收记录确认哪些版本已测，分别保留版本准入、无模型、协议解析、真实
+闭环状态。Claude/Grok当前成功使用用户提供的网关和deepseek-v4.1-flash-1017，
+不等于第一方Claude/xAI模型验收。密钥与网关原地址仅在私人会话/临时环境中，
+不得复制入Git或全局配置。Grok原账户无余额已由用户确认，禁止无目的重试。
+AGY当前包两端点成功不代表已量得绝对剩余额度。
 
-随后独立修复 internal/process 的 Stop/ExitCode 时序合同。
-进程组消失不保证等待 goroutine 已发布退出码；-1 可能只是初值。
-先确定性复现，明确 Stop 返回与 Wait/退出码可用之间的保证，
-覆盖 Start 的 birth 失败、上下文截止、后代存活及管道尚未关闭路径。
-不靠 sleep、放宽超时、删断言或跳过用例制造通过。
+剩余：126个版本无实际二进制验证、129个版本无真实模型验收；Codex0.159.2/
+0.165.0只通过无模型检查，缺精确native验收仍保留完整四合同门禁；AGY1.3.4
+未取得可核验官方固定artifact。按实际需要推进固定版，不追踪运行时latest。
+完整注册工具目录快照、native TUI与公开产品原生安装/模型验收尚未完成。
 
-Codex 仍受 codex_trial_guard_not_ready 阻塞，四项 missing 是硬编码清单。
-明确受信 metadata 的生产来源、refresh tripwire 的唯一注入方、
-native 版本 admission 和真实 exec/collect 验收依赖。
-不能仅删除门禁或缩短 missing 清单；同值 override 预置也会被 native guard 拒绝。
+公开产品选择性移植补丁已独立实现、审查和自动化验收，见本任务docs中的
+public-product.patch及verification；基于公开main2e78f24，未发布。
+不可整体合并研发快照或覆盖公开controller/dispatch/coding/portable入口。
+不操作main/master；沿用既有交接分支提交/非force推送授权。
+不改全局安装、认证、已有锁或冻结目录，不扩大权限。
 
-保留冻结稳定版目录（2026-11-02T01:53:00Z）、原始版本、路径和 SHA 校验。
-不得修改全局 CLI 安装、认证、已有锁或扩大权限；不推送/发布后续修改，
-除非本次接手任务另有明确授权。不要为了补数字反复消耗账户额度。
+后续代码行为变化补必要回归，Go行为变化做全量/race/vet/build；Python guard
+变化跑对应测试。稳定快照独立审查，受影响证据重验并更新包与摘要链。
+未受影响证据可以按组件摘要明确复用。旧430/834与旧包AGY成功不代表当前验收。
+矩阵三项及process Stop/Wait合同已经关闭，不能重新列为待修。
 
-每批最小修改、补必要回归，在最后稳定提交上安排独立审查。
-Go 1.26+ 下串行运行全量、race、vet、build，实际核对通过/失败/跳过数量。
-本次已核验快照为 420 顶层/816 含子测试通过、0 失败、6 opt-in 跳过、14 包；
-源码或环境改变后重验受影响部分。旧 AGY 真实通过对应旧包，不能替代新包。
-更新隔离包和摘要链后，再按账户条件及授权补真实端点、中间版本和产品整合验收。
-
-最终分别交付：实现完成项、自动化证据、真实 CLI 闭环、内部未完成项、
-外部账户阻塞、未验证版本，以及可继续执行的下一步。原始私人运行现场不入公开仓库。
+交付逐项列出已实现、自动化、真实闭环、内部缺口、账户条件、未测版本、
+公开产品候选/发布范围、提交与远端回读；不得以fixture或未测项冒充通过。
 ```
+
+旧批次提示词已被本节替换；历史批次保留在交接文档的历史区。

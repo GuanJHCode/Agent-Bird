@@ -125,7 +125,7 @@ func TestProfileLockValidationAndSnapshot(t *testing.T) {
 		t.Fatal("unknown lock version accepted without profile")
 	}
 }
-func TestCodexTypedProfileExplicitlyRejectsUnavailableProtocol(t *testing.T) {
+func TestCodexTypedProfilePlansNativeReadOnlyInvocationWithoutProductionAdmission(t *testing.T) {
 	req := profileRequest(t, `{"version":1,"role":"reviewer","model":"custom-model","permission":"read-only","timeout_ms":9000}`)
 	req.Provider = ProviderCodex
 	req.Lock.Provider = ProviderCodex
@@ -133,8 +133,26 @@ func TestCodexTypedProfileExplicitlyRejectsUnavailableProtocol(t *testing.T) {
 	req.Binary.Version = CodexVersion
 	req.Binary.SHA256 = CodexSHA256
 	req.Lock.Binary = req.Binary
-	if _, err := BuildInvocation(req); err == nil || err.Error() != "codex_trial_guard_not_ready" {
-		t.Fatalf("typed Codex profile err=%v", err)
+	inv, err := BuildInvocation(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(inv.Args(), " "), "--model custom-model") {
+		t.Fatalf("typed Codex profile argv=%v", inv.Args())
+	}
+	req.Profile.Model, req.Profile.CLIModelDefault = "", true
+	cliDefault, err := BuildInvocation(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(strings.Join(cliDefault.Args(), " "), "--model") {
+		t.Fatal("cli-default overridden")
+	}
+	if len(inv.Environment()) != 0 {
+		t.Fatal("Go injected auth environment")
+	}
+	if err = CheckCapabilities(req, "--json --color --model --config --ephemeral --skip-git-repo-check --strict-config --ignore-rules"); err != nil {
+		t.Fatal(err)
 	}
 }
 

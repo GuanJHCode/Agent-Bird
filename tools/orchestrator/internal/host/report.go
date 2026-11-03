@@ -223,3 +223,10 @@ func (i reportInvocation) ExecutablePin() (string, string) {
 	}
 	return "", ""
 }
+
+func (i reportInvocation) Pin() adapter.BinaryPin {
+	if pinned, ok := i.base.(interface{ Pin() adapter.BinaryPin }); ok {
+		return pinned.Pin()
+	}
+	return adapter.BinaryPin{}
+}

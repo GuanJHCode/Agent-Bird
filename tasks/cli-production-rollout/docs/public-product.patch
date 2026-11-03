@@ -1,0 +1,2221 @@
+diff --git a/tools/orchestrator/cmd/orchestrator/candidate_cli_test.go b/tools/orchestrator/cmd/orchestrator/candidate_cli_test.go
+index fb1a5425..706959a7 100644
+--- a/tools/orchestrator/cmd/orchestrator/candidate_cli_test.go
++++ b/tools/orchestrator/cmd/orchestrator/candidate_cli_test.go
+@@ -95,7 +95,7 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
+ 	}
+ 	t.Setenv("CANDIDATE_FIXTURE_MODE", mode)
+ 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
+-	lock := map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "fixture-v1", "sha256": hex.EncodeToString(sum[:])}}
++	lock := map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "2.1.267", "sha256": hex.EncodeToString(sum[:])}}
+ 	profile := func(role, permission string) map[string]any {
+ 		return map[string]any{"version": 1, "role": role, "permission": permission, "timeout_ms": 15000}
+ 	}
+diff --git a/tools/orchestrator/cmd/orchestrator/candidate_test.go b/tools/orchestrator/cmd/orchestrator/candidate_test.go
+index ca46058e..5103f04a 100644
+--- a/tools/orchestrator/cmd/orchestrator/candidate_test.go
++++ b/tools/orchestrator/cmd/orchestrator/candidate_test.go
+@@ -88,7 +88,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
+ 			sum := sha256.Sum256(executable)
+ 			payload, _ := json.Marshal(map[string]any{
+ 				"provider": "claude-code", "directory": work, "prompt": "fixture implementation",
+-				"provider_lock":       map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "fixture-v1", "sha256": hex.EncodeToString(sum[:])}},
++				"provider_lock":       map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "2.1.267", "sha256": hex.EncodeToString(sum[:])}},
+ 				"profile":             map[string]any{"version": 1, "role": "implementer", "permission": "workspace-write", "timeout_ms": 15000},
+ 				"candidate_workspace": map[string]any{"version": 1, "repo_root": repo, "base_oid": base, "paths": []string{"README", "added.txt", "obsolete.txt"}},
+ 			})
+@@ -189,7 +189,7 @@ func TestMain(m *testing.M) {
+ 			fmt.Println("grok 1.0.34 (3736acbc8658)")
+ 			os.Exit(0)
+ 		}
+-		fmt.Println("fixture-v1")
++		fmt.Println("2.1.267")
+ 		os.Exit(0)
+ 	}
+ 	if len(os.Args) == 2 && os.Args[1] == "--help" {
+diff --git a/tools/orchestrator/cmd/orchestrator/interruption_cli_test.go b/tools/orchestrator/cmd/orchestrator/interruption_cli_test.go
+index bbd83c33..7e5240f8 100644
+--- a/tools/orchestrator/cmd/orchestrator/interruption_cli_test.go
++++ b/tools/orchestrator/cmd/orchestrator/interruption_cli_test.go
+@@ -72,7 +72,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	hash := sha256.Sum256(contents)
+-	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "max_active_ms": 20000, "adapter": map[string]any{"provider": "claude-code", "directory": root, "prompt": "fixture", "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 20000}, "provider_lock": map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]any{"path": provider, "version": "fixture-v1", "sha256": hex.EncodeToString(hash[:])}}}}}
++	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "max_active_ms": 20000, "adapter": map[string]any{"provider": "claude-code", "directory": root, "prompt": "fixture", "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 20000}, "provider_lock": map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]any{"path": provider, "version": "2.1.267", "sha256": hex.EncodeToString(hash[:])}}}}}
+ 
+ 	write(owner)
+ 	var submitted struct {
+diff --git a/tools/orchestrator/cmd/orchestrator/main.go b/tools/orchestrator/cmd/orchestrator/main.go
+index bf0d9e0f..0db257ef 100644
+--- a/tools/orchestrator/cmd/orchestrator/main.go
++++ b/tools/orchestrator/cmd/orchestrator/main.go
+@@ -42,7 +42,7 @@ func (e remoteError) Error() string { return string(e) }
+ 
+ func main() {
+ 	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
+-		_ = json.NewEncoder(os.Stderr).Encode(map[string]any{"version": 1, "status": "error", "error": errorCode(err)})
++		_ = json.NewEncoder(os.Stderr).Encode(errorResponse(err))
+ 		os.Exit(2)
+ 	}
+ }
+@@ -350,7 +350,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
+ 			if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1" && pinErr.Error() == "running_package_invalid" {
+ 				continue
+ 			}
+-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
++			for _, taskID := range pinned {
++				_ = install.UnpinRunningVersion(executable, taskID)
++			}
+ 			_ = os.Remove(controlPath)
+ 			_ = os.Remove(bootstrapPath)
+ 			return pinErr
+@@ -359,7 +361,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
+ 	}
+ 	if onPrepared != nil {
+ 		if err = onPrepared(controlPath); err != nil {
+-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
++			for _, taskID := range pinned {
++				_ = install.UnpinRunningVersion(executable, taskID)
++			}
+ 			_ = os.Remove(controlPath)
+ 			_ = os.Remove(bootstrapPath)
+ 			return err
+@@ -370,7 +374,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
+ 	if err != nil {
+ 		var rejected remoteError
+ 		if errors.As(err, &rejected) {
+-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
++			for _, taskID := range pinned {
++				_ = install.UnpinRunningVersion(executable, taskID)
++			}
+ 			_ = os.Remove(controlPath)
+ 			_ = os.Remove(bootstrapPath)
+ 			return err
+@@ -1036,8 +1042,10 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
+ 		}
+ 		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
+ 	}
+-	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+-		return nil, codeError("codex_trial_guard_not_ready")
++	if payload.Kind != "fake" || payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
++		if err := adapter.LaunchAdmission(adapter.Provider(payload.Provider), payload.BinaryVersion, payload.BinarySHA256); err != nil {
++			return nil, err
++		}
+ 	}
+ 	if grant.Answer != "" {
+ 		if grant.QuestionID == "" || grant.QuestionRevision < 1 || grant.SessionKind == "" || grant.SessionID == "" || payload.Kind == "fake" {
+@@ -1417,6 +1425,24 @@ func writePID(state string) error {
+ 	return os.Rename(stage, path)
+ }
+ 
++func errorResponse(err error) map[string]any {
++	payload := map[string]any{"version": 1, "status": "error", "error": errorCode(err)}
++	var rejected *adapter.VersionError
++	if errors.As(err, &rejected) && rejected != nil {
++		payload["provider"] = rejected.Provider
++		payload["normalized"] = rejected.Normalized
++		payload["baseline"] = rejected.Baseline
++		payload["ceiling"] = rejected.Ceiling
++		payload["reason"] = rejected.Code
++	}
++	var trial *adapter.TrialBlockedError
++	if errors.As(err, &trial) && trial != nil {
++		payload["reason"] = trial.Error()
++		payload["missing"] = trial.Missing
++	}
++	return payload
++}
++
+ func errorCode(err error) string {
+ 	if err == nil {
+ 		return ""
+diff --git a/tools/orchestrator/cmd/orchestrator/main_test.go b/tools/orchestrator/cmd/orchestrator/main_test.go
+index f114f678..6538239d 100644
+--- a/tools/orchestrator/cmd/orchestrator/main_test.go
++++ b/tools/orchestrator/cmd/orchestrator/main_test.go
+@@ -251,7 +251,7 @@ func TestInvocationRejectsChangedPinBeforeExecutingVersionProbe(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	payload, _ := json.Marshal(map[string]any{
+-		"provider": "claude-code", "binary_path": binary, "binary_version": "v1",
++		"provider": "claude-code", "binary_path": binary, "binary_version": "2.1.267",
+ 		"binary_sha256": strings.Repeat("0", 64), "directory": root, "prompt": "test",
+ 		"permission_mode": "default",
+ 	})
+@@ -412,7 +412,7 @@ func TestCLIProviderQuestionAnswerAndOwnerAccept(t *testing.T) {
+ 	answerCapture := filepath.Join(root, "answer-input")
+ 	provider := filepath.Join(root, "agy-provider")
+ 	script := "#!/bin/sh\n" +
+-		"if [ \"${1-}\" = --version ]; then echo 1.0.0; exit 0; fi\n" +
++		"if [ \"${1-}\" = --version ]; then echo 1.2.3; exit 0; fi\n" +
+ 		"case \" $* \" in\n" +
+ 		"  *\" --conversation session-1 \"*) IFS= read -r answer; printf '%s\\n' \"$answer\" > \"" + answerCapture + "\"; printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"session-1\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"session-1\",\"status\":\"SUCCESS\",\"response\":\"done\"}}' ;;\n" +
+ 		"  *) printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"session-1\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"session-1\",\"status\":\"WAITING\",\"response\":\"Choose the narrow API\"}}' ;;\n" +
+@@ -434,7 +434,7 @@ func TestCLIProviderQuestionAnswerAndOwnerAccept(t *testing.T) {
+ 		"run_id": "question-run", "controller_thread": "question-thread", "plan_revision": 1,
+ 		"origin_context_id": "question-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
+ 		"host_generation": "question-generation",
+-		"tasks":           []any{map[string]any{"id": "question-task", "max_attempts": 3, "completion_policy": "owner_review", "adapter": map[string]any{"provider": "antigravity-cli", "binary_path": provider, "binary_version": "1.0.0", "binary_sha256": fmt.Sprintf("%x", digest), "directory": root, "prompt": "Start", "permission_mode": "default"}}},
++		"tasks":           []any{map[string]any{"id": "question-task", "max_attempts": 3, "completion_policy": "owner_review", "adapter": map[string]any{"provider": "antigravity-cli", "binary_path": provider, "binary_version": "1.2.3", "binary_sha256": fmt.Sprintf("%x", digest), "directory": root, "prompt": "Start", "permission_mode": "default"}}},
+ 	}
+ 	body, _ := json.Marshal(request)
+ 	if err = os.WriteFile(requestPath, body, 0600); err != nil {
+diff --git a/tools/orchestrator/cmd/orchestrator/provider.go b/tools/orchestrator/cmd/orchestrator/provider.go
+index ce8e3c9f..21fb4b59 100644
+--- a/tools/orchestrator/cmd/orchestrator/provider.go
++++ b/tools/orchestrator/cmd/orchestrator/provider.go
+@@ -30,50 +30,64 @@ func providerControl(ctx context.Context, operation string, args []string, out i
+ 	if err != nil {
+ 		return err
+ 	}
+-	reason := ""
+-	if req.Provider == adapter.ProviderCodex {
++	versionPolicy := adapter.DescribeVersion(req.Provider, lock.Binary.Version)
++	reason := versionPolicy.Reason
++	var missing []string
++	if versionPolicy.Admitted && req.Provider == adapter.ProviderCodex {
+ 		reason = "codex_trial_guard_not_ready"
+-	} else if req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
++		missing = adapter.CodexTrialMissing()
++	} else if versionPolicy.Admitted && req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
+ 		reason = "execution_profile_unsupported"
+ 	}
+-	help, err := adapter.ProbeOutput(ctx, req.BinaryPath, "--help")
+-	if err != nil {
+-		return err
+-	}
+-	if reason == "" {
+-		check := adapter.Request{Provider: req.Provider, Binary: lock.Binary, Lock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}}
+-		// Capability discovery is not task write authorization. Actual requests
+-		// must explicitly opt in and Host derives their fresh session directory.
+-		check.Profile.GrokSessionWrite = req.Provider == adapter.ProviderGrok
+-		if err = adapter.CheckCapabilities(check, help); err != nil {
+-			reason = err.Error()
++	if versionPolicy.Admitted {
++		help, helpErr := adapter.ProbeOutput(ctx, req.BinaryPath, "--help")
++		if helpErr != nil {
++			return helpErr
++		}
++		if reason == "" {
++			check := adapter.Request{Provider: req.Provider, Binary: lock.Binary, Lock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}}
++			// Capability discovery is not task write authorization. Actual requests
++			// must explicitly opt in and Host derives their fresh session directory.
++			check.Profile.GrokSessionWrite = req.Provider == adapter.ProviderGrok
++			if err = adapter.CheckCapabilities(check, help); err != nil {
++				reason = err.Error()
++			}
+ 		}
+ 	}
+ 	if operation == "provider-lock" {
+-		if req.LockFile == "" || req.ConfirmSHA256 != lock.Binary.SHA256 {
+-			return codeError("provider_lock_confirmation_required")
++		if !versionPolicy.Admitted {
++			return adapter.AdmitVersion(req.Provider, lock.Binary.Version)
+ 		}
+-		var old adapter.ProviderLock
+-		if _, err := os.Lstat(req.LockFile); err == nil {
+-			if err = readPrivateJSON(req.LockFile, &old); err != nil {
+-				return err
+-			}
+-			if req.PreviousSHA256 == "" || old.Binary.SHA256 != req.PreviousSHA256 {
+-				return codeError("provider_lock_changed")
+-			}
+-			if err = replacePrivateJSON(req.LockFile, lock); err != nil {
+-				return err
+-			}
+-		} else if os.IsNotExist(err) {
+-			if req.PreviousSHA256 != "" {
+-				return codeError("provider_lock_changed")
+-			}
+-			if err = writeExclusiveJSON(req.LockFile, lock); err != nil {
+-				return err
+-			}
+-		} else {
++		if err = storeProviderLock(req, lock); err != nil {
+ 			return err
+ 		}
+ 	}
+-	return json.NewEncoder(out).Encode(map[string]any{"version": 1, "lock": lock, "profile_supported": reason == "", "profile_resume_supported": false, "profile_resume_reason": "profile_resume_not_verified", "reason": reason, "requires_confirmation": operation == "provider-probe", "requires_session_write_authorization": req.Provider == adapter.ProviderGrok})
++	body := map[string]any{"version": 1, "lock": lock, "provider": req.Provider, "normalized": versionPolicy.Normalized, "baseline": versionPolicy.Baseline, "ceiling": versionPolicy.Ceiling, "profile_supported": reason == "", "profile_resume_supported": false, "profile_resume_reason": "profile_resume_not_verified", "reason": reason, "version_policy": versionPolicy, "requires_confirmation": operation == "provider-probe", "requires_session_write_authorization": req.Provider == adapter.ProviderGrok}
++	if len(missing) > 0 {
++		body["missing"] = missing
++	}
++	return json.NewEncoder(out).Encode(body)
++}
++
++func storeProviderLock(req providerRequest, lock adapter.ProviderLock) error {
++	if req.LockFile == "" || req.ConfirmSHA256 != lock.Binary.SHA256 {
++		return codeError("provider_lock_confirmation_required")
++	}
++	var old adapter.ProviderLock
++	if _, err := os.Lstat(req.LockFile); err == nil {
++		if err = readPrivateJSON(req.LockFile, &old); err != nil {
++			return err
++		}
++		if req.PreviousSHA256 == "" || old.Binary.SHA256 != req.PreviousSHA256 {
++			return codeError("provider_lock_changed")
++		}
++		return replacePrivateJSON(req.LockFile, lock)
++	} else if os.IsNotExist(err) {
++		if req.PreviousSHA256 != "" {
++			return codeError("provider_lock_changed")
++		}
++		return writeExclusiveJSON(req.LockFile, lock)
++	} else {
++		return err
++	}
+ }
+diff --git a/tools/orchestrator/cmd/orchestrator/provider_test.go b/tools/orchestrator/cmd/orchestrator/provider_test.go
+index 50e0cfc8..03503da4 100644
+--- a/tools/orchestrator/cmd/orchestrator/provider_test.go
++++ b/tools/orchestrator/cmd/orchestrator/provider_test.go
+@@ -20,7 +20,7 @@ func TestProviderLockRequiresExactObservedDigestAndPreviousPin(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	binary := filepath.Join(root, "provider")
+-	source := []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 1.0; else echo --output-format --input-format --permission-mode --disallowed-tools --model --effort --resume; fi\n")
++	source := []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 2.1.267; else echo --output-format --input-format --permission-mode --disallowed-tools --model --effort --resume; fi\n")
+ 	if err := os.WriteFile(binary, source, 0700); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -65,7 +65,7 @@ func TestProviderLockRequiresExactObservedDigestAndPreviousPin(t *testing.T) {
+ func TestProfileRunsThroughPinnedCapabilityProbe(t *testing.T) {
+ 	root, _ := filepath.EvalSymlinks(t.TempDir())
+ 	binary := filepath.Join(root, "provider")
+-	if err := os.WriteFile(binary, []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 1.0; else echo --output-format --input-format --permission-mode --disallowed-tools --model --effort; fi\n"), 0700); err != nil {
++	if err := os.WriteFile(binary, []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 2.1.267; else echo --output-format --input-format --permission-mode --disallowed-tools --model --effort; fi\n"), 0700); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	lock, err := adapter.Probe(context.Background(), adapter.ProviderClaude, binary)
+diff --git a/tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go b/tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go
+index 5db96d04..9441d808 100644
+--- a/tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go
++++ b/tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go
+@@ -44,7 +44,7 @@ func testManagedDispatchCheckpoint(t *testing.T, checkpoint string) {
+ set -eu
+ case "${1-}" in
+ --version) printf '%s\n' '1.2.5';;
+---help) printf '%s\n' '--input-format --output-format --mode --model';;
++--help) printf '%s\n' '--input-format --output-format --mode --add-dir --model';;
+ --driver)
+  "$AGENT_BIRD_COMMAND" task dispatch --request "$BIRD_FIXTURE/request.json" --state-dir "$BIRD_FIXTURE/state" > "$BIRD_FIXTURE/first.json"
+  handle=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["handle"])' "$BIRD_FIXTURE/first.json")
+diff --git a/tools/orchestrator/cmd/orchestrator/task_entry.go b/tools/orchestrator/cmd/orchestrator/task_entry.go
+index f297356a..e7c46132 100644
+--- a/tools/orchestrator/cmd/orchestrator/task_entry.go
++++ b/tools/orchestrator/cmd/orchestrator/task_entry.go
+@@ -64,6 +64,8 @@ func taskProvider(name string) (adapter.Provider, string, error) {
+ 		return adapter.ProviderAGY, "agy", nil
+ 	case "grok", string(adapter.ProviderGrok):
+ 		return adapter.ProviderGrok, "grok", nil
++	case "codex", string(adapter.ProviderCodex):
++		return adapter.ProviderCodex, "codex", nil
+ 	default:
+ 		return "", "", codeError("task_provider_unsupported")
+ 	}
+@@ -73,7 +75,7 @@ func taskProbe(ctx context.Context, args []string, out io.Writer) error {
+ 	fs := flag.NewFlagSet("task probe", flag.ContinueOnError)
+ 	fs.SetOutput(io.Discard)
+ 	binary := fs.String("binary", "", "provider executable; defaults to PATH lookup")
+-	providerName := fs.String("provider", "claude", "claude, agy, or grok")
++	providerName := fs.String("provider", "claude", "claude, agy, grok, or codex")
+ 	if fs.Parse(args) != nil || fs.NArg() != 0 {
+ 		return codeError("invalid_args")
+ 	}
+@@ -119,7 +121,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
+ 		fs.StringVar(&planPath, "request", "", "business plan JSON")
+ 	} else {
+ 		fs.StringVar(&model, "model", "", "model ID or cli-default")
+-		fs.StringVar(&providerName, "provider", "claude", "claude, agy, or grok")
++		fs.StringVar(&providerName, "provider", "claude", "claude, agy, grok, or codex")
+ 		fs.BoolVar(&grokSessionWrite, "grok-session-write", false, "explicitly authorize this Grok task's new session directory writes")
+ 		fs.StringVar(&runID, "run-id", "", "unique run ID")
+ 		fs.StringVar(&dir, "directory", "", "read-only workspace")
+diff --git a/tools/orchestrator/cmd/orchestrator/task_entry_test.go b/tools/orchestrator/cmd/orchestrator/task_entry_test.go
+index d984bef2..40cd58c1 100644
+--- a/tools/orchestrator/cmd/orchestrator/task_entry_test.go
++++ b/tools/orchestrator/cmd/orchestrator/task_entry_test.go
+@@ -143,12 +143,12 @@ func TestTaskRunChecksProviderBeforeBinding(t *testing.T) {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			root := privateTaskTemp(t)
+ 			bin := filepath.Join(root, "provider")
+-			body := []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '" + tc.help + "';;\n*) exit 99;;\nesac\n")
++			body := []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo 2.1.267;;\n--help) echo '" + tc.help + "';;\n*) exit 99;;\nesac\n")
+ 			if err := os.WriteFile(bin, body, 0700); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 			hash := sha256.Sum256(body)
+-			lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: "claude-stream-json-v1", Binary: adapter.BinaryPin{Path: bin, Version: "fixture-v1", SHA256: hex.EncodeToString(hash[:])}}
++			lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: "claude-stream-json-v1", Binary: adapter.BinaryPin{Path: bin, Version: "2.1.267", SHA256: hex.EncodeToString(hash[:])}}
+ 			lockPath := filepath.Join(root, "lock.json")
+ 			if err := writeExclusiveJSON(lockPath, lock); err != nil {
+ 				t.Fatal(err)
+diff --git a/tools/orchestrator/cmd/orchestrator/task_provider_test.go b/tools/orchestrator/cmd/orchestrator/task_provider_test.go
+index eea39d53..a386e33f 100644
+--- a/tools/orchestrator/cmd/orchestrator/task_provider_test.go
++++ b/tools/orchestrator/cmd/orchestrator/task_provider_test.go
+@@ -2,9 +2,9 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+ 	"context"
+ 	"encoding/json"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -21,8 +21,15 @@ func TestTaskProbeProviderSelection(t *testing.T) {
+ 	} {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			root := privateTaskTemp(t)
++			version := "2.1.267"
++			if tc.provider == adapter.ProviderAGY {
++				version = "1.2.3"
++			}
++			if tc.provider == adapter.ProviderGrok {
++				version = "1.0.34"
++			}
+ 			binary := filepath.Join(root, "provider")
+-			if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '--output-format --input-format --permission-mode --mode --disallowed-tools';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
++			if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo '"+version+"';;\n--help) echo '--output-format --input-format --permission-mode --mode --add-dir --disallowed-tools';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 			var out bytes.Buffer
+@@ -41,7 +48,7 @@ func TestTaskProbeProviderSelection(t *testing.T) {
+ 			if got.Lock.Provider != tc.provider || got.Supported != tc.supported {
+ 				t.Fatalf("unexpected probe: %+v", got)
+ 			}
+-			if !tc.supported && got.Reason != "grok_version_not_verified" {
++			if !tc.supported && got.Reason != "provider_capability_unsupported" {
+ 				t.Fatalf("lost guard: %+v", got)
+ 			}
+ 		})
+@@ -104,7 +111,7 @@ func TestTaskRunGrokGuardBeforeAllocation(t *testing.T) {
+ func TestTaskRunAGYReachesCapabilityCheck(t *testing.T) {
+ 	root := privateTaskTemp(t)
+ 	binary := filepath.Join(root, "agy")
+-	if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '--output-format --input-format';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
++	if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo 1.2.3;;\n--help) echo '--output-format --input-format';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	pin, err := adapter.Probe(context.Background(), adapter.ProviderAGY, binary)
+diff --git a/tools/orchestrator/cmd/orchestrator/version_cli_test.go b/tools/orchestrator/cmd/orchestrator/version_cli_test.go
+new file mode 100644
+index 00000000..814ce480
+--- /dev/null
++++ b/tools/orchestrator/cmd/orchestrator/version_cli_test.go
+@@ -0,0 +1,159 @@
++package main
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
++)
++
++func TestProbeRejectsUnstableAnnotationsEndToEnd(t *testing.T) {
++	notes := []string{
++		"2.1.316 (nightly.20261102)",
++		"2.1.316 (alpha.1)",
++		"2.1.316 (dev build abc)",
++		"2.1.316 (custom channel)",
++	}
++	for _, version := range notes {
++		t.Run(version, func(t *testing.T) {
++			root := privateTaskTemp(t)
++			binary := filepath.Join(root, "claude")
++			script := "#!/bin/sh\ncase \"$1\" in\n--version) echo '" + version + "';;\n--help) echo '--output-format --input-format --permission-mode --disallowed-tools';;\n*) exit 99;;\nesac\n"
++			if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
++				t.Fatal(err)
++			}
++			warmProvider(t, binary)
++			var out bytes.Buffer
++			if err := taskProbe(context.Background(), []string{"--provider", "claude", "--binary", binary}, &out); err != nil {
++				t.Fatal(err)
++			}
++			var got struct {
++				Admitted       bool                `json:"admitted"`
++				Supported      bool                `json:"profile_supported"`
++				Reason         string              `json:"reason"`
++				Provider       string              `json:"provider"`
++				Normalized     string              `json:"normalized"`
++				Baseline       string              `json:"baseline"`
++				Ceiling        string              `json:"ceiling"`
++				PolicyAdmitted bool                `json:"-"`
++				VersionPolicy  adapter.VersionView `json:"version_policy"`
++			}
++			if err := json.Unmarshal(out.Bytes(), &got); err != nil {
++				t.Fatal(err)
++			}
++			if got.VersionPolicy.Admitted || got.Supported || got.Normalized != "2.1.316" || got.Baseline == "" || got.Ceiling == "" || got.Provider != string(adapter.ProviderClaude) {
++				t.Fatalf("probe treated unstable note as stable: %s", out.Bytes())
++			}
++			if version == "2.1.316 (custom channel)" {
++				if got.Reason != "cli_version_unrecognized_note" {
++					t.Fatalf("reason=%s", got.Reason)
++				}
++			} else if got.Reason != "cli_version_prerelease" {
++				t.Fatalf("reason=%s", got.Reason)
++			}
++			reqPath := filepath.Join(root, "request.json")
++			body, _ := json.Marshal(providerRequest{Provider: adapter.ProviderClaude, BinaryPath: binary, LockFile: filepath.Join(root, "lock.json"), ConfirmSHA256: strings.Repeat("a", 64)})
++			if err := os.WriteFile(reqPath, body, 0600); err != nil {
++				t.Fatal(err)
++			}
++			err := providerControl(context.Background(), "provider-lock", []string{"--request", reqPath}, &bytes.Buffer{})
++			response := errorResponse(err)
++			if response["reason"] != got.Reason || response["normalized"] != "2.1.316" || response["baseline"] == "" || response["ceiling"] == "" || fmt.Sprint(response["provider"]) != string(adapter.ProviderClaude) {
++				t.Fatalf("lock error lost version window: %#v", response)
++			}
++		})
++	}
++}
++
++func TestKnownStableNotesStayAdmitted(t *testing.T) {
++	root := privateTaskTemp(t)
++	binary := filepath.Join(root, "claude")
++	script := "#!/bin/sh\ncase \"$1\" in\n--version) echo '2.1.316 (Claude Code)';;\n--help) echo '--output-format --input-format --permission-mode --disallowed-tools';;\n*) exit 99;;\nesac\n"
++	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
++		t.Fatal(err)
++	}
++	warmProvider(t, binary)
++	var out bytes.Buffer
++	if err := taskProbe(context.Background(), []string{"--provider", "claude", "--binary", binary}, &out); err != nil {
++		t.Fatal(err)
++	}
++	var got struct {
++		Supported bool                `json:"profile_supported"`
++		Policy    adapter.VersionView `json:"version_policy"`
++	}
++	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
++		t.Fatal(err)
++	}
++	if !got.Policy.Admitted || !got.Supported || got.Policy.Normalized != "2.1.316" {
++		t.Fatalf("known Claude note rejected: %s", out.Bytes())
++	}
++}
++
++func TestLaunchVersionRejectionKeepsWindow(t *testing.T) {
++	root := t.TempDir()
++	canary := filepath.Join(root, "must-not-run")
++	payload, _ := json.Marshal(map[string]any{
++		"provider": string(adapter.ProviderClaude), "binary_path": canary,
++		"binary_version": "2.1.316 (nightly.20261102)", "binary_sha256": strings.Repeat("a", 64),
++		"directory": root, "prompt": "inspect", "permission_mode": "plan",
++	})
++	_, err := invocationForGrant(context.Background(), contract.LaunchCommand{AdapterPayload: payload})
++	var rejected *adapter.VersionError
++	if !errors.As(err, &rejected) || rejected.Normalized != "2.1.316" || rejected.Baseline == "" || rejected.Ceiling == "" || rejected.Code != "cli_version_prerelease" {
++		t.Fatalf("launch err=%v", err)
++	}
++	encoded, _ := json.Marshal(errorResponse(err))
++	for _, field := range []string{`"provider":"claude-code"`, `"normalized":"2.1.316"`, `"reason":"cli_version_prerelease"`, `"baseline":`, `"ceiling":`} {
++		if !strings.Contains(string(encoded), field) {
++			t.Fatalf("stderr missing %s: %s", field, encoded)
++		}
++	}
++	if _, statErr := os.Stat(canary); !errors.Is(statErr, os.ErrNotExist) {
++		t.Fatal("rejected version launched")
++	}
++}
++
++func TestCodexProbeNamesTrialGaps(t *testing.T) {
++	root := privateTaskTemp(t)
++	binary := filepath.Join(root, "codex")
++	script := "#!/bin/sh\ncase \"$1\" in\n--version) echo 'codex-cli 0.166.0';;\n--help) echo 'exec --json';;\n*) exit 99;;\nesac\n"
++	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
++		t.Fatal(err)
++	}
++	warmProvider(t, binary)
++	var out bytes.Buffer
++	if err := taskProbe(context.Background(), []string{"--provider", "codex", "--binary", binary}, &out); err != nil {
++		t.Fatal(err)
++	}
++	var got struct {
++		Supported bool                `json:"profile_supported"`
++		Reason    string              `json:"reason"`
++		Missing   []string            `json:"missing"`
++		Policy    adapter.VersionView `json:"version_policy"`
++	}
++	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
++		t.Fatal(err)
++	}
++	if !got.Policy.Admitted || got.Supported || got.Reason != "codex_trial_guard_not_ready" || len(got.Missing) == 0 {
++		t.Fatalf("codex probe: %s", out.Bytes())
++	}
++}
++
++func warmProvider(t *testing.T, binary string) {
++	t.Helper()
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	if err := exec.CommandContext(ctx, binary, "--version").Run(); err != nil {
++		t.Fatalf("fixture warmup: %v", err)
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/adapter.go b/tools/orchestrator/internal/adapter/adapter.go
+index 04e5300f..7c9377b5 100644
+--- a/tools/orchestrator/internal/adapter/adapter.go
++++ b/tools/orchestrator/internal/adapter/adapter.go
+@@ -120,8 +120,8 @@ func BuildInvocation(req Request) (Invocation, error) {
+ 	if req.Binary.Version == "" || !hex64.MatchString(strings.ToLower(req.Binary.SHA256)) {
+ 		return Invocation{}, errors.New("binary_pin_invalid")
+ 	}
+-	if req.Provider == ProviderCodex && (req.Binary.Version != CodexVersion || strings.ToLower(req.Binary.SHA256) != CodexSHA256) {
+-		return Invocation{}, errors.New("codex_binary_pin_mismatch")
++	if err := AdmitVersion(req.Provider, req.Binary.Version); err != nil {
++		return Invocation{}, err
+ 	}
+ 	if req.CWD == "" || !filepath.IsAbs(req.CWD) || filepath.Clean(req.CWD) != req.CWD {
+ 		return Invocation{}, errors.New("cwd_invalid")
+@@ -163,7 +163,8 @@ func BuildInvocation(req Request) (Invocation, error) {
+ 		}
+ 		input = userEvent(req.Prompt)
+ 	case ProviderAGY:
+-		args = append(args, "--output-format", "stream-json", "--input-format", "stream-json")
++		// Declare the already-authorized workspace across the frozen window.
++		args = append(args, "--output-format", "stream-json", "--input-format", "stream-json", "--add-dir", req.CWD)
+ 		if req.Session.ID != "" {
+ 			args = append(args, "--conversation", req.Session.ID)
+ 		}
+diff --git a/tools/orchestrator/internal/adapter/adapter_test.go b/tools/orchestrator/internal/adapter/adapter_test.go
+index 195e900e..915f23b7 100644
+--- a/tools/orchestrator/internal/adapter/adapter_test.go
++++ b/tools/orchestrator/internal/adapter/adapter_test.go
+@@ -23,7 +23,7 @@ func equalStrings(a, b []string) bool {
+ }
+ 
+ func pinForTest() BinaryPin {
+-	return BinaryPin{Path: "/private/bin/agent", Version: "1.2.3", SHA256: strings.Repeat("a", 64)}
++	return BinaryPin{Path: "/private/bin/agent", Version: "2.1.267 (Claude Code)", SHA256: strings.Repeat("a", 64)}
+ }
+ 
+ func codexPinForTest() BinaryPin {
+@@ -88,8 +88,8 @@ func TestBuildCodexResumeUsesExactSessionAndStdin(t *testing.T) {
+ func TestBuildCodexInvocationRejectsContractExpansion(t *testing.T) {
+ 	base := Request{Provider: ProviderCodex, Binary: codexPinForTest(), CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
+ 	cases := []Request{
+-		func() Request { value := base; value.Binary.Version = "0.154.0"; return value }(),
+-		func() Request { value := base; value.Binary.SHA256 = strings.Repeat("b", 64); return value }(),
++		func() Request { value := base; value.Binary.Version = "0.153.4"; return value }(),
++		func() Request { value := base; value.Binary.SHA256 = "invalid"; return value }(),
+ 		func() Request { value := base; value.Permission.Mode = "default"; return value }(),
+ 		func() Request { value := base; value.Permission.Allow = []string{"Read"}; return value }(),
+ 		func() Request { value := base; value.Permission.Deny = []string{"Bash"}; return value }(),
+@@ -161,7 +161,9 @@ func TestBuildInvocationRejectsPermissionExpansionAndAuthFlags(t *testing.T) {
+ }
+ 
+ func TestDefaultPermissionDoesNotAddApprovalFlags(t *testing.T) {
+-	invocation, err := BuildInvocation(Request{Provider: ProviderAGY, Binary: pinForTest(), CWD: "/private/workspace", Prompt: "inspect"})
++	pin := pinForTest()
++	pin.Version = "1.2.3"
++	invocation, err := BuildInvocation(Request{Provider: ProviderAGY, Binary: pin, CWD: "/private/workspace", Prompt: "inspect"})
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -374,10 +376,10 @@ func TestStreamParserConsumesEventsIncrementally(t *testing.T) {
+ }
+ 
+ func TestValidatePinRequiresVersionAndDigest(t *testing.T) {
+-	if err := ValidatePin(pinForTest(), "1.2.3", strings.Repeat("a", 64)); err != nil {
++	if err := ValidatePin(pinForTest(), "2.1.267 (Claude Code)", strings.Repeat("a", 64)); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	for _, pair := range [][2]string{{"1.2.4", strings.Repeat("a", 64)}, {"1.2.3", strings.Repeat("b", 64)}} {
++	for _, pair := range [][2]string{{"1.2.4", strings.Repeat("a", 64)}, {"2.1.267 (Claude Code)", strings.Repeat("b", 64)}} {
+ 		if err := ValidatePin(pinForTest(), pair[0], pair[1]); err == nil {
+ 			t.Fatalf("accepted drift: %#v", pair)
+ 		}
+diff --git a/tools/orchestrator/internal/adapter/admit.go b/tools/orchestrator/internal/adapter/admit.go
+new file mode 100644
+index 00000000..1f687800
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/admit.go
+@@ -0,0 +1,134 @@
++package adapter
++
++import "errors"
++import "strings"
++
++var errVersionUnparsed = errors.New("cli_version_unparsed")
++
++// VersionView is the compatibility decision for one raw --version string.
++// Admitted versions still bind path, raw text, and SHA-256 at launch.
++type VersionView struct {
++	Provider   Provider `json:"provider"`
++	Baseline   string   `json:"baseline,omitempty"`
++	Ceiling    string   `json:"ceiling,omitempty"`
++	FrozenAt   string   `json:"frozen_at,omitempty"`
++	Normalized string   `json:"normalized,omitempty"`
++	Protocol   string   `json:"protocol,omitempty"`
++	Admitted   bool     `json:"admitted"`
++	Reason     string   `json:"reason,omitempty"`
++}
++
++// VersionError carries a stable code plus the frozen window.
++// Error() stays the code so existing callers can compare it directly.
++type VersionError struct {
++	Code       string
++	Provider   Provider
++	Raw        string
++	Baseline   string
++	Ceiling    string
++	Normalized string
++}
++
++func (e *VersionError) Error() string {
++	if e == nil {
++		return ""
++	}
++	return e.Code
++}
++
++func AdmitVersion(provider Provider, raw string) error {
++	_, err := assessVersion(provider, raw)
++	return err
++}
++
++func DescribeVersion(provider Provider, raw string) VersionView {
++	view, _ := assessVersion(provider, raw)
++	return view
++}
++
++// TrialBlockedError is the Codex launch gate. Error() stays the stable code.
++// Missing lists the contracts that are still absent, so the gate is not a bare string.
++type TrialBlockedError struct {
++	Missing []string
++}
++
++func (e *TrialBlockedError) Error() string {
++	if e == nil {
++		return ""
++	}
++	return "codex_trial_guard_not_ready"
++}
++
++func CodexTrialBlocked() error {
++	return &TrialBlockedError{Missing: CodexTrialMissing()}
++}
++
++func CodexTrialMissing() []string {
++	return []string{
++		"verified_auth_metadata_source_missing",
++		"exec_refresh_tripwire_not_applied",
++		"native_auth_admission_pinned_0.154.0",
++		"codex_exec_collect_loop_not_evidenced",
++	}
++}
++
++// LaunchAdmission decides before any binary read. A nil result means the
++// caller still has to verify the pin, digest, and capabilities.
++func LaunchAdmission(provider Provider, rawVersion, sha string) error {
++	if provider == ProviderCodex || rawVersion == CodexVersion || strings.EqualFold(sha, CodexSHA256) {
++		return CodexTrialBlocked()
++	}
++	if err := AdmitVersion(provider, rawVersion); err != nil {
++		return err
++	}
++	return nil
++}
++
++func assessVersion(provider Provider, raw string) (VersionView, error) {
++	view := VersionView{Provider: provider}
++	catalog, err := loadCatalog()
++	if err != nil {
++		return rejectVersion(view, "cli_version_catalog_invalid", raw)
++	}
++	policy := catalog.byProvider[provider]
++	if policy == nil {
++		return rejectVersion(view, "cli_version_unparsed", raw)
++	}
++	view.Baseline, view.Ceiling, view.FrozenAt = policy.baselineText, policy.ceilingText, catalog.frozenAt
++	parsed, err := parseCLIVersion(raw)
++	if err != nil {
++		return rejectVersion(view, "cli_version_unparsed", raw)
++	}
++	if !prefixAllowed(provider, parsed.Product) {
++		return rejectVersion(view, "cli_version_product_mismatch", raw)
++	}
++	view.Normalized = parsed.Normalized
++	return classifyReleased(view, policy, parsed, raw)
++}
++
++func classifyReleased(view VersionView, policy *providerPolicy, parsed parsedVersion, raw string) (VersionView, error) {
++	if _, code := releaseClass(view.Provider, parsed); code != "" {
++		return rejectVersion(view, code, raw)
++	}
++	if parsed.compare(policy.baseline) < 0 {
++		return rejectVersion(view, "cli_version_below_baseline", raw)
++	}
++	if parsed.compare(policy.ceiling) > 0 {
++		return rejectVersion(view, "cli_version_above_ceiling", raw)
++	}
++	if _, ok := policy.published[parsed.Normalized]; !ok {
++		return rejectVersion(view, "cli_version_not_published", raw)
++	}
++	view.Admitted = true
++	view.Protocol = policy.protocol
++	return view, nil
++}
++
++func rejectVersion(view VersionView, code, raw string) (VersionView, error) {
++	view.Admitted = false
++	view.Reason = code
++	return view, &VersionError{
++		Code: code, Provider: view.Provider, Raw: raw,
++		Baseline: view.Baseline, Ceiling: view.Ceiling, Normalized: view.Normalized,
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/admit_test.go b/tools/orchestrator/internal/adapter/admit_test.go
+new file mode 100644
+index 00000000..190c96e5
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/admit_test.go
+@@ -0,0 +1,53 @@
++package adapter
++
++import (
++	"errors"
++	"slices"
++	"strings"
++	"testing"
++)
++
++// The Codex gate is a contract list, not a mood. Closing an item requires
++// real evidence against that contract; until then the full list must come
++// back verbatim, so an implementation cannot graduate by quietly dropping
++// the items it has not satisfied.
++func TestCodexTrialGuardReportsTheFullMissingList(t *testing.T) {
++	want := []string{
++		"verified_auth_metadata_source_missing",
++		"exec_refresh_tripwire_not_applied",
++		"native_auth_admission_pinned_0.154.0",
++		"codex_exec_collect_loop_not_evidenced",
++	}
++	if got := CodexTrialMissing(); !slices.Equal(got, want) {
++		t.Fatalf("missing = %v, want the full contract list %v", got, want)
++	}
++	blocked, ok := CodexTrialBlocked().(*TrialBlockedError)
++	if !ok || blocked == nil || blocked.Error() != "codex_trial_guard_not_ready" {
++		t.Fatalf("guard = %#v, want a TrialBlockedError coded codex_trial_guard_not_ready", CodexTrialBlocked())
++	}
++	if !slices.Equal(blocked.Missing, want) {
++		t.Fatalf("blocked missing = %v, want %v", blocked.Missing, want)
++	}
++	// Every Codex launch is gated, across the whole admitted window: neither
++	// the pinned baseline nor a later admitted version slips past, and the
++	// historical pin cannot alias a different provider past the gate either.
++	for _, admission := range []struct {
++		provider Provider
++		raw, sha string
++	}{
++		{ProviderCodex, CodexVersion, CodexSHA256},
++		{ProviderCodex, "codex-cli 0.166.0", strings.Repeat("a", 64)},
++		{ProviderClaude, CodexVersion, CodexSHA256},
++		{ProviderClaude, "2.1.267 (Claude Code)", CodexSHA256},
++	} {
++		err := LaunchAdmission(admission.provider, admission.raw, admission.sha)
++		var trial *TrialBlockedError
++		if !errors.As(err, &trial) || trial == nil || !slices.Equal(trial.Missing, want) {
++			t.Fatalf("LaunchAdmission(%s, %q) = %v, want the full trial guard", admission.provider, admission.raw, err)
++		}
++	}
++	// The guard is Codex-scoped: an admitted Claude version still launches.
++	if err := LaunchAdmission(ProviderClaude, "2.1.267 (Claude Code)", strings.Repeat("b", 64)); err != nil {
++		t.Fatalf("admitted Claude version gated: %v", err)
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/catalog.go b/tools/orchestrator/internal/adapter/catalog.go
+new file mode 100644
+index 00000000..33c7decc
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/catalog.go
+@@ -0,0 +1,109 @@
++package adapter
++
++import (
++	_ "embed"
++	"encoding/json"
++	"sync"
++)
++
++//go:embed compatibility_catalog.json
++var compatibilityCatalogJSON []byte
++
++// compatibility_catalog.json is the frozen published-stable window.
++// It is not a live "latest" lookup and is not refreshed on each run.
++type catalogFile struct {
++	FrozenAt  string                     `json:"frozen_at"`
++	Providers map[string]catalogProvider `json:"providers"`
++}
++
++type catalogProvider struct {
++	Baseline string           `json:"baseline"`
++	Ceiling  string           `json:"ceiling"`
++	Protocol string           `json:"protocol"`
++	Versions []catalogRelease `json:"versions"`
++}
++
++type catalogRelease struct {
++	Version     string `json:"version"`
++	PublishedAt string `json:"published_at"`
++}
++
++type providerPolicy struct {
++	baseline     parsedVersion
++	ceiling      parsedVersion
++	baselineText string
++	ceilingText  string
++	protocol     string
++	order        []string
++	published    map[string]struct{}
++}
++
++type loadedCatalog struct {
++	frozenAt   string
++	byProvider map[Provider]*providerPolicy
++}
++
++var (
++	catalogOnce   sync.Once
++	catalogLoaded loadedCatalog
++	catalogErr    error
++)
++
++func loadCatalog() (*loadedCatalog, error) {
++	catalogOnce.Do(parseCompatibilityCatalog)
++	if catalogErr != nil {
++		return nil, catalogErr
++	}
++	return &catalogLoaded, nil
++}
++
++func parseCompatibilityCatalog() {
++	var file catalogFile
++	if err := json.Unmarshal(compatibilityCatalogJSON, &file); err != nil {
++		catalogErr = err
++		return
++	}
++	catalogLoaded.frozenAt = file.FrozenAt
++	catalogLoaded.byProvider = map[Provider]*providerPolicy{}
++	for name, spec := range file.Providers {
++		policy, err := newProviderPolicy(spec)
++		if err != nil {
++			catalogErr = err
++			return
++		}
++		catalogLoaded.byProvider[Provider(name)] = policy
++	}
++}
++
++func newProviderPolicy(spec catalogProvider) (*providerPolicy, error) {
++	baseline, err := parseCLIVersion(spec.Baseline)
++	if err != nil {
++		return nil, err
++	}
++	ceiling, err := parseCLIVersion(spec.Ceiling)
++	if err != nil {
++		return nil, err
++	}
++	policy := &providerPolicy{
++		baseline: baseline, ceiling: ceiling,
++		baselineText: spec.Baseline, ceilingText: spec.Ceiling,
++		protocol: spec.Protocol, published: map[string]struct{}{},
++	}
++	for _, release := range spec.Versions {
++		policy.order = append(policy.order, release.Version)
++		policy.published[release.Version] = struct{}{}
++	}
++	return policy, nil
++}
++
++func PublishedVersions(provider Provider) []string {
++	catalog, err := loadCatalog()
++	if err != nil {
++		return nil
++	}
++	policy := catalog.byProvider[provider]
++	if policy == nil {
++		return nil
++	}
++	return append([]string(nil), policy.order...)
++}
+diff --git a/tools/orchestrator/internal/adapter/coding_profiles_test.go b/tools/orchestrator/internal/adapter/coding_profiles_test.go
+index 88003dfb..e7d31392 100644
+--- a/tools/orchestrator/internal/adapter/coding_profiles_test.go
++++ b/tools/orchestrator/internal/adapter/coding_profiles_test.go
+@@ -11,6 +11,8 @@ func TestCodingProfilesKeepManagedWorkspaceAndNativePermissions(t *testing.T) {
+ 			req := profileRequest(t, `{"version":1,"role":"implementer","permission":"workspace-write","timeout_ms":9000}`)
+ 			req.Provider = provider
+ 			req.Permission = Permission{}
++			req.Binary.Version = baselineRaw(provider)
++			req.Lock.Binary = req.Binary
+ 			req.Lock.Provider, req.Lock.Protocol = provider, ProtocolID(provider)
+ 			if provider == ProviderGrok {
+ 				req.Binary.Version = "grok 1.0.34 (3736acbc8658)"
+diff --git a/tools/orchestrator/internal/adapter/compatibility_catalog.json b/tools/orchestrator/internal/adapter/compatibility_catalog.json
+new file mode 100644
+index 00000000..33253817
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/compatibility_catalog.json
+@@ -0,0 +1,607 @@
++{
++  "frozen_at": "2026-11-02T01:53:00Z",
++  "note": "Ceiling is the newest non-prerelease release observed at frozen_at. Runtime does not refetch latest.",
++  "providers": {
++    "claude-code": {
++      "baseline": "2.1.267",
++      "ceiling": "2.1.316",
++      "protocol": "claude-stream-json-v1",
++      "source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
++      "dist_tags_at_freeze": {
++        "stable": "2.1.309",
++        "next": "2.1.316",
++        "latest": "2.1.316"
++      },
++      "baseline_evidence": "No source constant. Earliest version tied to the current stream-json contract and support-matrix acceptance is 2.1.267; 2.1.272 and 2.1.274 are later historical acceptances inside the window.",
++      "versions": [
++        {
++          "version": "2.1.267",
++          "published_at": "2026-09-09T18:25:42.820Z"
++        },
++        {
++          "version": "2.1.268",
++          "published_at": "2026-09-10T18:41:11.770Z"
++        },
++        {
++          "version": "2.1.269",
++          "published_at": "2026-09-11T18:12:49.253Z"
++        },
++        {
++          "version": "2.1.270",
++          "published_at": "2026-09-12T18:52:44.937Z"
++        },
++        {
++          "version": "2.1.271",
++          "published_at": "2026-09-14T19:45:19.456Z"
++        },
++        {
++          "version": "2.1.272",
++          "published_at": "2026-09-14T23:34:13.565Z"
++        },
++        {
++          "version": "2.1.273",
++          "published_at": "2026-09-15T18:06:34.098Z"
++        },
++        {
++          "version": "2.1.274",
++          "published_at": "2026-09-16T22:36:09.883Z"
++        },
++        {
++          "version": "2.1.275",
++          "published_at": "2026-09-17T20:20:31.805Z"
++        },
++        {
++          "version": "2.1.276",
++          "published_at": "2026-09-18T01:39:31.986Z"
++        },
++        {
++          "version": "2.1.277",
++          "published_at": "2026-09-18T16:22:26.548Z"
++        },
++        {
++          "version": "2.1.278",
++          "published_at": "2026-09-19T01:48:59.758Z"
++        },
++        {
++          "version": "2.1.280",
++          "published_at": "2026-09-22T15:44:39.443Z"
++        },
++        {
++          "version": "2.1.281",
++          "published_at": "2026-09-23T17:01:17.780Z"
++        },
++        {
++          "version": "2.1.282",
++          "published_at": "2026-09-24T15:56:22.706Z"
++        },
++        {
++          "version": "2.1.283",
++          "published_at": "2026-09-25T18:46:11.330Z"
++        },
++        {
++          "version": "2.1.284",
++          "published_at": "2026-09-28T17:11:59.750Z"
++        },
++        {
++          "version": "2.1.285",
++          "published_at": "2026-09-29T17:32:09.173Z"
++        },
++        {
++          "version": "2.1.286",
++          "published_at": "2026-09-30T17:14:38.859Z"
++        },
++        {
++          "version": "2.1.287",
++          "published_at": "2026-10-01T16:59:25.986Z"
++        },
++        {
++          "version": "2.1.288",
++          "published_at": "2026-10-02T18:30:40.093Z"
++        },
++        {
++          "version": "2.1.289",
++          "published_at": "2026-10-03T20:12:02.717Z"
++        },
++        {
++          "version": "2.1.290",
++          "published_at": "2026-10-05T18:12:44.907Z"
++        },
++        {
++          "version": "2.1.291",
++          "published_at": "2026-10-06T03:32:36.856Z"
++        },
++        {
++          "version": "2.1.292",
++          "published_at": "2026-10-06T17:10:31.715Z"
++        },
++        {
++          "version": "2.1.293",
++          "published_at": "2026-10-07T17:18:04.464Z"
++        },
++        {
++          "version": "2.1.294",
++          "published_at": "2026-10-08T03:42:57.084Z"
++        },
++        {
++          "version": "2.1.295",
++          "published_at": "2026-10-08T18:22:58.621Z"
++        },
++        {
++          "version": "2.1.296",
++          "published_at": "2026-10-09T16:58:10.924Z"
++        },
++        {
++          "version": "2.1.299",
++          "published_at": "2026-10-14T00:23:19.588Z"
++        },
++        {
++          "version": "2.1.300",
++          "published_at": "2026-10-14T14:27:26.554Z"
++        },
++        {
++          "version": "2.1.301",
++          "published_at": "2026-10-15T14:34:23.330Z"
++        },
++        {
++          "version": "2.1.302",
++          "published_at": "2026-10-16T16:48:28.057Z"
++        },
++        {
++          "version": "2.1.303",
++          "published_at": "2026-10-18T21:15:23.178Z"
++        },
++        {
++          "version": "2.1.304",
++          "published_at": "2026-10-19T19:47:15.337Z"
++        },
++        {
++          "version": "2.1.305",
++          "published_at": "2026-10-20T19:29:36.816Z"
++        },
++        {
++          "version": "2.1.306",
++          "published_at": "2026-10-21T02:28:47.495Z"
++        },
++        {
++          "version": "2.1.307",
++          "published_at": "2026-10-21T20:47:18.383Z"
++        },
++        {
++          "version": "2.1.308",
++          "published_at": "2026-10-22T04:19:48.902Z"
++        },
++        {
++          "version": "2.1.309",
++          "published_at": "2026-10-22T20:34:13.713Z"
++        },
++        {
++          "version": "2.1.310",
++          "published_at": "2026-10-23T21:20:46.540Z"
++        },
++        {
++          "version": "2.1.311",
++          "published_at": "2026-10-26T19:47:57.395Z"
++        },
++        {
++          "version": "2.1.312",
++          "published_at": "2026-10-27T18:36:10.160Z"
++        },
++        {
++          "version": "2.1.314",
++          "published_at": "2026-10-30T00:12:56.911Z"
++        },
++        {
++          "version": "2.1.315",
++          "published_at": "2026-10-30T21:05:24.080Z"
++        },
++        {
++          "version": "2.1.316",
++          "published_at": "2026-10-31T00:42:05.743Z"
++        }
++      ]
++    },
++    "antigravity-cli": {
++      "baseline": "1.2.3",
++      "ceiling": "1.4.12",
++      "protocol": "agy-stream-json-v1",
++      "source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
++      "baseline_evidence": "No source constant. Support matrix records 1.2.3 as the historical verified reviewer profile and 1.2.5 as the later acceptance. The 1.2.0 g2 local snapshot predates that profile acceptance and is below this floor.",
++      "versions": [
++        {
++          "version": "1.2.3",
++          "published_at": "2026-09-15T02:03:04Z"
++        },
++        {
++          "version": "1.2.4",
++          "published_at": "2026-09-16T03:54:29Z"
++        },
++        {
++          "version": "1.2.5",
++          "published_at": "2026-09-17T04:10:06Z"
++        },
++        {
++          "version": "1.2.6",
++          "published_at": "2026-09-18T04:21:05Z"
++        },
++        {
++          "version": "1.2.7",
++          "published_at": "2026-09-19T01:01:46Z"
++        },
++        {
++          "version": "1.2.8",
++          "published_at": "2026-09-22T04:12:17Z"
++        },
++        {
++          "version": "1.2.9",
++          "published_at": "2026-09-23T04:42:15Z"
++        },
++        {
++          "version": "1.2.10",
++          "published_at": "2026-09-24T06:26:54Z"
++        },
++        {
++          "version": "1.2.11",
++          "published_at": "2026-09-25T04:22:17Z"
++        },
++        {
++          "version": "1.2.12",
++          "published_at": "2026-09-27T05:06:09Z"
++        },
++        {
++          "version": "1.2.13",
++          "published_at": "2026-09-29T03:58:00Z"
++        },
++        {
++          "version": "1.2.14",
++          "published_at": "2026-09-30T04:03:27Z"
++        },
++        {
++          "version": "1.2.15",
++          "published_at": "2026-10-02T17:00:58Z"
++        },
++        {
++          "version": "1.2.16",
++          "published_at": "2026-10-03T03:56:08Z"
++        },
++        {
++          "version": "1.2.17",
++          "published_at": "2026-10-05T06:20:11Z"
++        },
++        {
++          "version": "1.3.0",
++          "published_at": "2026-10-06T06:05:28Z"
++        },
++        {
++          "version": "1.3.1",
++          "published_at": "2026-10-07T03:22:02Z"
++        },
++        {
++          "version": "1.3.2",
++          "published_at": "2026-10-08T22:39:48Z"
++        },
++        {
++          "version": "1.3.3",
++          "published_at": "2026-10-10T03:06:26Z"
++        },
++        {
++          "version": "1.3.4",
++          "published_at": "2026-10-13T05:09:33Z"
++        },
++        {
++          "version": "1.3.5",
++          "published_at": "2026-10-14T03:16:53Z"
++        },
++        {
++          "version": "1.3.6",
++          "published_at": "2026-10-15T17:51:16Z"
++        },
++        {
++          "version": "1.4.0",
++          "published_at": "2026-10-16T05:24:39Z"
++        },
++        {
++          "version": "1.4.1",
++          "published_at": "2026-10-17T20:43:34Z"
++        },
++        {
++          "version": "1.4.2",
++          "published_at": "2026-10-18T00:36:59Z"
++        },
++        {
++          "version": "1.4.3",
++          "published_at": "2026-10-20T04:28:40Z"
++        },
++        {
++          "version": "1.4.4",
++          "published_at": "2026-10-21T06:38:01Z"
++        },
++        {
++          "version": "1.4.5",
++          "published_at": "2026-10-22T05:01:38Z"
++        },
++        {
++          "version": "1.4.6",
++          "published_at": "2026-10-23T04:18:36Z"
++        },
++        {
++          "version": "1.4.7",
++          "published_at": "2026-10-24T02:47:49Z"
++        },
++        {
++          "version": "1.4.8",
++          "published_at": "2026-10-27T07:10:37Z"
++        },
++        {
++          "version": "1.4.9",
++          "published_at": "2026-10-28T05:59:42Z"
++        },
++        {
++          "version": "1.4.10",
++          "published_at": "2026-10-29T03:50:43Z"
++        },
++        {
++          "version": "1.4.11",
++          "published_at": "2026-10-30T05:39:38Z"
++        },
++        {
++          "version": "1.4.12",
++          "published_at": "2026-10-30T21:39:59Z"
++        }
++      ]
++    },
++    "grok-build": {
++      "baseline": "1.0.34",
++      "ceiling": "1.0.70",
++      "protocol": "grok-streaming-json-v1",
++      "source": "https://registry.npmjs.org/@xai-official/grok",
++      "dist_tags_at_freeze": {
++        "latest": "1.0.70",
++        "alpha": "1.0.73"
++      },
++      "baseline_evidence": "Source profile gate was the exact raw string grok 1.0.34 (3736acbc8658). Normalized floor is 1.0.34. 1.0.30 remains historical and below the floor. npm alpha tag 1.0.73 is above the stable latest tag and is excluded.",
++      "versions": [
++        {
++          "version": "1.0.34",
++          "published_at": "2026-09-16T04:15:07.803Z"
++        },
++        {
++          "version": "1.0.35",
++          "published_at": "2026-09-16T23:33:54.454Z"
++        },
++        {
++          "version": "1.0.36",
++          "published_at": "2026-09-17T23:12:53.661Z"
++        },
++        {
++          "version": "1.0.37",
++          "published_at": "2026-09-18T20:55:46.019Z"
++        },
++        {
++          "version": "1.0.38",
++          "published_at": "2026-09-19T00:57:44.843Z"
++        },
++        {
++          "version": "1.0.39",
++          "published_at": "2026-09-20T22:25:57.092Z"
++        },
++        {
++          "version": "1.0.40",
++          "published_at": "2026-09-20T23:48:33.620Z"
++        },
++        {
++          "version": "1.0.41",
++          "published_at": "2026-09-22T16:39:47.725Z"
++        },
++        {
++          "version": "1.0.42",
++          "published_at": "2026-09-26T22:41:22.102Z"
++        },
++        {
++          "version": "1.0.43",
++          "published_at": "2026-09-28T00:26:22.545Z"
++        },
++        {
++          "version": "1.0.44",
++          "published_at": "2026-09-28T22:10:13.748Z"
++        },
++        {
++          "version": "1.0.45",
++          "published_at": "2026-09-29T06:10:58.030Z"
++        },
++        {
++          "version": "1.0.46",
++          "published_at": "2026-09-30T22:11:16.129Z"
++        },
++        {
++          "version": "1.0.47",
++          "published_at": "2026-10-01T19:23:48.449Z"
++        },
++        {
++          "version": "1.0.48",
++          "published_at": "2026-10-02T01:21:20.399Z"
++        },
++        {
++          "version": "1.0.49",
++          "published_at": "2026-10-02T18:53:36.526Z"
++        },
++        {
++          "version": "1.0.50",
++          "published_at": "2026-10-06T23:07:37.754Z"
++        },
++        {
++          "version": "1.0.51",
++          "published_at": "2026-10-09T17:35:00.108Z"
++        },
++        {
++          "version": "1.0.52",
++          "published_at": "2026-10-11T23:59:56.991Z"
++        },
++        {
++          "version": "1.0.53",
++          "published_at": "2026-10-12T17:55:09.533Z"
++        },
++        {
++          "version": "1.0.54",
++          "published_at": "2026-10-12T22:35:15.261Z"
++        },
++        {
++          "version": "1.0.55",
++          "published_at": "2026-10-13T06:23:26.473Z"
++        },
++        {
++          "version": "1.0.56",
++          "published_at": "2026-10-13T21:03:44.026Z"
++        },
++        {
++          "version": "1.0.57",
++          "published_at": "2026-10-14T00:49:48.972Z"
++        },
++        {
++          "version": "1.0.58",
++          "published_at": "2026-10-14T05:14:04.496Z"
++        },
++        {
++          "version": "1.0.59",
++          "published_at": "2026-10-14T22:43:30.975Z"
++        },
++        {
++          "version": "1.0.60",
++          "published_at": "2026-10-15T03:01:22.338Z"
++        },
++        {
++          "version": "1.0.61",
++          "published_at": "2026-10-16T03:24:53.332Z"
++        },
++        {
++          "version": "1.0.62",
++          "published_at": "2026-10-16T16:53:47.482Z"
++        },
++        {
++          "version": "1.0.63",
++          "published_at": "2026-10-17T08:37:23.984Z"
++        },
++        {
++          "version": "1.0.64",
++          "published_at": "2026-10-19T22:52:51.847Z"
++        },
++        {
++          "version": "1.0.65",
++          "published_at": "2026-10-20T19:35:13.295Z"
++        },
++        {
++          "version": "1.0.66",
++          "published_at": "2026-10-20T22:33:21.565Z"
++        },
++        {
++          "version": "1.0.67",
++          "published_at": "2026-10-21T17:21:37.077Z"
++        },
++        {
++          "version": "1.0.68",
++          "published_at": "2026-10-22T15:24:58.163Z"
++        },
++        {
++          "version": "1.0.69",
++          "published_at": "2026-10-23T02:07:16.786Z"
++        },
++        {
++          "version": "1.0.70",
++          "published_at": "2026-10-23T17:38:01.317Z"
++        }
++      ]
++    },
++    "codex-cli": {
++      "baseline": "0.154.0",
++      "ceiling": "0.166.0",
++      "protocol": "codex-jsonl-0.154.0",
++      "source": "https://api.github.com/repos/openai/codex/releases",
++      "baseline_evidence": "Source constants CodexVersion=codex-cli 0.154.0 and CodexSHA256 identify the historical baseline binary. The SHA remains the anti-alias pin for that exact binary; it is not an allow-list for newer releases.",
++      "versions": [
++        {
++          "version": "0.154.0",
++          "published_at": "2026-09-09T22:35:38Z"
++        },
++        {
++          "version": "0.155.0",
++          "published_at": "2026-09-17T23:14:43Z"
++        },
++        {
++          "version": "0.155.1",
++          "published_at": "2026-09-18T20:03:04Z"
++        },
++        {
++          "version": "0.156.0",
++          "published_at": "2026-09-22T19:51:01Z"
++        },
++        {
++          "version": "0.156.1",
++          "published_at": "2026-09-23T02:41:36Z"
++        },
++        {
++          "version": "0.157.0",
++          "published_at": "2026-09-25T02:31:06Z"
++        },
++        {
++          "version": "0.157.1",
++          "published_at": "2026-09-26T01:02:31Z"
++        },
++        {
++          "version": "0.158.0",
++          "published_at": "2026-09-28T05:07:23Z"
++        },
++        {
++          "version": "0.159.0",
++          "published_at": "2026-09-29T08:05:42Z"
++        },
++        {
++          "version": "0.159.1",
++          "published_at": "2026-09-29T20:32:34Z"
++        },
++        {
++          "version": "0.159.2",
++          "published_at": "2026-09-29T23:57:16Z"
++        },
++        {
++          "version": "0.159.3",
++          "published_at": "2026-09-30T22:57:34Z"
++        },
++        {
++          "version": "0.160.0",
++          "published_at": "2026-10-01T20:19:13Z"
++        },
++        {
++          "version": "0.160.1",
++          "published_at": "2026-10-05T18:29:37Z"
++        },
++        {
++          "version": "0.161.0",
++          "published_at": "2026-10-07T15:58:45Z"
++        },
++        {
++          "version": "0.162.0",
++          "published_at": "2026-10-08T18:55:59Z"
++        },
++        {
++          "version": "0.162.1",
++          "published_at": "2026-10-09T19:44:51Z"
++        },
++        {
++          "version": "0.163.0",
++          "published_at": "2026-10-15T21:30:38Z"
++        },
++        {
++          "version": "0.164.0",
++          "published_at": "2026-10-23T04:48:10Z"
++        },
++        {
++          "version": "0.165.0",
++          "published_at": "2026-10-27T20:09:38Z"
++        },
++        {
++          "version": "0.166.0",
++          "published_at": "2026-10-29T19:47:53Z"
++        }
++      ]
++    }
++  }
++}
+diff --git a/tools/orchestrator/internal/adapter/compatibility_test.go b/tools/orchestrator/internal/adapter/compatibility_test.go
+new file mode 100644
+index 00000000..8b127392
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/compatibility_test.go
+@@ -0,0 +1,208 @@
++package adapter
++
++import (
++	"strings"
++	"testing"
++)
++
++func baselineRaw(provider Provider) string {
++	switch provider {
++	case ProviderClaude:
++		return "2.1.267 (Claude Code)"
++	case ProviderAGY:
++		return "1.2.3"
++	case ProviderGrok:
++		return "grok 1.0.34 (3736acbc8658)"
++	case ProviderCodex:
++		return CodexVersion
++	default:
++		return ""
++	}
++}
++
++func TestVersionWindowMatchesFrozenCatalog(t *testing.T) {
++	cases := []struct {
++		provider Provider
++		raw      string
++		code     string
++	}{
++		{ProviderClaude, "2.1.267 (Claude Code)", ""},
++		{ProviderClaude, "2.1.274 (Claude Code)", ""},
++		{ProviderClaude, "v2.1.316", ""},
++		{ProviderClaude, "2.1.266 (Claude Code)", "cli_version_below_baseline"},
++		{ProviderClaude, "2.1.317 (Claude Code)", "cli_version_above_ceiling"},
++		{ProviderClaude, "2.1.313 (Claude Code)", "cli_version_not_published"},
++		{ProviderClaude, "2.1.316-rc.1", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316+dev", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316+nightly", "cli_version_prerelease"},
++		{ProviderClaude, "claude 2.1.316+dev", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (dev)", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (nightly.20261102)", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (alpha.1)", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (dev build abc)", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (custom channel)", "cli_version_unrecognized_note"},
++		{ProviderAGY, "1.4.12 (build)", "cli_version_unrecognized_note"},
++		{ProviderClaude, "fixture-v1", "cli_version_unparsed"},
++		{ProviderClaude, "codex-cli 2.1.316", "cli_version_product_mismatch"},
++		{ProviderAGY, "1.2.3", ""},
++		{ProviderAGY, "1.3.2", ""},
++		{ProviderAGY, "agy 1.4.12", ""},
++		{ProviderAGY, "1.2.2", "cli_version_below_baseline"},
++		{ProviderAGY, "1.4.13", "cli_version_above_ceiling"},
++		{ProviderAGY, "1.4.12-nightly.1", "cli_version_prerelease"},
++		{ProviderGrok, "grok 1.0.34 (3736acbc8658)", ""},
++		{ProviderGrok, "grok 1.0.52 (abc123def456) [stable]", ""},
++		{ProviderGrok, "grok 1.0.70 (f50904eaee6c)", ""},
++		{ProviderGrok, "grok 1.0.30 (04b7ffed98c6) [stable]", "cli_version_below_baseline"},
++		{ProviderGrok, "grok 1.0.73 (abc) [alpha]", "cli_version_prerelease"},
++		{ProviderGrok, "grok 1.0.70 (nightly)", "cli_version_prerelease"},
++		{ProviderGrok, "grok 1.0.71 (abcdef123456)", "cli_version_above_ceiling"},
++		{ProviderGrok, "grok future", "cli_version_unparsed"},
++		{ProviderCodex, "codex-cli 0.154.0", ""},
++		{ProviderCodex, "codex-cli 0.159.2", ""},
++		{ProviderCodex, "0.166.0", ""},
++		{ProviderCodex, "codex-cli 0.153.4", "cli_version_below_baseline"},
++		{ProviderCodex, "codex-cli 0.167.0", "cli_version_above_ceiling"},
++		{ProviderCodex, "codex-cli 0.166.0-alpha.6", "cli_version_prerelease"},
++		{ProviderCodex, "codex-cli 0.166.0+dev", "cli_version_prerelease"},
++		{ProviderCodex, "codex-cli 0.160.0 [nightly]", "cli_version_prerelease"},
++		{ProviderCodex, "latest", "cli_version_unparsed"},
++	}
++	for _, tc := range cases {
++		view := DescribeVersion(tc.provider, tc.raw)
++		if tc.code == "" {
++			if !view.Admitted || view.Protocol != ProtocolID(tc.provider) || view.Baseline == "" || view.Ceiling == "" {
++				t.Fatalf("%s %q view=%+v", tc.provider, tc.raw, view)
++			}
++			continue
++		}
++		err := AdmitVersion(tc.provider, tc.raw)
++		if err == nil || err.Error() != tc.code || view.Admitted || view.Reason != tc.code {
++			t.Fatalf("%s %q err=%v view=%+v", tc.provider, tc.raw, err, view)
++		}
++		var typed *VersionError
++		if !errorsAs(err, &typed) || typed.Baseline == "" || typed.Ceiling == "" {
++			t.Fatalf("missing window: %#v", err)
++		}
++	}
++}
++
++func errorsAs(err error, target **VersionError) bool {
++	typed, ok := err.(*VersionError)
++	if ok {
++		*target = typed
++	}
++	return ok
++}
++
++func TestMiddleReleaseReusesBaselineInvocation(t *testing.T) {
++	for _, provider := range []Provider{ProviderClaude, ProviderAGY, ProviderGrok} {
++		base := invocationArgs(t, provider, baselineRaw(provider))
++		versions := PublishedVersions(provider)
++		middle := versions[len(versions)/2]
++		raw := middle
++		if provider == ProviderGrok {
++			raw = "grok " + middle + " (abcdef123456)"
++		}
++		if provider == ProviderClaude {
++			raw = middle + " (Claude Code)"
++		}
++		got := invocationArgs(t, provider, raw)
++		if strings.Join(base, "\n") != strings.Join(got, "\n") {
++			t.Fatalf("%s middle argv changed\nbase %v\nmiddle %v", provider, base, got)
++		}
++	}
++}
++
++func invocationArgs(t *testing.T, provider Provider, raw string) []string {
++	t.Helper()
++	pin := pinForTest()
++	pin.Version = raw
++	req := Request{Provider: provider, Binary: pin, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
++	if provider != ProviderCodex {
++		req.Profile = &ExecutionProfile{Version: 1, Role: Reviewer, Permission: ReadOnly, TimeoutMS: 1000}
++		if provider == ProviderGrok {
++			req.Profile.GrokSessionWrite = true
++		}
++		req.Lock = &ProviderLock{Version: 1, Provider: provider, Protocol: ProtocolID(provider), Binary: pin}
++	}
++	invocation, err := BuildInvocation(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	args := invocation.Args()
++	args[0] = "binary"
++	return args
++}
++
++func TestCodexLaunchKeepsTrialGuardAndOwnDigest(t *testing.T) {
++	pin := codexPinForTest()
++	pin.Version = "codex-cli 0.160.0"
++	pin.SHA256 = strings.Repeat("b", 64)
++	invocation, err := BuildInvocation(Request{Provider: ProviderCodex, Binary: pin, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !strings.Contains(strings.Join(invocation.Args(), " "), "--model gpt-5.6-luna") {
++		t.Fatal("version window changed the pinned model")
++	}
++	req := Request{Provider: ProviderCodex, Binary: pin, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}, Profile: &ExecutionProfile{Version: 1, Role: Reviewer, Permission: ReadOnly, TimeoutMS: 1000}, Lock: &ProviderLock{Version: 1, Provider: ProviderCodex, Protocol: ProtocolID(ProviderCodex), Binary: pin}}
++	if _, err = BuildInvocation(req); err == nil || err.Error() != "codex_trial_guard_not_ready" {
++		t.Fatalf("in-range Codex profile err=%v", err)
++	}
++	if err = ValidatePin(pin, "0.160.0", pin.SHA256); err == nil || err.Error() != "binary_version_mismatch" {
++		t.Fatalf("normalized text replaced raw identity: %v", err)
++	}
++}
++
++func TestNonVersionGuardsStayClosed(t *testing.T) {
++	resume := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
++	resume.Session = SessionRef{Kind: SessionID, ID: "session-1234"}
++	if _, err := BuildInvocation(resume); err == nil || err.Error() != "profile_resume_not_verified" {
++		t.Fatalf("resume err=%v", err)
++	}
++	agy := profileRequest(t, `{"version":1,"role":"implementer","permission":"workspace-write","timeout_ms":9000}`)
++	agy.Provider = ProviderAGY
++	agy.Binary.Version = baselineRaw(ProviderAGY)
++	agy.Permission = Permission{}
++	agy.Lock.Provider, agy.Lock.Protocol, agy.Lock.Binary = agy.Provider, ProtocolID(agy.Provider), agy.Binary
++	if _, err := BuildInvocation(agy); err == nil || err.Error() != "managed_workspace_required" {
++		t.Fatalf("implementer err=%v", err)
++	}
++}
++
++func TestGrokWindowPreservesCodingEvidenceGate(t *testing.T) {
++	req := grokProfileRequest(t)
++	req.Binary.Version = "grok 1.0.70 (f50904eaee6c)"
++	req.Lock.Binary = req.Binary
++	if _, err := BuildInvocation(req); err != nil {
++		t.Fatalf("in-window reviewer rejected: %v", err)
++	}
++	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
++	req.Permission = Permission{}
++	req.Workspace = &CandidateWorkspace{Version: 1}
++	if _, err := BuildInvocation(req); err == nil || err.Error() != "grok_version_not_verified" {
++		t.Fatalf("coding admitted without version-specific evidence: %v", err)
++	}
++}
++
++func TestAGYWindowRequiresExplicitWorkspaceCapability(t *testing.T) {
++	req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
++	req.Provider = ProviderAGY
++	req.Binary.Version = "1.4.12"
++	req.Lock.Provider, req.Lock.Protocol, req.Lock.Binary = req.Provider, ProtocolID(req.Provider), req.Binary
++	help := "--output-format --input-format --mode"
++	if err := CheckCapabilities(req, help); err == nil || err.Error() != "provider_capability_unsupported" {
++		t.Fatalf("missing --add-dir accepted: %v", err)
++	}
++	if err := CheckCapabilities(req, help+" --add-dir"); err != nil {
++		t.Fatal(err)
++	}
++	inv, err := BuildInvocation(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !strings.Contains(strings.Join(inv.Args(), " "), "--add-dir "+req.CWD) {
++		t.Fatalf("workspace missing: %v", inv.Args())
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/probe.go b/tools/orchestrator/internal/adapter/probe.go
+index 078ab1db..53e56632 100644
+--- a/tools/orchestrator/internal/adapter/probe.go
++++ b/tools/orchestrator/internal/adapter/probe.go
+@@ -16,6 +16,19 @@ import (
+ 
+ type probeBuffer struct{ bytes.Buffer }
+ 
++type probeFailure struct {
++	code  string
++	cause error
++}
++
++func (failure *probeFailure) Error() string {
++	return failure.code
++}
++
++func (failure *probeFailure) Unwrap() error {
++	return failure.cause
++}
++
+ func (b *probeBuffer) Write(data []byte) (int, error) {
+ 	if len(data) > 64*1024-b.Len() {
+ 		return 0, errors.New("provider_probe_too_large")
+@@ -40,7 +53,7 @@ func ProbeOutput(ctx context.Context, path string, args ...string) (string, erro
+ 		cmd.Stderr = &helpOutput
+ 	}
+ 	if err := cmd.Run(); err != nil {
+-		return "", errors.New("provider_probe_failed")
++		return "", &probeFailure{code: "provider_probe_failed", cause: errors.Join(err, ctx.Err())}
+ 	}
+ 	if isHelp {
+ 		if output.Len()+helpOutput.Len() > 64*1024 {
+@@ -75,7 +88,10 @@ func Probe(ctx context.Context, provider Provider, path string) (ProviderLock, e
+ 		return ProviderLock{}, err
+ 	}
+ 	version, err := ProbeOutput(ctx, path, "--version")
+-	if err != nil || len(version) > 512 || strings.ContainsAny(version, "\r\n\x00") {
++	if err != nil {
++		return ProviderLock{}, &probeFailure{code: "binary_version_probe_failed", cause: err}
++	}
++	if len(version) > 512 || strings.ContainsAny(version, "\r\n\x00") {
+ 		return ProviderLock{}, errors.New("binary_version_probe_failed")
+ 	}
+ 	pin.Version = version
+diff --git a/tools/orchestrator/internal/adapter/probe_failure_test.go b/tools/orchestrator/internal/adapter/probe_failure_test.go
+new file mode 100644
+index 00000000..6d18a66c
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/probe_failure_test.go
+@@ -0,0 +1,69 @@
++package adapter
++
++import (
++	"context"
++	"errors"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++	"time"
++)
++
++func TestProbeFailureRetainsExitCauseWithoutOutput(t *testing.T) {
++	output, err := ProbeOutput(context.Background(), "/bin/sh", "-c", "printf synthetic-secret >&2; exit 7")
++	var exitError *exec.ExitError
++	if !errors.As(err, &exitError) || exitError.ExitCode() != 7 {
++		t.Fatalf("exit cause missing: %v", err)
++	}
++	if output != "" || err.Error() != "provider_probe_failed" || fmt.Sprintf("%+v", err) != "provider_probe_failed" {
++		t.Fatal("probe exposed diagnostics or changed public code")
++	}
++}
++
++func TestProbeFailureRetainsStartCause(t *testing.T) {
++	output, err := ProbeOutput(context.Background(), filepath.Join(t.TempDir(), "synthetic-secret-missing"))
++	var pathError *os.PathError
++	if !errors.As(err, &pathError) || !errors.Is(err, os.ErrNotExist) {
++		t.Fatalf("start cause missing: %v", err)
++	}
++	if output != "" || err.Error() != "provider_probe_failed" {
++		t.Fatal("start failure changed public code")
++	}
++}
++
++func TestProbeFailureRetainsCancellationCause(t *testing.T) {
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	output, err := ProbeOutput(ctx, "/bin/echo", "not-started")
++	if !errors.Is(err, context.Canceled) || output != "" || err.Error() != "provider_probe_failed" {
++		t.Fatalf("cancel cause missing or leaked output: %q %v", output, err)
++	}
++}
++
++func TestProbeFailureRetainsDeadlineAndExitCauses(t *testing.T) {
++	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
++	defer cancel()
++	output, err := ProbeOutput(ctx, "/bin/sleep", "5")
++	var exitError *exec.ExitError
++	if !errors.Is(err, context.DeadlineExceeded) || !errors.As(err, &exitError) {
++		t.Fatalf("deadline/exit causes missing: %v", err)
++	}
++	if output != "" || err.Error() != "provider_probe_failed" {
++		t.Fatal("deadline failure changed public code")
++	}
++}
++
++func TestProbeVersionFailurePreservesNestedCancellation(t *testing.T) {
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	path, err := filepath.EvalSymlinks(os.Args[0])
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = Probe(ctx, ProviderClaude, path)
++	if !errors.Is(err, context.Canceled) || err.Error() != "binary_version_probe_failed" {
++		t.Fatalf("version failure lost cause or changed code: %v", err)
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/profile.go b/tools/orchestrator/internal/adapter/profile.go
+index cfa101b1..2467bfd7 100644
+--- a/tools/orchestrator/internal/adapter/profile.go
++++ b/tools/orchestrator/internal/adapter/profile.go
+@@ -71,11 +71,14 @@ func validateProfile(req Request) error {
+ 	if req.Lock == nil {
+ 		return errors.New("provider_lock_invalid")
+ 	}
++	if err := AdmitVersion(req.Provider, req.Binary.Version); err != nil {
++		return err
++	}
+ 	if req.Session.ID != "" {
+ 		return errors.New("profile_resume_not_verified")
+ 	}
+ 	if req.Provider == ProviderCodex {
+-		return errors.New("codex_trial_guard_not_ready")
++		return CodexTrialBlocked()
+ 	}
+ 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
+ 		return errors.New("execution_profile_invalid")
+@@ -90,7 +93,9 @@ func validateProfile(req Request) error {
+ 		return errors.New("reasoning_unsupported")
+ 	}
+ 	if req.Provider == ProviderGrok {
+-		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
++		// The broader window has reviewer protocol evidence; native editing
++		// remains bound to the exact release validated by the coding profile.
++		if p.Role == Implementer && req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
+ 			return errors.New("grok_version_not_verified")
+ 		}
+ 		if !p.GrokSessionWrite {
+@@ -134,7 +139,7 @@ func CheckCapabilities(req Request, help string) error {
+ 		flags = append(flags, "--disallowed-tools")
+ 	}
+ 	if req.Provider == ProviderAGY {
+-		flags = []string{"--output-format", "--input-format", "--mode"}
++		flags = []string{"--output-format", "--input-format", "--mode", "--add-dir"}
+ 	}
+ 	if req.Provider == ProviderGrok {
+ 		flags = []string{"--output-format", "--permission-mode", "--no-subagents", "--disable-web-search", "--session-id", "--leader-socket", "--tools", "--deny"}
+@@ -143,7 +148,7 @@ func CheckCapabilities(req Request, help string) error {
+ 		}
+ 	}
+ 	if req.Provider == ProviderCodex {
+-		return errors.New("codex_trial_guard_not_ready")
++		return CodexTrialBlocked()
+ 	}
+ 	if usesCandidateReviewSchema(req) {
+ 		flags = append(flags, "--json-schema")
+diff --git a/tools/orchestrator/internal/adapter/profile_test.go b/tools/orchestrator/internal/adapter/profile_test.go
+index e7ab71fd..20c26f88 100644
+--- a/tools/orchestrator/internal/adapter/profile_test.go
++++ b/tools/orchestrator/internal/adapter/profile_test.go
+@@ -9,7 +9,7 @@ import (
+ func profileRequest(t *testing.T, profile string) Request {
+ 	t.Helper()
+ 	req := Request{Provider: ProviderClaude, Binary: pinForTest(), CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
+-	if err := json.Unmarshal([]byte(`{"Profile":`+profile+`,"Lock":{"version":1,"provider":"claude-code","protocol":"claude-stream-json-v1","binary":{"Path":"/private/bin/agent","Version":"1.2.3","SHA256":"`+strings.Repeat("a", 64)+`"}}}`), &req); err != nil {
++	if err := json.Unmarshal([]byte(`{"Profile":`+profile+`,"Lock":{"version":1,"provider":"claude-code","protocol":"claude-stream-json-v1","binary":{"Path":"/private/bin/agent","Version":"2.1.267 (Claude Code)","SHA256":"`+strings.Repeat("a", 64)+`"}}}`), &req); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	return req
+@@ -30,8 +30,10 @@ func TestProfileControlsModelReasoningAndRole(t *testing.T) {
+ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
+ 	req := profileRequest(t, `{"version":1,"role":"reviewer","model":"gemini-3.8-flash-low","reasoning":"low","permission":"read-only","timeout_ms":9000}`)
+ 	req.Provider = ProviderAGY
++	req.Binary.Version = "1.2.3"
++	req.Lock.Binary = req.Binary
+ 	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
+-	help := "--input-format --output-format --mode --model --effort"
++	help := "--input-format --output-format --mode --add-dir --model --effort"
+ 	if err := CheckCapabilities(req, help); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -40,12 +42,12 @@ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	args := strings.Join(inv.Args(), " ")
+-	for _, want := range []string{"--mode plan", "--model gemini-3.8-flash-low", "--effort low"} {
++	for _, want := range []string{"--add-dir /private/workspace", "--mode plan", "--model gemini-3.8-flash-low", "--effort low"} {
+ 		if !strings.Contains(args, want) {
+ 			t.Fatalf("missing %q: %s", want, args)
+ 		}
+ 	}
+-	if err := CheckCapabilities(req, "--input-format --output-format --model --effort"); err == nil {
++	if err := CheckCapabilities(req, "--input-format --output-format --add-dir --model --effort"); err == nil {
+ 		t.Fatal("accepted CLI without native plan capability")
+ 	}
+ 	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
+@@ -127,6 +129,8 @@ func TestCandidateReviewRequiresNativeStructuredOutput(t *testing.T) {
+ func TestCandidateReviewRequiresVerifiedStructuredProvider(t *testing.T) {
+ 	req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
+ 	req.Provider = ProviderAGY
++	req.Binary.Version = "1.2.3"
++	req.Lock.Binary = req.Binary
+ 	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
+ 	req.Action = &CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
+ 	inv, err := BuildInvocation(req)
+@@ -136,10 +140,10 @@ func TestCandidateReviewRequiresVerifiedStructuredProvider(t *testing.T) {
+ 	if !strings.Contains(strings.Join(inv.Args(), " "), "--json-schema") {
+ 		t.Fatal("AGY candidate review lacks native schema")
+ 	}
+-	if err := CheckCapabilities(req, "--input-format --output-format --mode"); err == nil {
++	if err := CheckCapabilities(req, "--input-format --output-format --mode --add-dir"); err == nil {
+ 		t.Fatal("AGY candidate review accepted missing native schema capability")
+ 	}
+-	if err := CheckCapabilities(req, "--input-format --output-format --mode --json-schema"); err != nil {
++	if err := CheckCapabilities(req, "--input-format --output-format --mode --add-dir --json-schema"); err != nil {
+ 		t.Fatalf("AGY candidate review capability rejected: %v", err)
+ 	}
+ 	req.Action = nil
+diff --git a/tools/orchestrator/internal/adapter/version.go b/tools/orchestrator/internal/adapter/version.go
+new file mode 100644
+index 00000000..92c96595
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/version.go
+@@ -0,0 +1,163 @@
++package adapter
++
++import (
++	"fmt"
++	"regexp"
++	"strconv"
++	"strings"
++)
++
++// parsedVersion is the normalized stable triple used for range checks.
++// The original --version text stays on the binary pin and is never replaced.
++type parsedVersion struct {
++	Major      int
++	Minor      int
++	Patch      int
++	Product    string
++	Prerelease string
++	Build      string
++	Note       string
++	Channel    string
++	Normalized string
++}
++
++var versionLine = regexp.MustCompile(`^(?:(codex-cli|claude-code|claude|grok|agy|antigravity-cli|antigravity)\s+)?v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z][0-9A-Za-z.-]*))?(?:\+([0-9A-Za-z.-]+))?(?:\s+\(([^)]+)\))?(?:\s+\[([A-Za-z][0-9A-Za-z.-]*)\])?$`)
++
++func parseCLIVersion(raw string) (parsedVersion, error) {
++	raw = strings.TrimSpace(raw)
++	if raw == "" || len(raw) > 512 || strings.ContainsAny(raw, "\r\n\x00") {
++		return parsedVersion{}, errVersionUnparsed
++	}
++	match := versionLine.FindStringSubmatch(raw)
++	if match == nil {
++		return parsedVersion{}, errVersionUnparsed
++	}
++	major, minor, patch, err := decimalTriple(match[2], match[3], match[4])
++	if err != nil {
++		return parsedVersion{}, err
++	}
++	parsed := parsedVersion{
++		Major: major, Minor: minor, Patch: patch,
++		Product: match[1], Prerelease: match[5], Build: match[6],
++		Note: strings.TrimSpace(match[7]), Channel: strings.ToLower(match[8]),
++		Normalized: fmt.Sprintf("%d.%d.%d", major, minor, patch),
++	}
++	return parsed, nil
++}
++
++func decimalTriple(major, minor, patch string) (int, int, int, error) {
++	values := [3]int{}
++	for i, part := range []string{major, minor, patch} {
++		number, err := strconv.Atoi(part)
++		if err != nil || strconv.Itoa(number) != part {
++			return 0, 0, 0, errVersionUnparsed
++		}
++		values[i] = number
++	}
++	return values[0], values[1], values[2], nil
++}
++
++func (v parsedVersion) compare(other parsedVersion) int {
++	if v.Major != other.Major {
++		return cmpInt(v.Major, other.Major)
++	}
++	if v.Minor != other.Minor {
++		return cmpInt(v.Minor, other.Minor)
++	}
++	return cmpInt(v.Patch, other.Patch)
++}
++
++func cmpInt(left, right int) int {
++	if left < right {
++		return -1
++	}
++	if left > right {
++		return 1
++	}
++	return 0
++}
++
++func releaseClass(provider Provider, v parsedVersion) (string, string) {
++	if v.Prerelease != "" || v.Build != "" || channelWord(v.Channel) || noteHasChannel(v.Note) {
++		return "prerelease", "cli_version_prerelease"
++	}
++	switch v.Channel {
++	case "", "stable", "release", "ga", "latest":
++	default:
++		return "unparsed", "cli_version_unparsed"
++	}
++	switch noteClass(provider, v.Note) {
++	case "prerelease":
++		return "prerelease", "cli_version_prerelease"
++	case "unrecognized":
++		return "unrecognized", "cli_version_unrecognized_note"
++	default:
++		return "stable", ""
++	}
++}
++
++// noteClass allows only the annotations each provider actually prints for a
++// stable build. Any other parenthetical text stays out of the stable window.
++func noteClass(provider Provider, note string) string {
++	if note == "" {
++		return "stable"
++	}
++	if noteHasChannel(note) {
++		return "prerelease"
++	}
++	if knownStableNote(provider, note) {
++		return "stable"
++	}
++	return "unrecognized"
++}
++
++func noteHasChannel(note string) bool {
++	token := note
++	for i, r := range note {
++		if r == ' ' || r == '.' || r == '/' {
++			token = note[:i]
++			break
++		}
++	}
++	return channelWord(token)
++}
++
++func knownStableNote(provider Provider, note string) bool {
++	switch provider {
++	case ProviderClaude:
++		return note == "Claude Code"
++	case ProviderGrok:
++		return grokCommitNote.MatchString(note)
++	default:
++		return false
++	}
++}
++
++var grokCommitNote = regexp.MustCompile(`^[0-9a-fA-F]{7,40}$`)
++
++func channelWord(value string) bool {
++	switch strings.ToLower(strings.TrimSpace(value)) {
++	case "nightly", "dev", "devel", "development", "alpha", "beta", "rc", "pre", "preview", "canary", "insiders", "next":
++		return true
++	default:
++		return false
++	}
++}
++
++func prefixAllowed(provider Provider, product string) bool {
++	if product == "" {
++		return true
++	}
++	switch provider {
++	case ProviderClaude:
++		return product == "claude" || product == "claude-code"
++	case ProviderAGY:
++		return product == "agy" || product == "antigravity" || product == "antigravity-cli"
++	case ProviderGrok:
++		return product == "grok"
++	case ProviderCodex:
++		return product == "codex-cli"
++	default:
++		return false
++	}
++}
+diff --git a/tools/orchestrator/internal/host/profile_test.go b/tools/orchestrator/internal/host/profile_test.go
+index 830566b8..243135b0 100644
+--- a/tools/orchestrator/internal/host/profile_test.go
++++ b/tools/orchestrator/internal/host/profile_test.go
+@@ -148,7 +148,7 @@ func TestLaunchRechecksProviderPinAfterInvocationWasBuilt(t *testing.T) {
+ 			if err = os.WriteFile(binary, source, 0700); err != nil {
+ 				t.Fatal(err)
+ 			}
+-			pin := adapter.BinaryPin{Path: binary, Version: "test", SHA256: hashBytes(source)}
++			pin := adapter.BinaryPin{Path: binary, Version: "2.1.267", SHA256: hashBytes(source)}
+ 			req := adapter.Request{Provider: adapter.ProviderClaude, Binary: pin, CWD: root, Prompt: "inspect", Permission: adapter.Permission{Mode: "plan"}}
+ 			if typed {
+ 				req.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}
+diff --git a/tools/orchestrator/internal/store/review_retry_test.go b/tools/orchestrator/internal/store/review_retry_test.go
+index c545ba64..55881f93 100644
+--- a/tools/orchestrator/internal/store/review_retry_test.go
++++ b/tools/orchestrator/internal/store/review_retry_test.go
+@@ -32,7 +32,7 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
+ 		t.Fatal(err)
+ 	}
+ 	t.Cleanup(func() { db.Close() })
+-	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "claude-test", SHA256: strings.Repeat("a", 64)}}
++	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "2.1.267", SHA256: strings.Repeat("a", 64)}}
+ 	target := adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}
+ 	ids := []string{"edit", "validate", "review", "integrate"}
+ 	var tasks []TaskSpec

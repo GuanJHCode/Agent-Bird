@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass
 from typing import Mapping
 from typing import Protocol
@@ -10,6 +11,8 @@ EXPECTED_NATIVE_VERSION = "0.154.0"
 EXPECTED_NATIVE_SHA256 = (
     "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
 )
+# Each additional native identity requires a native refresh-tripwire acceptance.
+NATIVE_ADMISSIONS = {EXPECTED_NATIVE_VERSION: EXPECTED_NATIVE_SHA256, "0.166.0": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1"}
 REFRESH_OVERRIDE_ENV = "CODEX_REFRESH_TOKEN_URL_OVERRIDE"
 REFRESH_TRIPWIRE = "invalid://refresh-blocked"
 
@@ -74,6 +77,7 @@ class VerifiedAuthMetadata:
         "_source_kind",
         "_proof_sha256",
         "_seal",
+        "_observed_at",
     )
 
     def __init__(
@@ -98,6 +102,7 @@ class VerifiedAuthMetadata:
         self._source_kind = source_kind
         self._proof_sha256 = proof_sha256
         self._seal = _seal
+        self._observed_at = time.monotonic()
 
 
 class VerifiedMetadataSource(Protocol):
@@ -144,9 +149,9 @@ def extract_safe_auth_metadata(source: VerifiedMetadataSource) -> VerifiedAuthMe
         )
     ):
         raise AuthGuardBlocked("metadata_source_invalid")
-    if observation.native_version != EXPECTED_NATIVE_VERSION:
+    if observation.native_version not in NATIVE_ADMISSIONS:
         raise AuthGuardBlocked("native_version_mismatch")
-    if observation.native_sha256 != EXPECTED_NATIVE_SHA256:
+    if observation.native_sha256 != NATIVE_ADMISSIONS[observation.native_version]:
         raise AuthGuardBlocked("native_sha256_mismatch")
     if not observation.proof_sha256:
         raise AuthGuardBlocked("metadata_proof_missing")
@@ -176,6 +181,8 @@ def prepare_guarded_environment(
         metadata._seal is not _VERIFIED_METADATA_SEAL
     ):
         raise AuthGuardBlocked("metadata_not_verified")
+    if time.monotonic() - metadata._observed_at > 30:
+        raise AuthGuardBlocked("auth_metadata_expired")
     if REFRESH_OVERRIDE_ENV in source_env:
         raise AuthGuardBlocked("refresh_override_already_present")
     if metadata._auth_kind not in _SUPPORTED_STORES:

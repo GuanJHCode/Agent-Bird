@@ -126,7 +126,7 @@ func TestLaunchVersionRejectionKeepsWindow(t *testing.T) {
 func TestCodexProbeNamesTrialGaps(t *testing.T) {
 	root := privateTaskTemp(t)
 	binary := filepath.Join(root, "codex")
-	script := "#!/bin/sh\ncase \"$1\" in\n--version) echo 'codex-cli 0.166.0';;\n--help) echo 'exec --json';;\n*) exit 99;;\nesac\n"
+	script := "#!/bin/sh\ncase \"$1\" in\n--version) echo 'codex-cli 0.166.0';;\nexec) [ \"$2\" = --help ] || exit 98; echo '--json --color --model --config --ephemeral --skip-git-repo-check --strict-config --ignore-rules';;\n*) exit 99;;\nesac\n"
 	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}

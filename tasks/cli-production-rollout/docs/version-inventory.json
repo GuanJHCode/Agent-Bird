@@ -1,0 +1,1768 @@
+{
+  "frozen_at": "2026-11-02T01:53:00Z",
+  "recorded_at": "2026-11-03T03:07:02.251916+00:00",
+  "scope": "Frozen catalog inventory; admission, no-model discovery, protocol parsing and real model closure are separate.",
+  "versions": [
+    {
+      "provider": "claude-code",
+      "version": "2.1.267",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-09T18:25:42.820Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "pinned/claude-baseline",
+      "sha256": "a681f3008f0050029aeebcab3af51bb6a55ddeb625a3af3141a4416d43cd2558",
+      "raw_version": "2.1.267 (Claude Code)",
+      "source": "https://registry.npmjs.org/@anthropic-ai/claude-code-darwin-arm64/2.1.267 (existing binary, digest rechecked; provenance not re-downloaded)",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--input-format",
+        "--permission-mode",
+        "--disallowed-tools"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T031908Z",
+        "model": "deepseek-v4.1-flash-1017",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.268",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-10T18:41:11.770Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.269",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-11T18:12:49.253Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.270",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-12T18:52:44.937Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.271",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-14T19:45:19.456Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.272",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-14T23:34:13.565Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.273",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-15T18:06:34.098Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.274",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-16T22:36:09.883Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.275",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-17T20:20:31.805Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.276",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-18T01:39:31.986Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.277",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-18T16:22:26.548Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.278",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-19T01:48:59.758Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.280",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-22T15:44:39.443Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.281",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-23T17:01:17.780Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.282",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-24T15:56:22.706Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.283",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-25T18:46:11.330Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.284",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-28T17:11:59.750Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.285",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-29T17:32:09.173Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.286",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-09-30T17:14:38.859Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.287",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-01T16:59:25.986Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.288",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-02T18:30:40.093Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.289",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-03T20:12:02.717Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.290",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-05T18:12:44.907Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "fixed-download/claude-2.1.290/claude",
+      "sha256": "b8412a3826b2dc8ecb1c0605970c28dea28355de5faa740407dd881acdd40237",
+      "raw_version": "2.1.290 (Claude Code)",
+      "source": "https://registry.npmjs.org/@anthropic-ai/claude-code-darwin-arm64/-/claude-code-darwin-arm64-2.1.290.tgz",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--input-format",
+        "--permission-mode",
+        "--disallowed-tools"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T032024Z",
+        "model": "deepseek-v4.1-flash-1017",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.291",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-06T03:32:36.856Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.292",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-06T17:10:31.715Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.293",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-07T17:18:04.464Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.294",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-08T03:42:57.084Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.295",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-08T18:22:58.621Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.296",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-09T16:58:10.924Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.299",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-14T00:23:19.588Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.300",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-14T14:27:26.554Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.301",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-15T14:34:23.330Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.302",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-16T16:48:28.057Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.303",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-18T21:15:23.178Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.304",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-19T19:47:15.337Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.305",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-20T19:29:36.816Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.306",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-21T02:28:47.495Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.307",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-21T20:47:18.383Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.308",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-22T04:19:48.902Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.309",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-22T20:34:13.713Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.310",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-23T21:20:46.540Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.311",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-26T19:47:57.395Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.312",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-27T18:36:10.160Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.314",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-30T00:12:56.911Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.315",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-30T21:05:24.080Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.316",
+      "catalog_source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
+      "published_at": "2026-10-31T00:42:05.743Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "pinned/claude-ceiling",
+      "sha256": "64c327e92b2c5e0f78c0a980c5a518121e1f0d140ca771ca5dd4488d1a2dcb3f",
+      "raw_version": "2.1.316 (Claude Code)",
+      "source": "https://registry.npmjs.org/@anthropic-ai/claude-code-darwin-arm64/2.1.316 (existing binary, digest rechecked; provenance not re-downloaded)",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--input-format",
+        "--permission-mode",
+        "--disallowed-tools"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T031915Z",
+        "model": "deepseek-v4.1-flash-1017",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.3",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-15T02:03:04Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "pinned/agy-baseline",
+      "sha256": "e0c2743e3fd062e11c13d2eb5fabaa244936094bbe39c30fdfbac619bb78e554",
+      "raw_version": "1.2.3",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.2.3 (existing binary, digest rechecked; provenance not re-downloaded)",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--input-format",
+        "--mode",
+        "--add-dir"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T031929Z",
+        "model": "gemini-3.8-flash-low",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.4",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-16T03:54:29Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.5",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-17T04:10:06Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.6",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-18T04:21:05Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.7",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-19T01:01:46Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.8",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-22T04:12:17Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.9",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-23T04:42:15Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.10",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-24T06:26:54Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.11",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-25T04:22:17Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.12",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-27T05:06:09Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.13",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-29T03:58:00Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.14",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-09-30T04:03:27Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.15",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-02T17:00:58Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.16",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-03T03:56:08Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.17",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-05T06:20:11Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.0",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-06T06:05:28Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.1",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-07T03:22:02Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.2",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-08T22:39:48Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.3",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-10T03:06:26Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.4",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-13T05:09:33Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.5",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-14T03:16:53Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.6",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-15T17:51:16Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.0",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-16T05:24:39Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.1",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-17T20:43:34Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.2",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-18T00:36:59Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.3",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-20T04:28:40Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.4",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-21T06:38:01Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.5",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-22T05:01:38Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.6",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-23T04:18:36Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.7",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-24T02:47:49Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.8",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-27T07:10:37Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.9",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-28T05:59:42Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.10",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-29T03:50:43Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.11",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-30T05:39:38Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.12",
+      "catalog_source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
+      "published_at": "2026-10-30T21:39:59Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "pinned/agy-ceiling",
+      "sha256": "34423fc9b0af3841e7646aa72a2d40ffeab8218b22d1cb99eac7355f9eba31e3",
+      "raw_version": "1.4.12",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/tag/1.4.12 (existing binary, digest rechecked; provenance not re-downloaded)",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--input-format",
+        "--mode",
+        "--add-dir"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T031929Z",
+        "model": "gemini-3.8-flash-low",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.34",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-16T04:15:07.803Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "pinned/grok-baseline",
+      "sha256": "9cd26b579840f0f5c9148a8059ad651904c08b41b7f2ef0b4ec04b9ba898844e",
+      "raw_version": "grok 1.0.34 (3736acbc8658)",
+      "source": "https://registry.npmjs.org/@xai-official/grok-darwin-arm64/1.0.34 (existing binary, digest rechecked; provenance not re-downloaded)",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--permission-mode",
+        "--no-subagents",
+        "--disable-web-search",
+        "--session-id",
+        "--leader-socket",
+        "--tools",
+        "--deny"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T031919Z",
+        "model": "deepseek-v4.1-flash-1017",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.35",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-16T23:33:54.454Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.36",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-17T23:12:53.661Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.37",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-18T20:55:46.019Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.38",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-19T00:57:44.843Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.39",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-20T22:25:57.092Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.40",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-20T23:48:33.620Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.41",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-22T16:39:47.725Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.42",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-26T22:41:22.102Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.43",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-28T00:26:22.545Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.44",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-28T22:10:13.748Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.45",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-29T06:10:58.030Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.46",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-09-30T22:11:16.129Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.47",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-01T19:23:48.449Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.48",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-02T01:21:20.399Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.49",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-02T18:53:36.526Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.50",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-06T23:07:37.754Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.51",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-09T17:35:00.108Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.52",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-11T23:59:56.991Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "fixed-download/grok-1.0.52/grok",
+      "sha256": "c2caa9895dd763297a75e8fb6077e175d9c5304c53903e52cff8891a1384bbb9",
+      "raw_version": "grok 1.0.52 (0920c8169e27)",
+      "source": "https://registry.npmjs.org/@xai-official/grok-darwin-arm64/-/grok-darwin-arm64-1.0.52.tgz",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--permission-mode",
+        "--no-subagents",
+        "--disable-web-search",
+        "--session-id",
+        "--leader-socket",
+        "--tools",
+        "--deny"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T032037Z",
+        "model": "deepseek-v4.1-flash-1017",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.53",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-12T17:55:09.533Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.54",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-12T22:35:15.261Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.55",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-13T06:23:26.473Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.56",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-13T21:03:44.026Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.57",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-14T00:49:48.972Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.58",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-14T05:14:04.496Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.59",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-14T22:43:30.975Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.60",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-15T03:01:22.338Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.61",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-16T03:24:53.332Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.62",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-16T16:53:47.482Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.63",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-17T08:37:23.984Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.64",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-19T22:52:51.847Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.65",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-20T19:35:13.295Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.66",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-20T22:33:21.565Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.67",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-21T17:21:37.077Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested",
+      "path": "existing-install/grok-1.0.67",
+      "sha256": "036a47ce2987adae04de827f7803bf0cc460bf169b640db168f18ec7acb734db",
+      "raw_version": "grok 1.0.67 (2fe064390d07)",
+      "source": "existing local fixed release; digest and raw version observed",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--permission-mode",
+        "--no-subagents",
+        "--disable-web-search",
+        "--session-id",
+        "--leader-socket",
+        "--tools",
+        "--deny"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.68",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-22T15:24:58.163Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.69",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-23T02:07:16.786Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.70",
+      "catalog_source": "https://registry.npmjs.org/@xai-official/grok",
+      "published_at": "2026-10-23T17:38:01.317Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "pinned/grok-ceiling",
+      "sha256": "5c8a688251bf61e35370b828b6a353b0a20fcc3f64000de8a91d426039f29cec",
+      "raw_version": "grok 1.0.70 (f50904eaee6c)",
+      "source": "https://registry.npmjs.org/@xai-official/grok-darwin-arm64/1.0.70 (existing binary, digest rechecked; provenance not re-downloaded)",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "--help"
+      ],
+      "capability_flags": [
+        "--output-format",
+        "--permission-mode",
+        "--no-subagents",
+        "--disable-web-search",
+        "--session-id",
+        "--leader-socket",
+        "--tools",
+        "--deny"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T031923Z",
+        "model": "deepseek-v4.1-flash-1017",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.154.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-09T22:35:38Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "pinned/codex-baseline",
+      "sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "raw_version": "codex-cli 0.154.0",
+      "source": "https://github.com/openai/codex/releases/tag/rust-v0.154.0 (existing binary, digest rechecked; provenance not re-downloaded)",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "exec",
+        "--help"
+      ],
+      "capability_flags": [
+        "--json",
+        "--color",
+        "--model",
+        "--config",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--strict-config",
+        "--ignore-rules"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T031646Z",
+        "model": "gpt-5.6-luna",
+        "package": "0.1.11-cli-production"
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-17T23:14:43Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.1",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-18T20:03:04Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.156.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-22T19:51:01Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.156.1",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-23T02:41:36Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.157.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-25T02:31:06Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.157.1",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-26T01:02:31Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.158.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-28T05:07:23Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-29T08:05:42Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.1",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-29T20:32:34Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.2",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-29T23:57:16Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested",
+      "path": "fixed-download/codex-0.159.2/codex",
+      "sha256": "16593cc2f422d5f398a8e40f550ebbaf1245392528957be342c295920a300704",
+      "raw_version": "codex-cli 0.159.2",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.159.2/codex-aarch64-apple-darwin.tar.gz",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "exec",
+        "--help"
+      ],
+      "capability_flags": [
+        "--json",
+        "--color",
+        "--model",
+        "--config",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--strict-config",
+        "--ignore-rules"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": false,
+      "launch_reason": "codex_trial_guard_not_ready",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "launch_missing": [
+        "verified_auth_metadata_source_missing",
+        "exec_refresh_tripwire_not_applied",
+        "native_auth_admission_exact_pin",
+        "codex_exec_collect_loop_not_evidenced"
+      ],
+      "native_launch": "blocked_unverified_native_contract"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.3",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-09-30T22:57:34Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.160.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-01T20:19:13Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.160.1",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-05T18:29:37Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.161.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-07T15:58:45Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.162.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-08T18:55:59Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.162.1",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-09T19:44:51Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.163.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-15T21:30:38Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.164.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-23T04:48:10Z",
+      "version_admission": "not_tested",
+      "no_model": "not_tested",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.165.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-27T20:09:38Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "not_tested",
+      "real_model": "not_tested",
+      "path": "existing-install/codex-0.165.0",
+      "sha256": "a45099154d7fb4a5ed8a56f40966a95deb938e508bab23e6985035c709e9a85a",
+      "raw_version": "codex-cli 0.165.0",
+      "source": "existing local fixed release; digest and raw version observed",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "exec",
+        "--help"
+      ],
+      "capability_flags": [
+        "--json",
+        "--color",
+        "--model",
+        "--config",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--strict-config",
+        "--ignore-rules"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": false,
+      "launch_reason": "codex_trial_guard_not_ready",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "launch_missing": [
+        "verified_auth_metadata_source_missing",
+        "exec_refresh_tripwire_not_applied",
+        "native_auth_admission_exact_pin",
+        "codex_exec_collect_loop_not_evidenced"
+      ],
+      "native_launch": "blocked_unverified_native_contract"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.166.0",
+      "catalog_source": "https://api.github.com/repos/openai/codex/releases",
+      "published_at": "2026-10-29T19:47:53Z",
+      "version_admission": "passed",
+      "no_model": "passed",
+      "protocol_parsing": "passed",
+      "real_model": "passed",
+      "path": "pinned/codex-ceiling",
+      "sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+      "raw_version": "codex-cli 0.166.0",
+      "source": "https://github.com/openai/codex/releases/tag/rust-v0.166.0 (existing binary, digest rechecked; provenance not re-downloaded)",
+      "version_parameters": [
+        "--version"
+      ],
+      "capability_parameters": [
+        "exec",
+        "--help"
+      ],
+      "capability_flags": [
+        "--json",
+        "--color",
+        "--model",
+        "--config",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--strict-config",
+        "--ignore-rules"
+      ],
+      "missing_flags": [],
+      "launch_profile_supported": true,
+      "launch_reason": "",
+      "no_model_scope": "actual --version and --help plus production provider-probe; no protocol stream/model call",
+      "real_evidence": {
+        "round": "20261103T031646Z",
+        "model": "gpt-5.6-luna",
+        "package": "0.1.11-cli-production"
+      }
+    }
+  ],
+  "summary": {
+    "passed": 13,
+    "failed": 0,
+    "not_tested": 126
+  },
+  "private_raw_sha256": "b51be079a3d396dfff8e3a0a047baa19518050fdf9b744923db825acf643fd96",
+  "real_model_summary": {
+    "passed": 10,
+    "not_tested": 129
+  },
+  "evidence_note": "Enriched from final installed-package rounds; actual paths, requests, help and raw session scenes remain private. A catalog entry is not an actual binary test."
+}

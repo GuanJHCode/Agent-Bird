@@ -848,6 +848,9 @@ func submitMatrix(ctx context.Context, runner matrixRunner, root, state, work, p
 	owner["plan_revision"] = matrixWorkRev
 	owner["delivery_mode"] = "collect"
 	profile := adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: matrixMaxActiveMS}
+	if err = matrixConfigureModel(&profile); err != nil {
+		return nil, "", err
+	}
 	if tc.grokWrite {
 		profile.GrokSessionWrite = true
 	}
@@ -1662,7 +1665,7 @@ func matrixGuardFrom(output []byte) *matrixGuard {
 // matrixSafeCounterKeys are the counter and shape fields of the provider
 // protocol summary. Fields outside this list are dropped outright.
 var matrixSafeCounterKeys = []string{
-	"captured_bytes", "truncated", "structured_results", "events",
+	"captured_bytes", "truncated", "structured_results", "events", "codex_auth_guard_codes",
 	"result_shapes", "system_subtypes", "tools", "tool_errors",
 	"permission_denials", "stream_denials", "protocol_snapshots",
 }
@@ -2779,4 +2782,47 @@ func TestMatrixEvidenceWithholdsProviderSessionAndCapabilityMaterial(t *testing.
 	if !strings.Contains(redacted, "REDACTED") {
 		t.Fatalf("redaction produced no markers: %s", redacted)
 	}
+}
+
+// A task-local explicit model is separate from the binary version and account.
+// It is used for user-authorized compatible-endpoint trials, never latest lookup.
+func matrixConfigureModel(profile *adapter.ExecutionProfile) error {
+	model := os.Getenv("ORCHESTRATOR_MATRIX_MODEL")
+	if model == "" || model == "cli-default" || !adapter.ValidModelID(model) {
+		return errors.New("matrix_model_invalid")
+	}
+	profile.Model = adapter.ModelID(model)
+	return nil
+}
+
+func TestMatrixExplicitModelDoesNotChangePermissions(t *testing.T) {
+	t.Setenv("ORCHESTRATOR_MATRIX_MODEL", "deepseek-v4.1-flash-1017")
+	profile := adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}
+	if err := matrixConfigureModel(&profile); err != nil || profile.Model != "deepseek-v4.1-flash-1017" || profile.Permission != adapter.ReadOnly {
+		t.Fatalf("profile=%+v err=%v", profile, err)
+	}
+	t.Setenv("ORCHESTRATOR_MATRIX_MODEL", "bad model --unsafe")
+	if err := matrixConfigureModel(&profile); err == nil {
+		t.Fatal("invalid model admitted")
+	}
+}
+
+func TestMatrixExplicitModelRejectsMissingOrDefault(t *testing.T) {
+	for _, model := range []string{"", "cli-default"} {
+		t.Run(model, func(t *testing.T) {
+			t.Setenv("ORCHESTRATOR_MATRIX_MODEL", model)
+			if err := matrixConfigureModel(&adapter.ExecutionProfile{}); err == nil {
+				t.Fatal("matrix accepted a model without an explicit identity")
+			}
+		})
+	}
+	t.Run("unset", func(t *testing.T) {
+		t.Setenv("ORCHESTRATOR_MATRIX_MODEL", "temporary")
+		if err := os.Unsetenv("ORCHESTRATOR_MATRIX_MODEL"); err != nil {
+			t.Fatal(err)
+		}
+		if err := matrixConfigureModel(&adapter.ExecutionProfile{}); err == nil {
+			t.Fatal("matrix accepted a missing model")
+		}
+	})
 }

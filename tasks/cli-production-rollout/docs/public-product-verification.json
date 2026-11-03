@@ -1,0 +1,251 @@
+{
+  "base": "2e78f24c5e9694f287d19065f2ce9c80b16a59af",
+  "toolchain": "go version go1.26.10 darwin/arm64",
+  "patch": "public-product.patch",
+  "patch_sha256": "62cefc9a1902c9008e6d5e6a2ea418be0f0187fbaaf162f639470850d64aba0b",
+  "files": [
+    "tools/orchestrator/cmd/orchestrator/candidate_cli_test.go",
+    "tools/orchestrator/cmd/orchestrator/candidate_test.go",
+    "tools/orchestrator/cmd/orchestrator/interruption_cli_test.go",
+    "tools/orchestrator/cmd/orchestrator/main.go",
+    "tools/orchestrator/cmd/orchestrator/main_test.go",
+    "tools/orchestrator/cmd/orchestrator/provider.go",
+    "tools/orchestrator/cmd/orchestrator/provider_test.go",
+    "tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go",
+    "tools/orchestrator/cmd/orchestrator/task_entry.go",
+    "tools/orchestrator/cmd/orchestrator/task_entry_test.go",
+    "tools/orchestrator/cmd/orchestrator/task_provider_test.go",
+    "tools/orchestrator/cmd/orchestrator/version_cli_test.go",
+    "tools/orchestrator/internal/adapter/adapter.go",
+    "tools/orchestrator/internal/adapter/adapter_test.go",
+    "tools/orchestrator/internal/adapter/admit.go",
+    "tools/orchestrator/internal/adapter/admit_test.go",
+    "tools/orchestrator/internal/adapter/catalog.go",
+    "tools/orchestrator/internal/adapter/coding_profiles_test.go",
+    "tools/orchestrator/internal/adapter/compatibility_catalog.json",
+    "tools/orchestrator/internal/adapter/compatibility_test.go",
+    "tools/orchestrator/internal/adapter/probe.go",
+    "tools/orchestrator/internal/adapter/probe_failure_test.go",
+    "tools/orchestrator/internal/adapter/profile.go",
+    "tools/orchestrator/internal/adapter/profile_test.go",
+    "tools/orchestrator/internal/adapter/version.go",
+    "tools/orchestrator/internal/host/profile_test.go",
+    "tools/orchestrator/internal/store/review_retry_test.go"
+  ],
+  "checks": [
+    {
+      "name": "full",
+      "command": [
+        "go",
+        "test",
+        "-count=1",
+        "-v",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 137.462,
+      "all_cases": {
+        "PASS": 770,
+        "FAIL": 0,
+        "SKIP": 4
+      },
+      "top_level": {
+        "PASS": 401,
+        "FAIL": 0,
+        "SKIP": 4
+      },
+      "log": "product-full.log",
+      "sha256": "7a2ab47d8216c619ca41fce394162efbfcfe94efad80692560f2a1671d4e4424"
+    },
+    {
+      "name": "race",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "-v",
+        "./..."
+      ],
+      "exit_code": 1,
+      "seconds": 146.434,
+      "all_cases": {
+        "PASS": 767,
+        "FAIL": 3,
+        "SKIP": 4
+      },
+      "top_level": {
+        "PASS": 399,
+        "FAIL": 2,
+        "SKIP": 4
+      },
+      "log": "product-race.log",
+      "sha256": "bc6db24e8ccffe1ebaabd9754ee413cc820ac8c79e45d2c78ac02d3b574f6a18"
+    },
+    {
+      "name": "vet",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 1.999,
+      "all_cases": {
+        "PASS": 0,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "top_level": {
+        "PASS": 0,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "log": "product-vet.log",
+      "sha256": "02669841a073c43b03cab01e35a0242ee57aabaa7259586156d80434628b5563"
+    },
+    {
+      "name": "build",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 0.326,
+      "all_cases": {
+        "PASS": 0,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "top_level": {
+        "PASS": 0,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "log": "product-build.log",
+      "sha256": "ca1c7af3c6db8c9c6ce498b3276ab9a15f3100f9a2f0144951a18290aa68828f"
+    },
+    {
+      "name": "entrypoints",
+      "command": [
+        "go",
+        "test",
+        "-count=1",
+        "-v",
+        "./cmd/orchestrator",
+        "-run",
+        "Test(Controller|ManagedDispatch|Dispatch|PluginRun)"
+      ],
+      "exit_code": 0,
+      "seconds": 19.837,
+      "all_cases": {
+        "PASS": 36,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "top_level": {
+        "PASS": 18,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "log": "product-entrypoints.log",
+      "sha256": "7e25a1eca0e31c1698b582573bfaed9cf1a5517804d1e0e4b314c031efbf53a6"
+    },
+    {
+      "name": "coding",
+      "command": [
+        "go",
+        "test",
+        "-count=1",
+        "-v",
+        "./internal/adapter",
+        "./internal/host",
+        "-run",
+        "Test(CodingProfiles|NativeCodingHost|Grok)"
+      ],
+      "exit_code": 0,
+      "seconds": 3.458,
+      "all_cases": {
+        "PASS": 81,
+        "FAIL": 0,
+        "SKIP": 1
+      },
+      "top_level": {
+        "PASS": 24,
+        "FAIL": 0,
+        "SKIP": 1
+      },
+      "log": "product-coding.log",
+      "sha256": "b6b6445c2f8825ea91f3b2e2773876769ce395ad8221af694596cb8b2828a932"
+    },
+    {
+      "name": "race-repeat",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-count=1",
+        "-v",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 147.344,
+      "all_cases": {
+        "PASS": 770,
+        "FAIL": 0,
+        "SKIP": 4
+      },
+      "top_level": {
+        "PASS": 401,
+        "FAIL": 0,
+        "SKIP": 4
+      },
+      "log": "product-race-repeat.log",
+      "sha256": "cca1886810ed66c138a1ea27ba170e1c71ed0ee5c9907f817c945be1aba25989"
+    },
+    {
+      "name": "regression",
+      "command": "go test -count=1 -v ./internal/adapter ./internal/store",
+      "exit_code": 0,
+      "all_cases": {
+        "PASS": 220,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "top_level": {
+        "PASS": 123,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "log": "product-regression.log",
+      "sha256": "5af7e102c2a8c3dd471258ed16fd45c48ac25e3f77681aa013abf15d9875c30d"
+    },
+    {
+      "name": "race-timing-regression",
+      "command": "go test -race -count=3 -v ./cmd/orchestrator ./internal/host -run 'Test(ProfileRunsThroughPinnedCapabilityProbe|CodingHostFreezesProviderCandidate)$'",
+      "exit_code": 0,
+      "all_cases": {
+        "PASS": 12,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "top_level": {
+        "PASS": 6,
+        "FAIL": 0,
+        "SKIP": 0
+      },
+      "log": "product-race-timing-regression.log",
+      "sha256": "d86548cdf48d39149d6e8453e5ac5044d015178fea2769c0aaa175c019c79ad6"
+    }
+  ],
+  "limitations": [
+    "Initial full race run had two timeout failures; exact cases passed three repetitions and unchanged complete race rerun passed. Initial failure log retained.",
+    "Four explicit native/authenticated model checks skipped: TestRealClaudeManagedCandidate, TestRealClaudeReviewerProfile, TestNativeCodingHost, TestNativeSchemaContract.",
+    "No commits, pushes, main/master ref changes, native model execution, or Codex guard relaxation."
+  ],
+  "status": "reviewed_selective_port_candidate_not_published",
+  "independent_review": "PASS",
+  "clean_public_base_apply_check": "PASS",
+  "public_main_master_updated": false
+}

@@ -247,3 +247,33 @@ func TestProviderWriteCannotBypassManagedWorkspaceViaSubmit(t *testing.T) {
 		t.Fatalf("unmanaged admission: %v", err)
 	}
 }
+
+func TestCodexProviderControlsPreserveSessionScopeAndModelDefaults(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	model := "gpt-5.6-luna"
+	if _, err = db.ProviderControl(ctx, "owner-a", "codex-cli", "default-model", &model); err != nil {
+		t.Fatal(err)
+	}
+	state, err := db.ProviderControl(ctx, "owner-b", "codex-cli", "status", nil)
+	if err != nil || !state.Enabled || state.Model != model {
+		t.Fatalf("state=%+v err=%v", state, err)
+	}
+	if _, err = db.ProviderControl(ctx, "owner-a", "codex-cli", "disable", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.SubmitPlan(ctx, providerTestPlan("blocked-codex", "owner-a", "codex-cli")); err == nil || err.Error() != "provider_disabled" {
+		t.Fatalf("disabled submit=%v", err)
+	}
+	state, err = db.ProviderControl(ctx, "owner-b", "codex-cli", "status", nil)
+	if err != nil || !state.Enabled {
+		t.Fatal("Codex disable leaked into another owner", err)
+	}
+	if _, err = db.ProviderControl(ctx, "owner-a", "codex-cli", "enable", nil); err != nil {
+		t.Fatal(err)
+	}
+}

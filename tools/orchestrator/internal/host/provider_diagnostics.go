@@ -7,6 +7,7 @@ import (
 )
 
 type providerDiagnosticReport struct {
+	CodexAuthGuardCodes map[string]int       `json:"codex_auth_guard_codes,omitempty"`
 	ToolErrors          map[string]int       `json:"tool_errors"`
 	ResultShapes        map[string]int       `json:"result_shapes"`
 	StructuredResults   int                  `json:"structured_results"`
@@ -26,7 +27,7 @@ type providerDiagnosticReport struct {
 // Capture only allowlisted event/tool categories from the already bounded
 // process buffer. Prompts, tool arguments, messages and environment are omitted.
 func providerDiagnostics(output string) providerDiagnosticReport {
-	result := providerDiagnosticReport{ToolErrors: map[string]int{}, ResultShapes: map[string]int{}, Version: 1, Bytes: len(output), Truncated: len(output) >= 1024*1024, Events: map[string]int{}, SystemSubtypes: map[string]int{}, Tools: map[string]int{}, StreamDeniedTools: map[string]int{}, StreamDenialReasons: map[string]int{}}
+	result := providerDiagnosticReport{CodexAuthGuardCodes: map[string]int{}, ToolErrors: map[string]int{}, ResultShapes: map[string]int{}, Version: 1, Bytes: len(output), Truncated: len(output) >= 1024*1024, Events: map[string]int{}, SystemSubtypes: map[string]int{}, Tools: map[string]int{}, StreamDeniedTools: map[string]int{}, StreamDenialReasons: map[string]int{}}
 	category := func(value string, allowed string) string {
 		for _, entry := range strings.Split(allowed, "|") {
 			if value == entry {
@@ -51,6 +52,7 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 			break
 		}
 		var event struct {
+			Code               string          `json:"code"`
 			Result             string          `json:"result"`
 			StructuredOutput   json.RawMessage `json:"structured_output"`
 			Type               string          `json:"type"`
@@ -63,6 +65,11 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 		}
 		if json.Unmarshal(scanner.Bytes(), &event) != nil {
 			result.Events["unparsed"]++
+			continue
+		}
+		// These are untrusted bounded diagnostics, never admission evidence.
+		if event.Type == "codex_auth_guard" {
+			result.CodexAuthGuardCodes[category(event.Code, "ready|codex_policy_untrusted|auth_expiry_unverified|auth_kind_unsupported|native_bundle_untrusted|refresh_override_already_present|auth_access_token_expired|auth_metadata_expired|auth_source_changed|auth_projection_changed|auth_source_unavailable|auth_source_invalid|auth_source_untrusted|auth_config_source_unsupported|auth_config_source_unverified|auth_projection_path_untrusted|auth_environment_unsupported|native_login_status_failed|native_login_status_unverified|native_version_mismatch|native_sha256_mismatch|native_path_untrusted|native_binary_unavailable|codex_exec_args_invalid|launch_failed")]++
 			continue
 		}
 		// Providers disagree about the shape of "event": Anthropic-shaped output

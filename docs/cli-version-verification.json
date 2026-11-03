@@ -1,36 +1,42 @@
 {
-  "candidate": "handover fixes on 613e3d0df3a87f082aebf4deef617fffbd4a389f (this file committed with the fixes)",
-  "base_candidate": "d7bc3d9420172e2418635630c7d646d8cf94dd9b",
-  "go_version": "go version go1.26.10 darwin/arm64",
-  "checks": [
+  "status": "implemented_and_current_package_accepted_with_explicit_remaining_scope",
+  "recorded_at": "2026-11-03T03:23:14.128260+00:00",
+  "source_vcs_base": "55741e28c783fc7b97eeba8e0688c31c0118f229",
+  "source_binding": {
+    "manifest": "cli-version-source-manifest.json",
+    "sha256": "fad12f7554c2242694bbe83dfceab81554b085496ed62a15bb159879db5d1c1f",
+    "files": 255,
+    "note": "Implementation and this acceptance are committed together. Verify actual branch HEAD and every source digest; build VCS base reflects the preserved original baseline, not the final delivery commit."
+  },
+  "go_toolchain": "go1.26.10 darwin/arm64",
+  "go_checks": [
     {
-      "name": "test",
+      "name": "full",
       "command": [
         "go",
         "test",
+        "-json",
         "-count=1",
-        "-timeout",
-        "25m",
-        "-v",
+        "-timeout=25m",
         "./..."
       ],
       "exit_code": 0,
-      "log_sha256": "f915d6a3d75dfb30cbbf5c4b0f36a4563d8249e49df4873f576fffc7450a8ae1",
-      "top_level_pass": 430,
-      "all_pass": 834,
-      "fail": 0,
-      "skip": 6,
-      "packages": 14,
-      "data_race": false,
-      "failed_tests": [],
-      "skipped_tests": [
-        "TestRealClaudeManagedCandidate (0.00s)",
-        "TestRealClaudeReviewerProfile (0.00s)",
-        "TestRealVersionMatrixRead (0.00s)",
-        "TestRealVersionMatrixInvocationStages (0.00s)",
-        "TestProbeCauseDecompositionObservation (0.00s)",
-        "TestS4StageTimingObservation (0.00s)"
-      ]
+      "seconds": 124.676,
+      "log": "go-final-full.jsonl",
+      "sha256": "cd6da9c6a29195ae4e58db8d3c75c0dabebd0787b5d88ab7cbfd117568479bba",
+      "all_cases": {
+        "pass": 856,
+        "skip": 6
+      },
+      "top_level": {
+        "pass": 441,
+        "skip": 6
+      },
+      "packages": {
+        "skip": 1,
+        "pass": 14
+      },
+      "failed_tests": []
     },
     {
       "name": "race",
@@ -38,29 +44,28 @@
         "go",
         "test",
         "-race",
+        "-json",
         "-count=1",
-        "-timeout",
-        "25m",
-        "-v",
+        "-timeout=25m",
         "./..."
       ],
       "exit_code": 0,
-      "log_sha256": "d8df3c4bd45cc7a678ce2b31206e64c904fe014dd8b4a55b7ea92f5424ed9096",
-      "top_level_pass": 430,
-      "all_pass": 834,
-      "fail": 0,
-      "skip": 6,
-      "packages": 14,
-      "data_race": false,
-      "failed_tests": [],
-      "skipped_tests": [
-        "TestRealClaudeManagedCandidate (0.00s)",
-        "TestRealClaudeReviewerProfile (0.00s)",
-        "TestRealVersionMatrixRead (0.00s)",
-        "TestRealVersionMatrixInvocationStages (0.00s)",
-        "TestProbeCauseDecompositionObservation (0.00s)",
-        "TestS4StageTimingObservation (0.00s)"
-      ]
+      "seconds": 149.463,
+      "log": "go-final-race.jsonl",
+      "sha256": "93dfab91d0b13d16d618484b283f2d441a071af47835504a299ffcafb845edaf",
+      "all_cases": {
+        "pass": 856,
+        "skip": 6
+      },
+      "top_level": {
+        "pass": 441,
+        "skip": 6
+      },
+      "packages": {
+        "skip": 1,
+        "pass": 14
+      },
+      "failed_tests": []
     },
     {
       "name": "vet",
@@ -69,7 +74,10 @@
         "vet",
         "./..."
       ],
-      "exit_code": 0
+      "exit_code": 0,
+      "seconds": 0.426,
+      "log": "go-final-vet.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "name": "build",
@@ -78,34 +86,296 @@
         "build",
         "./..."
       ],
-      "exit_code": 0
+      "exit_code": 0,
+      "seconds": 0.656,
+      "log": "go-final-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "binary",
+      "command": [
+        "go",
+        "build",
+        "-o",
+        "<private-task>/tmp/orchestrator-10",
+        "./cmd/orchestrator"
+      ],
+      "exit_code": 0,
+      "seconds": 0.268,
+      "log": "go-final-binary.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "matrix-binary",
+      "command": [
+        "go",
+        "test",
+        "-c",
+        "-o",
+        "<private-task>/tmp/matrix-10.test",
+        "./cmd/orchestrator"
+      ],
+      "exit_code": 0,
+      "seconds": 0.391,
+      "log": "go-final-matrix-binary.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     }
   ],
-  "post_status": "committed handover fix set; see git log on handoff/cli-version-compatibility-20261102",
-  "manifest_mismatches": [],
-  "manifest_files": 225,
-  "scope": "Default Go suites only; six opt-in checks skipped. No real model calls in this record. Known load flakes (pass isolated and in final runs): TestGrokHostLaunchUsesAuthorizedSession, TestTaskProbeProviderSelection. Pre-existing gofmt listing: internal/host/n04_pipe_sensitive_test.go (untouched, hash matches manifest).",
-  "package_checks": [
+  "python_checks": [
     {
-      "command": [
-        "sh",
-        "-n",
-        "tasks/g1-g4-delivery/scripts/package-plugin.sh"
-      ],
-      "exit_code": 0
+      "command": "python -m pytest tools/native-product-bridge tools/real-user-trial -q",
+      "passed": 159,
+      "failed": 0,
+      "skipped": 4,
+      "log": "python-final.log",
+      "sha256": "7e20a26b9a92f1d1f19483133692cdc5b33708bb7b861d6e3e9d684f86152cd3"
     },
     {
-      "command": [
-        "sh",
-        "tasks/g1-g4-delivery/scripts/test-package-executable-modes.sh"
-      ],
-      "exit_code": 0
+      "command": "CODEX_RUN_NATIVE_AUTH_TRUSTED_MAIN=1 CODEX_TRIAL_NATIVE_VERSION=0.166.0 <private fixed binary/root> python -m pytest tools/real-user-trial/test_native_auth_trusted166.py -q",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "log": "trusted166-final-2.log",
+      "sha256": "c06d3a6048af643441115d3cd28cb4c5e523569ec8de10a5f9af7dc418aee733"
     },
     {
-      "name": "isolation_package_build",
-      "exit_code": 0,
-      "package_manifest_sha256": "64ad89461e73ccf4c13dc19e89f7052dd5250825aff1fe30d181589fd07b9a82",
-      "packaged_binary_sha256": "c6e48bf5fa5479403211b25439dc17d3ac57dd76530cf8462dc8b5538357685b"
+      "command": "fixed 0.154 native auth-tripwire opt-in suite",
+      "passed": 13,
+      "failed": 0,
+      "log": "native-baseline.log",
+      "sha256": "71797afb08cd62dfbefc56ad7a9745c9ca34640204b111cf263942e54f73d48a",
+      "reuse_reason": "No affected 0.154 native call semantics changed; read timeout default stays5 seconds."
+    },
+    {
+      "command": "fixed 0.154 native named tool-policy opt-in",
+      "passed": 1,
+      "failed": 0,
+      "log": "native-tool-policy.log",
+      "sha256": "3b4ad3097d7020cd8b172384869bd1db1102ffc4c9316bde31fef1b3bcacf9c6",
+      "reuse_reason": "render_native_config unchanged; final installed helper bytes equal reviewed snapshot."
     }
-  ]
+  ],
+  "package": {
+    "version": "0.1.11-cli-production",
+    "kind": "installed_isolated_package",
+    "pin_bypass": false,
+    "binary_sha256": "81669b409137ad2aed8e81d3d8127d1e0db7b6f1987682ab6d98b67e044c05f7",
+    "manifest_sha256": "0b91c6d11295ba9517411fed02207c02baf1d811c196e6716ecda3890293fa2a",
+    "python_interpreter": "python3.14 pinned by package receipt; absolute installation path stays private",
+    "guard_source_files": [
+      {
+        "path": "lib/trial/codex_exec.py",
+        "sha256": "af10b45965a5b67b9a2e78b200d1896af03ddf97c9a5fcc982891176ce5fd556"
+      },
+      {
+        "path": "lib/trial/auth_guard.py",
+        "sha256": "d61d1d250474d9af88ef59aaa3a200ae8b0bd0cdcce7c27c86bdcdc9931155cf"
+      }
+    ],
+    "execution_bytes_unchanged_from_full_race_build": true,
+    "go_binary_build_log": "go-final-binary.log"
+  },
+  "matrix_configuration": {
+    "file_mode": "0600",
+    "scope": "private task-local environment; eight actual binary paths and installed package path, no global installs/locks/auth changes",
+    "configured_variables": 9,
+    "required_ceiling_variables": [
+      "ORCHESTRATOR_MATRIX_GROK_CEILING",
+      "ORCHESTRATOR_MATRIX_CODEX_CEILING"
+    ],
+    "sha256": "953a103f89a32ce38c52a13d433376b51a7ce744da68f209cc64409c7815dd5d"
+  },
+  "version_inventory": "../tasks/cli-production-rollout/docs/version-inventory.json",
+  "real_endpoints": "../tasks/cli-production-rollout/docs/real-endpoint-verification.json",
+  "real_model_summary": {
+    "endpoints_passed": 8,
+    "middle_versions_passed": [
+      "claude-code2.1.290",
+      "grok-build1.0.52"
+    ],
+    "total_versions_passed": 10,
+    "no_model_versions_passed": 13,
+    "catalog_versions": 139,
+    "no_model_versions_not_tested": 126,
+    "real_model_versions_not_tested": 129
+  },
+  "codex_contracts": [
+    {
+      "missing_key": "verified_auth_metadata_source_missing",
+      "implemented_by": [
+        "plugins/codex-orchestrator/lib/trial/codex_exec.py:FileLoginSource",
+        "check_config_sources",
+        "prepare_launch"
+      ],
+      "evidence": [
+        "test_source_projects_real_file_readonly_and_binds_proof",
+        "test_source_rejects_unusable_auth",
+        "test_source_observation_expires",
+        "test_prepare_rejects_change_between_status_and_exec",
+        "final installed-package native rounds"
+      ]
+    },
+    {
+      "missing_key": "exec_refresh_tripwire_not_applied",
+      "implemented_by": [
+        "plugins/codex-orchestrator/lib/trial/auth_guard.py:prepare_guarded_environment",
+        "plugins/codex-orchestrator/lib/trial/codex_exec.py:prepare_launch",
+        "tools/orchestrator/internal/host/codex.go"
+      ],
+      "evidence": [
+        "test_duplicate_override_rejected_before_binary_or_auth_reads (missing/value/empty existing override rejected)",
+        "test_prepare_success_binds_snapshot_and_guard_is_only_injector",
+        "0.154 synthetic native refresh positive/guarded",
+        "0.166 trusted-main positive2 exact four-field OAuth requests; guarded OAuth count unchanged and auth bytes/identity unchanged"
+      ]
+    },
+    {
+      "missing_key": "native_auth_admission_exact_pin",
+      "implemented_by": [
+        "tools/orchestrator/internal/adapter/admit.go:CodexNativePins",
+        "plugins/codex-orchestrator/lib/trial/auth_guard.py:NATIVE_ADMISSIONS",
+        "plugins/codex-orchestrator/lib/trial/codex_exec.py:verify_bundle/render_native_config",
+        "tools/orchestrator/internal/install/codex_runtime.go"
+      ],
+      "evidence": [
+        "0.154 and0.166 exact double binary pins",
+        "receipt/helper/interpreter/bundle tamper rejection",
+        "same generated named tool policy: control/owners/bootstrap/DB/sibling spool/auth/config read denied; workspace writes denied; own scratch/artifacts allowed; tool network connections0",
+        "user explicitly authorized pinned native main trust; tools sandboxed by native named profile"
+      ]
+    },
+    {
+      "missing_key": "codex_exec_collect_loop_not_evidenced",
+      "implemented_by": [
+        "tools/orchestrator/internal/host/host.go:ExecuteLaunch",
+        "tools/orchestrator/internal/host/report.go",
+        "tools/orchestrator/cmd/orchestrator/real_version_matrix_test.go"
+      ],
+      "evidence": [
+        "20261103T031646Z:codex-cli 0.154.0",
+        "20261103T031646Z:codex-cli 0.166.0"
+      ],
+      "result": "final package, no bypass, real tool read, exact marker/artifact, collect/ACK/accept/final completed"
+    }
+  ],
+  "native_pins": [
+    {
+      "version": "0.154.0",
+      "main_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "companion_sha256": "426d73aaeb2aeef45e98b5add99e8ef9594a31673d281489bb2cb06b38c27423"
+    },
+    {
+      "version": "0.166.0",
+      "main_sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+      "companion_sha256": "fd37051bfdce0b65cf22a7077e265720a7bd6709d5e400dcbc26197f3041400a",
+      "companion_archive_sha256": "7abd50fe5f033495a7b693c45fb82dc57093a18f1c4ba3e8043577de46c5c7c5",
+      "official_fixed_source": "https://github.com/openai/codex/releases/tag/rust-v0.166.0",
+      "synthetic_log_sha256": "c06d3a6048af643441115d3cd28cb4c5e523569ec8de10a5f9af7dc418aee733",
+      "policy_log_sha256": "8d09f64c8af0fc5d3c763c5dfef0acea1d60dea0626120b5123424b0d8a82fe0"
+    }
+  ],
+  "independent_reviews": [
+    {
+      "scope": "Go production wiring, controls/models/admission, lock validation and parser fixture separation",
+      "verdict": "PASS"
+    },
+    {
+      "scope": "Codex exact0.154/0.166 auth/projection/tripwire/native tool policy/installed real loop",
+      "verdict": "PASS"
+    },
+    {
+      "scope": "Permanent0.166 synthetic native regression and bounded JSONL timeout",
+      "verdict": "PASS"
+    },
+    {
+      "scope": "public product selective patch retaining entrypoints and coding profiles",
+      "verdict": "PASS"
+    }
+  ],
+  "accounts": {
+    "claude_first_party_login": {
+      "observed": "loggedIn=false,authMethod=none",
+      "route_now_verified": "user_supplied_anthropic_gateway_bearer",
+      "model": "deepseek-v4.1-flash-1017"
+    },
+    "grok_first_party_balance": {
+      "observed": "no balance",
+      "source": "explicit user confirmation",
+      "no_further_native_balance_requests": true,
+      "route_now_verified": "user_supplied_openai_chat_completions_gateway",
+      "model": "deepseek-v4.1-flash-1017"
+    },
+    "agy": {
+      "models_metadata": "passed",
+      "current_package_real_endpoints": "passed1.2.3 and1.4.12",
+      "model": "gemini-3.8-flash-low",
+      "remaining_absolute_quota": "not measured"
+    }
+  },
+  "public_product": {
+    "base": "2e78f24c5e9694f287d19065f2ce9c80b16a59af",
+    "patch": "../tasks/cli-production-rollout/docs/public-product.patch",
+    "patch_sha256": "62cefc9a1902c9008e6d5e6a2ea418be0f0187fbaaf162f639470850d64aba0b",
+    "verification": "../tasks/cli-production-rollout/docs/public-product-verification.json",
+    "status": "selective implementation/review/automated acceptance candidate; not published",
+    "main_master_changed": false
+  },
+  "remaining_internal_scope": [
+    "Codex0.159.2/0.165.0 actual binaries pass no-model/version discovery but lack exact native admission evidence; full four-contract gate retained. Other19 catalog Codex releases are not native-admitted.",
+    "Full registered Codex tool-catalog snapshot has not been separately persisted/allowlist-checked; actual necessary tool path and OS policy are evidenced.",
+    "cleanupCodexAuth path check/removal TOCTOU is a defense-in-depth hardening item under current700 Host-owned paths; not model-reachable with verified tool policy.",
+    "Typed resume and Codex workspace-write are intentionally unsupported; no acceptance claimed."
+  ],
+  "unverified_scope": [
+    "126 catalog versions have no actual binary/no-model checks;129 no real model acceptance.",
+    "AGY1.3.4 fixed artifact unavailable from inspected official release (no assets) and bucket listing401; not tested.",
+    "No native TUI acceptance, public-product installation/model acceptance or main/master publication."
+  ],
+  "failed_attempts_preserved": [
+    {
+      "log": "go-final-full-first.jsonl",
+      "reason": "typed lock error ordering and synthetic Codex parser fixture entering native pin gate; original assertions retained, fixes independently reviewed, final full/race passed",
+      "sha256": "2771219123ae0c796df623115e2ad924b25006cbaf65f6926f026681fcaa5f31"
+    },
+    {
+      "log": "trusted166-final.log",
+      "reason": "old5s JSONL read bound expired after guarded refresh denial while background routing retried; bounded20s for0.166 only, strict assertions retained, final opt-in passed",
+      "sha256": "8f7f8e6c3ec410417dbde7464eef4bf8c800d9ed51a7af1e82c3a114059017df"
+    },
+    {
+      "round": "20261103T025256Z",
+      "reason": "Claude x-api-key gateway401; Bearer route later passed real native loop"
+    },
+    {
+      "round": "20261103T020041Z",
+      "reason": "Grok original account attempt expired150s active budget; absence of balance supplied by user, not inferred from this timeout"
+    }
+  ],
+  "historical_baseline_only": {
+    "commit": "55741e28c783fc7b97eeba8e0688c31c0118f229",
+    "top_level_pass": 430,
+    "all_pass": 834,
+    "skip": 6,
+    "note": "Matrix/process contracts already closed. Historical numbers and AGY old-package successes are not final acceptance."
+  },
+  "publication_scan": {
+    "tool": {
+      "version": "8.30.1",
+      "source": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz",
+      "archive_sha256": "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5",
+      "binary_sha256": "ba52fb1bfabbcde42f032afad3d6e0b19dff8ed105229a16e7caa338bbc0e84f"
+    },
+    "scope": "45 changed/new delivery files, including selective product patch, copied into private snapshot; raw sessions and ignored data excluded",
+    "findings": 0,
+    "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "log_sha256": "138f861452246154f15ac952773b6cc607ce247f2189ec7d0963aa37b96b2bca",
+    "exact_user_key_private_endpoint_and_personal_path_scan": "PASS",
+    "first_scan_note": "One generic-api-key false positive was the public source-code SHA of auth_guard.py. Source digests now use the manifest path/sha256 representation; no real secret found.",
+    "temporary_credential_file_removed": true
+  },
+  "artifact_checks": {
+    "source_diff_whitespace": "PASS; git diff --cached --check excluding the raw patch data file",
+    "selective_patch_apply_whitespace": "PASS; git apply --check --whitespace=error-all against clean public base2e78f24",
+    "note": "Unified-diff context prefixes are intentional patch syntax; the patch bytes and reviewed digest remain unchanged."
+  }
 }
