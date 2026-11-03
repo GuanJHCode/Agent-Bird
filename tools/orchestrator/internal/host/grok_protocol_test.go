@@ -74,9 +74,8 @@ func TestGrokRejectsDifferentGrantedSession(t *testing.T) {
 	}
 }
 
-// Real Grok 1.0.34 transcripts interleave tool_started/tool_completed events
-// between assistant messages; only text after the last tool boundary is the
-// final answer. mvp-grok-readonly delivered the full concatenation instead.
+// Legacy synthetic boundary names remain accepted. Actual Grok ACP projections
+// use tool_call/tool_call_update, covered separately below.
 func TestGrokToolBoundaryKeepsFinalAnswerOnly(t *testing.T) {
 	p, err := newProtocolCollector("grok-build")
 	if err != nil {
@@ -91,6 +90,46 @@ func TestGrokToolBoundaryKeepsFinalAnswerOnly(t *testing.T) {
 	event, session, err := p.Finish()
 	if err != nil || session != "grok-1" || event.Text != "GROK_READ_final" {
 		t.Fatalf("unexpected result: %+v %q %v", event, session, err)
+	}
+}
+
+func TestGrokActualACPToolBoundariesDiscardPreamble(t *testing.T) {
+	p, _ := newProtocolCollector("grok-build")
+	_, _ = p.Write([]byte(`{"type":"text","data":"I'll read the file."}` + "\n" +
+		`{"type":"tool_call","toolCallId":"read-1","toolName":"read_file","rawInput":{"path":"TOKEN.txt"}}` + "\n" +
+		`{"type":"tool_call_update","toolCallId":"read-1","status":null}` + "\n" +
+		`{"type":"tool_call_update","toolCallId":"read-1","status":"completed","rawOutput":{"private":"DROP"}}` + "\n" +
+		`{"type":"text","data":"EXACT_FINAL"}` + "\n" +
+		`{"type":"usage","messageId":"response-2","stopReason":"end_turn"}` + "\n" +
+		"{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n"))
+	event, _, err := p.Finish()
+	if err != nil || event.Text != "EXACT_FINAL" {
+		t.Fatalf("ACP tool boundaries did not isolate the final answer: %+v %v", event, err)
+	}
+}
+
+func TestGrokActualACPBoundariesFailClosed(t *testing.T) {
+	for _, kind := range []string{"tool_call", "tool_call_update"} {
+		for _, id := range []string{"", `,"toolCallId":""`, `,"toolCallId":null`, `,"toolCallId":7`} {
+			t.Run(kind+id, func(t *testing.T) {
+				p, _ := newProtocolCollector("grok-build")
+				_, _ = p.Write([]byte(`{"type":"` + kind + `"` + id + "}\n"))
+				if _, _, err := p.Finish(); err == nil {
+					t.Fatal("malformed ACP boundary accepted")
+				}
+			})
+		}
+		p, _ := newProtocolCollector("grok-build")
+		_, _ = p.Write([]byte(`{"type":"end","sessionId":"s","stopReason":"end_turn"}` + "\n" + `{"type":"` + kind + `","toolCallId":"call"}` + "\n"))
+		if _, _, err := p.Finish(); err == nil || err.Error() != "provider_event_after_terminal" {
+			t.Fatalf("late ACP boundary accepted: %v", err)
+		}
+		p, _ = newProtocolCollector("grok-build")
+		p.expectedSessionID = "expected"
+		_, _ = p.Write([]byte(`{"type":"` + kind + `","toolCallId":"call","sessionId":"foreign"}` + "\n"))
+		if _, _, err := p.Finish(); err == nil || err.Error() != "provider_session_changed" {
+			t.Fatalf("foreign ACP boundary accepted: %v", err)
+		}
 	}
 }
 

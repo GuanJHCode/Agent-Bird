@@ -132,6 +132,11 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		meta.outputProvider = structured.OutputProvider()
 	}
 	cmd := invocationCommand(inv)
+	if meta.outputProvider == string(adapter.ProviderClaude) && claudeGatewaySelected(cmd) {
+		if err := validateClaudeGatewayInvocation(inv, profile); err != nil {
+			return contract.Result{}, err
+		}
+	}
 	if meta.outputProvider == string(adapter.ProviderCodex) {
 		defer cleanupCodexAuth(filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
 		pinned, ok := inv.(interface{ Pin() adapter.BinaryPin })
@@ -169,6 +174,12 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 
 	} else if profile != nil && profile.Permission == adapter.WorkspaceWrite {
 		return contract.Result{}, errors.New("managed_workspace_required")
+	} else if profile != nil && profile.Role == adapter.Reviewer && meta.outputProvider == string(adapter.ProviderClaude) && claudeGatewaySelected(cmd) {
+		scratch := filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch")
+		defer cleanupClaudeGatewayState(scratch)
+		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
+			return claudeGatewayCommand(ctx, cmd, profile, scratch)
+		}
 	} else if profile != nil && profile.GrokSessionWrite {
 		if meta.outputProvider != string(adapter.ProviderGrok) {
 			return contract.Result{}, errors.New("profile_provider_state_mismatch")

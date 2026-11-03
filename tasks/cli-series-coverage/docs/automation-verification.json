@@ -1,0 +1,280 @@
+{
+  "recorded_at": "2026-11-03T06:42:31.514661+00:00",
+  "source_binding": {
+    "manifest": "cli-version-source-manifest.json",
+    "sha256": "78f1a2dfcd4d2ca86f5c3ed5124493a6fe40a7b4cb5760c2e950f20e596d7244",
+    "files": 261,
+    "note": "Source snapshot and acceptance committed together; Go embedded VCS base predates this commit; verify every source digest."
+  },
+  "go_toolchain": "go1.26.10 darwin/arm64",
+  "go_environment": {
+    "GOMAXPROCS": "4",
+    "parallelism": "-p=4"
+  },
+  "go_checks": [
+    {
+      "name": "full",
+      "command": [
+        "go",
+        "test",
+        "-p=4",
+        "-json",
+        "-count=1",
+        "-timeout=25m",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 126.112,
+      "log": "go-final-full.jsonl",
+      "sha256": "31a0a0d93e50f8699fdd44f9693cb64ff76f7ed4dff1ae039f109773b534c7cd",
+      "all_cases": {
+        "pass": 889,
+        "skip": 7
+      },
+      "top_level": {
+        "pass": 454,
+        "skip": 7
+      },
+      "packages": {
+        "skip": 1,
+        "pass": 14
+      },
+      "failed_tests": []
+    },
+    {
+      "name": "race",
+      "command": [
+        "go",
+        "test",
+        "-p=4",
+        "-race",
+        "-json",
+        "-count=1",
+        "-timeout=25m",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 155.763,
+      "log": "go-final-race.jsonl",
+      "sha256": "58be2a6c07ebad8c079e9f495b4cdaa14a21a3bdf4354d7b8e25e264fc7ea99f",
+      "all_cases": {
+        "pass": 889,
+        "skip": 7
+      },
+      "top_level": {
+        "pass": 454,
+        "skip": 7
+      },
+      "packages": {
+        "skip": 1,
+        "pass": 14
+      },
+      "failed_tests": []
+    },
+    {
+      "name": "vet",
+      "command": [
+        "go",
+        "vet",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 0.89,
+      "log": "go-final-vet.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build",
+      "command": [
+        "go",
+        "build",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 0.76,
+      "log": "go-final-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "binary",
+      "command": [
+        "go",
+        "build",
+        "-o",
+        "<private-series-task>/tmp/orchestrator-17-final",
+        "./cmd/orchestrator"
+      ],
+      "exit_code": 0,
+      "seconds": 0.273,
+      "log": "go-final-binary.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "matrix-binary",
+      "command": [
+        "go",
+        "test",
+        "-c",
+        "-o",
+        "<private-series-task>/tmp/matrix-17-final.test",
+        "./cmd/orchestrator"
+      ],
+      "exit_code": 0,
+      "seconds": 0.385,
+      "log": "go-final-matrix-binary.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "python_checks": [
+    {
+      "command": "python -m pytest tools/native-product-bridge tools/real-user-trial -q",
+      "passed": 159,
+      "failed": 0,
+      "skipped": 4,
+      "log": "python-final.log",
+      "sha256": "7e20a26b9a92f1d1f19483133692cdc5b33708bb7b861d6e3e9d684f86152cd3",
+      "reused": true,
+      "reuse_reason": "Python source and tested guard/native policy bytes unchanged; no changed catalog input is consumed by these suites. Current installed guard bytes verified against pkg11 source hashes."
+    },
+    {
+      "command": "CODEX_RUN_NATIVE_AUTH_TRUSTED_MAIN=1 CODEX_TRIAL_NATIVE_VERSION=0.166.0 <private fixed binary/root> python -m pytest tools/real-user-trial/test_native_auth_trusted166.py -q",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "log": "trusted166-final-2.log",
+      "sha256": "c06d3a6048af643441115d3cd28cb4c5e523569ec8de10a5f9af7dc418aee733",
+      "reused": true,
+      "reuse_reason": "Python source and tested guard/native policy bytes unchanged; no changed catalog input is consumed by these suites. Current installed guard bytes verified against pkg11 source hashes."
+    },
+    {
+      "command": "fixed 0.154 native auth-tripwire opt-in suite",
+      "passed": 13,
+      "failed": 0,
+      "log": "native-baseline.log",
+      "sha256": "71797afb08cd62dfbefc56ad7a9745c9ca34640204b111cf263942e54f73d48a",
+      "reuse_reason": "Python source and tested guard/native policy bytes unchanged; no changed catalog input is consumed by these suites. Current installed guard bytes verified against pkg11 source hashes.",
+      "reused": true
+    },
+    {
+      "command": "fixed 0.154 native named tool-policy opt-in",
+      "passed": 1,
+      "failed": 0,
+      "log": "native-tool-policy.log",
+      "sha256": "3b4ad3097d7020cd8b172384869bd1db1102ffc4c9316bde31fef1b3bcacf9c6",
+      "reuse_reason": "Python source and tested guard/native policy bytes unchanged; no changed catalog input is consumed by these suites. Current installed guard bytes verified against pkg11 source hashes.",
+      "reused": true
+    }
+  ],
+  "native_checks": [
+    {
+      "log": "native-os-boundaries.log",
+      "sha256": "56edc9d9d290c8edc1e8c6257c3c6ca14e5570567affef49ea97ec23b395853f",
+      "result": "passed",
+      "scope": "Mach positive/deny and immutable policy/source/workspace"
+    },
+    {
+      "log": "final-fixture-focused-2.log",
+      "sha256": "b78445bfc7970b511973f2b2edd9b6d0691c6edb0a9f0c887ba0d05b07475fa8",
+      "result": "passed",
+      "scope": "four affected fixture tests under race -count=3; no production process changes"
+    }
+  ],
+  "explicit_claude_native_checks": {
+    "fixed_versions": 36,
+    "bearer_pass": 36,
+    "api_key_pass": 3,
+    "real_model": false,
+    "details": "version-series-verification.json"
+  },
+  "go_skipped_tests": [
+    "codex-cli-orchestration-design/tools/orchestrator/internal/adapter/TestProbeCauseDecompositionObservation",
+    "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestNativeClaudeGatewayReadOnlyTransport",
+    "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestS4StageTimingObservation",
+    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeManagedCandidate",
+    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeReviewerProfile",
+    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixRead",
+    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixInvocationStages"
+  ],
+  "package": {
+    "version": "0.1.17-cli-series",
+    "kind": "installed_isolated_package",
+    "pin_bypass": false,
+    "binary_sha256": "cc3a56c97358f8b3d9e7569f65a7ca82d39cfe4946c5ad5cd149e457bfb459ce",
+    "manifest_sha256": "b705ca7c6d6495099a877ca7bd1c75d38a51cd5f7aef39b512a26e6f286eb899",
+    "manifest_file_count": 24,
+    "installed_files_and_modes_match": true,
+    "execution_bytes_equal_final_go_build": true,
+    "guard_source_files": [
+      {
+        "path": "lib/trial/codex_exec.py",
+        "sha256": "af10b45965a5b67b9a2e78b200d1896af03ddf97c9a5fcc982891176ce5fd556"
+      },
+      {
+        "path": "lib/trial/auth_guard.py",
+        "sha256": "d61d1d250474d9af88ef59aaa3a200ae8b0bd0cdcce7c27c86bdcdc9931155cf"
+      }
+    ],
+    "package_manifest_sha256": "705ea20410570837f638d4fa07a970065120d70e682e1951647bc57c5d24404b",
+    "installed_manifest_sha256": "b705ca7c6d6495099a877ca7bd1c75d38a51cd5f7aef39b512a26e6f286eb899",
+    "runtime_manifest_sha256": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0",
+    "pinned_interpreter_sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
+    "manifest_scope": "manifest_sha256 identifies installed manifest.json; package_manifest_sha256 separately identifies the outer package-manifest.json envelope."
+  },
+  "independent_reviews": [
+    {
+      "scope": "Claude gateway, metadata environment/sandbox, fixed Node, privacy, native contract evidence",
+      "verdict": "PASS"
+    },
+    {
+      "scope": "Go catalog/argv/ACP/diagnostics and gateway branch wiring",
+      "verdict": "PASS"
+    },
+    {
+      "scope": "final test readiness/metadata fixtures retain all original production assertions",
+      "verdict": "PASS"
+    },
+    {
+      "scope": "public selective candidate, original product preservation and diagnostic-only evidence delta",
+      "verdict": "PASS"
+    }
+  ],
+  "failed_development_attempts_preserved": [
+    {
+      "log": "go-final-full-first.jsonl",
+      "sha256": "60591f3f5291225be08237a752cdd5bedc41013458c3c2170b7f9950b302dc6b"
+    },
+    {
+      "log": "go-before-fixture-exit-full.jsonl",
+      "sha256": "da287e48046b68320f1f0555f078dfc022594b5f0639cac0e3752cc68742b08f"
+    },
+    {
+      "log": "go-first-race.jsonl",
+      "sha256": "92bd64b80c1591f9cca42757bfe57f07f0cae733befc7c40d3057fad5fb024d8"
+    },
+    {
+      "log": "go-second-race.jsonl",
+      "sha256": "685b7a9218a1e01ab654a3f42cca65898ab1c721fe06a0d9dc7e7dbfdffd54d8"
+    },
+    {
+      "log": "final-fixture-focused.log",
+      "sha256": "a7d04baf9999836f03cc2a18397e423850bd4902a28faac276a2b1be519ee2b6"
+    }
+  ],
+  "publication_scan": {
+    "tool": {
+      "version": "8.30.1",
+      "source": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz",
+      "archive_sha256": "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5",
+      "binary_sha256": "ba52fb1bfabbcde42f032afad3d6e0b19dff8ed105229a16e7caa338bbc0e84f"
+    },
+    "scope": "41 changed/new delivery files including selective public patch; original sessions/ignored data excluded",
+    "findings": 0,
+    "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "log_sha256": "9aace1e0c611d706454edc2a1753aa468c5f9864dcfa18e54d91ceb3fa345183",
+    "exact_user_key_private_endpoints_personal_path_scan": "PASS",
+    "temporary_credential_file_removed": true,
+    "temporary_publication_snapshot_removed": true,
+    "installed_manifest_binding_correction_rescanned": true,
+    "exact_scan_reuse_note": "After exact credential scan and cleanup, only public SHA-256 fields and fixed nonsecret manifest labels changed; full gitleaks/path scan repeated."
+  }
+}

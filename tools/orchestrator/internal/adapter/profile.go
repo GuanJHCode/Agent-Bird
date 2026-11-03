@@ -64,6 +64,9 @@ func validateProfile(req Request) error {
 	}
 	p := req.Profile
 	if p == nil {
+		if req.Provider == ProviderClaude && claudeLegacySeries(req.Binary.Version) {
+			return errors.New("claude_legacy_typed_readonly_required")
+		}
 		return nil
 	}
 	if p.GrokSessionWrite && req.Provider != ProviderGrok {
@@ -83,6 +86,9 @@ func validateProfile(req Request) error {
 		if !ok || !strings.EqualFold(req.Binary.SHA256, want) {
 			return CodexTrialBlocked()
 		}
+	}
+	if req.Provider == ProviderClaude && claudeLegacySeries(req.Binary.Version) && (p.Role != Reviewer || p.Permission != ReadOnly || req.Action != nil || req.Workspace != nil) {
+		return errors.New("claude_legacy_typed_readonly_required")
 	}
 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
 		return errors.New("execution_profile_invalid")
@@ -133,7 +139,7 @@ func CheckCapabilities(req Request, help string) error {
 	}
 	flags := []string{"--output-format", "--input-format", "--permission-mode"}
 	if req.Provider == ProviderClaude {
-		flags = append(flags, "--disallowed-tools")
+		flags = append(flags, claudeDisallowedFlag(req.Binary.Version))
 	}
 	if usesCandidateReviewSchema(req) {
 		flags = append(flags, "--json-schema")

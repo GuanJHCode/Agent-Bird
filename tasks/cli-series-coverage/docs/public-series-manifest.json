@@ -1,0 +1,245 @@
+{
+  "base": "2e78f24c5e9694f287d19065f2ce9c80b16a59af",
+  "worktree": "<private-public-copy>",
+  "prior_patch": "<private-pkg11-task>/data/public-product.patch",
+  "prior_patch_sha256": "62cefc9a1902c9008e6d5e6a2ea418be0f0187fbaaf162f639470850d64aba0b",
+  "source_handoff": "<handoff-worktree>",
+  "source_head": "2e089338c071c24e3544f6ffbd1a03139a7e2ae8",
+  "patch": "<private-series-task>/data/public-series.patch",
+  "patch_sha256": "9bea938f0fb6ddbb152f7b178bfbc7b0d79f4124349ded419a3da3bef05a34bf",
+  "changedfiles": [
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/candidate_cli_test.go",
+      "sha256": "b14f11fbc084e23ddfa0634a3a893532ce40ef80fc4a3f3cdd2c1adcce224013"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/candidate_test.go",
+      "sha256": "e680a6d76ebd15619ed41c8b7e9e83659b25a39f1bca74c6a1d03a9a919bc8e3"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/interruption_cli_test.go",
+      "sha256": "8592b755836e94f964e11d6f209053c563ee9a44aef77cc6c76cc42457da8359"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/main.go",
+      "sha256": "bb86e59b3034f2bc02ae13680647b99ff6a5dddadfbf77dd2cf78ae6e52f3c07"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/main_test.go",
+      "sha256": "f9dc11cbb08814c11c71bacc4a49dc37e44e003dd03b3507f72f81976d27b14f"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider.go",
+      "sha256": "b953ff0cafceeced6c44424683c22b74ecca75f9b752ece1a1aa6351f8a3513b"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider_test.go",
+      "sha256": "6136c77c08807bbf013b72132ad4d8376944cecca5195b65bf865763e2762751"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go",
+      "sha256": "24b648a0b52a4f7587fd65566c9ea7091e61e3808625049a07caba25b41d72a3"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry.go",
+      "sha256": "9b3a27907b38beaaf5e0a3618e101397321133fc89ae24820bbdb7109721ee61"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry_test.go",
+      "sha256": "fcaf7831f4037ef58607de2811a8456d66e02d3adb1c247017ff1c771471ad47"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_provider_test.go",
+      "sha256": "2fa51ef86551fa895c62bbb8aaf4719edc94f4f0cb4cab40143810d68381fc69"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/version_cli_test.go",
+      "sha256": "d3b4f9b385730fd58903e310010d3851d8b2162bc5c0388359658f2afedd8e59"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/adapter.go",
+      "sha256": "ea7bb94e8d6beadb25d1aef1d1f49d1fb24dd0908d5194ddcb90bbddac7c4548"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/adapter_test.go",
+      "sha256": "595ce24da61b5f8c60088524600a5a6a2c3c60c970442fab9a4dabfab5449e6a"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/admit.go",
+      "sha256": "1e38b3d252cfed09436d517fca7e77a129d41ed73495bb70861623985c14d0ab"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/admit_test.go",
+      "sha256": "a3a17316e715e383e3898db052401bd569d9932b0b9d93b05bd51f6047109844"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/catalog.go",
+      "sha256": "ee9e7ad6f70f4c1407339aba8d3b5fb2a4b02bb7814c5b4e06288c03156cfc19"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/claude_probe.go",
+      "sha256": "4ead856b6f1520e42fbe2f6eee69e1fbb126255ad5383e129c815cf0b6e1e641"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/claude_probe_test.go",
+      "sha256": "3982b49965a4c92f7846fb9a6d0abd1ba6c4b153ab6b04e6a6f5343d72f5d470"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/coding_profiles_test.go",
+      "sha256": "91cbfbbaf97215a6d7ca7f2a6f4c8dc9a7c81d727c7086941f51a6734ebde738"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/compatibility_catalog.json",
+      "sha256": "67a34b8716782c36fa3dcda432fa4778aedc6f5785946e5908ce0bd2dbe88d50"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/compatibility_test.go",
+      "sha256": "53f27e8fc5b01d9117252cef3afc9881b8b4992635f48ce4ba870646f5b54afb"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/probe.go",
+      "sha256": "05d8a59e8cdf9f63cb8df014ed214a46ed0e0845aac81c80c2065b9c314dcefa"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/probe_failure_test.go",
+      "sha256": "8a8f3c48e76e6febfb4dee7eb480c1941e288f147ed55affd55a3373a8d3ff1a"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/profile.go",
+      "sha256": "98a680484bb1c51654dd1385ae338a67e368b00b4ec4992641c4886d730d6643"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/profile_test.go",
+      "sha256": "78afaeb957b4b4414da1a4ab3d42719751072eeaf5e8b40666c58de4b35de467"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/protocol.go",
+      "sha256": "bf7e1cc14875148da2ccf06f9670a828aa57032fc9e39946af82756fac68ae7d"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/version.go",
+      "sha256": "fe58cd097bc7ca0897088a76068086e987e87b3adff2cf7aba9915e622625b03"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/claude.go",
+      "sha256": "5b10c7955ff925ba51ba7137c7707d662a3d034663d288da8c841299987bdda0"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/claude_native_test.go",
+      "sha256": "4ff1b33f86645d67363b4d9f9a0eb442bb02efa17e35189e24cac51387eac904"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/claude_test.go",
+      "sha256": "b6ea308d11be35bacdd8335ee86323e809122d083108ed23aea7279dcd3f9048"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/grok_protocol_test.go",
+      "sha256": "c35622e3dcc8112e37a85e6d61230cb0903fe19dea5e3cc0d2f2183e6e25d63c"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/host.go",
+      "sha256": "533beacf347a2a756a895787d666977dc60b83034218a4c7810c7001e1e4fcd1"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/profile_test.go",
+      "sha256": "340b1edd8e92f4032ff91681c26bae1059aef93a0c2ff202adceb73de633ee78"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/protocol.go",
+      "sha256": "d44480c7d07bc5b74beea11980059483ee2356d2fb157e969982f181675c12f7"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/provider_diagnostics.go",
+      "sha256": "792149798ba5b08cd44a2756773e0cd8078259f21feafa455c6638643fa2c89e"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/provider_diagnostics_test.go",
+      "sha256": "027227d2644edd905f988f7e1add73f2f99e4d2ef644fa6bddb0bb5392298946"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/review_retry_test.go",
+      "sha256": "29fa38f85a9948e9da29f1d59d0f18492af77626a6673ee265a1a95c3c014bbe"
+    }
+  ],
+  "catalog": {
+    "claude-code": {
+      "baseline": "1.0.61",
+      "ceiling": "2.1.317",
+      "count": 405
+    },
+    "antigravity-cli": {
+      "baseline": "1.2.3",
+      "ceiling": "1.4.12",
+      "count": 35
+    },
+    "grok-build": {
+      "baseline": "1.0.34",
+      "ceiling": "1.0.70",
+      "count": 37
+    },
+    "codex-cli": {
+      "baseline": "0.154.0",
+      "ceiling": "0.166.0",
+      "count": 21
+    }
+  },
+  "validation": {
+    "state": "passed_with_documented_failure_diagnostic_only_delta",
+    "normal_full": {
+      "pass": 419,
+      "fail": 0,
+      "skip": 5
+    },
+    "race": {
+      "pass": 419,
+      "fail": 0,
+      "skip": 5
+    },
+    "vet": "passed",
+    "build": "passed",
+    "entrypoints": {
+      "pass": 18,
+      "fail": 0,
+      "skip": 0
+    },
+    "coding": {
+      "pass": 45,
+      "fail": 0,
+      "skip": 1
+    },
+    "native_synthetic_sse": "3 pass; no real credentials/models",
+    "independent_review": "PASS; final source and diagnostic-only delta independently reviewed",
+    "gofmt": "passed",
+    "git_diff_check": "passed",
+    "owner_env_diagnostic_regression": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "preserved": [
+    "all public product entry points/controller/dispatch/reconcile/portable",
+    "Grok and AGY coding profiles; Grok implementer exact1.0.34 evidence gate",
+    "AGY and Grok native structured candidate review",
+    "Codex original four-item trial guard, no handoff Codex implementation copied"
+  ],
+  "sourceinputs": "public-series-source-inputs.json",
+  "new_behavior": [
+    "all Claude metadata through isolated ProbePinnedOutput",
+    "official Node v24.13.0 explicit pin ORCHESTRATOR_CLAUDE_NODE_BINARY",
+    "gateway rejects untyped/write/candidate branches before spawn; native-account product candidate path preserved",
+    "gateway policy cannot be modified; WebFetch/WebSearch denied; scratch ancestor metadata permitted",
+    "JS metadata bounded8s; launcher version+help bounded20s"
+  ],
+  "fixture_adaptation": "TestMain constant metadata is independent of CANDIDATE_FIXTURE_MODE and uses syscall.Exit only for constant version/help responses to avoid race runtime artificial exit sleep; worker/m.Run and assertions unchanged.",
+  "source_snapshot_sha256": "50806ee9759ffa4530ee511aa68b11156b6bed4c4a0e52338fd0efc6b664858b",
+  "source_snapshot_manifest": "public-series-source-snapshot.json",
+  "verification": "public-series-verification.json",
+  "verification_sha256": "890218f31d1d91a1f9f003b44182d0af2b9fbefa02ceb0144a4b545711ec64bd",
+  "prior_acceptance_patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+  "prior_acceptance_source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73",
+  "evidence_reuse_delta": "public-series-diagnostic-delta.json",
+  "sourceinputs_scope": "Historical import log; current final bytes are identified by source_snapshot_manifest.",
+  "original_private_manifest_sha256": "06d18bdac153d8b337a299c2def31ed29dad2bf6a3f554c31be04883f49c97b4",
+  "redaction_scope": "Private absolute paths replaced with labels; source/patch/log digests retain original meaning."
+}

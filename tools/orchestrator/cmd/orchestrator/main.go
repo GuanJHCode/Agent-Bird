@@ -1043,9 +1043,13 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	if err := adapter.VerifyExecutable(request.Binary, request.Binary.Version); err != nil {
 		return nil, err
 	}
-	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	probeWindow := 2 * time.Second
+	if request.Provider == adapter.ProviderClaude && strings.HasSuffix(request.Binary.Path, ".js") {
+		probeWindow = 20 * time.Second // bounded isolated version + help for pinned Node
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, probeWindow)
 	defer cancel()
-	version, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--version")
+	version, err := adapter.ProbePinnedOutput(probeCtx, request.Provider, request.Binary, "--version")
 	if err != nil {
 		return nil, codeError("binary_version_probe_failed")
 	}
@@ -1057,7 +1061,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		if request.Provider == adapter.ProviderCodex {
 			helpArgs = []string{"exec", "--help"}
 		}
-		help, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, helpArgs...)
+		help, err := adapter.ProbePinnedOutput(probeCtx, request.Provider, request.Binary, helpArgs...)
 		if err != nil {
 			return nil, err
 		}
@@ -1178,7 +1182,7 @@ func sourceEnvironment() []string {
 		if index := strings.IndexByte(value, '='); index >= 0 {
 			key = value[:index]
 		}
-		if strings.HasPrefix(key, "ORCHESTRATOR_") && key != "ORCHESTRATOR_ENABLE_TEST_FAKE" {
+		if strings.HasPrefix(key, "ORCHESTRATOR_") && key != "ORCHESTRATOR_ENABLE_TEST_FAKE" && key != "ORCHESTRATOR_CLAUDE_NODE_BINARY" {
 			continue
 		}
 		out = append(out, value)

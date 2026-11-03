@@ -1,0 +1,560 @@
+{
+  "status": "passed_with_documented_failure_diagnostic_only_delta",
+  "patch_sha256": "9bea938f0fb6ddbb152f7b178bfbc7b0d79f4124349ded419a3da3bef05a34bf",
+  "source_snapshot_sha256": "50806ee9759ffa4530ee511aa68b11156b6bed4c4a0e52338fd0efc6b664858b",
+  "toolchain": "go version go1.26.10 darwin/arm64",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "go_parallelism": "-p=2",
+    "GOROOT": "/tmp/go1.26.10-sdk",
+    "GOCACHE": "<private-series-task>/tmp/cache-public-series",
+    "TMPDIR": "<private-series-task>/tmp/test-public-series"
+  },
+  "checks": [
+    {
+      "name": "final-full",
+      "command": [
+        "go",
+        "test",
+        "-p=2",
+        "-count=1",
+        "-json",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 143.496,
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73",
+      "top_level": {
+        "pass": 419,
+        "fail": 0,
+        "skip": 5
+      },
+      "all_cases": {
+        "pass": 804,
+        "fail": 0,
+        "skip": 5
+      },
+      "packages": {
+        "pass": 14,
+        "fail": 0,
+        "skip": 1
+      },
+      "log": "<private-series-task>/data/public-series-final-full.jsonl",
+      "sha256": "aa0da1de268cf7dd7ee46cef5abfc340e877894eab511e241ed196f347f82697",
+      "skips": [
+        "TestNativeClaudeGatewayReadOnlyTransport",
+        "TestNativeCodingHost",
+        "TestNativeSchemaContract",
+        "TestRealClaudeManagedCandidate",
+        "TestRealClaudeReviewerProfile"
+      ],
+      "failures": []
+    },
+    {
+      "name": "normal-fixture-regression",
+      "command": [
+        "go",
+        "test",
+        "-p=2",
+        "-count=1",
+        "-json",
+        "./cmd/orchestrator",
+        "-run",
+        "Test(CLICandidateDevelopmentDAG|CLIReworkCandidateDevelopmentDAG|CLIReviewRetryCandidateDevelopmentDAG|CLITaskHandleReworkCandidateDAG|ManagedCandidateFreezesWorkerChangesWithoutUserChanges|CLIInterruptionFeedbackUsesIndependentProgress)$"
+      ],
+      "exit_code": 0,
+      "seconds": 77.215,
+      "top_level": {
+        "pass": 6,
+        "fail": 0,
+        "skip": 0
+      },
+      "all_cases": {
+        "pass": 12,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "<private-series-task>/data/public-series-normal-fixture-regression.jsonl",
+      "sha256": "c3afdd8c0c1f54e27c0dd7cc25c4575e9c2205d203e56945d45000d5863cca47",
+      "skips": [],
+      "failures": [],
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    },
+    {
+      "name": "race",
+      "command": [
+        "go",
+        "test",
+        "-p=2",
+        "-race",
+        "-count=1",
+        "-json",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 161.793,
+      "top_level": {
+        "pass": 419,
+        "fail": 0,
+        "skip": 5
+      },
+      "all_cases": {
+        "pass": 804,
+        "fail": 0,
+        "skip": 5
+      },
+      "packages": {
+        "pass": 14,
+        "fail": 0,
+        "skip": 1
+      },
+      "log": "<private-series-task>/data/public-series-race.jsonl",
+      "sha256": "6cf1784f009420b8c89891729ecd77911a2d37b9b10f20d998445999969303ae",
+      "skips": [
+        "TestNativeClaudeGatewayReadOnlyTransport",
+        "TestNativeCodingHost",
+        "TestNativeSchemaContract",
+        "TestRealClaudeManagedCandidate",
+        "TestRealClaudeReviewerProfile"
+      ],
+      "failures": [],
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    },
+    {
+      "name": "vet",
+      "command": [
+        "go",
+        "vet",
+        "-p=2",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 3.154,
+      "top_level": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "all_cases": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "<private-series-task>/data/public-series-vet.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "skips": [],
+      "failures": [],
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    },
+    {
+      "name": "build",
+      "command": [
+        "go",
+        "build",
+        "-p=2",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 0.357,
+      "top_level": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "all_cases": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "<private-series-task>/data/public-series-build.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "skips": [],
+      "failures": [],
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    },
+    {
+      "name": "entrypoints",
+      "command": [
+        "go",
+        "test",
+        "-p=2",
+        "-count=1",
+        "-json",
+        "./cmd/orchestrator",
+        "-run",
+        "Test(Controller|ManagedDispatch|Dispatch|PluginRun)"
+      ],
+      "exit_code": 0,
+      "seconds": 23.38,
+      "top_level": {
+        "pass": 18,
+        "fail": 0,
+        "skip": 0
+      },
+      "all_cases": {
+        "pass": 36,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "<private-series-task>/data/public-series-entrypoints.jsonl",
+      "sha256": "5f3fcb59f4c4229f479bc29e9882e8f55f99b74e6db7aaa1b09a5bfcdf4dcea5",
+      "skips": [],
+      "failures": [],
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    },
+    {
+      "name": "coding",
+      "command": [
+        "go",
+        "test",
+        "-p=2",
+        "-count=1",
+        "-json",
+        "./internal/adapter",
+        "./internal/host",
+        "-run",
+        "Test(CodingProfiles|NativeCodingHost|Grok|Claude)"
+      ],
+      "exit_code": 0,
+      "seconds": 6.642,
+      "top_level": {
+        "pass": 45,
+        "fail": 0,
+        "skip": 1
+      },
+      "all_cases": {
+        "pass": 123,
+        "fail": 0,
+        "skip": 1
+      },
+      "packages": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "<private-series-task>/data/public-series-coding.jsonl",
+      "sha256": "f2204b0e023601a26f2d9f96b53d843919be0b377bd76bc0efbfb956cb12aa35",
+      "skips": [
+        "TestNativeCodingHost"
+      ],
+      "failures": [],
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    },
+    {
+      "name": "focused",
+      "command": [
+        "go",
+        "test",
+        "-p=2",
+        "-count=1",
+        "-json",
+        "./internal/adapter",
+        "./internal/host"
+      ],
+      "exit_code": 0,
+      "seconds": 37.893,
+      "top_level": {
+        "pass": 156,
+        "fail": 0,
+        "skip": 3
+      },
+      "all_cases": {
+        "pass": 322,
+        "fail": 0,
+        "skip": 3
+      },
+      "packages": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "<private-series-task>/data/public-series-focused.jsonl",
+      "sha256": "f152d7e4b06198cc96419791fa172e1cc4c9e4146ca24b16b3715fa3d2ef147e",
+      "skips": [
+        "TestNativeClaudeGatewayReadOnlyTransport",
+        "TestNativeCodingHost",
+        "TestNativeSchemaContract"
+      ],
+      "failures": [],
+      "scope": "internal/adapter + internal/host; unchanged since this check, subsequent edits only cmd/orchestrator/candidate_test.go fixture"
+    },
+    {
+      "name": "owner-env-diagnostic-regression",
+      "command": [
+        "go",
+        "test",
+        "-p=2",
+        "-count=1",
+        "-json",
+        "./cmd/orchestrator",
+        "-run",
+        "^TestSourceEnvironmentPreservesOwnerEnvironmentWithoutToolCapabilities$"
+      ],
+      "exit_code": 0,
+      "top_level": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "all_cases": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "log": "<private-series-task>/data/public-series-owner-env-diagnostic-regression.jsonl",
+      "sha256": "6184a0ddca7f6c7cbb331e80d2607b490129e12aa77a715380018efda1bd7dd1",
+      "patch_sha256": "9bea938f0fb6ddbb152f7b178bfbc7b0d79f4124349ded419a3da3bef05a34bf",
+      "source_snapshot_sha256": "50806ee9759ffa4530ee511aa68b11156b6bed4c4a0e52338fd0efc6b664858b"
+    }
+  ],
+  "native_synthetic_sse": [
+    {
+      "version": "1.0.61",
+      "auth": "bearer",
+      "command": [
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+        "<private-series-task>/tmp/native-public-series/host.test",
+        "-test.run",
+        "^TestNativeClaudeGatewayReadOnlyTransport$",
+        "-test.v=test2json",
+        "-test.timeout",
+        "45s"
+      ],
+      "exit_code": 0,
+      "seconds": 12.646,
+      "cases": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "binary_pin": {
+        "provider": "claude-code",
+        "version": "1.0.61",
+        "actual_path": "<private-series-task>/tmp/fixed/claude-1.0.61/unpacked/package/cli.js",
+        "label": "fixed-series/claude-1.0.61/cli.js",
+        "sha256": "098701693431fbaa5f682e5d11c4d1400b8403dd86cfdf06bacf6910d3b88be1",
+        "source": "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-1.0.61.tgz",
+        "integrity": "sha512-+gjKzY1hsWfHoH52SgKR6E0ujCDPyyRsjyRShtZfS0urKd8VQq3D/DF3hvT3P4JJeW0YuWp5Dep0aSRON+/FFA==",
+        "archive_sha256": "09664c88816658665e4b201fc0cdb94f666ce91af6938a4674598df5decdc740",
+        "reused_fixed_pin": false,
+        "packaging": "node_js",
+        "version_exit": 0,
+        "raw_version": "1.0.61 (Claude Code)",
+        "help_exit": 0,
+        "help_sha256": "74d70f1a74b237455c6047afa3c3da5b48aa65695b667b8a239d0a5ceec06f10"
+      },
+      "node_sha256": "6f2e835e57feb7a29ffcd53a4d4eb60224ec264a1e002c3ba6d99999ea29807d",
+      "host_test_sha256": "2943846e67fcee74410041b23a78a53aca054480b747cd98dbfcbfd8444484bc",
+      "log": "<private-series-task>/data/public-series-sse-1.0.61-bearer.jsonl",
+      "sha256": "2defab1f65a692d902c64cdf4ace08af727c3686c4812370e09b5ca7608d65c5",
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    },
+    {
+      "version": "2.0.31",
+      "auth": "api-key",
+      "command": [
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+        "<private-series-task>/tmp/native-public-series/host.test",
+        "-test.run",
+        "^TestNativeClaudeGatewayReadOnlyTransport$",
+        "-test.v=test2json",
+        "-test.timeout",
+        "45s"
+      ],
+      "exit_code": 0,
+      "seconds": 12.519,
+      "cases": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "binary_pin": {
+        "provider": "claude-code",
+        "version": "2.0.31",
+        "actual_path": "<private-series-task>/tmp/fixed/claude-2.0.31/unpacked/package/cli.js",
+        "label": "fixed-series/claude-2.0.31/cli.js",
+        "sha256": "207a2e75b3a02f691ed459540cf9101adc9d1a3769a75a856b4414c6248f6caa",
+        "source": "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-2.0.31.tgz",
+        "integrity": "sha512-UiWopkOqZD5EHoDa8jmkT4AOVtvGWjfCOZ+hGlDqbBY5D0hia6kRDgizLsIvMRqnQr1pBAPCpyeWhH/WndaT/A==",
+        "archive_sha256": "6b67f14f030554cf055f030c82de64955438ed8c7225f96b1576a15c2be15fa4",
+        "reused_fixed_pin": false,
+        "packaging": "node_js",
+        "version_exit": 0,
+        "raw_version": "2.0.31 (Claude Code)",
+        "help_exit": 0,
+        "help_sha256": "db5b5f6881a83e48b3006daf88be98b12e681c70f58289c77b5fec09f40b244c"
+      },
+      "node_sha256": "6f2e835e57feb7a29ffcd53a4d4eb60224ec264a1e002c3ba6d99999ea29807d",
+      "host_test_sha256": "2943846e67fcee74410041b23a78a53aca054480b747cd98dbfcbfd8444484bc",
+      "log": "<private-series-task>/data/public-series-sse-2.0.31-api-key.jsonl",
+      "sha256": "da4df46dbaae5ed866aefdd06672396accff8514e1dc0b834b915a6bdbe7c988",
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    },
+    {
+      "version": "2.1.317",
+      "auth": "bearer",
+      "command": [
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+        "<private-series-task>/tmp/native-public-series/host.test",
+        "-test.run",
+        "^TestNativeClaudeGatewayReadOnlyTransport$",
+        "-test.v=test2json",
+        "-test.timeout",
+        "45s"
+      ],
+      "exit_code": 0,
+      "seconds": 2.465,
+      "cases": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "binary_pin": {
+        "provider": "claude-code",
+        "version": "2.1.317",
+        "actual_path": "<private-series-task>/tmp/fixed/claude-2.1.317/claude",
+        "label": "fixed-series/claude-2.1.317/claude",
+        "sha256": "09f153b46b5df9e8b3454716d682a91901de020cbca630f61dec1a015b32b5e9",
+        "source": "https://registry.npmjs.org/@anthropic-ai/claude-code-darwin-arm64/-/claude-code-darwin-arm64-2.1.317.tgz",
+        "integrity": "sha512-Xnf9K4aGBuoYaODmEZ0o/lRvuYUCv2ZIDP+AXv15WVITryGgrsSA7CFL7KH+43kC6WhK8i6oysF6EbGdgBW4Aw==",
+        "archive_sha256": "d572e006fecf09f14c544f2995906d332272647470472f2c8b7158686d90b4f7",
+        "reused_fixed_pin": false,
+        "packaging": "native",
+        "version_exit": 0,
+        "raw_version": "2.1.317 (Claude Code)",
+        "help_exit": 0,
+        "help_sha256": "5ca3a9dac2026e56c221fdd34380c7d7d45ebbb51c1d01b7c17c75cb076a0be8"
+      },
+      "node_sha256": "6f2e835e57feb7a29ffcd53a4d4eb60224ec264a1e002c3ba6d99999ea29807d",
+      "host_test_sha256": "2943846e67fcee74410041b23a78a53aca054480b747cd98dbfcbfd8444484bc",
+      "log": "<private-series-task>/data/public-series-sse-2.1.317-bearer.jsonl",
+      "sha256": "40513e73637f89a21e5b49b1cc038c1507c46b97bc65b3e53e14c16d61b7ec28",
+      "patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+      "source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73"
+    }
+  ],
+  "attempt_history": [
+    {
+      "log": "<private-series-task>/data/public-series-initial-full.jsonl",
+      "sha256": "d1eb8a152feb0b4defb80c65e69db8a675c8b61c7a7494d6c53886418cbb03b8",
+      "reason": "Before fixture metadata became independent of environment: six top-level fixture failures.",
+      "top_level": {
+        "pass": 413,
+        "fail": 6,
+        "skip": 5
+      },
+      "all_cases": {
+        "pass": 792,
+        "fail": 12,
+        "skip": 5
+      }
+    },
+    {
+      "log": "<private-series-task>/data/public-series-first-race.jsonl",
+      "sha256": "0020daab861cb15eb6a4d16118bd1e37e5f510597e30d1dde0e2ca75a9df3993",
+      "reason": "Before fixture constant metadata raw exit: six top-level failures from artificial race atexit sleep.",
+      "top_level": {
+        "pass": 413,
+        "fail": 6,
+        "skip": 5
+      },
+      "all_cases": {
+        "pass": 792,
+        "fail": 12,
+        "skip": 5
+      }
+    },
+    {
+      "log": "<private-series-task>/data/public-series-full.jsonl",
+      "sha256": "7b0400853b0e0d809f20a6cc3dcd54a5115e89dd256ac541e7aa261efd6dc705",
+      "reason": "Passing complete normal full before final fixture-only constant metadata exit; superseded by final-full.",
+      "top_level": {
+        "pass": 419,
+        "fail": 0,
+        "skip": 5
+      },
+      "all_cases": {
+        "pass": 804,
+        "fail": 0,
+        "skip": 5
+      }
+    },
+    {
+      "log": "<private-series-task>/data/public-series-fixture-prior-snapshot.jsonl",
+      "sha256": "ed67269045d1dab498d8b8fff3ececc126d616693034a1162225efea37946f62",
+      "reason": "Diagnostic rerun of the earlier fixture snapshot; not final acceptance evidence.",
+      "top_level": {
+        "pass": 0,
+        "fail": 6,
+        "skip": 0
+      },
+      "all_cases": {
+        "pass": 0,
+        "fail": 12,
+        "skip": 0
+      }
+    }
+  ],
+  "limitations": [
+    "Five opt-in native/real-provider checks remain skipped in complete Go suites. The native Claude transport check additionally passed in three explicit synthetic SSE trials.",
+    "No real gateway credential, real model execution, Codex guard relaxation, commit or push in this validation.",
+    "Independent final review is owned by the main session."
+  ],
+  "prior_acceptance_patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+  "prior_acceptance_source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73",
+  "evidence_reuse_delta": "<private-series-task>/data/public-series-diagnostic-delta.json",
+  "independent_reviews": [
+    {
+      "scope": "public candidate stable source, product preservation, four Codex contracts, metadata/race fixture and evidence bindings",
+      "verdict": "PASS"
+    },
+    {
+      "scope": "failure diagnostic string delta; no success/production behavior change; reuse scoped checks",
+      "verdict": "PASS"
+    }
+  ]
+}

@@ -303,11 +303,19 @@ func parseGrok(object map[string]json.RawMessage) (Event, error) {
 		text, err := stringFieldOptional(object, "data")
 		return Event{Kind: EventMessage, SessionID: session, Text: text}, err
 	case "usage":
-		// Additive streaming-json record observed by 1.0.67. Token counts are
+		// Additive streaming-json record also emitted by 1.0.34. Token counts are
 		// not an answer and do not move the tool-boundary cursor.
 		return Event{Kind: EventDiagnostic, SessionID: session, Status: "usage"}, nil
 	case "tool_started", "tool_completed":
 		// Message boundary; tool names and outcomes stay provider-private.
+		return Event{Kind: EventProgress, SessionID: session, Status: typeName}, nil
+	case "tool_call", "tool_call_update":
+		// Native streaming-json projects ACP tool events. A valid opaque call id
+		// establishes the boundary; inputs/outputs and nullable status are not
+		// answer text and must never be copied into the result artifact.
+		if _, err := stringField(object, "toolCallId"); err != nil {
+			return Event{}, err
+		}
 		return Event{Kind: EventProgress, SessionID: session, Status: typeName}, nil
 	case "end":
 		status, err := stringFieldOptional(object, "stopReason")

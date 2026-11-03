@@ -1,0 +1,5143 @@
+diff --git a/tools/orchestrator/cmd/orchestrator/candidate_cli_test.go b/tools/orchestrator/cmd/orchestrator/candidate_cli_test.go
+index fb1a5425..706959a7 100644
+--- a/tools/orchestrator/cmd/orchestrator/candidate_cli_test.go
++++ b/tools/orchestrator/cmd/orchestrator/candidate_cli_test.go
+@@ -95,7 +95,7 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
+ 	}
+ 	t.Setenv("CANDIDATE_FIXTURE_MODE", mode)
+ 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
+-	lock := map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "fixture-v1", "sha256": hex.EncodeToString(sum[:])}}
++	lock := map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "2.1.267", "sha256": hex.EncodeToString(sum[:])}}
+ 	profile := func(role, permission string) map[string]any {
+ 		return map[string]any{"version": 1, "role": role, "permission": permission, "timeout_ms": 15000}
+ 	}
+diff --git a/tools/orchestrator/cmd/orchestrator/candidate_test.go b/tools/orchestrator/cmd/orchestrator/candidate_test.go
+index ca46058e..d3305b55 100644
+--- a/tools/orchestrator/cmd/orchestrator/candidate_test.go
++++ b/tools/orchestrator/cmd/orchestrator/candidate_test.go
+@@ -88,7 +88,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
+ 			sum := sha256.Sum256(executable)
+ 			payload, _ := json.Marshal(map[string]any{
+ 				"provider": "claude-code", "directory": work, "prompt": "fixture implementation",
+-				"provider_lock":       map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "fixture-v1", "sha256": hex.EncodeToString(sum[:])}},
++				"provider_lock":       map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "2.1.267", "sha256": hex.EncodeToString(sum[:])}},
+ 				"profile":             map[string]any{"version": 1, "role": "implementer", "permission": "workspace-write", "timeout_ms": 15000},
+ 				"candidate_workspace": map[string]any{"version": 1, "repo_root": repo, "base_oid": base, "paths": []string{"README", "added.txt", "obsolete.txt"}},
+ 			})
+@@ -180,21 +180,26 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
+ // Reuse the native test executable: first execution of a fresh unsigned shell
+ // script can exceed the production 2s probe deadline under full-suite load.
+ func TestMain(m *testing.M) {
+-	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
+-	if mode == "" {
+-		os.Exit(m.Run())
+-	}
++	// Constant metadata has no worker/test state. Raw exit avoids the race
++	// runtime's artificial 1s shutdown sleep after exactEnv strips GORACE.
++	// The actual worker modes and m.Run retain normal race instrumentation.
+ 	if len(os.Args) == 2 && os.Args[1] == "--version" {
+ 		if os.Getenv("GROK_REVIEW_FIXTURE") != "" {
+ 			fmt.Println("grok 1.0.34 (3736acbc8658)")
+-			os.Exit(0)
++			syscall.Exit(0)
+ 		}
+-		fmt.Println("fixture-v1")
+-		os.Exit(0)
++		fmt.Println("2.1.267")
++		syscall.Exit(0)
+ 	}
+ 	if len(os.Args) == 2 && os.Args[1] == "--help" {
+ 		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny")
+-		os.Exit(0)
++		syscall.Exit(0)
++	}
++	// Isolated metadata probes intentionally strip fixture environment. The
++	// pinned executable exposes metadata independently of its worker mode.
++	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
++	if mode == "" {
++		os.Exit(m.Run())
+ 	}
+ 	if os.Getenv("GROK_REVIEW_FIXTURE") != "" && len(os.Args) == 2 && os.Args[1] == "models" {
+ 		fmt.Println("fixture model")
+diff --git a/tools/orchestrator/cmd/orchestrator/interruption_cli_test.go b/tools/orchestrator/cmd/orchestrator/interruption_cli_test.go
+index bbd83c33..7e5240f8 100644
+--- a/tools/orchestrator/cmd/orchestrator/interruption_cli_test.go
++++ b/tools/orchestrator/cmd/orchestrator/interruption_cli_test.go
+@@ -72,7 +72,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	hash := sha256.Sum256(contents)
+-	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "max_active_ms": 20000, "adapter": map[string]any{"provider": "claude-code", "directory": root, "prompt": "fixture", "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 20000}, "provider_lock": map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]any{"path": provider, "version": "fixture-v1", "sha256": hex.EncodeToString(hash[:])}}}}}
++	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "max_active_ms": 20000, "adapter": map[string]any{"provider": "claude-code", "directory": root, "prompt": "fixture", "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 20000}, "provider_lock": map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]any{"path": provider, "version": "2.1.267", "sha256": hex.EncodeToString(hash[:])}}}}}
+ 
+ 	write(owner)
+ 	var submitted struct {
+diff --git a/tools/orchestrator/cmd/orchestrator/main.go b/tools/orchestrator/cmd/orchestrator/main.go
+index bf0d9e0f..189f2e33 100644
+--- a/tools/orchestrator/cmd/orchestrator/main.go
++++ b/tools/orchestrator/cmd/orchestrator/main.go
+@@ -42,7 +42,7 @@ func (e remoteError) Error() string { return string(e) }
+ 
+ func main() {
+ 	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
+-		_ = json.NewEncoder(os.Stderr).Encode(map[string]any{"version": 1, "status": "error", "error": errorCode(err)})
++		_ = json.NewEncoder(os.Stderr).Encode(errorResponse(err))
+ 		os.Exit(2)
+ 	}
+ }
+@@ -350,7 +350,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
+ 			if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1" && pinErr.Error() == "running_package_invalid" {
+ 				continue
+ 			}
+-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
++			for _, taskID := range pinned {
++				_ = install.UnpinRunningVersion(executable, taskID)
++			}
+ 			_ = os.Remove(controlPath)
+ 			_ = os.Remove(bootstrapPath)
+ 			return pinErr
+@@ -359,7 +361,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
+ 	}
+ 	if onPrepared != nil {
+ 		if err = onPrepared(controlPath); err != nil {
+-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
++			for _, taskID := range pinned {
++				_ = install.UnpinRunningVersion(executable, taskID)
++			}
+ 			_ = os.Remove(controlPath)
+ 			_ = os.Remove(bootstrapPath)
+ 			return err
+@@ -370,7 +374,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
+ 	if err != nil {
+ 		var rejected remoteError
+ 		if errors.As(err, &rejected) {
+-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
++			for _, taskID := range pinned {
++				_ = install.UnpinRunningVersion(executable, taskID)
++			}
+ 			_ = os.Remove(controlPath)
+ 			_ = os.Remove(bootstrapPath)
+ 			return err
+@@ -1036,8 +1042,10 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
+ 		}
+ 		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
+ 	}
+-	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+-		return nil, codeError("codex_trial_guard_not_ready")
++	if payload.Kind != "fake" || payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
++		if err := adapter.LaunchAdmission(adapter.Provider(payload.Provider), payload.BinaryVersion, payload.BinarySHA256); err != nil {
++			return nil, err
++		}
+ 	}
+ 	if grant.Answer != "" {
+ 		if grant.QuestionID == "" || grant.QuestionRevision < 1 || grant.SessionKind == "" || grant.SessionID == "" || payload.Kind == "fake" {
+@@ -1056,9 +1064,13 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
+ 	if err := adapter.VerifyExecutable(request.Binary, request.Binary.Version); err != nil {
+ 		return nil, err
+ 	}
+-	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
++	probeWindow := 2 * time.Second
++	if request.Provider == adapter.ProviderClaude && strings.HasSuffix(request.Binary.Path, ".js") {
++		probeWindow = 20 * time.Second // bounded isolated version + help for pinned Node
++	}
++	probeCtx, cancel := context.WithTimeout(ctx, probeWindow)
+ 	defer cancel()
+-	version, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--version")
++	version, err := adapter.ProbePinnedOutput(probeCtx, request.Provider, request.Binary, "--version")
+ 	if err != nil {
+ 		return nil, codeError("binary_version_probe_failed")
+ 	}
+@@ -1066,7 +1078,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
+ 		return nil, err
+ 	}
+ 	if request.Profile != nil {
+-		help, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--help")
++		help, err := adapter.ProbePinnedOutput(probeCtx, request.Provider, request.Binary, "--help")
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -1187,7 +1199,7 @@ func sourceEnvironment() []string {
+ 		if index := strings.IndexByte(value, '='); index >= 0 {
+ 			key = value[:index]
+ 		}
+-		if strings.HasPrefix(key, "ORCHESTRATOR_") && key != "ORCHESTRATOR_ENABLE_TEST_FAKE" {
++		if strings.HasPrefix(key, "ORCHESTRATOR_") && key != "ORCHESTRATOR_ENABLE_TEST_FAKE" && key != "ORCHESTRATOR_CLAUDE_NODE_BINARY" {
+ 			continue
+ 		}
+ 		out = append(out, value)
+@@ -1417,6 +1429,24 @@ func writePID(state string) error {
+ 	return os.Rename(stage, path)
+ }
+ 
++func errorResponse(err error) map[string]any {
++	payload := map[string]any{"version": 1, "status": "error", "error": errorCode(err)}
++	var rejected *adapter.VersionError
++	if errors.As(err, &rejected) && rejected != nil {
++		payload["provider"] = rejected.Provider
++		payload["normalized"] = rejected.Normalized
++		payload["baseline"] = rejected.Baseline
++		payload["ceiling"] = rejected.Ceiling
++		payload["reason"] = rejected.Code
++	}
++	var trial *adapter.TrialBlockedError
++	if errors.As(err, &trial) && trial != nil {
++		payload["reason"] = trial.Error()
++		payload["missing"] = trial.Missing
++	}
++	return payload
++}
++
+ func errorCode(err error) string {
+ 	if err == nil {
+ 		return ""
+diff --git a/tools/orchestrator/cmd/orchestrator/main_test.go b/tools/orchestrator/cmd/orchestrator/main_test.go
+index f114f678..68db531b 100644
+--- a/tools/orchestrator/cmd/orchestrator/main_test.go
++++ b/tools/orchestrator/cmd/orchestrator/main_test.go
+@@ -251,7 +251,7 @@ func TestInvocationRejectsChangedPinBeforeExecutingVersionProbe(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	payload, _ := json.Marshal(map[string]any{
+-		"provider": "claude-code", "binary_path": binary, "binary_version": "v1",
++		"provider": "claude-code", "binary_path": binary, "binary_version": "2.1.267",
+ 		"binary_sha256": strings.Repeat("0", 64), "directory": root, "prompt": "test",
+ 		"permission_mode": "default",
+ 	})
+@@ -412,7 +412,7 @@ func TestCLIProviderQuestionAnswerAndOwnerAccept(t *testing.T) {
+ 	answerCapture := filepath.Join(root, "answer-input")
+ 	provider := filepath.Join(root, "agy-provider")
+ 	script := "#!/bin/sh\n" +
+-		"if [ \"${1-}\" = --version ]; then echo 1.0.0; exit 0; fi\n" +
++		"if [ \"${1-}\" = --version ]; then echo 1.2.3; exit 0; fi\n" +
+ 		"case \" $* \" in\n" +
+ 		"  *\" --conversation session-1 \"*) IFS= read -r answer; printf '%s\\n' \"$answer\" > \"" + answerCapture + "\"; printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"session-1\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"session-1\",\"status\":\"SUCCESS\",\"response\":\"done\"}}' ;;\n" +
+ 		"  *) printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"session-1\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"session-1\",\"status\":\"WAITING\",\"response\":\"Choose the narrow API\"}}' ;;\n" +
+@@ -434,7 +434,7 @@ func TestCLIProviderQuestionAnswerAndOwnerAccept(t *testing.T) {
+ 		"run_id": "question-run", "controller_thread": "question-thread", "plan_revision": 1,
+ 		"origin_context_id": "question-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
+ 		"host_generation": "question-generation",
+-		"tasks":           []any{map[string]any{"id": "question-task", "max_attempts": 3, "completion_policy": "owner_review", "adapter": map[string]any{"provider": "antigravity-cli", "binary_path": provider, "binary_version": "1.0.0", "binary_sha256": fmt.Sprintf("%x", digest), "directory": root, "prompt": "Start", "permission_mode": "default"}}},
++		"tasks":           []any{map[string]any{"id": "question-task", "max_attempts": 3, "completion_policy": "owner_review", "adapter": map[string]any{"provider": "antigravity-cli", "binary_path": provider, "binary_version": "1.2.3", "binary_sha256": fmt.Sprintf("%x", digest), "directory": root, "prompt": "Start", "permission_mode": "default"}}},
+ 	}
+ 	body, _ := json.Marshal(request)
+ 	if err = os.WriteFile(requestPath, body, 0600); err != nil {
+@@ -754,6 +754,7 @@ func TestSourceEnvironmentPreservesOwnerEnvironmentWithoutToolCapabilities(t *te
+ 	t.Setenv("ORCHESTRATOR_REPORT_CAPABILITY", "report-secret")
+ 	t.Setenv("ORCHESTRATOR_BOOTSTRAP", "bootstrap-secret")
+ 	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
++	t.Setenv("ORCHESTRATOR_CLAUDE_NODE_BINARY", "/fixed/node")
+ 	values := make(map[string]string)
+ 	for _, item := range sourceEnvironment() {
+ 		parts := strings.SplitN(item, "=", 2)
+@@ -762,7 +763,10 @@ func TestSourceEnvironmentPreservesOwnerEnvironmentWithoutToolCapabilities(t *te
+ 		}
+ 	}
+ 	if values["OWNER_PROVIDER_AUTH"] != "owner-auth" || values["ORCHESTRATOR_ENABLE_TEST_FAKE"] != "1" {
+-		t.Fatalf("owner environment missing: %#v", values)
++		t.Fatal("owner environment missing required entries")
++	}
++	if values["ORCHESTRATOR_CLAUDE_NODE_BINARY"] != "/fixed/node" {
++		t.Fatal("explicit non-capability runtime pin lost before Host launch")
+ 	}
+ 	for _, key := range []string{"ORCHESTRATOR_CONTROL_TOKEN", "ORCHESTRATOR_REPORT_CAPABILITY", "ORCHESTRATOR_BOOTSTRAP"} {
+ 		if _, ok := values[key]; ok {
+diff --git a/tools/orchestrator/cmd/orchestrator/provider.go b/tools/orchestrator/cmd/orchestrator/provider.go
+index ce8e3c9f..546407fe 100644
+--- a/tools/orchestrator/cmd/orchestrator/provider.go
++++ b/tools/orchestrator/cmd/orchestrator/provider.go
+@@ -30,50 +30,64 @@ func providerControl(ctx context.Context, operation string, args []string, out i
+ 	if err != nil {
+ 		return err
+ 	}
+-	reason := ""
+-	if req.Provider == adapter.ProviderCodex {
++	versionPolicy := adapter.DescribeVersion(req.Provider, lock.Binary.Version)
++	reason := versionPolicy.Reason
++	var missing []string
++	if versionPolicy.Admitted && req.Provider == adapter.ProviderCodex {
+ 		reason = "codex_trial_guard_not_ready"
+-	} else if req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
++		missing = adapter.CodexTrialMissing()
++	} else if versionPolicy.Admitted && req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
+ 		reason = "execution_profile_unsupported"
+ 	}
+-	help, err := adapter.ProbeOutput(ctx, req.BinaryPath, "--help")
+-	if err != nil {
+-		return err
+-	}
+-	if reason == "" {
+-		check := adapter.Request{Provider: req.Provider, Binary: lock.Binary, Lock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}}
+-		// Capability discovery is not task write authorization. Actual requests
+-		// must explicitly opt in and Host derives their fresh session directory.
+-		check.Profile.GrokSessionWrite = req.Provider == adapter.ProviderGrok
+-		if err = adapter.CheckCapabilities(check, help); err != nil {
+-			reason = err.Error()
++	if versionPolicy.Admitted {
++		help, helpErr := adapter.ProbePinnedOutput(ctx, req.Provider, lock.Binary, "--help")
++		if helpErr != nil {
++			return helpErr
++		}
++		if reason == "" {
++			check := adapter.Request{Provider: req.Provider, Binary: lock.Binary, Lock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}}
++			// Capability discovery is not task write authorization. Actual requests
++			// must explicitly opt in and Host derives their fresh session directory.
++			check.Profile.GrokSessionWrite = req.Provider == adapter.ProviderGrok
++			if err = adapter.CheckCapabilities(check, help); err != nil {
++				reason = err.Error()
++			}
+ 		}
+ 	}
+ 	if operation == "provider-lock" {
+-		if req.LockFile == "" || req.ConfirmSHA256 != lock.Binary.SHA256 {
+-			return codeError("provider_lock_confirmation_required")
++		if !versionPolicy.Admitted {
++			return adapter.AdmitVersion(req.Provider, lock.Binary.Version)
+ 		}
+-		var old adapter.ProviderLock
+-		if _, err := os.Lstat(req.LockFile); err == nil {
+-			if err = readPrivateJSON(req.LockFile, &old); err != nil {
+-				return err
+-			}
+-			if req.PreviousSHA256 == "" || old.Binary.SHA256 != req.PreviousSHA256 {
+-				return codeError("provider_lock_changed")
+-			}
+-			if err = replacePrivateJSON(req.LockFile, lock); err != nil {
+-				return err
+-			}
+-		} else if os.IsNotExist(err) {
+-			if req.PreviousSHA256 != "" {
+-				return codeError("provider_lock_changed")
+-			}
+-			if err = writeExclusiveJSON(req.LockFile, lock); err != nil {
+-				return err
+-			}
+-		} else {
++		if err = storeProviderLock(req, lock); err != nil {
+ 			return err
+ 		}
+ 	}
+-	return json.NewEncoder(out).Encode(map[string]any{"version": 1, "lock": lock, "profile_supported": reason == "", "profile_resume_supported": false, "profile_resume_reason": "profile_resume_not_verified", "reason": reason, "requires_confirmation": operation == "provider-probe", "requires_session_write_authorization": req.Provider == adapter.ProviderGrok})
++	body := map[string]any{"version": 1, "lock": lock, "provider": req.Provider, "normalized": versionPolicy.Normalized, "baseline": versionPolicy.Baseline, "ceiling": versionPolicy.Ceiling, "profile_supported": reason == "", "profile_resume_supported": false, "profile_resume_reason": "profile_resume_not_verified", "reason": reason, "version_policy": versionPolicy, "requires_confirmation": operation == "provider-probe", "requires_session_write_authorization": req.Provider == adapter.ProviderGrok}
++	if len(missing) > 0 {
++		body["missing"] = missing
++	}
++	return json.NewEncoder(out).Encode(body)
++}
++
++func storeProviderLock(req providerRequest, lock adapter.ProviderLock) error {
++	if req.LockFile == "" || req.ConfirmSHA256 != lock.Binary.SHA256 {
++		return codeError("provider_lock_confirmation_required")
++	}
++	var old adapter.ProviderLock
++	if _, err := os.Lstat(req.LockFile); err == nil {
++		if err = readPrivateJSON(req.LockFile, &old); err != nil {
++			return err
++		}
++		if req.PreviousSHA256 == "" || old.Binary.SHA256 != req.PreviousSHA256 {
++			return codeError("provider_lock_changed")
++		}
++		return replacePrivateJSON(req.LockFile, lock)
++	} else if os.IsNotExist(err) {
++		if req.PreviousSHA256 != "" {
++			return codeError("provider_lock_changed")
++		}
++		return writeExclusiveJSON(req.LockFile, lock)
++	} else {
++		return err
++	}
+ }
+diff --git a/tools/orchestrator/cmd/orchestrator/provider_test.go b/tools/orchestrator/cmd/orchestrator/provider_test.go
+index 50e0cfc8..03503da4 100644
+--- a/tools/orchestrator/cmd/orchestrator/provider_test.go
++++ b/tools/orchestrator/cmd/orchestrator/provider_test.go
+@@ -20,7 +20,7 @@ func TestProviderLockRequiresExactObservedDigestAndPreviousPin(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	binary := filepath.Join(root, "provider")
+-	source := []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 1.0; else echo --output-format --input-format --permission-mode --disallowed-tools --model --effort --resume; fi\n")
++	source := []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 2.1.267; else echo --output-format --input-format --permission-mode --disallowed-tools --model --effort --resume; fi\n")
+ 	if err := os.WriteFile(binary, source, 0700); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -65,7 +65,7 @@ func TestProviderLockRequiresExactObservedDigestAndPreviousPin(t *testing.T) {
+ func TestProfileRunsThroughPinnedCapabilityProbe(t *testing.T) {
+ 	root, _ := filepath.EvalSymlinks(t.TempDir())
+ 	binary := filepath.Join(root, "provider")
+-	if err := os.WriteFile(binary, []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 1.0; else echo --output-format --input-format --permission-mode --disallowed-tools --model --effort; fi\n"), 0700); err != nil {
++	if err := os.WriteFile(binary, []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 2.1.267; else echo --output-format --input-format --permission-mode --disallowed-tools --model --effort; fi\n"), 0700); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	lock, err := adapter.Probe(context.Background(), adapter.ProviderClaude, binary)
+diff --git a/tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go b/tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go
+index 5db96d04..9441d808 100644
+--- a/tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go
++++ b/tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go
+@@ -44,7 +44,7 @@ func testManagedDispatchCheckpoint(t *testing.T, checkpoint string) {
+ set -eu
+ case "${1-}" in
+ --version) printf '%s\n' '1.2.5';;
+---help) printf '%s\n' '--input-format --output-format --mode --model';;
++--help) printf '%s\n' '--input-format --output-format --mode --add-dir --model';;
+ --driver)
+  "$AGENT_BIRD_COMMAND" task dispatch --request "$BIRD_FIXTURE/request.json" --state-dir "$BIRD_FIXTURE/state" > "$BIRD_FIXTURE/first.json"
+  handle=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["handle"])' "$BIRD_FIXTURE/first.json")
+diff --git a/tools/orchestrator/cmd/orchestrator/task_entry.go b/tools/orchestrator/cmd/orchestrator/task_entry.go
+index f297356a..cab929cb 100644
+--- a/tools/orchestrator/cmd/orchestrator/task_entry.go
++++ b/tools/orchestrator/cmd/orchestrator/task_entry.go
+@@ -64,6 +64,8 @@ func taskProvider(name string) (adapter.Provider, string, error) {
+ 		return adapter.ProviderAGY, "agy", nil
+ 	case "grok", string(adapter.ProviderGrok):
+ 		return adapter.ProviderGrok, "grok", nil
++	case "codex", string(adapter.ProviderCodex):
++		return adapter.ProviderCodex, "codex", nil
+ 	default:
+ 		return "", "", codeError("task_provider_unsupported")
+ 	}
+@@ -73,7 +75,7 @@ func taskProbe(ctx context.Context, args []string, out io.Writer) error {
+ 	fs := flag.NewFlagSet("task probe", flag.ContinueOnError)
+ 	fs.SetOutput(io.Discard)
+ 	binary := fs.String("binary", "", "provider executable; defaults to PATH lookup")
+-	providerName := fs.String("provider", "claude", "claude, agy, or grok")
++	providerName := fs.String("provider", "claude", "claude, agy, grok, or codex")
+ 	if fs.Parse(args) != nil || fs.NArg() != 0 {
+ 		return codeError("invalid_args")
+ 	}
+@@ -119,7 +121,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
+ 		fs.StringVar(&planPath, "request", "", "business plan JSON")
+ 	} else {
+ 		fs.StringVar(&model, "model", "", "model ID or cli-default")
+-		fs.StringVar(&providerName, "provider", "claude", "claude, agy, or grok")
++		fs.StringVar(&providerName, "provider", "claude", "claude, agy, grok, or codex")
+ 		fs.BoolVar(&grokSessionWrite, "grok-session-write", false, "explicitly authorize this Grok task's new session directory writes")
+ 		fs.StringVar(&runID, "run-id", "", "unique run ID")
+ 		fs.StringVar(&dir, "directory", "", "read-only workspace")
+@@ -375,14 +377,14 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
+ 			if err = adapter.VerifyExecutable(req.Binary, req.Binary.Version); err != nil {
+ 				return err
+ 			}
+-			actual, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--version")
++			actual, err := adapter.ProbePinnedOutput(ctx, req.Provider, req.Binary, "--version")
+ 			if err != nil {
+ 				return err
+ 			}
+ 			if err = adapter.VerifyExecutable(req.Binary, strings.TrimSpace(actual)); err != nil {
+ 				return err
+ 			}
+-			help, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--help")
++			help, err := adapter.ProbePinnedOutput(ctx, req.Provider, req.Binary, "--help")
+ 			if err != nil {
+ 				return err
+ 			}
+diff --git a/tools/orchestrator/cmd/orchestrator/task_entry_test.go b/tools/orchestrator/cmd/orchestrator/task_entry_test.go
+index d984bef2..40cd58c1 100644
+--- a/tools/orchestrator/cmd/orchestrator/task_entry_test.go
++++ b/tools/orchestrator/cmd/orchestrator/task_entry_test.go
+@@ -143,12 +143,12 @@ func TestTaskRunChecksProviderBeforeBinding(t *testing.T) {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			root := privateTaskTemp(t)
+ 			bin := filepath.Join(root, "provider")
+-			body := []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '" + tc.help + "';;\n*) exit 99;;\nesac\n")
++			body := []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo 2.1.267;;\n--help) echo '" + tc.help + "';;\n*) exit 99;;\nesac\n")
+ 			if err := os.WriteFile(bin, body, 0700); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 			hash := sha256.Sum256(body)
+-			lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: "claude-stream-json-v1", Binary: adapter.BinaryPin{Path: bin, Version: "fixture-v1", SHA256: hex.EncodeToString(hash[:])}}
++			lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: "claude-stream-json-v1", Binary: adapter.BinaryPin{Path: bin, Version: "2.1.267", SHA256: hex.EncodeToString(hash[:])}}
+ 			lockPath := filepath.Join(root, "lock.json")
+ 			if err := writeExclusiveJSON(lockPath, lock); err != nil {
+ 				t.Fatal(err)
+diff --git a/tools/orchestrator/cmd/orchestrator/task_provider_test.go b/tools/orchestrator/cmd/orchestrator/task_provider_test.go
+index eea39d53..a386e33f 100644
+--- a/tools/orchestrator/cmd/orchestrator/task_provider_test.go
++++ b/tools/orchestrator/cmd/orchestrator/task_provider_test.go
+@@ -2,9 +2,9 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+ 	"context"
+ 	"encoding/json"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -21,8 +21,15 @@ func TestTaskProbeProviderSelection(t *testing.T) {
+ 	} {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			root := privateTaskTemp(t)
++			version := "2.1.267"
++			if tc.provider == adapter.ProviderAGY {
++				version = "1.2.3"
++			}
++			if tc.provider == adapter.ProviderGrok {
++				version = "1.0.34"
++			}
+ 			binary := filepath.Join(root, "provider")
+-			if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '--output-format --input-format --permission-mode --mode --disallowed-tools';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
++			if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo '"+version+"';;\n--help) echo '--output-format --input-format --permission-mode --mode --add-dir --disallowed-tools';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 			var out bytes.Buffer
+@@ -41,7 +48,7 @@ func TestTaskProbeProviderSelection(t *testing.T) {
+ 			if got.Lock.Provider != tc.provider || got.Supported != tc.supported {
+ 				t.Fatalf("unexpected probe: %+v", got)
+ 			}
+-			if !tc.supported && got.Reason != "grok_version_not_verified" {
++			if !tc.supported && got.Reason != "provider_capability_unsupported" {
+ 				t.Fatalf("lost guard: %+v", got)
+ 			}
+ 		})
+@@ -104,7 +111,7 @@ func TestTaskRunGrokGuardBeforeAllocation(t *testing.T) {
+ func TestTaskRunAGYReachesCapabilityCheck(t *testing.T) {
+ 	root := privateTaskTemp(t)
+ 	binary := filepath.Join(root, "agy")
+-	if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '--output-format --input-format';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
++	if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo 1.2.3;;\n--help) echo '--output-format --input-format';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	pin, err := adapter.Probe(context.Background(), adapter.ProviderAGY, binary)
+diff --git a/tools/orchestrator/cmd/orchestrator/version_cli_test.go b/tools/orchestrator/cmd/orchestrator/version_cli_test.go
+new file mode 100644
+index 00000000..814ce480
+--- /dev/null
++++ b/tools/orchestrator/cmd/orchestrator/version_cli_test.go
+@@ -0,0 +1,159 @@
++package main
++
++import (
++	"bytes"
++	"context"
++	"encoding/json"
++	"errors"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
++)
++
++func TestProbeRejectsUnstableAnnotationsEndToEnd(t *testing.T) {
++	notes := []string{
++		"2.1.316 (nightly.20261102)",
++		"2.1.316 (alpha.1)",
++		"2.1.316 (dev build abc)",
++		"2.1.316 (custom channel)",
++	}
++	for _, version := range notes {
++		t.Run(version, func(t *testing.T) {
++			root := privateTaskTemp(t)
++			binary := filepath.Join(root, "claude")
++			script := "#!/bin/sh\ncase \"$1\" in\n--version) echo '" + version + "';;\n--help) echo '--output-format --input-format --permission-mode --disallowed-tools';;\n*) exit 99;;\nesac\n"
++			if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
++				t.Fatal(err)
++			}
++			warmProvider(t, binary)
++			var out bytes.Buffer
++			if err := taskProbe(context.Background(), []string{"--provider", "claude", "--binary", binary}, &out); err != nil {
++				t.Fatal(err)
++			}
++			var got struct {
++				Admitted       bool                `json:"admitted"`
++				Supported      bool                `json:"profile_supported"`
++				Reason         string              `json:"reason"`
++				Provider       string              `json:"provider"`
++				Normalized     string              `json:"normalized"`
++				Baseline       string              `json:"baseline"`
++				Ceiling        string              `json:"ceiling"`
++				PolicyAdmitted bool                `json:"-"`
++				VersionPolicy  adapter.VersionView `json:"version_policy"`
++			}
++			if err := json.Unmarshal(out.Bytes(), &got); err != nil {
++				t.Fatal(err)
++			}
++			if got.VersionPolicy.Admitted || got.Supported || got.Normalized != "2.1.316" || got.Baseline == "" || got.Ceiling == "" || got.Provider != string(adapter.ProviderClaude) {
++				t.Fatalf("probe treated unstable note as stable: %s", out.Bytes())
++			}
++			if version == "2.1.316 (custom channel)" {
++				if got.Reason != "cli_version_unrecognized_note" {
++					t.Fatalf("reason=%s", got.Reason)
++				}
++			} else if got.Reason != "cli_version_prerelease" {
++				t.Fatalf("reason=%s", got.Reason)
++			}
++			reqPath := filepath.Join(root, "request.json")
++			body, _ := json.Marshal(providerRequest{Provider: adapter.ProviderClaude, BinaryPath: binary, LockFile: filepath.Join(root, "lock.json"), ConfirmSHA256: strings.Repeat("a", 64)})
++			if err := os.WriteFile(reqPath, body, 0600); err != nil {
++				t.Fatal(err)
++			}
++			err := providerControl(context.Background(), "provider-lock", []string{"--request", reqPath}, &bytes.Buffer{})
++			response := errorResponse(err)
++			if response["reason"] != got.Reason || response["normalized"] != "2.1.316" || response["baseline"] == "" || response["ceiling"] == "" || fmt.Sprint(response["provider"]) != string(adapter.ProviderClaude) {
++				t.Fatalf("lock error lost version window: %#v", response)
++			}
++		})
++	}
++}
++
++func TestKnownStableNotesStayAdmitted(t *testing.T) {
++	root := privateTaskTemp(t)
++	binary := filepath.Join(root, "claude")
++	script := "#!/bin/sh\ncase \"$1\" in\n--version) echo '2.1.316 (Claude Code)';;\n--help) echo '--output-format --input-format --permission-mode --disallowed-tools';;\n*) exit 99;;\nesac\n"
++	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
++		t.Fatal(err)
++	}
++	warmProvider(t, binary)
++	var out bytes.Buffer
++	if err := taskProbe(context.Background(), []string{"--provider", "claude", "--binary", binary}, &out); err != nil {
++		t.Fatal(err)
++	}
++	var got struct {
++		Supported bool                `json:"profile_supported"`
++		Policy    adapter.VersionView `json:"version_policy"`
++	}
++	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
++		t.Fatal(err)
++	}
++	if !got.Policy.Admitted || !got.Supported || got.Policy.Normalized != "2.1.316" {
++		t.Fatalf("known Claude note rejected: %s", out.Bytes())
++	}
++}
++
++func TestLaunchVersionRejectionKeepsWindow(t *testing.T) {
++	root := t.TempDir()
++	canary := filepath.Join(root, "must-not-run")
++	payload, _ := json.Marshal(map[string]any{
++		"provider": string(adapter.ProviderClaude), "binary_path": canary,
++		"binary_version": "2.1.316 (nightly.20261102)", "binary_sha256": strings.Repeat("a", 64),
++		"directory": root, "prompt": "inspect", "permission_mode": "plan",
++	})
++	_, err := invocationForGrant(context.Background(), contract.LaunchCommand{AdapterPayload: payload})
++	var rejected *adapter.VersionError
++	if !errors.As(err, &rejected) || rejected.Normalized != "2.1.316" || rejected.Baseline == "" || rejected.Ceiling == "" || rejected.Code != "cli_version_prerelease" {
++		t.Fatalf("launch err=%v", err)
++	}
++	encoded, _ := json.Marshal(errorResponse(err))
++	for _, field := range []string{`"provider":"claude-code"`, `"normalized":"2.1.316"`, `"reason":"cli_version_prerelease"`, `"baseline":`, `"ceiling":`} {
++		if !strings.Contains(string(encoded), field) {
++			t.Fatalf("stderr missing %s: %s", field, encoded)
++		}
++	}
++	if _, statErr := os.Stat(canary); !errors.Is(statErr, os.ErrNotExist) {
++		t.Fatal("rejected version launched")
++	}
++}
++
++func TestCodexProbeNamesTrialGaps(t *testing.T) {
++	root := privateTaskTemp(t)
++	binary := filepath.Join(root, "codex")
++	script := "#!/bin/sh\ncase \"$1\" in\n--version) echo 'codex-cli 0.166.0';;\n--help) echo 'exec --json';;\n*) exit 99;;\nesac\n"
++	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
++		t.Fatal(err)
++	}
++	warmProvider(t, binary)
++	var out bytes.Buffer
++	if err := taskProbe(context.Background(), []string{"--provider", "codex", "--binary", binary}, &out); err != nil {
++		t.Fatal(err)
++	}
++	var got struct {
++		Supported bool                `json:"profile_supported"`
++		Reason    string              `json:"reason"`
++		Missing   []string            `json:"missing"`
++		Policy    adapter.VersionView `json:"version_policy"`
++	}
++	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
++		t.Fatal(err)
++	}
++	if !got.Policy.Admitted || got.Supported || got.Reason != "codex_trial_guard_not_ready" || len(got.Missing) == 0 {
++		t.Fatalf("codex probe: %s", out.Bytes())
++	}
++}
++
++func warmProvider(t *testing.T, binary string) {
++	t.Helper()
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	if err := exec.CommandContext(ctx, binary, "--version").Run(); err != nil {
++		t.Fatalf("fixture warmup: %v", err)
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/adapter.go b/tools/orchestrator/internal/adapter/adapter.go
+index 04e5300f..ef47c15f 100644
+--- a/tools/orchestrator/internal/adapter/adapter.go
++++ b/tools/orchestrator/internal/adapter/adapter.go
+@@ -120,8 +120,8 @@ func BuildInvocation(req Request) (Invocation, error) {
+ 	if req.Binary.Version == "" || !hex64.MatchString(strings.ToLower(req.Binary.SHA256)) {
+ 		return Invocation{}, errors.New("binary_pin_invalid")
+ 	}
+-	if req.Provider == ProviderCodex && (req.Binary.Version != CodexVersion || strings.ToLower(req.Binary.SHA256) != CodexSHA256) {
+-		return Invocation{}, errors.New("codex_binary_pin_mismatch")
++	if err := AdmitVersion(req.Provider, req.Binary.Version); err != nil {
++		return Invocation{}, err
+ 	}
+ 	if req.CWD == "" || !filepath.IsAbs(req.CWD) || filepath.Clean(req.CWD) != req.CWD {
+ 		return Invocation{}, errors.New("cwd_invalid")
+@@ -157,13 +157,14 @@ func BuildInvocation(req Request) (Invocation, error) {
+ 	input := []byte(nil)
+ 	switch req.Provider {
+ 	case ProviderClaude:
+-		args = append(args, "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--include-partial-messages")
++		args = append(args, "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose")
+ 		if req.Session.ID != "" {
+ 			args = append(args, "--resume", req.Session.ID)
+ 		}
+ 		input = userEvent(req.Prompt)
+ 	case ProviderAGY:
+-		args = append(args, "--output-format", "stream-json", "--input-format", "stream-json")
++		// Declare the already-authorized workspace across the frozen window.
++		args = append(args, "--output-format", "stream-json", "--input-format", "stream-json", "--add-dir", req.CWD)
+ 		if req.Session.ID != "" {
+ 			args = append(args, "--conversation", req.Session.ID)
+ 		}
+@@ -194,7 +195,7 @@ func BuildInvocation(req Request) (Invocation, error) {
+ 		args = append(args, "-")
+ 		input = []byte(req.Prompt)
+ 	}
+-	appendPermissionArgs(&args, req.Provider, req.Permission)
++	appendPermissionArgs(&args, req.Provider, req.Binary.Version, req.Permission)
+ 	// Only the validated, managed implementation profile selects native edit
+ 	// approval. Legacy permission flags cannot opt into this mode.
+ 	if req.Profile != nil && req.Profile.Role == Implementer {
+@@ -259,7 +260,7 @@ func validatePermission(provider Provider, p Permission) error {
+ 	return nil
+ }
+ 
+-func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
++func appendPermissionArgs(args *[]string, provider Provider, rawVersion string, p Permission) {
+ 	if provider == ProviderCodex {
+ 		return
+ 	}
+@@ -272,6 +273,9 @@ func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
+ 	}
+ 	if len(p.Deny) > 0 {
+ 		flag := "--disallowed-tools"
++		if provider == ProviderClaude {
++			flag = claudeDisallowedFlag(rawVersion)
++		}
+ 		if provider == ProviderGrok {
+ 			flag = "--deny"
+ 		}
+@@ -279,6 +283,26 @@ func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
+ 	}
+ }
+ 
++// The kebab alias first appears in 1.0.86. Older published JSONL releases
++// advertise only the original camel-case option.
++func claudeDisallowedFlag(raw string) string {
++	version, err := parseCLIVersion(raw)
++	alias, _ := parseCLIVersion("1.0.86")
++	if err == nil && version.compare(alias) < 0 {
++		return "--disallowedTools"
++	}
++	return "--disallowed-tools"
++}
++
++func claudeLegacySeries(raw string) bool {
++	if AdmitVersion(ProviderClaude, raw) != nil {
++		return false
++	}
++	version, _ := parseCLIVersion(raw)
++	previousFloor, _ := parseCLIVersion("2.1.267")
++	return version.compare(previousFloor) < 0
++}
++
+ func validateExtraArgs(args []string) error {
+ 	if len(args) > 0 {
+ 		return errors.New("extra_args_forbidden")
+diff --git a/tools/orchestrator/internal/adapter/adapter_test.go b/tools/orchestrator/internal/adapter/adapter_test.go
+index 195e900e..5cadf72e 100644
+--- a/tools/orchestrator/internal/adapter/adapter_test.go
++++ b/tools/orchestrator/internal/adapter/adapter_test.go
+@@ -23,7 +23,7 @@ func equalStrings(a, b []string) bool {
+ }
+ 
+ func pinForTest() BinaryPin {
+-	return BinaryPin{Path: "/private/bin/agent", Version: "1.2.3", SHA256: strings.Repeat("a", 64)}
++	return BinaryPin{Path: "/private/bin/agent", Version: "2.1.267 (Claude Code)", SHA256: strings.Repeat("a", 64)}
+ }
+ 
+ func codexPinForTest() BinaryPin {
+@@ -88,8 +88,8 @@ func TestBuildCodexResumeUsesExactSessionAndStdin(t *testing.T) {
+ func TestBuildCodexInvocationRejectsContractExpansion(t *testing.T) {
+ 	base := Request{Provider: ProviderCodex, Binary: codexPinForTest(), CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
+ 	cases := []Request{
+-		func() Request { value := base; value.Binary.Version = "0.154.0"; return value }(),
+-		func() Request { value := base; value.Binary.SHA256 = strings.Repeat("b", 64); return value }(),
++		func() Request { value := base; value.Binary.Version = "0.153.4"; return value }(),
++		func() Request { value := base; value.Binary.SHA256 = "invalid"; return value }(),
+ 		func() Request { value := base; value.Permission.Mode = "default"; return value }(),
+ 		func() Request { value := base; value.Permission.Allow = []string{"Read"}; return value }(),
+ 		func() Request { value := base; value.Permission.Deny = []string{"Bash"}; return value }(),
+@@ -128,7 +128,7 @@ func TestBuildInvocationUsesExactResumeAndBoundedPermission(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	want := []string{"/private/bin/agent", "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--include-partial-messages", "--resume", "sess_123", "--permission-mode", "plan", "--disallowed-tools", "Bash"}
++	want := []string{"/private/bin/agent", "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--resume", "sess_123", "--permission-mode", "plan", "--disallowed-tools", "Bash"}
+ 	if got := invocation.Args(); !equalStrings(got, want) {
+ 		t.Fatalf("argv = %#v, want %#v", got, want)
+ 	}
+@@ -161,7 +161,9 @@ func TestBuildInvocationRejectsPermissionExpansionAndAuthFlags(t *testing.T) {
+ }
+ 
+ func TestDefaultPermissionDoesNotAddApprovalFlags(t *testing.T) {
+-	invocation, err := BuildInvocation(Request{Provider: ProviderAGY, Binary: pinForTest(), CWD: "/private/workspace", Prompt: "inspect"})
++	pin := pinForTest()
++	pin.Version = "1.2.3"
++	invocation, err := BuildInvocation(Request{Provider: ProviderAGY, Binary: pin, CWD: "/private/workspace", Prompt: "inspect"})
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -374,10 +376,10 @@ func TestStreamParserConsumesEventsIncrementally(t *testing.T) {
+ }
+ 
+ func TestValidatePinRequiresVersionAndDigest(t *testing.T) {
+-	if err := ValidatePin(pinForTest(), "1.2.3", strings.Repeat("a", 64)); err != nil {
++	if err := ValidatePin(pinForTest(), "2.1.267 (Claude Code)", strings.Repeat("a", 64)); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	for _, pair := range [][2]string{{"1.2.4", strings.Repeat("a", 64)}, {"1.2.3", strings.Repeat("b", 64)}} {
++	for _, pair := range [][2]string{{"1.2.4", strings.Repeat("a", 64)}, {"2.1.267 (Claude Code)", strings.Repeat("b", 64)}} {
+ 		if err := ValidatePin(pinForTest(), pair[0], pair[1]); err == nil {
+ 			t.Fatalf("accepted drift: %#v", pair)
+ 		}
+diff --git a/tools/orchestrator/internal/adapter/admit.go b/tools/orchestrator/internal/adapter/admit.go
+new file mode 100644
+index 00000000..1f687800
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/admit.go
+@@ -0,0 +1,134 @@
++package adapter
++
++import "errors"
++import "strings"
++
++var errVersionUnparsed = errors.New("cli_version_unparsed")
++
++// VersionView is the compatibility decision for one raw --version string.
++// Admitted versions still bind path, raw text, and SHA-256 at launch.
++type VersionView struct {
++	Provider   Provider `json:"provider"`
++	Baseline   string   `json:"baseline,omitempty"`
++	Ceiling    string   `json:"ceiling,omitempty"`
++	FrozenAt   string   `json:"frozen_at,omitempty"`
++	Normalized string   `json:"normalized,omitempty"`
++	Protocol   string   `json:"protocol,omitempty"`
++	Admitted   bool     `json:"admitted"`
++	Reason     string   `json:"reason,omitempty"`
++}
++
++// VersionError carries a stable code plus the frozen window.
++// Error() stays the code so existing callers can compare it directly.
++type VersionError struct {
++	Code       string
++	Provider   Provider
++	Raw        string
++	Baseline   string
++	Ceiling    string
++	Normalized string
++}
++
++func (e *VersionError) Error() string {
++	if e == nil {
++		return ""
++	}
++	return e.Code
++}
++
++func AdmitVersion(provider Provider, raw string) error {
++	_, err := assessVersion(provider, raw)
++	return err
++}
++
++func DescribeVersion(provider Provider, raw string) VersionView {
++	view, _ := assessVersion(provider, raw)
++	return view
++}
++
++// TrialBlockedError is the Codex launch gate. Error() stays the stable code.
++// Missing lists the contracts that are still absent, so the gate is not a bare string.
++type TrialBlockedError struct {
++	Missing []string
++}
++
++func (e *TrialBlockedError) Error() string {
++	if e == nil {
++		return ""
++	}
++	return "codex_trial_guard_not_ready"
++}
++
++func CodexTrialBlocked() error {
++	return &TrialBlockedError{Missing: CodexTrialMissing()}
++}
++
++func CodexTrialMissing() []string {
++	return []string{
++		"verified_auth_metadata_source_missing",
++		"exec_refresh_tripwire_not_applied",
++		"native_auth_admission_pinned_0.154.0",
++		"codex_exec_collect_loop_not_evidenced",
++	}
++}
++
++// LaunchAdmission decides before any binary read. A nil result means the
++// caller still has to verify the pin, digest, and capabilities.
++func LaunchAdmission(provider Provider, rawVersion, sha string) error {
++	if provider == ProviderCodex || rawVersion == CodexVersion || strings.EqualFold(sha, CodexSHA256) {
++		return CodexTrialBlocked()
++	}
++	if err := AdmitVersion(provider, rawVersion); err != nil {
++		return err
++	}
++	return nil
++}
++
++func assessVersion(provider Provider, raw string) (VersionView, error) {
++	view := VersionView{Provider: provider}
++	catalog, err := loadCatalog()
++	if err != nil {
++		return rejectVersion(view, "cli_version_catalog_invalid", raw)
++	}
++	policy := catalog.byProvider[provider]
++	if policy == nil {
++		return rejectVersion(view, "cli_version_unparsed", raw)
++	}
++	view.Baseline, view.Ceiling, view.FrozenAt = policy.baselineText, policy.ceilingText, catalog.frozenAt
++	parsed, err := parseCLIVersion(raw)
++	if err != nil {
++		return rejectVersion(view, "cli_version_unparsed", raw)
++	}
++	if !prefixAllowed(provider, parsed.Product) {
++		return rejectVersion(view, "cli_version_product_mismatch", raw)
++	}
++	view.Normalized = parsed.Normalized
++	return classifyReleased(view, policy, parsed, raw)
++}
++
++func classifyReleased(view VersionView, policy *providerPolicy, parsed parsedVersion, raw string) (VersionView, error) {
++	if _, code := releaseClass(view.Provider, parsed); code != "" {
++		return rejectVersion(view, code, raw)
++	}
++	if parsed.compare(policy.baseline) < 0 {
++		return rejectVersion(view, "cli_version_below_baseline", raw)
++	}
++	if parsed.compare(policy.ceiling) > 0 {
++		return rejectVersion(view, "cli_version_above_ceiling", raw)
++	}
++	if _, ok := policy.published[parsed.Normalized]; !ok {
++		return rejectVersion(view, "cli_version_not_published", raw)
++	}
++	view.Admitted = true
++	view.Protocol = policy.protocol
++	return view, nil
++}
++
++func rejectVersion(view VersionView, code, raw string) (VersionView, error) {
++	view.Admitted = false
++	view.Reason = code
++	return view, &VersionError{
++		Code: code, Provider: view.Provider, Raw: raw,
++		Baseline: view.Baseline, Ceiling: view.Ceiling, Normalized: view.Normalized,
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/admit_test.go b/tools/orchestrator/internal/adapter/admit_test.go
+new file mode 100644
+index 00000000..190c96e5
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/admit_test.go
+@@ -0,0 +1,53 @@
++package adapter
++
++import (
++	"errors"
++	"slices"
++	"strings"
++	"testing"
++)
++
++// The Codex gate is a contract list, not a mood. Closing an item requires
++// real evidence against that contract; until then the full list must come
++// back verbatim, so an implementation cannot graduate by quietly dropping
++// the items it has not satisfied.
++func TestCodexTrialGuardReportsTheFullMissingList(t *testing.T) {
++	want := []string{
++		"verified_auth_metadata_source_missing",
++		"exec_refresh_tripwire_not_applied",
++		"native_auth_admission_pinned_0.154.0",
++		"codex_exec_collect_loop_not_evidenced",
++	}
++	if got := CodexTrialMissing(); !slices.Equal(got, want) {
++		t.Fatalf("missing = %v, want the full contract list %v", got, want)
++	}
++	blocked, ok := CodexTrialBlocked().(*TrialBlockedError)
++	if !ok || blocked == nil || blocked.Error() != "codex_trial_guard_not_ready" {
++		t.Fatalf("guard = %#v, want a TrialBlockedError coded codex_trial_guard_not_ready", CodexTrialBlocked())
++	}
++	if !slices.Equal(blocked.Missing, want) {
++		t.Fatalf("blocked missing = %v, want %v", blocked.Missing, want)
++	}
++	// Every Codex launch is gated, across the whole admitted window: neither
++	// the pinned baseline nor a later admitted version slips past, and the
++	// historical pin cannot alias a different provider past the gate either.
++	for _, admission := range []struct {
++		provider Provider
++		raw, sha string
++	}{
++		{ProviderCodex, CodexVersion, CodexSHA256},
++		{ProviderCodex, "codex-cli 0.166.0", strings.Repeat("a", 64)},
++		{ProviderClaude, CodexVersion, CodexSHA256},
++		{ProviderClaude, "2.1.267 (Claude Code)", CodexSHA256},
++	} {
++		err := LaunchAdmission(admission.provider, admission.raw, admission.sha)
++		var trial *TrialBlockedError
++		if !errors.As(err, &trial) || trial == nil || !slices.Equal(trial.Missing, want) {
++			t.Fatalf("LaunchAdmission(%s, %q) = %v, want the full trial guard", admission.provider, admission.raw, err)
++		}
++	}
++	// The guard is Codex-scoped: an admitted Claude version still launches.
++	if err := LaunchAdmission(ProviderClaude, "2.1.267 (Claude Code)", strings.Repeat("b", 64)); err != nil {
++		t.Fatalf("admitted Claude version gated: %v", err)
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/catalog.go b/tools/orchestrator/internal/adapter/catalog.go
+new file mode 100644
+index 00000000..33c7decc
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/catalog.go
+@@ -0,0 +1,109 @@
++package adapter
++
++import (
++	_ "embed"
++	"encoding/json"
++	"sync"
++)
++
++//go:embed compatibility_catalog.json
++var compatibilityCatalogJSON []byte
++
++// compatibility_catalog.json is the frozen published-stable window.
++// It is not a live "latest" lookup and is not refreshed on each run.
++type catalogFile struct {
++	FrozenAt  string                     `json:"frozen_at"`
++	Providers map[string]catalogProvider `json:"providers"`
++}
++
++type catalogProvider struct {
++	Baseline string           `json:"baseline"`
++	Ceiling  string           `json:"ceiling"`
++	Protocol string           `json:"protocol"`
++	Versions []catalogRelease `json:"versions"`
++}
++
++type catalogRelease struct {
++	Version     string `json:"version"`
++	PublishedAt string `json:"published_at"`
++}
++
++type providerPolicy struct {
++	baseline     parsedVersion
++	ceiling      parsedVersion
++	baselineText string
++	ceilingText  string
++	protocol     string
++	order        []string
++	published    map[string]struct{}
++}
++
++type loadedCatalog struct {
++	frozenAt   string
++	byProvider map[Provider]*providerPolicy
++}
++
++var (
++	catalogOnce   sync.Once
++	catalogLoaded loadedCatalog
++	catalogErr    error
++)
++
++func loadCatalog() (*loadedCatalog, error) {
++	catalogOnce.Do(parseCompatibilityCatalog)
++	if catalogErr != nil {
++		return nil, catalogErr
++	}
++	return &catalogLoaded, nil
++}
++
++func parseCompatibilityCatalog() {
++	var file catalogFile
++	if err := json.Unmarshal(compatibilityCatalogJSON, &file); err != nil {
++		catalogErr = err
++		return
++	}
++	catalogLoaded.frozenAt = file.FrozenAt
++	catalogLoaded.byProvider = map[Provider]*providerPolicy{}
++	for name, spec := range file.Providers {
++		policy, err := newProviderPolicy(spec)
++		if err != nil {
++			catalogErr = err
++			return
++		}
++		catalogLoaded.byProvider[Provider(name)] = policy
++	}
++}
++
++func newProviderPolicy(spec catalogProvider) (*providerPolicy, error) {
++	baseline, err := parseCLIVersion(spec.Baseline)
++	if err != nil {
++		return nil, err
++	}
++	ceiling, err := parseCLIVersion(spec.Ceiling)
++	if err != nil {
++		return nil, err
++	}
++	policy := &providerPolicy{
++		baseline: baseline, ceiling: ceiling,
++		baselineText: spec.Baseline, ceilingText: spec.Ceiling,
++		protocol: spec.Protocol, published: map[string]struct{}{},
++	}
++	for _, release := range spec.Versions {
++		policy.order = append(policy.order, release.Version)
++		policy.published[release.Version] = struct{}{}
++	}
++	return policy, nil
++}
++
++func PublishedVersions(provider Provider) []string {
++	catalog, err := loadCatalog()
++	if err != nil {
++		return nil
++	}
++	policy := catalog.byProvider[provider]
++	if policy == nil {
++		return nil
++	}
++	return append([]string(nil), policy.order...)
++}
+diff --git a/tools/orchestrator/internal/adapter/claude_probe.go b/tools/orchestrator/internal/adapter/claude_probe.go
+new file mode 100644
+index 00000000..302230ac
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/claude_probe.go
+@@ -0,0 +1,122 @@
++package adapter
++
++import (
++	"context"
++	"crypto/sha256"
++	"errors"
++	"fmt"
++	"os"
++	"os/exec"
++	"os/user"
++	"path/filepath"
++	"runtime"
++	"strconv"
++	"strings"
++	"syscall"
++	"time"
++)
++
++// Node is an independent executable trust boundary for the legacy JS CLI.
++// This is the official v24.13.0 darwin-arm64 archive's bin/node, not a digest
++// learned from PATH at launch. Additional runtimes need separate acceptance.
++const ClaudeNodeSHA256 = "6f2e835e57feb7a29ffcd53a4d4eb60224ec264a1e002c3ba6d99999ea29807d"
++
++func ClaudeNodePin() (BinaryPin, error) {
++	path := os.Getenv("ORCHESTRATOR_CLAUDE_NODE_BINARY")
++	if path == "" {
++		return BinaryPin{}, errors.New("claude_node_pin_missing")
++	}
++	pin := BinaryPin{Path: path, Version: "v24.13.0", SHA256: ClaudeNodeSHA256}
++	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" || VerifyExecutable(pin, pin.Version) != nil {
++		return BinaryPin{}, errors.New("claude_node_runtime_untrusted")
++	}
++	info, err := os.Lstat(path)
++	if err != nil {
++		return BinaryPin{}, errors.New("claude_node_runtime_untrusted")
++	}
++	identity, ok := info.Sys().(*syscall.Stat_t)
++	if !ok || (identity.Uid != uint32(os.Getuid()) && identity.Uid != 0) {
++		return BinaryPin{}, errors.New("claude_node_runtime_untrusted")
++	}
++	return pin, nil
++}
++
++// ProbePinnedOutput keeps non-Claude metadata behavior unchanged. Claude
++// discovery must not execute with a caller credential, config or Node loader.
++func ProbePinnedOutput(ctx context.Context, provider Provider, pin BinaryPin, args ...string) (string, error) {
++	if provider != ProviderClaude {
++		return ProbeOutput(ctx, pin.Path, args...)
++	}
++	window := 2 * time.Second
++	if strings.HasSuffix(pin.Path, ".js") {
++		// Copying and starting the pinned Node bundle under Seatbelt is slower
++		// than native metadata. Keep a separate bounded legacy probe window.
++		window = 8 * time.Second
++	}
++	ctx, cancel := context.WithTimeout(ctx, window)
++	defer cancel()
++	if err := VerifyExecutable(pin, pin.Version); err != nil {
++		return "", err
++	}
++	if runtime.GOOS != "darwin" {
++		return "", errors.New("claude_probe_sandbox_unsupported")
++	}
++	home, err := os.MkdirTemp("", "claude-probe-")
++	if err != nil {
++		return "", err
++	}
++	defer os.RemoveAll(home)
++	home, err = filepath.EvalSymlinks(home)
++	if err != nil {
++		return "", err
++	}
++	account, err := user.Current()
++	if err != nil {
++		return "", errors.New("claude_probe_source_unverified")
++	}
++	path, argv := pin.Path, append([]string{}, args...)
++	rules := []string{"(version 1)", "(allow default)", "(deny network*)", "(deny file-write*)", `(allow file-write* (literal "/dev/null"))`, "(allow file-read* file-write* (subpath " + strconv.Quote(home) + "))"}
++	for _, raw := range []string{account.HomeDir, os.Getenv("HOME"), os.Getenv("CLAUDE_CONFIG_DIR"), os.Getenv("CLAUDE_SECURESTORAGE_CONFIG_DIR")} {
++		if raw == "" {
++			continue
++		}
++		root, err := filepath.EvalSymlinks(raw)
++		if err != nil || !filepath.IsAbs(raw) || root == "/" {
++			return "", errors.New("claude_probe_source_unverified")
++		}
++		rules = append(rules, "(deny file-read* (subpath "+strconv.Quote(root)+"))")
++	}
++	rules = append(rules, "(allow file-read* (literal "+strconv.Quote(pin.Path)+"))")
++	if strings.HasSuffix(pin.Path, ".js") {
++		node, err := ClaudeNodePin()
++		if err != nil {
++			return "", err
++		}
++		path, argv = node.Path, append([]string{pin.Path}, args...)
++		// A Node executable located under the denied caller home cannot safely
++		// initialize there on macOS. Use the same official bytes in private state.
++		body, err := os.ReadFile(node.Path)
++		if err != nil || fmt.Sprintf("%x", sha256.Sum256(body)) != ClaudeNodeSHA256 {
++			return "", errors.New("claude_node_runtime_untrusted")
++		}
++		path = filepath.Join(home, "node")
++		if err := os.WriteFile(path, body, 0700); err != nil {
++			return "", err
++		}
++	}
++	for _, service := range []string{"com.apple.SecurityServer", "com.apple.securityd", "com.apple.securityd.system", "com.apple.securityd.systemkeychain"} {
++		rules = append(rules, "(deny mach-lookup (global-name "+strconv.Quote(service)+"))")
++	}
++	argv = append([]string{"-p", strings.Join(rules, "\n"), path}, argv...)
++	cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", argv...)
++	cmd.Dir = home
++	cmd.Env = []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LANG=en_US.UTF-8", "HOME=" + home, "TMPDIR=" + home, "CLAUDE_CONFIG_DIR=" + home, "CLAUDE_SECURESTORAGE_CONFIG_DIR=" + home, "DISABLE_AUTOUPDATER=1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1"}
++	output, err := probeCommandOutput(ctx, cmd, args...)
++	if err != nil {
++		return "", err
++	}
++	if err := VerifyExecutable(pin, pin.Version); err != nil {
++		return "", err
++	}
++	return output, nil
++}
+diff --git a/tools/orchestrator/internal/adapter/claude_probe_test.go b/tools/orchestrator/internal/adapter/claude_probe_test.go
+new file mode 100644
+index 00000000..29c91568
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/claude_probe_test.go
+@@ -0,0 +1,61 @@
++package adapter
++
++import (
++	"context"
++	"crypto/sha256"
++	"fmt"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++func TestClaudeProbeUsesPrivateStateAndCannotTouchCallerHome(t *testing.T) {
++	home, err := filepath.EvalSymlinks(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Setenv("HOME", home)
++	t.Setenv("CLAUDE_CONFIG_DIR", home)
++	for _, name := range []string{"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "NODE_OPTIONS", "HTTPS_PROXY", "DYLD_INSERT_LIBRARIES"} {
++		t.Setenv(name, "SYNTHETIC_UNTRUSTED")
++	}
++	secret := filepath.Join(home, "source-auth")
++	if err := os.WriteFile(secret, []byte("SYNTHETIC_AUTH"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	body, err := os.ReadFile("/bin/sh")
++	if err != nil {
++		t.Fatal(err)
++	}
++	pin := BinaryPin{Path: "/bin/sh", Version: "probe", SHA256: fmt.Sprintf("%x", sha256.Sum256(body))}
++	script := `test "$HOME" != "$1" && test "$CLAUDE_CONFIG_DIR" = "$HOME" && test "$DISABLE_AUTOUPDATER" = 1 && test -z "${ANTHROPIC_API_KEY+x}${ANTHROPIC_AUTH_TOKEN+x}${CLAUDE_CODE_OAUTH_TOKEN+x}${NODE_OPTIONS+x}${HTTPS_PROXY+x}${DYLD_INSERT_LIBRARIES+x}" && test ! -r "$1/source-auth" && ! touch "$1/probe-write" 2>/dev/null && printf '%s' "$2"`
++	for _, flag := range []string{"--version", "--help"} {
++		output, err := ProbePinnedOutput(context.Background(), ProviderClaude, pin, "-c", script, "probe", home, flag)
++		if err != nil || output != flag {
++			t.Fatalf("unsafe %s probe: %q %v", flag, output, err)
++		}
++	}
++	if got, err := os.ReadFile(secret); err != nil || string(got) != "SYNTHETIC_AUTH" {
++		t.Fatal("source changed")
++	}
++}
++
++func TestClaudeNodeRequiresExplicitOfficialPinBeforeExecution(t *testing.T) {
++	root, err := filepath.EvalSymlinks(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	fake := filepath.Join(root, "node")
++	if err := os.WriteFile(fake, []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {
++		t.Fatal(err)
++	}
++	t.Setenv("PATH", root+":/usr/bin:/bin")
++	t.Setenv("ORCHESTRATOR_CLAUDE_NODE_BINARY", "")
++	if _, err := ClaudeNodePin(); err == nil || err.Error() != "claude_node_pin_missing" {
++		t.Fatal("ambient PATH selected Node")
++	}
++	t.Setenv("ORCHESTRATOR_CLAUDE_NODE_BINARY", fake)
++	if _, err := ClaudeNodePin(); err == nil || err.Error() != "claude_node_runtime_untrusted" {
++		t.Fatal("fake Node accepted")
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/coding_profiles_test.go b/tools/orchestrator/internal/adapter/coding_profiles_test.go
+index 88003dfb..e7d31392 100644
+--- a/tools/orchestrator/internal/adapter/coding_profiles_test.go
++++ b/tools/orchestrator/internal/adapter/coding_profiles_test.go
+@@ -11,6 +11,8 @@ func TestCodingProfilesKeepManagedWorkspaceAndNativePermissions(t *testing.T) {
+ 			req := profileRequest(t, `{"version":1,"role":"implementer","permission":"workspace-write","timeout_ms":9000}`)
+ 			req.Provider = provider
+ 			req.Permission = Permission{}
++			req.Binary.Version = baselineRaw(provider)
++			req.Lock.Binary = req.Binary
+ 			req.Lock.Provider, req.Lock.Protocol = provider, ProtocolID(provider)
+ 			if provider == ProviderGrok {
+ 				req.Binary.Version = "grok 1.0.34 (3736acbc8658)"
+diff --git a/tools/orchestrator/internal/adapter/compatibility_catalog.json b/tools/orchestrator/internal/adapter/compatibility_catalog.json
+new file mode 100644
+index 00000000..d9e299c2
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/compatibility_catalog.json
+@@ -0,0 +1,2043 @@
++{
++  "frozen_at": "2026-11-03T03:52:16.898784+00:00",
++  "note": "Ceiling is the newest non-prerelease release observed at frozen_at. Runtime does not refetch latest.",
++  "providers": {
++    "claude-code": {
++      "baseline": "1.0.61",
++      "ceiling": "2.1.317",
++      "protocol": "claude-stream-json-v1",
++      "source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
++      "dist_tags_at_freeze": {
++        "stable": "2.1.311",
++        "next": "2.1.317",
++        "latest": "2.1.317"
++      },
++      "baseline_evidence": "1.0.61 is the fixed-binary boundary for required input-format, plan permissions, settings and strict MCP support. Earlier1.0 releases have materially different contracts and remain below the supported floor. Continuous published versions are tracked by compatibility cohorts; admission is not a direct-test claim.",
++      "versions": [
++        {
++          "version": "1.0.61",
++          "published_at": "2025-07-25T20:52:31.027Z"
++        },
++        {
++          "version": "1.0.62",
++          "published_at": "2025-07-28T22:04:35.525Z"
++        },
++        {
++          "version": "1.0.63",
++          "published_at": "2025-07-29T21:27:31.493Z"
++        },
++        {
++          "version": "1.0.64",
++          "published_at": "2025-07-30T21:26:57.879Z"
++        },
++        {
++          "version": "1.0.65",
++          "published_at": "2025-07-31T21:44:51.996Z"
++        },
++        {
++          "version": "1.0.66",
++          "published_at": "2025-08-01T21:36:21.666Z"
++        },
++        {
++          "version": "1.0.67",
++          "published_at": "2025-08-01T22:35:04.073Z"
++        },
++        {
++          "version": "1.0.68",
++          "published_at": "2025-08-04T21:14:18.850Z"
++        },
++        {
++          "version": "1.0.69",
++          "published_at": "2025-08-05T16:27:31.792Z"
++        },
++        {
++          "version": "1.0.70",
++          "published_at": "2025-08-06T19:15:54.940Z"
++        },
++        {
++          "version": "1.0.71",
++          "published_at": "2025-08-07T21:33:10.140Z"
++        },
++        {
++          "version": "1.0.72",
++          "published_at": "2025-08-08T17:55:21.349Z"
++        },
++        {
++          "version": "1.0.73",
++          "published_at": "2025-08-11T21:30:29.164Z"
++        },
++        {
++          "version": "1.0.74",
++          "published_at": "2025-08-12T15:58:41.439Z"
++        },
++        {
++          "version": "1.0.76",
++          "published_at": "2025-08-12T18:01:01.410Z"
++        },
++        {
++          "version": "1.0.77",
++          "published_at": "2025-08-12T19:12:14.663Z"
++        },
++        {
++          "version": "1.0.78",
++          "published_at": "2025-08-13T18:08:07.253Z"
++        },
++        {
++          "version": "1.0.79",
++          "published_at": "2025-08-13T20:02:55.751Z"
++        },
++        {
++          "version": "1.0.80",
++          "published_at": "2025-08-13T20:59:17.592Z"
++        },
++        {
++          "version": "1.0.81",
++          "published_at": "2025-08-14T16:41:20.746Z"
++        },
++        {
++          "version": "1.0.82",
++          "published_at": "2025-08-15T21:08:19.137Z"
++        },
++        {
++          "version": "1.0.83",
++          "published_at": "2025-08-15T23:06:09.923Z"
++        },
++        {
++          "version": "1.0.84",
++          "published_at": "2025-08-18T22:36:19.901Z"
++        },
++        {
++          "version": "1.0.85",
++          "published_at": "2025-08-19T21:11:17.988Z"
++        },
++        {
++          "version": "1.0.86",
++          "published_at": "2025-08-20T22:10:29.765Z"
++        },
++        {
++          "version": "1.0.87",
++          "published_at": "2025-08-21T22:21:54.587Z"
++        },
++        {
++          "version": "1.0.88",
++          "published_at": "2025-08-22T00:43:54.508Z"
++        },
++        {
++          "version": "1.0.89",
++          "published_at": "2025-08-22T22:24:06.066Z"
++        },
++        {
++          "version": "1.0.90",
++          "published_at": "2025-08-24T22:41:06.467Z"
++        },
++        {
++          "version": "1.0.91",
++          "published_at": "2025-08-25T21:18:17.581Z"
++        },
++        {
++          "version": "1.0.92",
++          "published_at": "2025-08-25T22:50:24.852Z"
++        },
++        {
++          "version": "1.0.93",
++          "published_at": "2025-08-26T22:22:24.524Z"
++        },
++        {
++          "version": "1.0.94",
++          "published_at": "2025-08-27T20:13:08.204Z"
++        },
++        {
++          "version": "1.0.95",
++          "published_at": "2025-08-28T01:10:50.366Z"
++        },
++        {
++          "version": "1.0.96",
++          "published_at": "2025-08-28T15:04:37.121Z"
++        },
++        {
++          "version": "1.0.98",
++          "published_at": "2025-08-29T20:56:53.497Z"
++        },
++        {
++          "version": "1.0.100",
++          "published_at": "2025-09-01T22:34:48.950Z"
++        },
++        {
++          "version": "1.0.102",
++          "published_at": "2025-09-02T23:17:41.973Z"
++        },
++        {
++          "version": "1.0.103",
++          "published_at": "2025-09-03T23:10:53.687Z"
++        },
++        {
++          "version": "1.0.105",
++          "published_at": "2025-09-04T15:58:07.057Z"
++        },
++        {
++          "version": "1.0.106",
++          "published_at": "2025-09-04T23:22:21.845Z"
++        },
++        {
++          "version": "1.0.107",
++          "published_at": "2025-09-05T02:29:07.427Z"
++        },
++        {
++          "version": "1.0.108",
++          "published_at": "2025-09-05T22:36:49.343Z"
++        },
++        {
++          "version": "1.0.109",
++          "published_at": "2025-09-08T23:01:00.279Z"
++        },
++        {
++          "version": "1.0.110",
++          "published_at": "2025-09-09T22:06:44.373Z"
++        },
++        {
++          "version": "1.0.111",
++          "published_at": "2025-09-10T22:16:23.609Z"
++        },
++        {
++          "version": "1.0.112",
++          "published_at": "2025-09-12T00:07:45.734Z"
++        },
++        {
++          "version": "1.0.113",
++          "published_at": "2025-09-13T02:24:02.502Z"
++        },
++        {
++          "version": "1.0.114",
++          "published_at": "2025-09-15T21:08:05.119Z"
++        },
++        {
++          "version": "1.0.115",
++          "published_at": "2025-09-16T00:07:57.334Z"
++        },
++        {
++          "version": "1.0.116",
++          "published_at": "2025-09-16T22:02:38.918Z"
++        },
++        {
++          "version": "1.0.117",
++          "published_at": "2025-09-16T23:17:18.784Z"
++        },
++        {
++          "version": "1.0.118",
++          "published_at": "2025-09-17T23:41:24.667Z"
++        },
++        {
++          "version": "1.0.119",
++          "published_at": "2025-09-18T21:03:38.113Z"
++        },
++        {
++          "version": "1.0.120",
++          "published_at": "2025-09-19T21:08:21.676Z"
++        },
++        {
++          "version": "1.0.122",
++          "published_at": "2025-09-23T17:35:45.676Z"
++        },
++        {
++          "version": "1.0.123",
++          "published_at": "2025-09-23T20:49:33.199Z"
++        },
++        {
++          "version": "1.0.124",
++          "published_at": "2025-09-25T01:37:53.959Z"
++        },
++        {
++          "version": "1.0.125",
++          "published_at": "2025-09-25T22:46:03.480Z"
++        },
++        {
++          "version": "1.0.126",
++          "published_at": "2025-09-26T00:59:58.155Z"
++        },
++        {
++          "version": "1.0.127",
++          "published_at": "2025-09-26T17:04:43.234Z"
++        },
++        {
++          "version": "1.0.128",
++          "published_at": "2025-09-27T16:06:56.405Z"
++        },
++        {
++          "version": "2.0.0",
++          "published_at": "2025-09-29T14:41:14.895Z"
++        },
++        {
++          "version": "2.0.1",
++          "published_at": "2025-09-30T01:53:50.434Z"
++        },
++        {
++          "version": "2.0.2",
++          "published_at": "2025-09-30T23:24:33.425Z"
++        },
++        {
++          "version": "2.0.3",
++          "published_at": "2025-10-02T01:33:56.691Z"
++        },
++        {
++          "version": "2.0.5",
++          "published_at": "2025-10-02T16:20:59.106Z"
++        },
++        {
++          "version": "2.0.8",
++          "published_at": "2025-10-04T20:44:29.930Z"
++        },
++        {
++          "version": "2.0.9",
++          "published_at": "2025-10-06T21:15:21.832Z"
++        },
++        {
++          "version": "2.0.10",
++          "published_at": "2025-10-07T19:53:56.866Z"
++        },
++        {
++          "version": "2.0.11",
++          "published_at": "2025-10-08T20:13:03.929Z"
++        },
++        {
++          "version": "2.0.12",
++          "published_at": "2025-10-09T15:43:28.593Z"
++        },
++        {
++          "version": "2.0.13",
++          "published_at": "2025-10-09T17:20:50.066Z"
++        },
++        {
++          "version": "2.0.14",
++          "published_at": "2025-10-10T20:46:20.011Z"
++        },
++        {
++          "version": "2.0.15",
++          "published_at": "2025-10-14T17:18:10.785Z"
++        },
++        {
++          "version": "2.0.17",
++          "published_at": "2025-10-15T15:46:20.184Z"
++        },
++        {
++          "version": "2.0.18",
++          "published_at": "2025-10-15T19:45:18.737Z"
++        },
++        {
++          "version": "2.0.19",
++          "published_at": "2025-10-15T21:35:23.345Z"
++        },
++        {
++          "version": "2.0.20",
++          "published_at": "2025-10-16T16:01:05.689Z"
++        },
++        {
++          "version": "2.0.21",
++          "published_at": "2025-10-16T23:44:33.813Z"
++        },
++        {
++          "version": "2.0.22",
++          "published_at": "2025-10-17T21:40:29.277Z"
++        },
++        {
++          "version": "2.0.23",
++          "published_at": "2025-10-20T04:53:47.143Z"
++        },
++        {
++          "version": "2.0.24",
++          "published_at": "2025-10-20T18:36:49.330Z"
++        },
++        {
++          "version": "2.0.25",
++          "published_at": "2025-10-21T21:03:51.747Z"
++        },
++        {
++          "version": "2.0.26",
++          "published_at": "2025-10-23T22:43:25.280Z"
++        },
++        {
++          "version": "2.0.27",
++          "published_at": "2025-10-24T19:50:51.616Z"
++        },
++        {
++          "version": "2.0.28",
++          "published_at": "2025-10-27T20:45:04.126Z"
++        },
++        {
++          "version": "2.0.29",
++          "published_at": "2025-10-29T23:13:19.522Z"
++        },
++        {
++          "version": "2.0.30",
++          "published_at": "2025-10-30T22:23:48.671Z"
++        },
++        {
++          "version": "2.0.31",
++          "published_at": "2025-10-31T21:19:12.609Z"
++        },
++        {
++          "version": "2.0.32",
++          "published_at": "2025-11-03T23:09:10.512Z"
++        },
++        {
++          "version": "2.0.33",
++          "published_at": "2025-11-04T22:27:11.403Z"
++        },
++        {
++          "version": "2.0.34",
++          "published_at": "2025-11-05T20:44:58.296Z"
++        },
++        {
++          "version": "2.0.35",
++          "published_at": "2025-11-06T20:25:20.114Z"
++        },
++        {
++          "version": "2.0.36",
++          "published_at": "2025-11-07T21:54:57.368Z"
++        },
++        {
++          "version": "2.0.37",
++          "published_at": "2025-11-10T22:05:27.713Z"
++        },
++        {
++          "version": "2.0.41",
++          "published_at": "2025-11-14T01:55:35.892Z"
++        },
++        {
++          "version": "2.0.42",
++          "published_at": "2025-11-14T23:00:23.267Z"
++        },
++        {
++          "version": "2.0.43",
++          "published_at": "2025-11-17T22:19:17.451Z"
++        },
++        {
++          "version": "2.0.44",
++          "published_at": "2025-11-18T04:31:13.133Z"
++        },
++        {
++          "version": "2.0.45",
++          "published_at": "2025-11-18T16:31:06.710Z"
++        },
++        {
++          "version": "2.0.46",
++          "published_at": "2025-11-19T04:19:08.870Z"
++        },
++        {
++          "version": "2.0.47",
++          "published_at": "2025-11-19T22:38:50.075Z"
++        },
++        {
++          "version": "2.0.49",
++          "published_at": "2025-11-21T00:00:19.160Z"
++        },
++        {
++          "version": "2.0.50",
++          "published_at": "2025-11-21T17:13:30.845Z"
++        },
++        {
++          "version": "2.0.51",
++          "published_at": "2025-11-24T18:27:18.026Z"
++        },
++        {
++          "version": "2.0.52",
++          "published_at": "2025-11-24T23:01:06.778Z"
++        },
++        {
++          "version": "2.0.53",
++          "published_at": "2025-11-25T01:12:33.504Z"
++        },
++        {
++          "version": "2.0.54",
++          "published_at": "2025-11-25T23:52:47.226Z"
++        },
++        {
++          "version": "2.0.55",
++          "published_at": "2025-11-26T22:54:58.963Z"
++        },
++        {
++          "version": "2.0.56",
++          "published_at": "2025-12-01T23:38:38.455Z"
++        },
++        {
++          "version": "2.0.57",
++          "published_at": "2025-12-03T04:52:56.549Z"
++        },
++        {
++          "version": "2.0.58",
++          "published_at": "2025-12-03T18:34:25.537Z"
++        },
++        {
++          "version": "2.0.59",
++          "published_at": "2025-12-04T21:59:34.519Z"
++        },
++        {
++          "version": "2.0.60",
++          "published_at": "2025-12-05T21:53:25.502Z"
++        },
++        {
++          "version": "2.0.61",
++          "published_at": "2025-12-07T09:21:37.086Z"
++        },
++        {
++          "version": "2.0.62",
++          "published_at": "2025-12-09T00:21:11.631Z"
++        },
++        {
++          "version": "2.0.63",
++          "published_at": "2025-12-09T19:44:13.876Z"
++        },
++        {
++          "version": "2.0.64",
++          "published_at": "2025-12-10T01:15:46.128Z"
++        },
++        {
++          "version": "2.0.65",
++          "published_at": "2025-12-11T02:41:29.924Z"
++        },
++        {
++          "version": "2.0.66",
++          "published_at": "2025-12-11T19:03:40.985Z"
++        },
++        {
++          "version": "2.0.67",
++          "published_at": "2025-12-11T23:56:31.532Z"
++        },
++        {
++          "version": "2.0.68",
++          "published_at": "2025-12-12T22:56:02.877Z"
++        },
++        {
++          "version": "2.0.69",
++          "published_at": "2025-12-13T00:32:30.208Z"
++        },
++        {
++          "version": "2.0.70",
++          "published_at": "2025-12-15T22:38:58.864Z"
++        },
++        {
++          "version": "2.0.71",
++          "published_at": "2025-12-16T21:30:39.801Z"
++        },
++        {
++          "version": "2.0.72",
++          "published_at": "2025-12-17T21:21:00.969Z"
++        },
++        {
++          "version": "2.0.73",
++          "published_at": "2025-12-18T23:25:55.278Z"
++        },
++        {
++          "version": "2.0.74",
++          "published_at": "2025-12-19T21:08:38.116Z"
++        },
++        {
++          "version": "2.0.75",
++          "published_at": "2025-12-20T17:19:09.800Z"
++        },
++        {
++          "version": "2.0.76",
++          "published_at": "2025-12-22T23:56:39.366Z"
++        },
++        {
++          "version": "2.0.77",
++          "published_at": "2026-01-06T00:26:25.533Z"
++        },
++        {
++          "version": "2.1.0",
++          "published_at": "2026-01-07T02:43:04.533Z"
++        },
++        {
++          "version": "2.1.1",
++          "published_at": "2026-01-07T21:10:49.347Z"
++        },
++        {
++          "version": "2.1.2",
++          "published_at": "2026-01-08T21:19:38.381Z"
++        },
++        {
++          "version": "2.1.3",
++          "published_at": "2026-01-09T21:05:42.894Z"
++        },
++        {
++          "version": "2.1.4",
++          "published_at": "2026-01-10T22:23:31.653Z"
++        },
++        {
++          "version": "2.1.5",
++          "published_at": "2026-01-11T21:30:08.609Z"
++        },
++        {
++          "version": "2.1.6",
++          "published_at": "2026-01-13T01:42:47.331Z"
++        },
++        {
++          "version": "2.1.7",
++          "published_at": "2026-01-13T22:55:49.806Z"
++        },
++        {
++          "version": "2.1.8",
++          "published_at": "2026-01-15T00:41:01.272Z"
++        },
++        {
++          "version": "2.1.9",
++          "published_at": "2026-01-15T23:59:29.275Z"
++        },
++        {
++          "version": "2.1.10",
++          "published_at": "2026-01-17T00:11:29.352Z"
++        },
++        {
++          "version": "2.1.11",
++          "published_at": "2026-01-17T01:19:37.165Z"
++        },
++        {
++          "version": "2.1.12",
++          "published_at": "2026-01-17T15:40:35.547Z"
++        },
++        {
++          "version": "2.1.14",
++          "published_at": "2026-01-20T22:37:25.754Z"
++        },
++        {
++          "version": "2.1.15",
++          "published_at": "2026-01-21T21:25:20.551Z"
++        },
++        {
++          "version": "2.1.16",
++          "published_at": "2026-01-22T19:03:08.904Z"
++        },
++        {
++          "version": "2.1.17",
++          "published_at": "2026-01-22T21:01:58.555Z"
++        },
++        {
++          "version": "2.1.18",
++          "published_at": "2026-01-22T22:44:46.204Z"
++        },
++        {
++          "version": "2.1.19",
++          "published_at": "2026-01-23T21:14:31.264Z"
++        },
++        {
++          "version": "2.1.20",
++          "published_at": "2026-01-27T00:39:43.153Z"
++        },
++        {
++          "version": "2.1.21",
++          "published_at": "2026-01-28T01:37:44.595Z"
++        },
++        {
++          "version": "2.1.22",
++          "published_at": "2026-01-28T06:34:26.808Z"
++        },
++        {
++          "version": "2.1.23",
++          "published_at": "2026-01-29T00:19:09.656Z"
++        },
++        {
++          "version": "2.1.25",
++          "published_at": "2026-01-29T20:33:53.330Z"
++        },
++        {
++          "version": "2.1.26",
++          "published_at": "2026-01-30T02:13:52.624Z"
++        },
++        {
++          "version": "2.1.27",
++          "published_at": "2026-01-30T19:51:58.456Z"
++        },
++        {
++          "version": "2.1.28",
++          "published_at": "2026-01-31T18:42:19.367Z"
++        },
++        {
++          "version": "2.1.29",
++          "published_at": "2026-01-31T20:13:22.486Z"
++        },
++        {
++          "version": "2.1.30",
++          "published_at": "2026-02-03T16:34:38.489Z"
++        },
++        {
++          "version": "2.1.31",
++          "published_at": "2026-02-04T00:02:11.559Z"
++        },
++        {
++          "version": "2.1.32",
++          "published_at": "2026-02-05T17:03:20.616Z"
++        },
++        {
++          "version": "2.1.33",
++          "published_at": "2026-02-06T00:16:13.218Z"
++        },
++        {
++          "version": "2.1.34",
++          "published_at": "2026-02-06T06:38:12.412Z"
++        },
++        {
++          "version": "2.1.36",
++          "published_at": "2026-02-07T17:25:00.190Z"
++        },
++        {
++          "version": "2.1.37",
++          "published_at": "2026-02-07T18:39:35.597Z"
++        },
++        {
++          "version": "2.1.38",
++          "published_at": "2026-02-10T00:06:12.496Z"
++        },
++        {
++          "version": "2.1.39",
++          "published_at": "2026-02-10T21:12:16.378Z"
++        },
++        {
++          "version": "2.1.40",
++          "published_at": "2026-02-12T00:55:05.431Z"
++        },
++        {
++          "version": "2.1.41",
++          "published_at": "2026-02-13T01:12:41.057Z"
++        },
++        {
++          "version": "2.1.42",
++          "published_at": "2026-02-13T18:56:56.084Z"
++        },
++        {
++          "version": "2.1.44",
++          "published_at": "2026-02-16T20:51:18.785Z"
++        },
++        {
++          "version": "2.1.45",
++          "published_at": "2026-02-17T17:33:48.506Z"
++        },
++        {
++          "version": "2.1.47",
++          "published_at": "2026-02-18T20:15:11.998Z"
++        },
++        {
++          "version": "2.1.48",
++          "published_at": "2026-02-19T20:50:30.541Z"
++        },
++        {
++          "version": "2.1.49",
++          "published_at": "2026-02-19T22:39:45.313Z"
++        },
++        {
++          "version": "2.1.50",
++          "published_at": "2026-02-20T23:09:38.385Z"
++        },
++        {
++          "version": "2.1.51",
++          "published_at": "2026-02-23T23:44:09.342Z"
++        },
++        {
++          "version": "2.1.52",
++          "published_at": "2026-02-24T06:00:40.801Z"
++        },
++        {
++          "version": "2.1.53",
++          "published_at": "2026-02-24T22:44:13.059Z"
++        },
++        {
++          "version": "2.1.54",
++          "published_at": "2026-02-25T02:06:31.244Z"
++        },
++        {
++          "version": "2.1.55",
++          "published_at": "2026-02-25T02:42:12.579Z"
++        },
++        {
++          "version": "2.1.56",
++          "published_at": "2026-02-25T05:55:32.621Z"
++        },
++        {
++          "version": "2.1.58",
++          "published_at": "2026-02-25T19:22:07.859Z"
++        },
++        {
++          "version": "2.1.59",
++          "published_at": "2026-02-25T23:38:34.475Z"
++        },
++        {
++          "version": "2.1.61",
++          "published_at": "2026-02-26T21:40:54.613Z"
++        },
++        {
++          "version": "2.1.62",
++          "published_at": "2026-02-27T01:24:31.775Z"
++        },
++        {
++          "version": "2.1.63",
++          "published_at": "2026-02-28T02:43:42.865Z"
++        },
++        {
++          "version": "2.1.64",
++          "published_at": "2026-03-03T03:19:58.867Z"
++        },
++        {
++          "version": "2.1.66",
++          "published_at": "2026-03-04T00:19:58.178Z"
++        },
++        {
++          "version": "2.1.67",
++          "published_at": "2026-03-04T05:31:10.915Z"
++        },
++        {
++          "version": "2.1.68",
++          "published_at": "2026-03-04T09:20:53.882Z"
++        },
++        {
++          "version": "2.1.69",
++          "published_at": "2026-03-04T21:46:46.306Z"
++        },
++        {
++          "version": "2.1.70",
++          "published_at": "2026-03-06T00:09:06.874Z"
++        },
++        {
++          "version": "2.1.71",
++          "published_at": "2026-03-06T22:47:03.532Z"
++        },
++        {
++          "version": "2.1.72",
++          "published_at": "2026-03-09T23:29:16.565Z"
++        },
++        {
++          "version": "2.1.73",
++          "published_at": "2026-03-11T17:39:34.332Z"
++        },
++        {
++          "version": "2.1.74",
++          "published_at": "2026-03-11T23:31:27.307Z"
++        },
++        {
++          "version": "2.1.75",
++          "published_at": "2026-03-13T15:51:07.443Z"
++        },
++        {
++          "version": "2.1.76",
++          "published_at": "2026-03-14T00:14:17.770Z"
++        },
++        {
++          "version": "2.1.77",
++          "published_at": "2026-03-16T22:16:52.510Z"
++        },
++        {
++          "version": "2.1.78",
++          "published_at": "2026-03-17T21:04:05.836Z"
++        },
++        {
++          "version": "2.1.79",
++          "published_at": "2026-03-18T21:34:08.611Z"
++        },
++        {
++          "version": "2.1.80",
++          "published_at": "2026-03-19T21:01:31.134Z"
++        },
++        {
++          "version": "2.1.81",
++          "published_at": "2026-03-20T21:27:19.603Z"
++        },
++        {
++          "version": "2.1.83",
++          "published_at": "2026-03-24T22:16:47.275Z"
++        },
++        {
++          "version": "2.1.84",
++          "published_at": "2026-03-25T23:50:13.505Z"
++        },
++        {
++          "version": "2.1.85",
++          "published_at": "2026-03-26T20:55:47.623Z"
++        },
++        {
++          "version": "2.1.86",
++          "published_at": "2026-03-27T20:30:19.481Z"
++        },
++        {
++          "version": "2.1.87",
++          "published_at": "2026-03-29T01:40:52.719Z"
++        },
++        {
++          "version": "2.1.89",
++          "published_at": "2026-03-31T23:32:40.530Z"
++        },
++        {
++          "version": "2.1.90",
++          "published_at": "2026-04-01T23:31:39.018Z"
++        },
++        {
++          "version": "2.1.91",
++          "published_at": "2026-04-02T22:37:15.575Z"
++        },
++        {
++          "version": "2.1.92",
++          "published_at": "2026-04-04T00:05:59.607Z"
++        },
++        {
++          "version": "2.1.94",
++          "published_at": "2026-04-07T21:04:05.380Z"
++        },
++        {
++          "version": "2.1.96",
++          "published_at": "2026-04-08T04:32:44.614Z"
++        },
++        {
++          "version": "2.1.97",
++          "published_at": "2026-04-08T21:27:55.556Z"
++        },
++        {
++          "version": "2.1.98",
++          "published_at": "2026-04-09T18:08:49.739Z"
++        },
++        {
++          "version": "2.1.100",
++          "published_at": "2026-04-10T05:00:41.623Z"
++        },
++        {
++          "version": "2.1.101",
++          "published_at": "2026-04-10T18:41:55.480Z"
++        },
++        {
++          "version": "2.1.104",
++          "published_at": "2026-04-12T02:26:22.100Z"
++        },
++        {
++          "version": "2.1.105",
++          "published_at": "2026-04-13T19:51:19.552Z"
++        },
++        {
++          "version": "2.1.107",
++          "published_at": "2026-04-14T05:18:14.905Z"
++        },
++        {
++          "version": "2.1.108",
++          "published_at": "2026-04-14T18:35:26.902Z"
++        },
++        {
++          "version": "2.1.109",
++          "published_at": "2026-04-15T03:45:21.462Z"
++        },
++        {
++          "version": "2.1.110",
++          "published_at": "2026-04-15T20:40:53.190Z"
++        },
++        {
++          "version": "2.1.111",
++          "published_at": "2026-04-16T15:16:09.415Z"
++        },
++        {
++          "version": "2.1.112",
++          "published_at": "2026-04-16T19:23:46.419Z"
++        },
++        {
++          "version": "2.1.113",
++          "published_at": "2026-04-17T19:09:22.930Z"
++        },
++        {
++          "version": "2.1.114",
++          "published_at": "2026-04-17T23:26:20.555Z"
++        },
++        {
++          "version": "2.1.116",
++          "published_at": "2026-04-20T19:24:52.313Z"
++        },
++        {
++          "version": "2.1.117",
++          "published_at": "2026-04-21T21:54:08.640Z"
++        },
++        {
++          "version": "2.1.118",
++          "published_at": "2026-04-22T23:48:56.690Z"
++        },
++        {
++          "version": "2.1.119",
++          "published_at": "2026-04-23T21:36:46.450Z"
++        },
++        {
++          "version": "2.1.120",
++          "published_at": "2026-04-24T23:02:49.608Z"
++        },
++        {
++          "version": "2.1.121",
++          "published_at": "2026-04-27T19:39:46.659Z"
++        },
++        {
++          "version": "2.1.122",
++          "published_at": "2026-04-28T17:35:53.730Z"
++        },
++        {
++          "version": "2.1.123",
++          "published_at": "2026-04-29T01:52:47.690Z"
++        },
++        {
++          "version": "2.1.124",
++          "published_at": "2026-04-30T01:39:41.460Z"
++        },
++        {
++          "version": "2.1.126",
++          "published_at": "2026-04-30T20:30:34.530Z"
++        },
++        {
++          "version": "2.1.128",
++          "published_at": "2026-05-04T19:29:23.662Z"
++        },
++        {
++          "version": "2.1.129",
++          "published_at": "2026-05-05T18:22:55.515Z"
++        },
++        {
++          "version": "2.1.131",
++          "published_at": "2026-05-06T07:41:53.401Z"
++        },
++        {
++          "version": "2.1.132",
++          "published_at": "2026-05-06T19:10:04.541Z"
++        },
++        {
++          "version": "2.1.133",
++          "published_at": "2026-05-07T20:19:32.227Z"
++        },
++        {
++          "version": "2.1.136",
++          "published_at": "2026-05-08T16:30:41.957Z"
++        },
++        {
++          "version": "2.1.137",
++          "published_at": "2026-05-09T00:04:08.277Z"
++        },
++        {
++          "version": "2.1.138",
++          "published_at": "2026-05-09T05:57:28.355Z"
++        },
++        {
++          "version": "2.1.139",
++          "published_at": "2026-05-11T18:09:28.537Z"
++        },
++        {
++          "version": "2.1.140",
++          "published_at": "2026-05-12T19:50:28.781Z"
++        },
++        {
++          "version": "2.1.141",
++          "published_at": "2026-05-13T22:42:55.615Z"
++        },
++        {
++          "version": "2.1.142",
++          "published_at": "2026-05-14T20:17:28.262Z"
++        },
++        {
++          "version": "2.1.143",
++          "published_at": "2026-05-15T18:45:53.727Z"
++        },
++        {
++          "version": "2.1.144",
++          "published_at": "2026-05-18T19:57:54.760Z"
++        },
++        {
++          "version": "2.1.145",
++          "published_at": "2026-05-19T17:40:52.477Z"
++        },
++        {
++          "version": "2.1.146",
++          "published_at": "2026-05-20T20:14:13.615Z"
++        },
++        {
++          "version": "2.1.147",
++          "published_at": "2026-05-21T17:16:38.999Z"
++        },
++        {
++          "version": "2.1.148",
++          "published_at": "2026-05-22T00:10:02.193Z"
++        },
++        {
++          "version": "2.1.149",
++          "published_at": "2026-05-22T18:27:11.623Z"
++        },
++        {
++          "version": "2.1.150",
++          "published_at": "2026-05-23T02:27:17.096Z"
++        },
++        {
++          "version": "2.1.152",
++          "published_at": "2026-05-26T21:38:29.002Z"
++        },
++        {
++          "version": "2.1.153",
++          "published_at": "2026-05-27T21:46:58.252Z"
++        },
++        {
++          "version": "2.1.154",
++          "published_at": "2026-05-28T15:40:50.400Z"
++        },
++        {
++          "version": "2.1.156",
++          "published_at": "2026-05-28T20:12:52.621Z"
++        },
++        {
++          "version": "2.1.157",
++          "published_at": "2026-05-29T17:30:02.357Z"
++        },
++        {
++          "version": "2.1.158",
++          "published_at": "2026-05-30T01:12:23.617Z"
++        },
++        {
++          "version": "2.1.159",
++          "published_at": "2026-05-31T17:50:06.818Z"
++        },
++        {
++          "version": "2.1.160",
++          "published_at": "2026-06-01T20:03:23.202Z"
++        },
++        {
++          "version": "2.1.161",
++          "published_at": "2026-06-02T17:38:46.406Z"
++        },
++        {
++          "version": "2.1.162",
++          "published_at": "2026-06-03T18:09:44.344Z"
++        },
++        {
++          "version": "2.1.163",
++          "published_at": "2026-06-04T17:56:01.880Z"
++        },
++        {
++          "version": "2.1.165",
++          "published_at": "2026-06-05T05:22:42.188Z"
++        },
++        {
++          "version": "2.1.166",
++          "published_at": "2026-06-05T19:01:59.944Z"
++        },
++        {
++          "version": "2.1.167",
++          "published_at": "2026-06-06T01:18:42.588Z"
++        },
++        {
++          "version": "2.1.168",
++          "published_at": "2026-06-06T23:32:52.332Z"
++        },
++        {
++          "version": "2.1.169",
++          "published_at": "2026-06-08T18:11:20.859Z"
++        },
++        {
++          "version": "2.1.170",
++          "published_at": "2026-06-09T16:15:44.470Z"
++        },
++        {
++          "version": "2.1.172",
++          "published_at": "2026-06-10T17:55:48.479Z"
++        },
++        {
++          "version": "2.1.173",
++          "published_at": "2026-06-11T02:09:50.066Z"
++        },
++        {
++          "version": "2.1.174",
++          "published_at": "2026-06-11T22:27:52.061Z"
++        },
++        {
++          "version": "2.1.175",
++          "published_at": "2026-06-12T02:10:22.132Z"
++        },
++        {
++          "version": "2.1.176",
++          "published_at": "2026-06-12T19:45:41.757Z"
++        },
++        {
++          "version": "2.1.177",
++          "published_at": "2026-06-13T01:04:21.745Z"
++        },
++        {
++          "version": "2.1.178",
++          "published_at": "2026-06-15T19:03:37.553Z"
++        },
++        {
++          "version": "2.1.179",
++          "published_at": "2026-06-16T17:51:27.805Z"
++        },
++        {
++          "version": "2.1.181",
++          "published_at": "2026-06-17T18:28:59.962Z"
++        },
++        {
++          "version": "2.1.182",
++          "published_at": "2026-06-18T22:06:42.222Z"
++        },
++        {
++          "version": "2.1.183",
++          "published_at": "2026-06-19T00:02:37.935Z"
++        },
++        {
++          "version": "2.1.185",
++          "published_at": "2026-06-20T16:54:36.327Z"
++        },
++        {
++          "version": "2.1.186",
++          "published_at": "2026-06-22T18:03:48.955Z"
++        },
++        {
++          "version": "2.1.187",
++          "published_at": "2026-06-23T17:55:41.991Z"
++        },
++        {
++          "version": "2.1.190",
++          "published_at": "2026-06-24T14:39:56.222Z"
++        },
++        {
++          "version": "2.1.191",
++          "published_at": "2026-06-24T18:54:40.112Z"
++        },
++        {
++          "version": "2.1.193",
++          "published_at": "2026-06-25T19:05:08.367Z"
++        },
++        {
++          "version": "2.1.195",
++          "published_at": "2026-06-26T18:16:23.150Z"
++        },
++        {
++          "version": "2.1.196",
++          "published_at": "2026-06-29T20:08:58.871Z"
++        },
++        {
++          "version": "2.1.197",
++          "published_at": "2026-06-30T13:31:18.806Z"
++        },
++        {
++          "version": "2.1.198",
++          "published_at": "2026-07-01T16:50:16.245Z"
++        },
++        {
++          "version": "2.1.199",
++          "published_at": "2026-07-02T17:33:48.451Z"
++        },
++        {
++          "version": "2.1.200",
++          "published_at": "2026-07-03T04:33:49.616Z"
++        },
++        {
++          "version": "2.1.201",
++          "published_at": "2026-07-03T20:52:33.551Z"
++        },
++        {
++          "version": "2.1.202",
++          "published_at": "2026-07-06T20:41:23.105Z"
++        },
++        {
++          "version": "2.1.203",
++          "published_at": "2026-07-07T17:40:17.341Z"
++        },
++        {
++          "version": "2.1.204",
++          "published_at": "2026-07-08T00:04:57.555Z"
++        },
++        {
++          "version": "2.1.205",
++          "published_at": "2026-07-08T19:34:57.777Z"
++        },
++        {
++          "version": "2.1.206",
++          "published_at": "2026-07-09T17:54:03.009Z"
++        },
++        {
++          "version": "2.1.207",
++          "published_at": "2026-07-10T22:25:09.430Z"
++        },
++        {
++          "version": "2.1.208",
++          "published_at": "2026-07-13T21:31:27.921Z"
++        },
++        {
++          "version": "2.1.209",
++          "published_at": "2026-07-14T04:45:37.792Z"
++        },
++        {
++          "version": "2.1.210",
++          "published_at": "2026-07-14T19:39:21.730Z"
++        },
++        {
++          "version": "2.1.211",
++          "published_at": "2026-07-15T19:24:07.013Z"
++        },
++        {
++          "version": "2.1.212",
++          "published_at": "2026-07-16T19:20:24.324Z"
++        },
++        {
++          "version": "2.1.213",
++          "published_at": "2026-07-17T22:26:26.753Z"
++        },
++        {
++          "version": "2.1.214",
++          "published_at": "2026-07-18T00:13:41.661Z"
++        },
++        {
++          "version": "2.1.215",
++          "published_at": "2026-07-19T00:53:37.170Z"
++        },
++        {
++          "version": "2.1.216",
++          "published_at": "2026-07-20T20:19:37.447Z"
++        },
++        {
++          "version": "2.1.217",
++          "published_at": "2026-07-21T19:55:38.926Z"
++        },
++        {
++          "version": "2.1.218",
++          "published_at": "2026-07-22T19:55:32.144Z"
++        },
++        {
++          "version": "2.1.219",
++          "published_at": "2026-07-24T16:11:49.832Z"
++        },
++        {
++          "version": "2.1.220",
++          "published_at": "2026-07-24T23:11:21.821Z"
++        },
++        {
++          "version": "2.1.221",
++          "published_at": "2026-08-03T22:16:25.561Z"
++        },
++        {
++          "version": "2.1.222",
++          "published_at": "2026-08-04T20:37:17.953Z"
++        },
++        {
++          "version": "2.1.223",
++          "published_at": "2026-08-05T22:51:13.206Z"
++        },
++        {
++          "version": "2.1.224",
++          "published_at": "2026-08-07T01:36:32.682Z"
++        },
++        {
++          "version": "2.1.225",
++          "published_at": "2026-08-07T23:08:56.171Z"
++        },
++        {
++          "version": "2.1.226",
++          "published_at": "2026-08-08T01:53:22.182Z"
++        },
++        {
++          "version": "2.1.227",
++          "published_at": "2026-08-10T20:56:57.591Z"
++        },
++        {
++          "version": "2.1.228",
++          "published_at": "2026-08-11T17:45:45.882Z"
++        },
++        {
++          "version": "2.1.229",
++          "published_at": "2026-08-12T19:28:48.616Z"
++        },
++        {
++          "version": "2.1.231",
++          "published_at": "2026-08-13T08:27:21.757Z"
++        },
++        {
++          "version": "2.1.232",
++          "published_at": "2026-08-13T21:30:53.194Z"
++        },
++        {
++          "version": "2.1.233",
++          "published_at": "2026-08-14T18:50:44.102Z"
++        },
++        {
++          "version": "2.1.234",
++          "published_at": "2026-08-17T18:19:13.187Z"
++        },
++        {
++          "version": "2.1.235",
++          "published_at": "2026-08-18T18:24:10.210Z"
++        },
++        {
++          "version": "2.1.236",
++          "published_at": "2026-08-19T18:45:14.539Z"
++        },
++        {
++          "version": "2.1.237",
++          "published_at": "2026-08-19T23:57:54.833Z"
++        },
++        {
++          "version": "2.1.238",
++          "published_at": "2026-08-20T18:01:54.712Z"
++        },
++        {
++          "version": "2.1.239",
++          "published_at": "2026-08-21T17:18:54.506Z"
++        },
++        {
++          "version": "2.1.240",
++          "published_at": "2026-08-22T13:03:23.566Z"
++        },
++        {
++          "version": "2.1.241",
++          "published_at": "2026-08-22T23:58:33.046Z"
++        },
++        {
++          "version": "2.1.242",
++          "published_at": "2026-08-24T19:16:14.767Z"
++        },
++        {
++          "version": "2.1.243",
++          "published_at": "2026-08-24T23:10:45.498Z"
++        },
++        {
++          "version": "2.1.245",
++          "published_at": "2026-08-25T04:45:52.102Z"
++        },
++        {
++          "version": "2.1.246",
++          "published_at": "2026-08-25T19:17:34.421Z"
++        },
++        {
++          "version": "2.1.247",
++          "published_at": "2026-08-26T18:02:01.046Z"
++        },
++        {
++          "version": "2.1.248",
++          "published_at": "2026-08-27T20:35:36.671Z"
++        },
++        {
++          "version": "2.1.250",
++          "published_at": "2026-08-27T22:27:48.314Z"
++        },
++        {
++          "version": "2.1.251",
++          "published_at": "2026-08-28T15:34:26.421Z"
++        },
++        {
++          "version": "2.1.252",
++          "published_at": "2026-08-31T17:07:28.168Z"
++        },
++        {
++          "version": "2.1.257",
++          "published_at": "2026-09-01T17:15:33.223Z"
++        },
++        {
++          "version": "2.1.258",
++          "published_at": "2026-09-01T22:25:07.449Z"
++        },
++        {
++          "version": "2.1.259",
++          "published_at": "2026-09-02T21:21:42.115Z"
++        },
++        {
++          "version": "2.1.260",
++          "published_at": "2026-09-03T22:32:02.087Z"
++        },
++        {
++          "version": "2.1.261",
++          "published_at": "2026-09-04T17:49:34.927Z"
++        },
++        {
++          "version": "2.1.263",
++          "published_at": "2026-09-06T02:07:58.391Z"
++        },
++        {
++          "version": "2.1.265",
++          "published_at": "2026-09-08T19:05:16.492Z"
++        },
++        {
++          "version": "2.1.266",
++          "published_at": "2026-09-08T23:32:32.880Z"
++        },
++        {
++          "version": "2.1.267",
++          "published_at": "2026-09-09T18:25:42.820Z"
++        },
++        {
++          "version": "2.1.268",
++          "published_at": "2026-09-10T18:41:11.770Z"
++        },
++        {
++          "version": "2.1.269",
++          "published_at": "2026-09-11T18:12:49.253Z"
++        },
++        {
++          "version": "2.1.270",
++          "published_at": "2026-09-12T18:52:44.937Z"
++        },
++        {
++          "version": "2.1.271",
++          "published_at": "2026-09-14T19:45:19.456Z"
++        },
++        {
++          "version": "2.1.272",
++          "published_at": "2026-09-14T23:34:13.565Z"
++        },
++        {
++          "version": "2.1.273",
++          "published_at": "2026-09-15T18:06:34.098Z"
++        },
++        {
++          "version": "2.1.274",
++          "published_at": "2026-09-16T22:36:09.883Z"
++        },
++        {
++          "version": "2.1.275",
++          "published_at": "2026-09-17T20:20:31.805Z"
++        },
++        {
++          "version": "2.1.276",
++          "published_at": "2026-09-18T01:39:31.986Z"
++        },
++        {
++          "version": "2.1.277",
++          "published_at": "2026-09-18T16:22:26.548Z"
++        },
++        {
++          "version": "2.1.278",
++          "published_at": "2026-09-19T01:48:59.758Z"
++        },
++        {
++          "version": "2.1.280",
++          "published_at": "2026-09-22T15:44:39.443Z"
++        },
++        {
++          "version": "2.1.281",
++          "published_at": "2026-09-23T17:01:17.780Z"
++        },
++        {
++          "version": "2.1.282",
++          "published_at": "2026-09-24T15:56:22.706Z"
++        },
++        {
++          "version": "2.1.283",
++          "published_at": "2026-09-25T18:46:11.330Z"
++        },
++        {
++          "version": "2.1.284",
++          "published_at": "2026-09-28T17:11:59.750Z"
++        },
++        {
++          "version": "2.1.285",
++          "published_at": "2026-09-29T17:32:09.173Z"
++        },
++        {
++          "version": "2.1.286",
++          "published_at": "2026-09-30T17:14:38.859Z"
++        },
++        {
++          "version": "2.1.287",
++          "published_at": "2026-10-01T16:59:25.986Z"
++        },
++        {
++          "version": "2.1.288",
++          "published_at": "2026-10-02T18:30:40.093Z"
++        },
++        {
++          "version": "2.1.289",
++          "published_at": "2026-10-03T20:12:02.717Z"
++        },
++        {
++          "version": "2.1.290",
++          "published_at": "2026-10-05T18:12:44.907Z"
++        },
++        {
++          "version": "2.1.291",
++          "published_at": "2026-10-06T03:32:36.856Z"
++        },
++        {
++          "version": "2.1.292",
++          "published_at": "2026-10-06T17:10:31.715Z"
++        },
++        {
++          "version": "2.1.293",
++          "published_at": "2026-10-07T17:18:04.464Z"
++        },
++        {
++          "version": "2.1.294",
++          "published_at": "2026-10-08T03:42:57.084Z"
++        },
++        {
++          "version": "2.1.295",
++          "published_at": "2026-10-08T18:22:58.621Z"
++        },
++        {
++          "version": "2.1.296",
++          "published_at": "2026-10-09T16:58:10.924Z"
++        },
++        {
++          "version": "2.1.299",
++          "published_at": "2026-10-14T00:23:19.588Z"
++        },
++        {
++          "version": "2.1.300",
++          "published_at": "2026-10-14T14:27:26.554Z"
++        },
++        {
++          "version": "2.1.301",
++          "published_at": "2026-10-15T14:34:23.330Z"
++        },
++        {
++          "version": "2.1.302",
++          "published_at": "2026-10-16T16:48:28.057Z"
++        },
++        {
++          "version": "2.1.303",
++          "published_at": "2026-10-18T21:15:23.178Z"
++        },
++        {
++          "version": "2.1.304",
++          "published_at": "2026-10-19T19:47:15.337Z"
++        },
++        {
++          "version": "2.1.305",
++          "published_at": "2026-10-20T19:29:36.816Z"
++        },
++        {
++          "version": "2.1.306",
++          "published_at": "2026-10-21T02:28:47.495Z"
++        },
++        {
++          "version": "2.1.307",
++          "published_at": "2026-10-21T20:47:18.383Z"
++        },
++        {
++          "version": "2.1.308",
++          "published_at": "2026-10-22T04:19:48.902Z"
++        },
++        {
++          "version": "2.1.309",
++          "published_at": "2026-10-22T20:34:13.713Z"
++        },
++        {
++          "version": "2.1.310",
++          "published_at": "2026-10-23T21:20:46.540Z"
++        },
++        {
++          "version": "2.1.311",
++          "published_at": "2026-10-26T19:47:57.395Z"
++        },
++        {
++          "version": "2.1.312",
++          "published_at": "2026-10-27T18:36:10.160Z"
++        },
++        {
++          "version": "2.1.314",
++          "published_at": "2026-10-30T00:12:56.911Z"
++        },
++        {
++          "version": "2.1.315",
++          "published_at": "2026-10-30T21:05:24.080Z"
++        },
++        {
++          "version": "2.1.316",
++          "published_at": "2026-10-31T00:42:05.743Z"
++        },
++        {
++          "version": "2.1.317",
++          "published_at": "2026-11-02T23:57:53.069Z"
++        }
++      ]
++    },
++    "antigravity-cli": {
++      "baseline": "1.2.3",
++      "ceiling": "1.4.12",
++      "protocol": "agy-stream-json-v1",
++      "source": "https://api.github.com/repos/google-antigravity/antigravity-cli/releases",
++      "baseline_evidence": "No source constant. Support matrix records 1.2.3 as the historical verified reviewer profile and 1.2.5 as the later acceptance. The 1.2.0 g2 local snapshot predates that profile acceptance and is below this floor.",
++      "versions": [
++        {
++          "version": "1.2.3",
++          "published_at": "2026-09-15T02:03:04Z"
++        },
++        {
++          "version": "1.2.4",
++          "published_at": "2026-09-16T03:54:29Z"
++        },
++        {
++          "version": "1.2.5",
++          "published_at": "2026-09-17T04:10:06Z"
++        },
++        {
++          "version": "1.2.6",
++          "published_at": "2026-09-18T04:21:05Z"
++        },
++        {
++          "version": "1.2.7",
++          "published_at": "2026-09-19T01:01:46Z"
++        },
++        {
++          "version": "1.2.8",
++          "published_at": "2026-09-22T04:12:17Z"
++        },
++        {
++          "version": "1.2.9",
++          "published_at": "2026-09-23T04:42:15Z"
++        },
++        {
++          "version": "1.2.10",
++          "published_at": "2026-09-24T06:26:54Z"
++        },
++        {
++          "version": "1.2.11",
++          "published_at": "2026-09-25T04:22:17Z"
++        },
++        {
++          "version": "1.2.12",
++          "published_at": "2026-09-27T05:06:09Z"
++        },
++        {
++          "version": "1.2.13",
++          "published_at": "2026-09-29T03:58:00Z"
++        },
++        {
++          "version": "1.2.14",
++          "published_at": "2026-09-30T04:03:27Z"
++        },
++        {
++          "version": "1.2.15",
++          "published_at": "2026-10-02T17:00:58Z"
++        },
++        {
++          "version": "1.2.16",
++          "published_at": "2026-10-03T03:56:08Z"
++        },
++        {
++          "version": "1.2.17",
++          "published_at": "2026-10-05T06:20:11Z"
++        },
++        {
++          "version": "1.3.0",
++          "published_at": "2026-10-06T06:05:28Z"
++        },
++        {
++          "version": "1.3.1",
++          "published_at": "2026-10-07T03:22:02Z"
++        },
++        {
++          "version": "1.3.2",
++          "published_at": "2026-10-08T22:39:48Z"
++        },
++        {
++          "version": "1.3.3",
++          "published_at": "2026-10-10T03:06:26Z"
++        },
++        {
++          "version": "1.3.4",
++          "published_at": "2026-10-13T05:09:33Z"
++        },
++        {
++          "version": "1.3.5",
++          "published_at": "2026-10-14T03:16:53Z"
++        },
++        {
++          "version": "1.3.6",
++          "published_at": "2026-10-15T17:51:16Z"
++        },
++        {
++          "version": "1.4.0",
++          "published_at": "2026-10-16T05:24:39Z"
++        },
++        {
++          "version": "1.4.1",
++          "published_at": "2026-10-17T20:43:34Z"
++        },
++        {
++          "version": "1.4.2",
++          "published_at": "2026-10-18T00:36:59Z"
++        },
++        {
++          "version": "1.4.3",
++          "published_at": "2026-10-20T04:28:40Z"
++        },
++        {
++          "version": "1.4.4",
++          "published_at": "2026-10-21T06:38:01Z"
++        },
++        {
++          "version": "1.4.5",
++          "published_at": "2026-10-22T05:01:38Z"
++        },
++        {
++          "version": "1.4.6",
++          "published_at": "2026-10-23T04:18:36Z"
++        },
++        {
++          "version": "1.4.7",
++          "published_at": "2026-10-24T02:47:49Z"
++        },
++        {
++          "version": "1.4.8",
++          "published_at": "2026-10-27T07:10:37Z"
++        },
++        {
++          "version": "1.4.9",
++          "published_at": "2026-10-28T05:59:42Z"
++        },
++        {
++          "version": "1.4.10",
++          "published_at": "2026-10-29T03:50:43Z"
++        },
++        {
++          "version": "1.4.11",
++          "published_at": "2026-10-30T05:39:38Z"
++        },
++        {
++          "version": "1.4.12",
++          "published_at": "2026-10-30T21:39:59Z"
++        }
++      ]
++    },
++    "grok-build": {
++      "baseline": "1.0.34",
++      "ceiling": "1.0.70",
++      "protocol": "grok-streaming-json-v1",
++      "source": "https://registry.npmjs.org/@xai-official/grok",
++      "dist_tags_at_freeze": {
++        "latest": "1.0.70",
++        "alpha": "1.0.73"
++      },
++      "baseline_evidence": "Source profile gate was the exact raw string grok 1.0.34 (3736acbc8658). Normalized floor is 1.0.34. 1.0.30 remains historical and below the floor. npm alpha tag 1.0.73 is above the stable latest tag and is excluded.",
++      "versions": [
++        {
++          "version": "1.0.34",
++          "published_at": "2026-09-16T04:15:07.803Z"
++        },
++        {
++          "version": "1.0.35",
++          "published_at": "2026-09-16T23:33:54.454Z"
++        },
++        {
++          "version": "1.0.36",
++          "published_at": "2026-09-17T23:12:53.661Z"
++        },
++        {
++          "version": "1.0.37",
++          "published_at": "2026-09-18T20:55:46.019Z"
++        },
++        {
++          "version": "1.0.38",
++          "published_at": "2026-09-19T00:57:44.843Z"
++        },
++        {
++          "version": "1.0.39",
++          "published_at": "2026-09-20T22:25:57.092Z"
++        },
++        {
++          "version": "1.0.40",
++          "published_at": "2026-09-20T23:48:33.620Z"
++        },
++        {
++          "version": "1.0.41",
++          "published_at": "2026-09-22T16:39:47.725Z"
++        },
++        {
++          "version": "1.0.42",
++          "published_at": "2026-09-26T22:41:22.102Z"
++        },
++        {
++          "version": "1.0.43",
++          "published_at": "2026-09-28T00:26:22.545Z"
++        },
++        {
++          "version": "1.0.44",
++          "published_at": "2026-09-28T22:10:13.748Z"
++        },
++        {
++          "version": "1.0.45",
++          "published_at": "2026-09-29T06:10:58.030Z"
++        },
++        {
++          "version": "1.0.46",
++          "published_at": "2026-09-30T22:11:16.129Z"
++        },
++        {
++          "version": "1.0.47",
++          "published_at": "2026-10-01T19:23:48.449Z"
++        },
++        {
++          "version": "1.0.48",
++          "published_at": "2026-10-02T01:21:20.399Z"
++        },
++        {
++          "version": "1.0.49",
++          "published_at": "2026-10-02T18:53:36.526Z"
++        },
++        {
++          "version": "1.0.50",
++          "published_at": "2026-10-06T23:07:37.754Z"
++        },
++        {
++          "version": "1.0.51",
++          "published_at": "2026-10-09T17:35:00.108Z"
++        },
++        {
++          "version": "1.0.52",
++          "published_at": "2026-10-11T23:59:56.991Z"
++        },
++        {
++          "version": "1.0.53",
++          "published_at": "2026-10-12T17:55:09.533Z"
++        },
++        {
++          "version": "1.0.54",
++          "published_at": "2026-10-12T22:35:15.261Z"
++        },
++        {
++          "version": "1.0.55",
++          "published_at": "2026-10-13T06:23:26.473Z"
++        },
++        {
++          "version": "1.0.56",
++          "published_at": "2026-10-13T21:03:44.026Z"
++        },
++        {
++          "version": "1.0.57",
++          "published_at": "2026-10-14T00:49:48.972Z"
++        },
++        {
++          "version": "1.0.58",
++          "published_at": "2026-10-14T05:14:04.496Z"
++        },
++        {
++          "version": "1.0.59",
++          "published_at": "2026-10-14T22:43:30.975Z"
++        },
++        {
++          "version": "1.0.60",
++          "published_at": "2026-10-15T03:01:22.338Z"
++        },
++        {
++          "version": "1.0.61",
++          "published_at": "2026-10-16T03:24:53.332Z"
++        },
++        {
++          "version": "1.0.62",
++          "published_at": "2026-10-16T16:53:47.482Z"
++        },
++        {
++          "version": "1.0.63",
++          "published_at": "2026-10-17T08:37:23.984Z"
++        },
++        {
++          "version": "1.0.64",
++          "published_at": "2026-10-19T22:52:51.847Z"
++        },
++        {
++          "version": "1.0.65",
++          "published_at": "2026-10-20T19:35:13.295Z"
++        },
++        {
++          "version": "1.0.66",
++          "published_at": "2026-10-20T22:33:21.565Z"
++        },
++        {
++          "version": "1.0.67",
++          "published_at": "2026-10-21T17:21:37.077Z"
++        },
++        {
++          "version": "1.0.68",
++          "published_at": "2026-10-22T15:24:58.163Z"
++        },
++        {
++          "version": "1.0.69",
++          "published_at": "2026-10-23T02:07:16.786Z"
++        },
++        {
++          "version": "1.0.70",
++          "published_at": "2026-10-23T17:38:01.317Z"
++        }
++      ]
++    },
++    "codex-cli": {
++      "baseline": "0.154.0",
++      "ceiling": "0.166.0",
++      "protocol": "codex-jsonl-0.154.0",
++      "source": "https://api.github.com/repos/openai/codex/releases",
++      "baseline_evidence": "Source constants CodexVersion=codex-cli 0.154.0 and CodexSHA256 identify the historical baseline binary. The SHA remains the anti-alias pin for that exact binary; it is not an allow-list for newer releases.",
++      "versions": [
++        {
++          "version": "0.154.0",
++          "published_at": "2026-09-09T22:35:38Z"
++        },
++        {
++          "version": "0.155.0",
++          "published_at": "2026-09-17T23:14:43Z"
++        },
++        {
++          "version": "0.155.1",
++          "published_at": "2026-09-18T20:03:04Z"
++        },
++        {
++          "version": "0.156.0",
++          "published_at": "2026-09-22T19:51:01Z"
++        },
++        {
++          "version": "0.156.1",
++          "published_at": "2026-09-23T02:41:36Z"
++        },
++        {
++          "version": "0.157.0",
++          "published_at": "2026-09-25T02:31:06Z"
++        },
++        {
++          "version": "0.157.1",
++          "published_at": "2026-09-26T01:02:31Z"
++        },
++        {
++          "version": "0.158.0",
++          "published_at": "2026-09-28T05:07:23Z"
++        },
++        {
++          "version": "0.159.0",
++          "published_at": "2026-09-29T08:05:42Z"
++        },
++        {
++          "version": "0.159.1",
++          "published_at": "2026-09-29T20:32:34Z"
++        },
++        {
++          "version": "0.159.2",
++          "published_at": "2026-09-29T23:57:16Z"
++        },
++        {
++          "version": "0.159.3",
++          "published_at": "2026-09-30T22:57:34Z"
++        },
++        {
++          "version": "0.160.0",
++          "published_at": "2026-10-01T20:19:13Z"
++        },
++        {
++          "version": "0.160.1",
++          "published_at": "2026-10-05T18:29:37Z"
++        },
++        {
++          "version": "0.161.0",
++          "published_at": "2026-10-07T15:58:45Z"
++        },
++        {
++          "version": "0.162.0",
++          "published_at": "2026-10-08T18:55:59Z"
++        },
++        {
++          "version": "0.162.1",
++          "published_at": "2026-10-09T19:44:51Z"
++        },
++        {
++          "version": "0.163.0",
++          "published_at": "2026-10-15T21:30:38Z"
++        },
++        {
++          "version": "0.164.0",
++          "published_at": "2026-10-23T04:48:10Z"
++        },
++        {
++          "version": "0.165.0",
++          "published_at": "2026-10-27T20:09:38Z"
++        },
++        {
++          "version": "0.166.0",
++          "published_at": "2026-10-29T19:47:53Z"
++        }
++      ]
++    }
++  }
++}
+diff --git a/tools/orchestrator/internal/adapter/compatibility_test.go b/tools/orchestrator/internal/adapter/compatibility_test.go
+new file mode 100644
+index 00000000..127d5b3f
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/compatibility_test.go
+@@ -0,0 +1,278 @@
++package adapter
++
++import (
++	"strings"
++	"testing"
++)
++
++func baselineRaw(provider Provider) string {
++	switch provider {
++	case ProviderClaude:
++		return "2.1.267 (Claude Code)"
++	case ProviderAGY:
++		return "1.2.3"
++	case ProviderGrok:
++		return "grok 1.0.34 (3736acbc8658)"
++	case ProviderCodex:
++		return CodexVersion
++	default:
++		return ""
++	}
++}
++
++func TestVersionWindowMatchesFrozenCatalog(t *testing.T) {
++	cases := []struct {
++		provider Provider
++		raw      string
++		code     string
++	}{
++		{ProviderClaude, "2.1.267 (Claude Code)", ""},
++		{ProviderClaude, "2.1.274 (Claude Code)", ""},
++		{ProviderClaude, "v2.1.316", ""},
++		{ProviderClaude, "1.0.60 (Claude Code)", "cli_version_below_baseline"},
++		{ProviderClaude, "2.1.318 (Claude Code)", "cli_version_above_ceiling"},
++		{ProviderClaude, "2.1.313 (Claude Code)", "cli_version_not_published"},
++		{ProviderClaude, "2.1.316-rc.1", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316+dev", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316+nightly", "cli_version_prerelease"},
++		{ProviderClaude, "claude 2.1.316+dev", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (dev)", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (nightly.20261102)", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (alpha.1)", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (dev build abc)", "cli_version_prerelease"},
++		{ProviderClaude, "2.1.316 (custom channel)", "cli_version_unrecognized_note"},
++		{ProviderAGY, "1.4.12 (build)", "cli_version_unrecognized_note"},
++		{ProviderClaude, "fixture-v1", "cli_version_unparsed"},
++		{ProviderClaude, "codex-cli 2.1.316", "cli_version_product_mismatch"},
++		{ProviderAGY, "1.2.3", ""},
++		{ProviderAGY, "1.3.2", ""},
++		{ProviderAGY, "agy 1.4.12", ""},
++		{ProviderAGY, "1.2.2", "cli_version_below_baseline"},
++		{ProviderAGY, "1.4.13", "cli_version_above_ceiling"},
++		{ProviderAGY, "1.4.12-nightly.1", "cli_version_prerelease"},
++		{ProviderGrok, "grok 1.0.34 (3736acbc8658)", ""},
++		{ProviderGrok, "grok 1.0.52 (abc123def456) [stable]", ""},
++		{ProviderGrok, "grok 1.0.70 (f50904eaee6c)", ""},
++		{ProviderGrok, "grok 1.0.30 (04b7ffed98c6) [stable]", "cli_version_below_baseline"},
++		{ProviderGrok, "grok 1.0.73 (abc) [alpha]", "cli_version_prerelease"},
++		{ProviderGrok, "grok 1.0.70 (nightly)", "cli_version_prerelease"},
++		{ProviderGrok, "grok 1.0.71 (abcdef123456)", "cli_version_above_ceiling"},
++		{ProviderGrok, "grok future", "cli_version_unparsed"},
++		{ProviderCodex, "codex-cli 0.154.0", ""},
++		{ProviderCodex, "codex-cli 0.159.2", ""},
++		{ProviderCodex, "0.166.0", ""},
++		{ProviderCodex, "codex-cli 0.153.4", "cli_version_below_baseline"},
++		{ProviderCodex, "codex-cli 0.167.0", "cli_version_above_ceiling"},
++		{ProviderCodex, "codex-cli 0.166.0-alpha.6", "cli_version_prerelease"},
++		{ProviderCodex, "codex-cli 0.166.0+dev", "cli_version_prerelease"},
++		{ProviderCodex, "codex-cli 0.160.0 [nightly]", "cli_version_prerelease"},
++		{ProviderCodex, "latest", "cli_version_unparsed"},
++	}
++	for _, tc := range cases {
++		view := DescribeVersion(tc.provider, tc.raw)
++		if tc.code == "" {
++			if !view.Admitted || view.Protocol != ProtocolID(tc.provider) || view.Baseline == "" || view.Ceiling == "" {
++				t.Fatalf("%s %q view=%+v", tc.provider, tc.raw, view)
++			}
++			continue
++		}
++		err := AdmitVersion(tc.provider, tc.raw)
++		if err == nil || err.Error() != tc.code || view.Admitted || view.Reason != tc.code {
++			t.Fatalf("%s %q err=%v view=%+v", tc.provider, tc.raw, err, view)
++		}
++		var typed *VersionError
++		if !errorsAs(err, &typed) || typed.Baseline == "" || typed.Ceiling == "" {
++			t.Fatalf("missing window: %#v", err)
++		}
++	}
++}
++
++func errorsAs(err error, target **VersionError) bool {
++	typed, ok := err.(*VersionError)
++	if ok {
++		*target = typed
++	}
++	return ok
++}
++
++func TestMiddleReleaseReusesBaselineInvocation(t *testing.T) {
++	for _, provider := range []Provider{ProviderClaude, ProviderAGY, ProviderGrok} {
++		base := invocationArgs(t, provider, baselineRaw(provider))
++		versions := PublishedVersions(provider)
++		middle := versions[len(versions)/2]
++		raw := middle
++		if provider == ProviderGrok {
++			raw = "grok " + middle + " (abcdef123456)"
++		}
++		if provider == ProviderClaude {
++			raw = middle + " (Claude Code)"
++		}
++		got := invocationArgs(t, provider, raw)
++		if strings.Join(base, "\n") != strings.Join(got, "\n") {
++			t.Fatalf("%s middle argv changed\nbase %v\nmiddle %v", provider, base, got)
++		}
++	}
++}
++
++func invocationArgs(t *testing.T, provider Provider, raw string) []string {
++	t.Helper()
++	pin := pinForTest()
++	pin.Version = raw
++	req := Request{Provider: provider, Binary: pin, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
++	if provider != ProviderCodex {
++		req.Profile = &ExecutionProfile{Version: 1, Role: Reviewer, Permission: ReadOnly, TimeoutMS: 1000}
++		if provider == ProviderGrok {
++			req.Profile.GrokSessionWrite = true
++		}
++		req.Lock = &ProviderLock{Version: 1, Provider: provider, Protocol: ProtocolID(provider), Binary: pin}
++	}
++	invocation, err := BuildInvocation(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	args := invocation.Args()
++	args[0] = "binary"
++	return args
++}
++
++func TestCodexLaunchKeepsTrialGuardAndOwnDigest(t *testing.T) {
++	pin := codexPinForTest()
++	pin.Version = "codex-cli 0.160.0"
++	pin.SHA256 = strings.Repeat("b", 64)
++	invocation, err := BuildInvocation(Request{Provider: ProviderCodex, Binary: pin, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !strings.Contains(strings.Join(invocation.Args(), " "), "--model gpt-5.6-luna") {
++		t.Fatal("version window changed the pinned model")
++	}
++	req := Request{Provider: ProviderCodex, Binary: pin, CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}, Profile: &ExecutionProfile{Version: 1, Role: Reviewer, Permission: ReadOnly, TimeoutMS: 1000}, Lock: &ProviderLock{Version: 1, Provider: ProviderCodex, Protocol: ProtocolID(ProviderCodex), Binary: pin}}
++	if _, err = BuildInvocation(req); err == nil || err.Error() != "codex_trial_guard_not_ready" {
++		t.Fatalf("in-range Codex profile err=%v", err)
++	}
++	if err = ValidatePin(pin, "0.160.0", pin.SHA256); err == nil || err.Error() != "binary_version_mismatch" {
++		t.Fatalf("normalized text replaced raw identity: %v", err)
++	}
++}
++
++func TestNonVersionGuardsStayClosed(t *testing.T) {
++	resume := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
++	resume.Session = SessionRef{Kind: SessionID, ID: "session-1234"}
++	if _, err := BuildInvocation(resume); err == nil || err.Error() != "profile_resume_not_verified" {
++		t.Fatalf("resume err=%v", err)
++	}
++	agy := profileRequest(t, `{"version":1,"role":"implementer","permission":"workspace-write","timeout_ms":9000}`)
++	agy.Provider = ProviderAGY
++	agy.Binary.Version = baselineRaw(ProviderAGY)
++	agy.Permission = Permission{}
++	agy.Lock.Provider, agy.Lock.Protocol, agy.Lock.Binary = agy.Provider, ProtocolID(agy.Provider), agy.Binary
++	if _, err := BuildInvocation(agy); err == nil || err.Error() != "managed_workspace_required" {
++		t.Fatalf("implementer err=%v", err)
++	}
++}
++
++func TestGrokWindowPreservesCodingEvidenceGate(t *testing.T) {
++	req := grokProfileRequest(t)
++	req.Binary.Version = "grok 1.0.70 (f50904eaee6c)"
++	req.Lock.Binary = req.Binary
++	if _, err := BuildInvocation(req); err != nil {
++		t.Fatalf("in-window reviewer rejected: %v", err)
++	}
++	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
++	req.Permission = Permission{}
++	req.Workspace = &CandidateWorkspace{Version: 1}
++	if _, err := BuildInvocation(req); err == nil || err.Error() != "grok_version_not_verified" {
++		t.Fatalf("coding admitted without version-specific evidence: %v", err)
++	}
++}
++
++func TestAGYWindowRequiresExplicitWorkspaceCapability(t *testing.T) {
++	req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
++	req.Provider = ProviderAGY
++	req.Binary.Version = "1.4.12"
++	req.Lock.Provider, req.Lock.Protocol, req.Lock.Binary = req.Provider, ProtocolID(req.Provider), req.Binary
++	help := "--output-format --input-format --mode"
++	if err := CheckCapabilities(req, help); err == nil || err.Error() != "provider_capability_unsupported" {
++		t.Fatalf("missing --add-dir accepted: %v", err)
++	}
++	if err := CheckCapabilities(req, help+" --add-dir"); err != nil {
++		t.Fatal(err)
++	}
++	inv, err := BuildInvocation(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !strings.Contains(strings.Join(inv.Args(), " "), "--add-dir "+req.CWD) {
++		t.Fatalf("workspace missing: %v", inv.Args())
++	}
++}
++
++func TestClaudePublishedSeriesIncludeCurrentAndPriorFamilies(t *testing.T) {
++	for _, version := range []string{"1.0.61", "1.0.108", "1.0.128", "2.0.0", "2.0.77", "2.1.0", "2.1.317"} {
++		if err := AdmitVersion(ProviderClaude, version+" (Claude Code)"); err != nil {
++			t.Errorf("published supported family %s: %v", version, err)
++		}
++	}
++	if err := AdmitVersion(ProviderClaude, "1.0.60 (Claude Code)"); err == nil || err.Error() != "cli_version_below_baseline" {
++		t.Fatalf("pre-contract legacy CLI admitted: %v", err)
++	}
++}
++
++func TestClaudeBaseStreamContractDoesNotRequirePartialMessages(t *testing.T) {
++	args := invocationArgs(t, ProviderClaude, "2.1.267 (Claude Code)")
++	for _, arg := range args {
++		if arg == "--include-partial-messages" {
++			t.Fatal("optional partial events prevent older JSONL CLI families from running")
++		}
++	}
++}
++
++func TestClaudeDenyOptionMatchesHistoricalSpelling(t *testing.T) {
++	for _, test := range []struct{ version, flag string }{{"1.0.61", "--disallowedTools"}, {"1.0.85", "--disallowedTools"}, {"1.0.86", "--disallowed-tools"}} {
++		req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000}`)
++		req.Binary.Version = test.version + " (Claude Code)"
++		req.Lock.Binary = req.Binary
++		inv, err := BuildInvocation(req)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if !strings.Contains(strings.Join(inv.Args(), " "), test.flag+" Agent,Task") {
++			t.Fatalf("%s emitted the wrong deny option: %v", test.version, inv.Args())
++		}
++		help := "--output-format --input-format --permission-mode " + test.flag
++		if err := CheckCapabilities(req, help); err != nil {
++			t.Fatalf("%s advertised contract rejected: %v", test.version, err)
++		}
++	}
++}
++
++func TestClaudeLegacySeriesRemainTypedReadonly(t *testing.T) {
++	for _, version := range []string{"1.0.61", "1.0.128", "2.0.77", "2.1.266"} {
++		t.Run(version, func(t *testing.T) {
++			makeRequest := func() Request {
++				req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000}`)
++				req.Binary.Version = version + " (Claude Code)"
++				req.Lock.Binary = req.Binary
++				return req
++			}
++			if _, err := BuildInvocation(makeRequest()); err != nil {
++				t.Fatalf("legacy typed reviewer rejected: %v", err)
++			}
++			for _, kind := range []string{"untyped", "implementer", "candidate-review"} {
++				req := makeRequest()
++				switch kind {
++				case "untyped":
++					req.Profile = nil
++				case "implementer":
++					req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
++					req.Workspace = &CandidateWorkspace{Version: 1}
++				case "candidate-review":
++					req.Action = &CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
++				}
++				if _, err := BuildInvocation(req); err == nil || err.Error() != "claude_legacy_typed_readonly_required" {
++					t.Fatalf("%s expanded legacy admission: %v", kind, err)
++				}
++			}
++		})
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/probe.go b/tools/orchestrator/internal/adapter/probe.go
+index 078ab1db..a71c55d2 100644
+--- a/tools/orchestrator/internal/adapter/probe.go
++++ b/tools/orchestrator/internal/adapter/probe.go
+@@ -16,6 +16,19 @@ import (
+ 
+ type probeBuffer struct{ bytes.Buffer }
+ 
++type probeFailure struct {
++	code  string
++	cause error
++}
++
++func (failure *probeFailure) Error() string {
++	return failure.code
++}
++
++func (failure *probeFailure) Unwrap() error {
++	return failure.cause
++}
++
+ func (b *probeBuffer) Write(data []byte) (int, error) {
+ 	if len(data) > 64*1024-b.Len() {
+ 		return 0, errors.New("provider_probe_too_large")
+@@ -30,6 +43,10 @@ func ProbeOutput(ctx context.Context, path string, args ...string) (string, erro
+ 	// Discovery must not trigger provider auto-updaters. These switches affect
+ 	// only the probe child; other providers ignore the provider-specific keys.
+ 	cmd.Env = append(os.Environ(), "AGY_CLI_DISABLE_AUTO_UPDATE=true", "GROK_DISABLE_AUTOUPDATER=1")
++	return probeCommandOutput(ctx, cmd, args...)
++}
++
++func probeCommandOutput(ctx context.Context, cmd *exec.Cmd, args ...string) (string, error) {
+ 	var output probeBuffer
+ 	cmd.Stdout = &output
+ 	cmd.Stderr = io.Discard
+@@ -40,7 +57,7 @@ func ProbeOutput(ctx context.Context, path string, args ...string) (string, erro
+ 		cmd.Stderr = &helpOutput
+ 	}
+ 	if err := cmd.Run(); err != nil {
+-		return "", errors.New("provider_probe_failed")
++		return "", &probeFailure{code: "provider_probe_failed", cause: errors.Join(err, ctx.Err())}
+ 	}
+ 	if isHelp {
+ 		if output.Len()+helpOutput.Len() > 64*1024 {
+@@ -74,8 +91,11 @@ func Probe(ctx context.Context, provider Provider, path string) (ProviderLock, e
+ 	if err = VerifyExecutable(pin, "probe"); err != nil {
+ 		return ProviderLock{}, err
+ 	}
+-	version, err := ProbeOutput(ctx, path, "--version")
+-	if err != nil || len(version) > 512 || strings.ContainsAny(version, "\r\n\x00") {
++	version, err := ProbePinnedOutput(ctx, provider, pin, "--version")
++	if err != nil {
++		return ProviderLock{}, &probeFailure{code: "binary_version_probe_failed", cause: err}
++	}
++	if len(version) > 512 || strings.ContainsAny(version, "\r\n\x00") {
+ 		return ProviderLock{}, errors.New("binary_version_probe_failed")
+ 	}
+ 	pin.Version = version
+diff --git a/tools/orchestrator/internal/adapter/probe_failure_test.go b/tools/orchestrator/internal/adapter/probe_failure_test.go
+new file mode 100644
+index 00000000..6d18a66c
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/probe_failure_test.go
+@@ -0,0 +1,69 @@
++package adapter
++
++import (
++	"context"
++	"errors"
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++	"time"
++)
++
++func TestProbeFailureRetainsExitCauseWithoutOutput(t *testing.T) {
++	output, err := ProbeOutput(context.Background(), "/bin/sh", "-c", "printf synthetic-secret >&2; exit 7")
++	var exitError *exec.ExitError
++	if !errors.As(err, &exitError) || exitError.ExitCode() != 7 {
++		t.Fatalf("exit cause missing: %v", err)
++	}
++	if output != "" || err.Error() != "provider_probe_failed" || fmt.Sprintf("%+v", err) != "provider_probe_failed" {
++		t.Fatal("probe exposed diagnostics or changed public code")
++	}
++}
++
++func TestProbeFailureRetainsStartCause(t *testing.T) {
++	output, err := ProbeOutput(context.Background(), filepath.Join(t.TempDir(), "synthetic-secret-missing"))
++	var pathError *os.PathError
++	if !errors.As(err, &pathError) || !errors.Is(err, os.ErrNotExist) {
++		t.Fatalf("start cause missing: %v", err)
++	}
++	if output != "" || err.Error() != "provider_probe_failed" {
++		t.Fatal("start failure changed public code")
++	}
++}
++
++func TestProbeFailureRetainsCancellationCause(t *testing.T) {
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	output, err := ProbeOutput(ctx, "/bin/echo", "not-started")
++	if !errors.Is(err, context.Canceled) || output != "" || err.Error() != "provider_probe_failed" {
++		t.Fatalf("cancel cause missing or leaked output: %q %v", output, err)
++	}
++}
++
++func TestProbeFailureRetainsDeadlineAndExitCauses(t *testing.T) {
++	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
++	defer cancel()
++	output, err := ProbeOutput(ctx, "/bin/sleep", "5")
++	var exitError *exec.ExitError
++	if !errors.Is(err, context.DeadlineExceeded) || !errors.As(err, &exitError) {
++		t.Fatalf("deadline/exit causes missing: %v", err)
++	}
++	if output != "" || err.Error() != "provider_probe_failed" {
++		t.Fatal("deadline failure changed public code")
++	}
++}
++
++func TestProbeVersionFailurePreservesNestedCancellation(t *testing.T) {
++	ctx, cancel := context.WithCancel(context.Background())
++	cancel()
++	path, err := filepath.EvalSymlinks(os.Args[0])
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = Probe(ctx, ProviderClaude, path)
++	if !errors.Is(err, context.Canceled) || err.Error() != "binary_version_probe_failed" {
++		t.Fatalf("version failure lost cause or changed code: %v", err)
++	}
++}
+diff --git a/tools/orchestrator/internal/adapter/profile.go b/tools/orchestrator/internal/adapter/profile.go
+index cfa101b1..19f5544c 100644
+--- a/tools/orchestrator/internal/adapter/profile.go
++++ b/tools/orchestrator/internal/adapter/profile.go
+@@ -63,6 +63,9 @@ func validateProfile(req Request) error {
+ 	}
+ 	p := req.Profile
+ 	if p == nil {
++		if req.Provider == ProviderClaude && claudeLegacySeries(req.Binary.Version) {
++			return errors.New("claude_legacy_typed_readonly_required")
++		}
+ 		return nil
+ 	}
+ 	if p.GrokSessionWrite && req.Provider != ProviderGrok {
+@@ -71,11 +74,17 @@ func validateProfile(req Request) error {
+ 	if req.Lock == nil {
+ 		return errors.New("provider_lock_invalid")
+ 	}
++	if err := AdmitVersion(req.Provider, req.Binary.Version); err != nil {
++		return err
++	}
+ 	if req.Session.ID != "" {
+ 		return errors.New("profile_resume_not_verified")
+ 	}
+ 	if req.Provider == ProviderCodex {
+-		return errors.New("codex_trial_guard_not_ready")
++		return CodexTrialBlocked()
++	}
++	if req.Provider == ProviderClaude && claudeLegacySeries(req.Binary.Version) && (p.Role != Reviewer || p.Permission != ReadOnly || req.Action != nil || req.Workspace != nil) {
++		return errors.New("claude_legacy_typed_readonly_required")
+ 	}
+ 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
+ 		return errors.New("execution_profile_invalid")
+@@ -90,7 +99,9 @@ func validateProfile(req Request) error {
+ 		return errors.New("reasoning_unsupported")
+ 	}
+ 	if req.Provider == ProviderGrok {
+-		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
++		// The broader window has reviewer protocol evidence; native editing
++		// remains bound to the exact release validated by the coding profile.
++		if p.Role == Implementer && req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
+ 			return errors.New("grok_version_not_verified")
+ 		}
+ 		if !p.GrokSessionWrite {
+@@ -131,10 +142,10 @@ func CheckCapabilities(req Request, help string) error {
+ 	}
+ 	flags := []string{"--output-format", "--input-format", "--permission-mode"}
+ 	if req.Provider == ProviderClaude {
+-		flags = append(flags, "--disallowed-tools")
++		flags = append(flags, claudeDisallowedFlag(req.Binary.Version))
+ 	}
+ 	if req.Provider == ProviderAGY {
+-		flags = []string{"--output-format", "--input-format", "--mode"}
++		flags = []string{"--output-format", "--input-format", "--mode", "--add-dir"}
+ 	}
+ 	if req.Provider == ProviderGrok {
+ 		flags = []string{"--output-format", "--permission-mode", "--no-subagents", "--disable-web-search", "--session-id", "--leader-socket", "--tools", "--deny"}
+@@ -143,7 +154,7 @@ func CheckCapabilities(req Request, help string) error {
+ 		}
+ 	}
+ 	if req.Provider == ProviderCodex {
+-		return errors.New("codex_trial_guard_not_ready")
++		return CodexTrialBlocked()
+ 	}
+ 	if usesCandidateReviewSchema(req) {
+ 		flags = append(flags, "--json-schema")
+diff --git a/tools/orchestrator/internal/adapter/profile_test.go b/tools/orchestrator/internal/adapter/profile_test.go
+index e7ab71fd..20c26f88 100644
+--- a/tools/orchestrator/internal/adapter/profile_test.go
++++ b/tools/orchestrator/internal/adapter/profile_test.go
+@@ -9,7 +9,7 @@ import (
+ func profileRequest(t *testing.T, profile string) Request {
+ 	t.Helper()
+ 	req := Request{Provider: ProviderClaude, Binary: pinForTest(), CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
+-	if err := json.Unmarshal([]byte(`{"Profile":`+profile+`,"Lock":{"version":1,"provider":"claude-code","protocol":"claude-stream-json-v1","binary":{"Path":"/private/bin/agent","Version":"1.2.3","SHA256":"`+strings.Repeat("a", 64)+`"}}}`), &req); err != nil {
++	if err := json.Unmarshal([]byte(`{"Profile":`+profile+`,"Lock":{"version":1,"provider":"claude-code","protocol":"claude-stream-json-v1","binary":{"Path":"/private/bin/agent","Version":"2.1.267 (Claude Code)","SHA256":"`+strings.Repeat("a", 64)+`"}}}`), &req); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	return req
+@@ -30,8 +30,10 @@ func TestProfileControlsModelReasoningAndRole(t *testing.T) {
+ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
+ 	req := profileRequest(t, `{"version":1,"role":"reviewer","model":"gemini-3.8-flash-low","reasoning":"low","permission":"read-only","timeout_ms":9000}`)
+ 	req.Provider = ProviderAGY
++	req.Binary.Version = "1.2.3"
++	req.Lock.Binary = req.Binary
+ 	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
+-	help := "--input-format --output-format --mode --model --effort"
++	help := "--input-format --output-format --mode --add-dir --model --effort"
+ 	if err := CheckCapabilities(req, help); err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -40,12 +42,12 @@ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	args := strings.Join(inv.Args(), " ")
+-	for _, want := range []string{"--mode plan", "--model gemini-3.8-flash-low", "--effort low"} {
++	for _, want := range []string{"--add-dir /private/workspace", "--mode plan", "--model gemini-3.8-flash-low", "--effort low"} {
+ 		if !strings.Contains(args, want) {
+ 			t.Fatalf("missing %q: %s", want, args)
+ 		}
+ 	}
+-	if err := CheckCapabilities(req, "--input-format --output-format --model --effort"); err == nil {
++	if err := CheckCapabilities(req, "--input-format --output-format --add-dir --model --effort"); err == nil {
+ 		t.Fatal("accepted CLI without native plan capability")
+ 	}
+ 	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
+@@ -127,6 +129,8 @@ func TestCandidateReviewRequiresNativeStructuredOutput(t *testing.T) {
+ func TestCandidateReviewRequiresVerifiedStructuredProvider(t *testing.T) {
+ 	req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
+ 	req.Provider = ProviderAGY
++	req.Binary.Version = "1.2.3"
++	req.Lock.Binary = req.Binary
+ 	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
+ 	req.Action = &CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
+ 	inv, err := BuildInvocation(req)
+@@ -136,10 +140,10 @@ func TestCandidateReviewRequiresVerifiedStructuredProvider(t *testing.T) {
+ 	if !strings.Contains(strings.Join(inv.Args(), " "), "--json-schema") {
+ 		t.Fatal("AGY candidate review lacks native schema")
+ 	}
+-	if err := CheckCapabilities(req, "--input-format --output-format --mode"); err == nil {
++	if err := CheckCapabilities(req, "--input-format --output-format --mode --add-dir"); err == nil {
+ 		t.Fatal("AGY candidate review accepted missing native schema capability")
+ 	}
+-	if err := CheckCapabilities(req, "--input-format --output-format --mode --json-schema"); err != nil {
++	if err := CheckCapabilities(req, "--input-format --output-format --mode --add-dir --json-schema"); err != nil {
+ 		t.Fatalf("AGY candidate review capability rejected: %v", err)
+ 	}
+ 	req.Action = nil
+diff --git a/tools/orchestrator/internal/adapter/protocol.go b/tools/orchestrator/internal/adapter/protocol.go
+index c2472687..ef3e6375 100644
+--- a/tools/orchestrator/internal/adapter/protocol.go
++++ b/tools/orchestrator/internal/adapter/protocol.go
+@@ -308,6 +308,21 @@ func parseGrok(object map[string]json.RawMessage) (Event, error) {
+ 	case "text":
+ 		text, err := stringFieldOptional(object, "data")
+ 		return Event{Kind: EventMessage, SessionID: session, Text: text}, err
++	case "usage":
++		// Additive streaming-json record observed by 1.0.67. Token counts are
++		// not an answer and do not move the tool-boundary cursor.
++		return Event{Kind: EventDiagnostic, SessionID: session, Status: "usage"}, nil
++	case "tool_started", "tool_completed":
++		// Message boundary; tool names and outcomes stay provider-private.
++		return Event{Kind: EventProgress, SessionID: session, Status: typeName}, nil
++	case "tool_call", "tool_call_update":
++		// Native streaming-json projects ACP tool events. A valid opaque call id
++		// establishes the boundary; inputs/outputs and nullable status are not
++		// answer text and must never be copied into the result artifact.
++		if _, err := stringField(object, "toolCallId"); err != nil {
++			return Event{}, err
++		}
++		return Event{Kind: EventProgress, SessionID: session, Status: typeName}, nil
+ 	case "end":
+ 		status, err := stringFieldOptional(object, "stopReason")
+ 		if err != nil {
+diff --git a/tools/orchestrator/internal/adapter/version.go b/tools/orchestrator/internal/adapter/version.go
+new file mode 100644
+index 00000000..92c96595
+--- /dev/null
++++ b/tools/orchestrator/internal/adapter/version.go
+@@ -0,0 +1,163 @@
++package adapter
++
++import (
++	"fmt"
++	"regexp"
++	"strconv"
++	"strings"
++)
++
++// parsedVersion is the normalized stable triple used for range checks.
++// The original --version text stays on the binary pin and is never replaced.
++type parsedVersion struct {
++	Major      int
++	Minor      int
++	Patch      int
++	Product    string
++	Prerelease string
++	Build      string
++	Note       string
++	Channel    string
++	Normalized string
++}
++
++var versionLine = regexp.MustCompile(`^(?:(codex-cli|claude-code|claude|grok|agy|antigravity-cli|antigravity)\s+)?v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z][0-9A-Za-z.-]*))?(?:\+([0-9A-Za-z.-]+))?(?:\s+\(([^)]+)\))?(?:\s+\[([A-Za-z][0-9A-Za-z.-]*)\])?$`)
++
++func parseCLIVersion(raw string) (parsedVersion, error) {
++	raw = strings.TrimSpace(raw)
++	if raw == "" || len(raw) > 512 || strings.ContainsAny(raw, "\r\n\x00") {
++		return parsedVersion{}, errVersionUnparsed
++	}
++	match := versionLine.FindStringSubmatch(raw)
++	if match == nil {
++		return parsedVersion{}, errVersionUnparsed
++	}
++	major, minor, patch, err := decimalTriple(match[2], match[3], match[4])
++	if err != nil {
++		return parsedVersion{}, err
++	}
++	parsed := parsedVersion{
++		Major: major, Minor: minor, Patch: patch,
++		Product: match[1], Prerelease: match[5], Build: match[6],
++		Note: strings.TrimSpace(match[7]), Channel: strings.ToLower(match[8]),
++		Normalized: fmt.Sprintf("%d.%d.%d", major, minor, patch),
++	}
++	return parsed, nil
++}
++
++func decimalTriple(major, minor, patch string) (int, int, int, error) {
++	values := [3]int{}
++	for i, part := range []string{major, minor, patch} {
++		number, err := strconv.Atoi(part)
++		if err != nil || strconv.Itoa(number) != part {
++			return 0, 0, 0, errVersionUnparsed
++		}
++		values[i] = number
++	}
++	return values[0], values[1], values[2], nil
++}
++
++func (v parsedVersion) compare(other parsedVersion) int {
++	if v.Major != other.Major {
++		return cmpInt(v.Major, other.Major)
++	}
++	if v.Minor != other.Minor {
++		return cmpInt(v.Minor, other.Minor)
++	}
++	return cmpInt(v.Patch, other.Patch)
++}
++
++func cmpInt(left, right int) int {
++	if left < right {
++		return -1
++	}
++	if left > right {
++		return 1
++	}
++	return 0
++}
++
++func releaseClass(provider Provider, v parsedVersion) (string, string) {
++	if v.Prerelease != "" || v.Build != "" || channelWord(v.Channel) || noteHasChannel(v.Note) {
++		return "prerelease", "cli_version_prerelease"
++	}
++	switch v.Channel {
++	case "", "stable", "release", "ga", "latest":
++	default:
++		return "unparsed", "cli_version_unparsed"
++	}
++	switch noteClass(provider, v.Note) {
++	case "prerelease":
++		return "prerelease", "cli_version_prerelease"
++	case "unrecognized":
++		return "unrecognized", "cli_version_unrecognized_note"
++	default:
++		return "stable", ""
++	}
++}
++
++// noteClass allows only the annotations each provider actually prints for a
++// stable build. Any other parenthetical text stays out of the stable window.
++func noteClass(provider Provider, note string) string {
++	if note == "" {
++		return "stable"
++	}
++	if noteHasChannel(note) {
++		return "prerelease"
++	}
++	if knownStableNote(provider, note) {
++		return "stable"
++	}
++	return "unrecognized"
++}
++
++func noteHasChannel(note string) bool {
++	token := note
++	for i, r := range note {
++		if r == ' ' || r == '.' || r == '/' {
++			token = note[:i]
++			break
++		}
++	}
++	return channelWord(token)
++}
++
++func knownStableNote(provider Provider, note string) bool {
++	switch provider {
++	case ProviderClaude:
++		return note == "Claude Code"
++	case ProviderGrok:
++		return grokCommitNote.MatchString(note)
++	default:
++		return false
++	}
++}
++
++var grokCommitNote = regexp.MustCompile(`^[0-9a-fA-F]{7,40}$`)
++
++func channelWord(value string) bool {
++	switch strings.ToLower(strings.TrimSpace(value)) {
++	case "nightly", "dev", "devel", "development", "alpha", "beta", "rc", "pre", "preview", "canary", "insiders", "next":
++		return true
++	default:
++		return false
++	}
++}
++
++func prefixAllowed(provider Provider, product string) bool {
++	if product == "" {
++		return true
++	}
++	switch provider {
++	case ProviderClaude:
++		return product == "claude" || product == "claude-code"
++	case ProviderAGY:
++		return product == "agy" || product == "antigravity" || product == "antigravity-cli"
++	case ProviderGrok:
++		return product == "grok"
++	case ProviderCodex:
++		return product == "codex-cli"
++	default:
++		return false
++	}
++}
+diff --git a/tools/orchestrator/internal/host/claude.go b/tools/orchestrator/internal/host/claude.go
+new file mode 100644
+index 00000000..0c9f351a
+--- /dev/null
++++ b/tools/orchestrator/internal/host/claude.go
+@@ -0,0 +1,336 @@
++package host
++
++import (
++	"context"
++	"crypto/sha256"
++	"errors"
++	"fmt"
++	"net"
++	"net/url"
++	"os"
++	"os/exec"
++	"os/user"
++	"path/filepath"
++	"regexp"
++	"sort"
++	"strconv"
++	"strings"
++	"syscall"
++	"time"
++
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
++)
++
++type claudeGatewaySource struct {
++	env          map[string]string
++	homes        []string
++	help         string
++	checkManaged func(context.Context) error
++}
++
++func commandEnvironment(cmd process.Command) map[string]string {
++	env := map[string]string{}
++	for _, item := range append(os.Environ(), cmd.Env...) {
++		if key, value, ok := strings.Cut(item, "="); ok {
++			env[key] = value
++		}
++	}
++	return env
++}
++
++func claudeGatewaySelected(cmd process.Command) bool {
++	return commandEnvironment(cmd)["ANTHROPIC_BASE_URL"] != ""
++}
++
++func validateClaudeGatewayInvocation(inv contract.InvocationView, profile *adapter.ExecutionProfile) error {
++	if profile == nil || profile.Role != adapter.Reviewer || profile.Permission != adapter.ReadOnly {
++		return errors.New("claude_gateway_readonly_required")
++	}
++	if action, ok := inv.(interface {
++		CandidateAction() *adapter.CandidateAction
++	}); ok && action.CandidateAction() != nil {
++		return errors.New("claude_gateway_readonly_required")
++	}
++	if workspace, ok := inv.(interface {
++		CandidateWorkspace() *adapter.CandidateWorkspace
++	}); ok && workspace.CandidateWorkspace() != nil {
++		return errors.New("claude_gateway_readonly_required")
++	}
++	return nil
++}
++
++func claudeGatewayCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string) (process.Command, error) {
++	account, err := user.Current()
++	if err != nil {
++		return cmd, errors.New("claude_gateway_source_unverified")
++	}
++	env := commandEnvironment(cmd)
++	if cmd.PinnedPath != cmd.Path || cmd.PinnedSHA256 == "" {
++		return cmd, errors.New("claude_gateway_pin_missing")
++	}
++	help, err := adapter.ProbePinnedOutput(ctx, adapter.ProviderClaude, adapter.BinaryPin{Path: cmd.PinnedPath, SHA256: cmd.PinnedSHA256, Version: "launch"}, "--help")
++	if err != nil {
++		return cmd, err
++	}
++	for _, flag := range []string{"--strict-mcp-config", "--mcp-config", "--settings"} {
++		matched, _ := regexp.MatchString(`(^|[\s,])`+regexp.QuoteMeta(flag)+`([\s=,]|$)`, help)
++		if !matched {
++			return cmd, errors.New("claude_gateway_capability_unsupported")
++		}
++	}
++	return prepareClaudeGateway(ctx, cmd, profile, scratch, claudeGatewaySource{
++		env: env, homes: []string{account.HomeDir, env["HOME"]}, help: help, checkManaged: checkClaudeManagedSources,
++	})
++}
++
++// Gateway workers never load the caller's OAuth, hooks or settings. The API
++// credential stays solely in the exact child environment, never in argv/files.
++func prepareClaudeGateway(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string, source claudeGatewaySource) (process.Command, error) {
++	if profile == nil || profile.Role != adapter.Reviewer || profile.Permission != adapter.ReadOnly || source.checkManaged == nil {
++		return cmd, errors.New("claude_gateway_readonly_required")
++	}
++	endpoint, err := url.Parse(source.env["ANTHROPIC_BASE_URL"])
++	if err != nil || endpoint.Hostname() == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || endpoint.Opaque != "" || endpoint.RawPath != "" {
++		return cmd, errors.New("claude_gateway_url_invalid")
++	}
++	if endpoint.Scheme != "https" {
++		ip := net.ParseIP(endpoint.Hostname())
++		if endpoint.Scheme != "http" || ip == nil || !ip.IsLoopback() || endpoint.Port() == "" {
++			return cmd, errors.New("claude_gateway_url_invalid")
++		}
++	}
++	key, token := source.env["ANTHROPIC_API_KEY"], source.env["ANTHROPIC_AUTH_TOKEN"]
++	if (key == "") == (token == "") {
++		return cmd, errors.New("claude_gateway_credential_ambiguous")
++	}
++	if strings.ContainsAny(key+token, "\r\n\x00") || len(key)+len(token) > 16384 {
++		return cmd, errors.New("claude_gateway_credential_invalid")
++	}
++	for _, name := range []string{"CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN_FD", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"} {
++		if source.env[name] != "" {
++			return cmd, errors.New("claude_gateway_auth_conflict")
++		}
++	}
++	if err := source.checkManaged(ctx); err != nil {
++		return cmd, err
++	}
++	var homes, denied []string
++	for _, raw := range append(append([]string{}, source.homes...), source.env["CLAUDE_CONFIG_DIR"], source.env["CLAUDE_SECURESTORAGE_CONFIG_DIR"]) {
++		if raw == "" {
++			continue
++		}
++		resolved, err := filepath.EvalSymlinks(raw)
++		if err != nil || !filepath.IsAbs(raw) || filepath.Clean(raw) != raw {
++			return cmd, errors.New("claude_gateway_source_untrusted")
++		}
++		denied = append(denied, resolved)
++	}
++	for _, raw := range source.homes {
++		if raw == "" {
++			continue
++		}
++		home, err := filepath.EvalSymlinks(raw)
++		if err != nil || home == "/" || cmd.Dir == home || strings.HasPrefix(home, cmd.Dir+string(filepath.Separator)) {
++			return cmd, errors.New("claude_gateway_workspace_untrusted")
++		}
++		homes = append(homes, home)
++	}
++	if len(homes) == 0 {
++		return cmd, errors.New("claude_gateway_source_unverified")
++	}
++	var projectPaths []string
++	for dir := cmd.Dir; ; dir = filepath.Dir(dir) {
++		for _, name := range []string{".claude", ".claude.json", ".mcp.json"} {
++			path := filepath.Join(dir, name)
++			projectPaths = append(projectPaths, path)
++			isHome := false
++			for _, home := range homes {
++				isHome = isHome || dir == home
++			}
++			if !isHome {
++				if _, err := os.Lstat(path); !os.IsNotExist(err) {
++					return cmd, errors.New("claude_gateway_project_config_unverified")
++				}
++			}
++		}
++		if dir == filepath.Dir(dir) {
++			break
++		}
++	}
++	if err := grokOwnedDirectory(scratch, true, true); err != nil {
++		return cmd, err
++	}
++	home := filepath.Join(scratch, "claude-home")
++	if err := os.Mkdir(home, 0700); err != nil {
++		return cmd, errors.New("claude_gateway_state_exists")
++	}
++	config := filepath.Join(home, ".claude")
++	if err := os.Mkdir(config, 0700); err != nil {
++		return cmd, err
++	}
++	policy := filepath.Join(home, "policy")
++	if err := os.Mkdir(policy, 0700); err != nil {
++		return cmd, err
++	}
++	mcp, settings := filepath.Join(policy, "mcp.json"), filepath.Join(policy, "settings.json")
++	for path, body := range map[string]string{mcp: `{"mcpServers":{}}`, settings: `{}`} {
++		file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
++		if err != nil {
++			return cmd, err
++		}
++		_, writeErr := file.WriteString(body)
++		closeErr := file.Close()
++		if writeErr != nil || closeErr != nil {
++			return cmd, errors.New("claude_gateway_config_untrusted")
++		}
++	}
++	path := "/usr/bin:/bin:/usr/sbin:/sbin"
++	var interpreter string
++	if strings.HasSuffix(cmd.Path, ".js") {
++		node, err := adapter.ClaudeNodePin()
++		if err != nil {
++			return cmd, errors.New("claude_node_runtime_unavailable")
++		}
++		interpreter, err = filepath.EvalSymlinks(node.Path)
++		if err != nil {
++			return cmd, errors.New("claude_node_runtime_unavailable")
++		}
++		// Node may live in the caller's home (for example nvm). Copy the exact
++		// executable into our private state rather than reopening that home to
++		// the gateway worker. The caller's installation remains unchanged.
++		before, statErr := os.Lstat(interpreter)
++		if statErr != nil || !before.Mode().IsRegular() || before.Mode().Perm()&0022 != 0 || before.Size() > 512<<20 {
++			return cmd, errors.New("claude_node_runtime_untrusted")
++		}
++		body, readErr := os.ReadFile(interpreter)
++		after, statErr := os.Lstat(interpreter)
++		if readErr != nil || statErr != nil || !os.SameFile(before, after) || before.ModTime() != after.ModTime() {
++			return cmd, errors.New("claude_node_runtime_untrusted")
++		}
++		nodeDir := filepath.Join(home, "bin")
++		if err := os.Mkdir(nodeDir, 0700); err != nil {
++			return cmd, err
++		}
++		interpreter = filepath.Join(nodeDir, "node")
++		if err := os.WriteFile(interpreter, body, 0700); err != nil {
++			return cmd, err
++		}
++		copied, err := os.ReadFile(interpreter)
++		if err != nil || sha256.Sum256(copied) != sha256.Sum256(body) || fmt.Sprintf("%x", sha256.Sum256(copied)) != adapter.ClaudeNodeSHA256 {
++			return cmd, errors.New("claude_node_runtime_untrusted")
++		}
++		path = filepath.Dir(interpreter) + ":" + path
++	}
++	child := map[string]string{"PATH": path, "HOME": home, "CLAUDE_CONFIG_DIR": config, "CLAUDE_SECURESTORAGE_CONFIG_DIR": config, "LANG": "en_US.UTF-8", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_AUTOUPDATER": "1", "ANTHROPIC_BASE_URL": strings.TrimRight(endpoint.String(), "/")}
++	if profile.Model != "" {
++		for _, name := range []string{"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL"} {
++			child[name] = string(profile.Model)
++		}
++	}
++	for name, directory := range map[string]string{"XDG_CONFIG_HOME": ".config", "XDG_CACHE_HOME": ".cache", "XDG_DATA_HOME": ".local/share", "XDG_STATE_HOME": ".local/state"} {
++		child[name] = filepath.Join(home, directory)
++	}
++	if key != "" {
++		child["ANTHROPIC_API_KEY"] = key
++	} else {
++		child["ANTHROPIC_AUTH_TOKEN"] = token
++	}
++	for _, entry := range cmd.Env {
++		name, value, _ := strings.Cut(entry, "=")
++		if name == "ORCHESTRATOR_REPORT_CAPABILITY" || name == "ORCHESTRATOR_EXECUTABLE" {
++			child[name] = value
++		}
++	}
++	cmd.Env = nil
++	for name, value := range child {
++		cmd.Env = append(cmd.Env, name+"="+value)
++	}
++	sort.Strings(cmd.Env)
++	cmd.ExactEnv = true
++	for i, arg := range cmd.Args {
++		if (arg == "--disallowed-tools" || arg == "--disallowedTools") && i+1 < len(cmd.Args) {
++			cmd.Args[i+1] = "Bash,Edit,MultiEdit,Write,NotebookEdit,Agent,Task,WebFetch,WebSearch,mcp__*"
++		}
++	}
++	if advertised, _ := regexp.MatchString(`(^|[\s,])--tools([\s=,]|$)`, source.help); advertised {
++		cmd.Args = append(cmd.Args, "--tools", "Read,Glob,Grep")
++	}
++	cmd.Args = append(cmd.Args, "--strict-mcp-config", "--mcp-config", mcp, "--settings", settings)
++	prepared, err := sandboxCommand(ctx, cmd, profile, scratch)
++	if err != nil {
++		return cmd, err
++	}
++	rules := []string{}
++	for _, root := range denied {
++		rules = append(rules, "(deny file-read* (subpath "+strconv.Quote(root)+"))")
++	}
++	// Current Claude vets every settings path component. Permit metadata for
++	// this launch's scratch ancestors; sibling spool contents remain unreadable.
++	for parent := filepath.Dir(scratch); ; parent = filepath.Dir(parent) {
++		rules = append(rules, "(allow file-read-metadata (literal "+strconv.Quote(parent)+"))")
++		if filepath.Base(parent) == "host-spool" || parent == filepath.Dir(parent) {
++			break
++		}
++	}
++	rules = append(rules, "(deny file-write* (subpath "+strconv.Quote(policy)+"))")
++	rules = append(rules, "(allow file-read* (subpath "+strconv.Quote(cmd.Dir)+"))", "(allow file-read* (literal "+strconv.Quote(cmd.Path)+"))")
++	if interpreter != "" {
++		rules = append(rules, "(allow file-read* (literal "+strconv.Quote(interpreter)+"))")
++		rules = append(rules, "(deny file-write* (subpath "+strconv.Quote(filepath.Dir(interpreter))+"))")
++	}
++	for _, root := range homes {
++		for _, name := range []string{".claude", ".claude.json", "Library/Keychains"} {
++			projectPaths = append(projectPaths, filepath.Join(root, name))
++		}
++	}
++	for _, path := range projectPaths {
++		rules = append(rules, "(deny file-read* (subpath "+strconv.Quote(path)+"))")
++	}
++	for _, path := range []string{"/Library/Application Support/ClaudeCode", "/etc/claude-code", "/Library/Managed Preferences/com.anthropic.claudecode.plist", "/Library/Managed Preferences/com.anthropic.ClaudeCode.plist"} {
++		rules = append(rules, "(deny file-read* (subpath "+strconv.Quote(path)+"))")
++	}
++	for _, name := range []string{"com.apple.SecurityServer", "com.apple.securityd", "com.apple.securityd.system", "com.apple.securityd.systemkeychain"} {
++		rules = append(rules, "(deny mach-lookup (global-name "+strconv.Quote(name)+"))")
++	}
++	prepared.Args[1] += "\n" + strings.Join(rules, "\n")
++	for path, body := range map[string]string{mcp: `{"mcpServers":{}}`, settings: `{}`} {
++		before, err := os.Lstat(path)
++		if err != nil || !before.Mode().IsRegular() || before.Mode().Perm() != 0600 {
++			return cmd, errors.New("claude_gateway_config_untrusted")
++		}
++		identity, ok := before.Sys().(*syscall.Stat_t)
++		observed, readErr := os.ReadFile(path)
++		after, statErr := os.Lstat(path)
++		if !ok || identity.Uid != uint32(os.Getuid()) || identity.Nlink != 1 || readErr != nil || statErr != nil || !os.SameFile(before, after) || string(observed) != body {
++			return cmd, errors.New("claude_gateway_config_untrusted")
++		}
++	}
++	return prepared, nil
++}
++
++func cleanupClaudeGatewayState(scratch string) {
++	// RemoveAll does not follow a replacement symlink. Only this launch's fresh
++	// child state is removed; caller auth/config paths are never cleanup inputs.
++	_ = os.RemoveAll(filepath.Join(scratch, "claude-home"))
++}
++
++func checkClaudeManagedSources(ctx context.Context) error {
++	for _, path := range []string{"/Library/Application Support/ClaudeCode/managed-settings.json", "/Library/Application Support/ClaudeCode/managed-mcp.json", "/Library/Application Support/ClaudeCode/managed-settings.d", "/etc/claude-code/managed-settings.json", "/etc/claude-code/managed-mcp.json", "/Library/Managed Preferences/com.anthropic.claudecode.plist", "/Library/Managed Preferences/com.anthropic.ClaudeCode.plist"} {
++		if _, err := os.Lstat(path); !os.IsNotExist(err) {
++			return errors.New("claude_gateway_managed_config_unverified")
++		}
++	}
++	for _, domain := range []string{"com.anthropic.claudecode", "com.anthropic.ClaudeCode"} {
++		probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
++		command := exec.CommandContext(probeCtx, "/usr/bin/defaults", "read", domain)
++		command.Env = []string{"PATH=/usr/bin:/bin", "LANG=en_US.UTF-8"}
++		output, err := command.CombinedOutput()
++		cancel()
++		if err == nil || !strings.Contains(string(output), "does not exist") {
++			return errors.New("claude_gateway_managed_config_unverified")
++		}
++	}
++	return nil
++}
+diff --git a/tools/orchestrator/internal/host/claude_native_test.go b/tools/orchestrator/internal/host/claude_native_test.go
+new file mode 100644
+index 00000000..9a42669e
+--- /dev/null
++++ b/tools/orchestrator/internal/host/claude_native_test.go
+@@ -0,0 +1,210 @@
++package host
++
++import (
++	"context"
++	"encoding/json"
++	"fmt"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
++	"io"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"os/user"
++	"path/filepath"
++	"strings"
++	"sync/atomic"
++	"testing"
++	"time"
++)
++
++// TestNativeClaudeGatewayReadOnlyTransport launches a fixed CLI against an owned
++// loopback SSE fixture; it uses no real credential and spends no model credits.
++// This is transport/tool evidence, not a real-model acceptance result.
++func TestNativeClaudeGatewayReadOnlyTransport(t *testing.T) {
++	binary := os.Getenv("ORCHESTRATOR_CLAUDE_NATIVE_BINARY")
++	if binary == "" {
++		t.Skip("requires explicit fixed native/Node CLI path; no model or real credential")
++	}
++	cmd, profile, scratch, source := claudeGatewayFixture(t)
++	account, err := user.Current()
++	if err != nil {
++		t.Fatal(err)
++	}
++	source.homes = append(source.homes, account.HomeDir)
++	cmd.Path = binary
++	scratch = filepath.Join(scratch, "state", "host-spool", "launch", "attempt", "segment", "scratch")
++	const sentinel = "SYNTHETIC_READ_SENTINEL"
++	readPath := filepath.Join(cmd.Dir, "INPUT.txt")
++	if err := os.WriteFile(readPath, []byte(sentinel), 0600); err != nil {
++		t.Fatal(err)
++	}
++	discovery, err := adapter.Probe(context.Background(), adapter.ProviderClaude, binary)
++	if err != nil {
++		t.Fatal(err)
++	}
++	source.help, err = adapter.ProbePinnedOutput(context.Background(), adapter.ProviderClaude, discovery.Binary, "--help")
++	if err != nil {
++		t.Fatal(err)
++	}
++	apiKey := os.Getenv("ORCHESTRATOR_CLAUDE_NATIVE_AUTH") == "api-key"
++	if apiKey {
++		source.env["ANTHROPIC_API_KEY"] = source.env["ANTHROPIC_AUTH_TOKEN"]
++		delete(source.env, "ANTHROPIC_AUTH_TOKEN")
++	}
++	credential := source.env["ANTHROPIC_AUTH_TOKEN"] + source.env["ANTHROPIC_API_KEY"]
++	var requests, reads atomic.Int32
++	{
++		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++			if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/messages") {
++				http.NotFound(w, r)
++				return
++			}
++			wantAuth, wantKey := "Bearer "+credential, ""
++			if apiKey {
++				wantAuth, wantKey = "", credential
++			}
++			if r.Header.Get("Authorization") != wantAuth || r.Header.Get("X-Api-Key") != wantKey {
++				t.Error("gateway credential header mismatch")
++			}
++			body, err := io.ReadAll(io.LimitReader(r.Body, 2<<20))
++			var request struct {
++				Model  string `json:"model"`
++				Stream bool   `json:"stream"`
++				Tools  []struct {
++					Name string `json:"name"`
++				} `json:"tools"`
++				Messages []struct {
++					Content json.RawMessage `json:"content"`
++				} `json:"messages"`
++			}
++			if err != nil || json.Unmarshal(body, &request) != nil || request.Model != string(profile.Model) {
++				t.Error("invalid synthetic model request")
++				http.Error(w, "invalid request", 400)
++				return
++			}
++			hasRead := false
++			for _, tool := range request.Tools {
++				hasRead = hasRead || tool.Name == "Read"
++				if strings.HasPrefix(tool.Name, "mcp__") || tool.Name == "Bash" || tool.Name == "Edit" || tool.Name == "MultiEdit" || tool.Name == "Write" || tool.Name == "NotebookEdit" || tool.Name == "Agent" || tool.Name == "Task" || tool.Name == "WebFetch" || tool.Name == "WebSearch" {
++					t.Errorf("forbidden tool advertised: %s", tool.Name)
++				}
++			}
++
++			readSeen := false
++			for _, message := range request.Messages {
++				var blocks []struct {
++					Type      string          `json:"type"`
++					ToolUseID string          `json:"tool_use_id"`
++					Content   json.RawMessage `json:"content"`
++				}
++				if json.Unmarshal(message.Content, &blocks) == nil {
++					for _, block := range blocks {
++						if block.Type == "tool_result" && block.ToolUseID == "read_fixture" && strings.Contains(string(block.Content), sentinel) {
++							readSeen = true
++						}
++					}
++				}
++			}
++			requests.Add(1)
++			if !request.Stream {
++				content := []any{map[string]any{"type": "text", "text": "GATEWAY_FIXTURE"}}
++				stopReason := "end_turn"
++				if hasRead && !readSeen {
++					stopReason = "tool_use"
++					content = []any{map[string]any{"type": "tool_use", "id": "read_fixture", "name": "Read", "input": map[string]string{"file_path": readPath}}}
++				}
++				if readSeen {
++					reads.Add(1)
++				}
++				w.Header().Set("Content-Type", "application/json")
++				_ = json.NewEncoder(w).Encode(map[string]any{"id": "msg_fixture", "type": "message", "role": "assistant", "model": request.Model, "content": content, "stop_reason": stopReason, "stop_sequence": nil, "usage": map[string]int{"input_tokens": 1, "output_tokens": 1}})
++				return
++			}
++			w.Header().Set("Content-Type", "text/event-stream")
++			write := func(kind string, data any) {
++				b, _ := json.Marshal(data)
++				fmt.Fprintf(w, "event: %s\ndata: %s\n\n", kind, b)
++			}
++			write("message_start", map[string]any{"type": "message_start", "message": map[string]any{"id": "msg_fixture", "type": "message", "role": "assistant", "model": "deepseek-v4.1-flash-1017", "content": []any{}, "stop_reason": nil, "stop_sequence": nil, "usage": map[string]int{"input_tokens": 1, "output_tokens": 0}}})
++			stopReason := "tool_use"
++			if readSeen || !hasRead {
++				if readSeen {
++					reads.Add(1)
++				}
++				stopReason = "end_turn"
++				write("content_block_start", map[string]any{"type": "content_block_start", "index": 0, "content_block": map[string]string{"type": "text", "text": ""}})
++				write("content_block_delta", map[string]any{"type": "content_block_delta", "index": 0, "delta": map[string]string{"type": "text_delta", "text": "GATEWAY_FIXTURE"}})
++			} else {
++				write("content_block_start", map[string]any{"type": "content_block_start", "index": 0, "content_block": map[string]any{"type": "tool_use", "id": "read_fixture", "name": "Read", "input": map[string]any{}}})
++				input, _ := json.Marshal(map[string]string{"file_path": readPath})
++				write("content_block_delta", map[string]any{"type": "content_block_delta", "index": 0, "delta": map[string]string{"type": "input_json_delta", "partial_json": string(input)}})
++			}
++			write("content_block_stop", map[string]any{"type": "content_block_stop", "index": 0})
++			write("message_delta", map[string]any{"type": "message_delta", "delta": map[string]any{"stop_reason": stopReason, "stop_sequence": nil}, "usage": map[string]int{"output_tokens": 1}})
++			write("message_stop", map[string]string{"type": "message_stop"})
++		}))
++		defer server.Close()
++		source.env["ANTHROPIC_BASE_URL"] = server.URL
++		profile.Model = "deepseek-v4.1-flash-1017"
++		lock, err := adapter.Probe(context.Background(), adapter.ProviderClaude, binary)
++		if err != nil {
++			t.Fatal(err)
++		}
++		inv, err := adapter.BuildInvocation(adapter.Request{Provider: adapter.ProviderClaude, Binary: lock.Binary, Lock: &lock, Profile: profile, CWD: cmd.Dir, Prompt: "Read INPUT.txt and reply GATEWAY_FIXTURE"})
++		if err != nil {
++			t.Fatal(err)
++		}
++		cmd.Args = inv.Args()[1:]
++		cmd.Stdin = inv.Stdin()
++	}
++
++	prepared, err := prepareClaudeGateway(context.Background(), cmd, profile, scratch, source)
++	if err != nil {
++		t.Fatal(err)
++	}
++	h, err := process.Start(context.Background(), prepared)
++	if err != nil {
++		t.Fatal(err)
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
++	defer cancel()
++	err = h.Wait(ctx)
++	if err != nil {
++		stop, done := context.WithTimeout(context.Background(), 5*time.Second)
++		defer done()
++		_ = h.Stop(stop)
++	}
++	if h.ExitCode() != 0 {
++		t.Logf("exit=%d output=%q", h.ExitCode(), h.Output())
++	} else {
++		t.Logf("exit=0 captured_bytes=%d gateway_requests=%d read_results=%d", len(h.Output()), requests.Load(), reads.Load())
++	}
++	if requests.Load() < 2 || reads.Load() == 0 || !strings.Contains(h.Output(), "GATEWAY_FIXTURE") {
++		t.Error("synthetic header/SSE/Read transport incomplete")
++	}
++	_ = filepath.WalkDir(scratch, func(path string, entry os.DirEntry, walkErr error) error {
++		if walkErr != nil {
++			return walkErr
++		}
++		if entry.Type().IsRegular() {
++			info, err := entry.Info()
++			if err != nil {
++				return err
++			}
++			if info.Size() < 8<<20 {
++				body, err := os.ReadFile(path)
++				if err != nil {
++					return err
++				}
++				if strings.Contains(string(body), credential) {
++					t.Error("credential persisted in private CLI state")
++				}
++			}
++		}
++		return nil
++	})
++	if err != nil || h.ExitCode() != 0 {
++		t.Fatalf("synthetic gateway command failed: %v", err)
++	}
++}
+diff --git a/tools/orchestrator/internal/host/claude_test.go b/tools/orchestrator/internal/host/claude_test.go
+new file mode 100644
+index 00000000..a7b72780
+--- /dev/null
++++ b/tools/orchestrator/internal/host/claude_test.go
+@@ -0,0 +1,245 @@
++package host
++
++import (
++	"context"
++	"errors"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++	"testing"
++	"time"
++)
++
++type claudeGatewayBranchInvocation struct {
++	launchInvocation
++	profile   *adapter.ExecutionProfile
++	action    *adapter.CandidateAction
++	workspace *adapter.CandidateWorkspace
++}
++
++func (i claudeGatewayBranchInvocation) OutputProvider() string                      { return string(adapter.ProviderClaude) }
++func (i claudeGatewayBranchInvocation) ExecutionProfile() *adapter.ExecutionProfile { return i.profile }
++func (i claudeGatewayBranchInvocation) CandidateAction() *adapter.CandidateAction   { return i.action }
++func (i claudeGatewayBranchInvocation) CandidateWorkspace() *adapter.CandidateWorkspace {
++	return i.workspace
++}
++
++func TestClaudeGatewayRejectsEveryUnsupportedBranchBeforeSpawn(t *testing.T) {
++	t.Setenv("ANTHROPIC_BASE_URL", "https://gateway.example.invalid")
++	for _, kind := range []string{"untyped", "implementer", "candidate-review", "candidate-workspace"} {
++		t.Run(kind, func(t *testing.T) {
++			root, _ := filepath.EvalSymlinks(t.TempDir())
++			h, err := NewIPC(filepath.Join(root, "spool"), "producer")
++			if err != nil {
++				t.Fatal(err)
++			}
++			inv := claudeGatewayBranchInvocation{launchInvocation: launchInvocation{args: []string{"/usr/bin/true"}, dir: root}, profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}}
++			switch kind {
++			case "untyped":
++				inv.profile = nil
++			case "implementer":
++				inv.profile.Role = adapter.Implementer
++				inv.profile.Permission = adapter.WorkspaceWrite
++			case "candidate-review":
++				inv.action = &adapter.CandidateAction{Operation: "review"}
++			case "candidate-workspace":
++				inv.workspace = &adapter.CandidateWorkspace{}
++			}
++			_, err = h.ExecuteLaunch(context.Background(), contract.LaunchCommand{CommandID: "c", ReservationID: "r", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", GrantedActiveMS: 1000}, inv)
++			if err == nil || err.Error() != "claude_gateway_readonly_required" {
++				t.Fatalf("unsupported branch admitted: %v", err)
++			}
++			if _, err := os.Stat(filepath.Join(root, "spool", "attempt")); !os.IsNotExist(err) {
++				t.Fatal("unsupported branch reached execute/spawn")
++			}
++		})
++	}
++}
++
++func claudeGatewayFixture(t *testing.T) (process.Command, *adapter.ExecutionProfile, string, claudeGatewaySource) {
++	t.Helper()
++	root, err := filepath.EvalSymlinks(t.TempDir())
++	if err != nil {
++		t.Fatal(err)
++	}
++	home, work := filepath.Join(root, "source-home"), filepath.Join(root, "work")
++	for _, dir := range []string{home, work} {
++		if err := os.Mkdir(dir, 0700); err != nil {
++			t.Fatal(err)
++		}
++	}
++	cmd := process.Command{Path: "/bin/sh", Args: []string{"-c", "printf ok"}, Dir: work}
++	profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 5000}
++	source := claudeGatewaySource{env: map[string]string{"HOME": home, "ANTHROPIC_BASE_URL": "https://gateway.example.invalid/anthropic", "ANTHROPIC_AUTH_TOKEN": "SYNTHETIC_GATEWAY_CREDENTIAL", "NODE_OPTIONS": "--require untrusted.js", "HTTPS_PROXY": "http://untrusted.invalid", "DYLD_INSERT_LIBRARIES": "/untrusted.dylib"}, homes: []string{home}, checkManaged: func(context.Context) error { return nil }}
++	return cmd, profile, filepath.Join(root, "scratch"), source
++}
++
++func TestClaudeGatewayUsesExactPrivateEnvironmentWithoutCopyingAuth(t *testing.T) {
++	cmd, profile, scratch, source := claudeGatewayFixture(t)
++	prepared, err := prepareClaudeGateway(context.Background(), cmd, profile, scratch, source)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !prepared.ExactEnv || prepared.Path != "/usr/bin/sandbox-exec" {
++		t.Fatalf("gateway not isolated: %+v", prepared)
++	}
++	joined := strings.Join(prepared.Env, "\n")
++	for _, bad := range []string{"NODE_OPTIONS=", "HTTPS_PROXY=", "DYLD_INSERT_LIBRARIES=", "CLAUDE_CODE_OAUTH_TOKEN="} {
++		if strings.Contains(joined, bad) {
++			t.Fatalf("inherited environment %s", bad)
++		}
++	}
++	if !strings.Contains(joined, "HOME="+filepath.Join(scratch, "claude-home")) || !strings.Contains(joined, "CLAUDE_SECURESTORAGE_CONFIG_DIR="+filepath.Join(scratch, "claude-home/.claude")) {
++		t.Fatal("private state not selected")
++	}
++	if strings.Contains(strings.Join(prepared.Args, "\n"), source.env["ANTHROPIC_AUTH_TOKEN"]) {
++		t.Fatal("credential exposed in argv/SBPL")
++	}
++	for _, file := range []string{"mcp.json", "settings.json"} {
++		body, err := os.ReadFile(filepath.Join(scratch, "claude-home", "policy", file))
++		if err != nil || strings.Contains(string(body), "CREDENTIAL") {
++			t.Fatalf("config not private/minimal: %s", file)
++		}
++	}
++}
++
++func TestClaudeGatewayRejectsConflictingOrUnverifiedSources(t *testing.T) {
++	for _, kind := range []string{"oauth", "dual-key", "userinfo", "http", "query", "managed", "project", "reused-state"} {
++		t.Run(kind, func(t *testing.T) {
++			cmd, profile, scratch, source := claudeGatewayFixture(t)
++			switch kind {
++			case "oauth":
++				source.env["CLAUDE_CODE_OAUTH_TOKEN"] = "SYNTHETIC_OAUTH"
++			case "dual-key":
++				source.env["ANTHROPIC_API_KEY"] = "SYNTHETIC_SECOND_KEY"
++			case "userinfo":
++				source.env["ANTHROPIC_BASE_URL"] = "https://key@gateway.example.invalid"
++			case "http":
++				source.env["ANTHROPIC_BASE_URL"] = "http://gateway.example.invalid"
++			case "query":
++				source.env["ANTHROPIC_BASE_URL"] = "https://gateway.example.invalid?credential=x"
++			case "managed":
++				source.checkManaged = func(context.Context) error { return errors.New("managed") }
++			case "project":
++				if err := os.Mkdir(filepath.Join(cmd.Dir, ".claude"), 0700); err != nil {
++					t.Fatal(err)
++				}
++			case "reused-state":
++				if _, err := prepareClaudeGateway(context.Background(), cmd, profile, scratch, source); err != nil {
++					t.Fatal(err)
++				}
++			}
++			if _, err := prepareClaudeGateway(context.Background(), cmd, profile, scratch, source); err == nil {
++				t.Fatal("unverified source admitted")
++			}
++		})
++	}
++}
++
++func TestClaudeGatewayNativeSandboxPreservesAuthAndWorkspaceBoundaries(t *testing.T) {
++	cmd, profile, scratch, source := claudeGatewayFixture(t)
++	secret := filepath.Join(source.homes[0], "oauth-sentinel")
++	if err := os.WriteFile(secret, []byte("SYNTHETIC_SOURCE_AUTH"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	cmd.Args = []string{"-c", `test ! -r "$1" && ! touch "$2/forbidden" 2>/dev/null && ! rm -rf "$TMPDIR/claude-home/policy" 2>/dev/null && touch "$TMPDIR/allowed" && printf ISOLATED`, "sh", secret, cmd.Dir}
++	prepared, err := prepareClaudeGateway(context.Background(), cmd, profile, scratch, source)
++	if err != nil {
++		t.Fatal(err)
++	}
++	handle, err := process.Start(context.Background(), prepared)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if err := handle.Wait(context.Background()); err != nil || handle.ExitCode() != 0 || handle.Output() != "ISOLATED" {
++		t.Fatalf("sandbox failed: exit=%d output=%q err=%v", handle.ExitCode(), handle.Output(), err)
++	}
++	if _, err := os.Stat(filepath.Join(scratch, "allowed")); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := os.Stat(filepath.Join(cmd.Dir, "forbidden")); !os.IsNotExist(err) {
++		t.Fatal("workspace write allowed")
++	}
++	if body, err := os.ReadFile(filepath.Join(scratch, "claude-home/policy/settings.json")); err != nil || string(body) != "{}" {
++		t.Fatal("private policy was mutable")
++	}
++}
++
++// A bootstrap lookup opens no Keychain and changes no authentication state.
++// The positive control ensures that a missing service cannot fake a denial.
++func TestClaudeGatewayNativeSandboxDeniesSecurityServices(t *testing.T) {
++	root, _ := filepath.EvalSymlinks(t.TempDir())
++	sourceFile, binary := filepath.Join(root, "lookup.c"), filepath.Join(root, "lookup")
++	source := `#include <servers/bootstrap.h>
++#include <mach/mach.h>
++int main(int argc, char **argv) {
++ if (argc < 2) return 2;
++ mach_port_t service = MACH_PORT_NULL;
++ kern_return_t result = bootstrap_look_up(bootstrap_port, argv[1], &service);
++ if (result != KERN_SUCCESS) return 1;
++ mach_port_deallocate(mach_task_self(), service);
++ return 0;
++}`
++	if err := os.WriteFile(sourceFile, []byte(source), 0600); err != nil {
++		t.Fatal(err)
++	}
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++	defer cancel()
++	if output, err := exec.CommandContext(ctx, "/usr/bin/cc", sourceFile, "-o", binary).CombinedOutput(); err != nil {
++		t.Fatalf("compile native Mach probe: %v %s", err, output)
++	}
++	positive := 0
++	for _, name := range []string{"com.apple.SecurityServer", "com.apple.securityd", "com.apple.securityd.system", "com.apple.securityd.systemkeychain"} {
++		if exec.CommandContext(ctx, binary, name).Run() != nil {
++			continue
++		}
++		positive++
++		cmd, profile, scratch, source := claudeGatewayFixture(t)
++		cmd.Path, cmd.Args = binary, []string{name}
++		prepared, err := prepareClaudeGateway(ctx, cmd, profile, scratch, source)
++		if err != nil {
++			t.Fatal(err)
++		}
++		child, err := process.Start(ctx, prepared)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if err := child.Wait(ctx); err != nil || child.ExitCode() != 1 {
++			t.Fatalf("security service reachable: %s exit=%d err=%v", name, child.ExitCode(), err)
++		}
++	}
++	if positive == 0 {
++		t.Fatal("no positive security service lookup; denial not established")
++	}
++	t.Logf("positive_controls=%d; same services denied in gateway sandbox", positive)
++}
++
++func TestClaudeGatewayRejectsAmbientNodeOutsideOfficialPin(t *testing.T) {
++	cmd, profile, scratch, source := claudeGatewayFixture(t)
++	nodeDir := filepath.Join(source.homes[0], "bin")
++	if err := os.Mkdir(nodeDir, 0700); err != nil {
++		t.Fatal(err)
++	}
++	original := filepath.Join(nodeDir, "node")
++	body := []byte("#!/bin/sh\nprintf synthetic-node\n")
++	if err := os.WriteFile(original, body, 0700); err != nil {
++		t.Fatal(err)
++	}
++	t.Setenv("PATH", nodeDir)
++	t.Setenv("ORCHESTRATOR_CLAUDE_NODE_BINARY", "")
++	cmd.Path = filepath.Join(cmd.Dir, "provider.js")
++	if err := os.WriteFile(cmd.Path, []byte("// synthetic CLI"), 0600); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := prepareClaudeGateway(context.Background(), cmd, profile, scratch, source); err == nil || err.Error() != "claude_node_runtime_unavailable" {
++		t.Fatalf("ambient unpinned Node accepted: %v", err)
++	}
++	unchanged, err := os.ReadFile(original)
++	if err != nil || string(unchanged) != string(body) {
++		t.Fatal("caller runtime changed")
++	}
++}
+diff --git a/tools/orchestrator/internal/host/grok_protocol_test.go b/tools/orchestrator/internal/host/grok_protocol_test.go
+index 8a1dfa31..6e6efb40 100644
+--- a/tools/orchestrator/internal/host/grok_protocol_test.go
++++ b/tools/orchestrator/internal/host/grok_protocol_test.go
+@@ -91,3 +91,72 @@ func TestGrokNativeStructuredReviewField(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestGrokToolBoundaryKeepsFinalAnswerOnly(t *testing.T) {
++	p, err := newProtocolCollector("grok-build")
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, _ = p.Write([]byte(`{"type":"text","data":"I'll read INPUT.txt and return it."}` + "\n" +
++		`{"type":"tool_started","tool_name":"read_file"}` + "\n" +
++		`{"type":"thought","data":"PRIVATE"}` + "\n" +
++		`{"type":"tool_completed","tool_name":"read_file","outcome":"success"}` + "\n" +
++		`{"type":"text","data":"GROK_READ_final"}` + "\n" +
++		"{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n"))
++	event, session, err := p.Finish()
++	if err != nil || session != "grok-1" || event.Text != "GROK_READ_final" {
++		t.Fatalf("unexpected result: %+v %q %v", event, session, err)
++	}
++}
++
++func TestGrokActualACPToolBoundariesDiscardPreamble(t *testing.T) {
++	p, _ := newProtocolCollector("grok-build")
++	_, _ = p.Write([]byte(`{"type":"text","data":"I'll read the file."}` + "\n" +
++		`{"type":"tool_call","toolCallId":"read-1","toolName":"read_file","rawInput":{"path":"TOKEN.txt"}}` + "\n" +
++		`{"type":"tool_call_update","toolCallId":"read-1","status":null}` + "\n" +
++		`{"type":"tool_call_update","toolCallId":"read-1","status":"completed","rawOutput":{"private":"DROP"}}` + "\n" +
++		`{"type":"text","data":"EXACT_FINAL"}` + "\n" +
++		`{"type":"usage","messageId":"response-2","stopReason":"end_turn"}` + "\n" +
++		"{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n"))
++	event, _, err := p.Finish()
++	if err != nil || event.Text != "EXACT_FINAL" {
++		t.Fatalf("ACP tool boundaries did not isolate the final answer: %+v %v", event, err)
++	}
++}
++
++func TestGrokKeepsTextAfterLastToolBoundary(t *testing.T) {
++	p, _ := newProtocolCollector("grok-build")
++	_, _ = p.Write([]byte(`{"type":"text","data":"first "}` + "\n" +
++		`{"type":"tool_started","tool_name":"list_dir"}` + "\n" +
++		`{"type":"tool_completed","tool_name":"list_dir","outcome":"success"}` + "\n" +
++		`{"type":"text","data":"middle"}` + "\n" +
++		`{"type":"tool_started","tool_name":"read_file"}` + "\n" +
++		`{"type":"tool_completed","tool_name":"read_file","outcome":"success"}` + "\n" +
++		`{"type":"text","data":"final"}` + "\n" +
++		"{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n"))
++	event, session, err := p.Finish()
++	if err != nil || session != "grok-1" || event.Text != "final" {
++		t.Fatalf("unexpected result: %+v %q %v", event, session, err)
++	}
++}
++
++func TestGrokACPBoundariesRequireOpaqueCallID(t *testing.T) {
++	for _, kind := range []string{"tool_call", "tool_call_update"} {
++		for _, field := range []string{"", `,"toolCallId":null`, `,"toolCallId":""`, `,"toolCallId":7`} {
++			p, _ := newProtocolCollector("grok-build")
++			_, _ = p.Write([]byte(`{"type":"` + kind + `"` + field + `}` + "\n"))
++			if _, _, err := p.Finish(); err == nil {
++				t.Fatalf("accepted %s with malformed opaque ID: %s", kind, field)
++			}
++		}
++	}
++}
++
++func TestGrokRejectsACPBoundaryAfterTerminal(t *testing.T) {
++	p, _ := newProtocolCollector("grok-build")
++	_, _ = p.Write([]byte(`{"type":"end","stopReason":"end_turn","sessionId":"grok-1"}` + "\n" +
++		`{"type":"tool_call_update","toolCallId":"read-1","status":"completed"}` + "\n"))
++	if _, _, err := p.Finish(); err == nil || err.Error() != "provider_event_after_terminal" {
++		t.Fatalf("accepted tool boundary after terminal: %v", err)
++	}
++}
+diff --git a/tools/orchestrator/internal/host/host.go b/tools/orchestrator/internal/host/host.go
+index 9b4fb9ef..7b428f98 100644
+--- a/tools/orchestrator/internal/host/host.go
++++ b/tools/orchestrator/internal/host/host.go
+@@ -127,6 +127,11 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand,
+ 		meta.outputProvider = structured.OutputProvider()
+ 	}
+ 	cmd := invocationCommand(inv)
++	if meta.outputProvider == string(adapter.ProviderClaude) && claudeGatewaySelected(cmd) {
++		if err := validateClaudeGatewayInvocation(inv, profile); err != nil {
++			return contract.Result{}, err
++		}
++	}
+ 	if value, ok := inv.(interface {
+ 		CandidateAction() *adapter.CandidateAction
+ 	}); ok && value.CandidateAction() != nil {
+@@ -171,6 +176,12 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand,
+ 		}
+ 	} else if profile != nil && profile.Permission == adapter.WorkspaceWrite {
+ 		return contract.Result{}, errors.New("managed_workspace_required")
++	} else if profile != nil && profile.Role == adapter.Reviewer && meta.outputProvider == string(adapter.ProviderClaude) && claudeGatewaySelected(cmd) {
++		scratch := filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch")
++		defer cleanupClaudeGatewayState(scratch)
++		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
++			return claudeGatewayCommand(ctx, cmd, profile, scratch)
++		}
+ 	} else if profile != nil && profile.GrokSessionWrite {
+ 		if meta.outputProvider != string(adapter.ProviderGrok) {
+ 			return contract.Result{}, errors.New("profile_provider_state_mismatch")
+diff --git a/tools/orchestrator/internal/host/profile_test.go b/tools/orchestrator/internal/host/profile_test.go
+index 830566b8..243135b0 100644
+--- a/tools/orchestrator/internal/host/profile_test.go
++++ b/tools/orchestrator/internal/host/profile_test.go
+@@ -148,7 +148,7 @@ func TestLaunchRechecksProviderPinAfterInvocationWasBuilt(t *testing.T) {
+ 			if err = os.WriteFile(binary, source, 0700); err != nil {
+ 				t.Fatal(err)
+ 			}
+-			pin := adapter.BinaryPin{Path: binary, Version: "test", SHA256: hashBytes(source)}
++			pin := adapter.BinaryPin{Path: binary, Version: "2.1.267", SHA256: hashBytes(source)}
+ 			req := adapter.Request{Provider: adapter.ProviderClaude, Binary: pin, CWD: root, Prompt: "inspect", Permission: adapter.Permission{Mode: "plan"}}
+ 			if typed {
+ 				req.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}
+diff --git a/tools/orchestrator/internal/host/protocol.go b/tools/orchestrator/internal/host/protocol.go
+index 75235350..8a093074 100644
+--- a/tools/orchestrator/internal/host/protocol.go
++++ b/tools/orchestrator/internal/host/protocol.go
+@@ -210,7 +210,7 @@ func (p *protocolCollector) accept(event adapter.Event) {
+ 		p.err = errors.New("provider_session_changed")
+ 		return
+ 	}
+-	if p.provider == adapter.ProviderGrok && event.Kind == adapter.EventMessage && p.terminal != nil {
++	if p.provider == adapter.ProviderGrok && (event.Kind == adapter.EventMessage || event.Kind == adapter.EventProgress) && p.terminal != nil {
+ 		p.err = errors.New("provider_event_after_terminal")
+ 		return
+ 	}
+@@ -259,6 +259,11 @@ func (p *protocolCollector) accept(event adapter.Event) {
+ 		p.message = append(p.message[:0], event.Text...)
+ 		return
+ 	}
++	// Tool events delimit Grok assistant messages; only text after the last boundary is final.
++	if p.provider == adapter.ProviderGrok && event.Kind == adapter.EventProgress {
++		p.message = p.message[:0]
++		return
++	}
+ 	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderGrok && event.Text != "" {
+ 		if len(p.message) > providerEventLimit-len(event.Text) {
+ 			p.err = errors.New("provider_critical_event_too_large")
+diff --git a/tools/orchestrator/internal/host/provider_diagnostics.go b/tools/orchestrator/internal/host/provider_diagnostics.go
+index c47753df..3a402fac 100644
+--- a/tools/orchestrator/internal/host/provider_diagnostics.go
++++ b/tools/orchestrator/internal/host/provider_diagnostics.go
+@@ -110,7 +110,7 @@ func providerDiagnostics(output string) providerDiagnosticReport {
+ 				result.StructuredResults++
+ 			}
+ 		}
+-		result.Events[category(event.Type, "system|assistant|user|result|stream_event|error|rate_limit_event")]++
++		result.Events[category(event.Type, "system|assistant|user|result|stream_event|error|rate_limit_event|text|tool_started|tool_completed|tool_call|tool_call_update|usage|end")]++
+ 		count := func(b block) {
+ 			if b.Type == "tool_result" && b.IsError {
+ 				code := "other"
+diff --git a/tools/orchestrator/internal/host/provider_diagnostics_test.go b/tools/orchestrator/internal/host/provider_diagnostics_test.go
+index d4efa0d1..faf9a929 100644
+--- a/tools/orchestrator/internal/host/provider_diagnostics_test.go
++++ b/tools/orchestrator/internal/host/provider_diagnostics_test.go
+@@ -1,11 +1,11 @@
+ package host
+ 
+ import (
+-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+ 	"context"
+ 	"encoding/json"
+ 	"errors"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+@@ -206,3 +206,25 @@ func TestProviderProtocolDiagnosticsExposeOnlyFixedErrorCategories(t *testing.T)
+ 		}
+ 	}
+ }
++
++func TestProviderDiagnosticsPreservesGrokProtocolBoundaries(t *testing.T) {
++	input := strings.Join([]string{
++		`{"type":"text","data":"PRIVATE_SENTINEL"}`,
++		`{"type":"tool_started","name":"read_file","arguments":"PRIVATE_SENTINEL"}`,
++		`{"type":"tool_completed","result":"PRIVATE_SENTINEL"}`,
++		`{"type":"tool_call","toolCallId":"read-1","rawInput":"PRIVATE_SENTINEL"}`,
++		`{"type":"tool_call_update","toolCallId":"read-1","rawOutput":"PRIVATE_SENTINEL"}`,
++		`{"type":"usage","inputTokens":17}`,
++		`{"type":"end","stopReason":"end_turn"}`,
++	}, "\n")
++	report := providerDiagnostics(input)
++	for _, event := range []string{"text", "tool_started", "tool_completed", "tool_call", "tool_call_update", "usage", "end"} {
++		if report.Events[event] != 1 {
++			t.Errorf("event %s not distinguished: %+v", event, report.Events)
++		}
++	}
++	body, err := json.Marshal(report)
++	if err != nil || strings.Contains(string(body), "PRIVATE_SENTINEL") {
++		t.Fatalf("protocol counters carried provider text: %s, %v", body, err)
++	}
++}
+diff --git a/tools/orchestrator/internal/store/review_retry_test.go b/tools/orchestrator/internal/store/review_retry_test.go
+index c545ba64..55881f93 100644
+--- a/tools/orchestrator/internal/store/review_retry_test.go
++++ b/tools/orchestrator/internal/store/review_retry_test.go
+@@ -32,7 +32,7 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
+ 		t.Fatal(err)
+ 	}
+ 	t.Cleanup(func() { db.Close() })
+-	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "claude-test", SHA256: strings.Repeat("a", 64)}}
++	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "2.1.267", SHA256: strings.Repeat("a", 64)}}
+ 	target := adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}
+ 	ids := []string{"edit", "validate", "review", "integrate"}
+ 	var tasks []TaskSpec

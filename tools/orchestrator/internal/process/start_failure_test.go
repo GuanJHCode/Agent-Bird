@@ -91,7 +91,17 @@ func TestStartBirthFailureCleanupIsBoundedWhenPipeIsHeld(t *testing.T) {
 		if err := survivor.Start(); err != nil {
 			os.Exit(2)
 		}
-		_ = os.WriteFile(os.Getenv("G1_BF_SURVIVOR_FILE"), []byte(strconv.Itoa(survivor.Process.Pid)), 0600)
+		// Publish readiness only after the entire PID has been written. Seeing an
+		// empty file must not trigger the injected birth failure prematurely.
+		path := os.Getenv("G1_BF_SURVIVOR_FILE")
+		if err := os.WriteFile(path+".pending", []byte(strconv.Itoa(survivor.Process.Pid)), 0600); err != nil {
+			_ = syscall.Kill(survivor.Process.Pid, syscall.SIGKILL)
+			os.Exit(3)
+		}
+		if err := os.Rename(path+".pending", path); err != nil {
+			_ = syscall.Kill(survivor.Process.Pid, syscall.SIGKILL)
+			os.Exit(3)
+		}
 		time.Sleep(30 * time.Second)
 		return
 	}

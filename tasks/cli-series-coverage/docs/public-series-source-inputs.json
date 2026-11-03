@@ -1,0 +1,83 @@
+[
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/claude.go",
+    "sha256": "e17d66558d99c3b14b25fcb8cecbc09dc8d7a10e828874d094a2540a36e1449c"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/claude_test.go",
+    "sha256": "0ff4bd17c1ac3053b2a6fb20e7a7302c7ad811b9c93734ae23eb8075442f3acc"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/claude_native_test.go",
+    "sha256": "54945c15bd29713924341cea625c21bd7e93f5bae21f756002ec10ea001af683"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/adapter/compatibility_catalog.json",
+    "sha256": "67a34b8716782c36fa3dcda432fa4778aedc6f5785946e5908ce0bd2dbe88d50"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/adapter/adapter.go",
+    "sha256": "1a5555f732fc4b7d2fdb0bd312b024ef21e82978e53d11185b7b6409b420111a"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/adapter/compatibility_test.go",
+    "sha256": "6323e030ab9129fbfe1f2a67a22e3d1dc385643bdeca69e2e3876d1bbfaee396"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/adapter/protocol.go",
+    "sha256": "e38a79c67d8c7c454a3e348b00392dcc8f70e2d2622fe848e86b667dec462363"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/grok_protocol_test.go",
+    "sha256": "42ebb4f44124cf07b7b029ecdd1998f8975fed9ed31f9a1dc8c5653319db9476"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/provider_diagnostics_test.go",
+    "sha256": "fe4794c8356f083c57bc626212e7767e37c8d0e30ac71abc63099100179c8827"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/adapter/claude_probe.go",
+    "sha256": "4ead856b6f1520e42fbe2f6eee69e1fbb126255ad5383e129c815cf0b6e1e641",
+    "sync": "pinned-claude-metadata-and-gateway"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/adapter/claude_probe_test.go",
+    "sha256": "3982b49965a4c92f7846fb9a6d0abd1ba6c4b153ab6b04e6a6f5343d72f5d470",
+    "sync": "pinned-claude-metadata-and-gateway"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/adapter/probe.go",
+    "sha256": "05d8a59e8cdf9f63cb8df014ed214a46ed0e0845aac81c80c2065b9c314dcefa",
+    "sync": "pinned-claude-metadata-and-gateway"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/claude.go",
+    "sha256": "4545265f648dbfd46279a71e7641fd39b8ff1ef5c76d9e9d753c0545b4b94ba5",
+    "sync": "pinned-claude-metadata-and-gateway"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/claude_test.go",
+    "sha256": "578330d551c3309fa41886d6f27b64e2e91a502364633ebfbb48940ee961a881",
+    "sync": "pinned-claude-metadata-and-gateway"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/claude_native_test.go",
+    "sha256": "cce1f200d24399991c980826aa0d955e385711d373f16b3844f1fa69fb873ccd",
+    "sync": "pinned-claude-metadata-and-gateway"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/cmd/orchestrator/main.go",
+    "sha256": "5d20f0d9ad6df9242273d6c62f4c417f1f07c0a4894c5e8fc7035ebf09f9dc12",
+    "sync": "source-environment-runtime-pin-and-aux-fixture"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/cmd/orchestrator/main_test.go",
+    "sha256": "512cb10f8e8cee9b68bb5a516462457ae848e8ecf278c9c8c852035017e52297",
+    "sync": "source-environment-runtime-pin-and-aux-fixture"
+  },
+  {
+    "source": "<handoff-worktree>/tools/orchestrator/internal/host/claude_native_test.go",
+    "sha256": "22e480804cbe7aa0e851c606ae777dc793b9abd1bc4e4a59e383f517c2959110",
+    "sync": "source-environment-runtime-pin-and-aux-fixture"
+  }
+]

@@ -43,6 +43,10 @@ func ProbeOutput(ctx context.Context, path string, args ...string) (string, erro
 	// Discovery must not trigger provider auto-updaters. These switches affect
 	// only the probe child; other providers ignore the provider-specific keys.
 	cmd.Env = append(os.Environ(), "AGY_CLI_DISABLE_AUTO_UPDATE=true", "GROK_DISABLE_AUTOUPDATER=1")
+	return probeCommandOutput(ctx, cmd, args...)
+}
+
+func probeCommandOutput(ctx context.Context, cmd *exec.Cmd, args ...string) (string, error) {
 	var output probeBuffer
 	cmd.Stdout = &output
 	cmd.Stderr = io.Discard
@@ -87,7 +91,7 @@ func Probe(ctx context.Context, provider Provider, path string) (ProviderLock, e
 	if err = VerifyExecutable(pin, "probe"); err != nil {
 		return ProviderLock{}, err
 	}
-	version, err := ProbeOutput(ctx, path, "--version")
+	version, err := ProbePinnedOutput(ctx, provider, pin, "--version")
 	if err != nil {
 		return ProviderLock{}, &probeFailure{code: "binary_version_probe_failed", cause: err}
 	}

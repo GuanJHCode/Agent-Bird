@@ -12,12 +12,11 @@ import (
 )
 
 func TestGrokProbeReportsSeparateWriteAuthorization(t *testing.T) {
-	root := privateTaskTemp(t)
-	binary := filepath.Join(root, "grok")
-	script := "#!/bin/sh\ncase \"$1\" in\n--version) echo 'grok 1.0.34 (3736acbc8658)';;\n--help) echo '--output-format --permission-mode --session-id --leader-socket --no-subagents --disable-web-search --tools --deny';;\n*) exit 99;;\nesac\n"
-	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("GROK_CAPABILITY_FIXTURE", "full")
 	var out bytes.Buffer
 	if err := taskProbe(context.Background(), []string{"--provider", "grok", "--binary", binary}, &out); err != nil {
 		t.Fatal(err)
@@ -36,10 +35,11 @@ func TestGrokProbeReportsSeparateWriteAuthorization(t *testing.T) {
 
 func TestGrokSessionFlagReachesCapabilityCheckWithoutAllocation(t *testing.T) {
 	root := privateTaskTemp(t)
-	binary := filepath.Join(root, "grok")
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo 'grok 1.0.34 (3736acbc8658)';;\n--help) echo '--output-format --permission-mode';;\n*) exit 99;;\nesac\n"), 0700); err != nil {
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("GROK_CAPABILITY_FIXTURE", "missing")
 	lock, err := adapter.Probe(context.Background(), adapter.ProviderGrok, binary)
 	if err != nil {
 		t.Fatal(err)

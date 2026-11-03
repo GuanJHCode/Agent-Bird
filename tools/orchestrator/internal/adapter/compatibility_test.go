@@ -29,8 +29,8 @@ func TestVersionWindowMatchesFrozenCatalog(t *testing.T) {
 		{ProviderClaude, "2.1.267 (Claude Code)", ""},
 		{ProviderClaude, "2.1.274 (Claude Code)", ""},
 		{ProviderClaude, "v2.1.316", ""},
-		{ProviderClaude, "2.1.266 (Claude Code)", "cli_version_below_baseline"},
-		{ProviderClaude, "2.1.317 (Claude Code)", "cli_version_above_ceiling"},
+		{ProviderClaude, "1.0.60 (Claude Code)", "cli_version_below_baseline"},
+		{ProviderClaude, "2.1.318 (Claude Code)", "cli_version_above_ceiling"},
 		{ProviderClaude, "2.1.313 (Claude Code)", "cli_version_not_published"},
 		{ProviderClaude, "2.1.316-rc.1", "cli_version_prerelease"},
 		{ProviderClaude, "2.1.316+dev", "cli_version_prerelease"},
@@ -83,6 +83,45 @@ func TestVersionWindowMatchesFrozenCatalog(t *testing.T) {
 		var typed *VersionError
 		if !errorsAs(err, &typed) || typed.Baseline == "" || typed.Ceiling == "" {
 			t.Fatalf("missing window: %#v", err)
+		}
+	}
+}
+
+func TestClaudePublishedSeriesIncludeCurrentAndPriorFamilies(t *testing.T) {
+	for _, version := range []string{"1.0.61", "1.0.108", "1.0.128", "2.0.0", "2.0.77", "2.1.0", "2.1.317"} {
+		if err := AdmitVersion(ProviderClaude, version+" (Claude Code)"); err != nil {
+			t.Errorf("published supported family %s: %v", version, err)
+		}
+	}
+	if err := AdmitVersion(ProviderClaude, "1.0.60 (Claude Code)"); err == nil || err.Error() != "cli_version_below_baseline" {
+		t.Fatalf("pre-contract legacy CLI admitted: %v", err)
+	}
+}
+
+func TestClaudeBaseStreamContractDoesNotRequirePartialMessages(t *testing.T) {
+	args := invocationArgs(t, ProviderClaude, "2.1.267 (Claude Code)")
+	for _, arg := range args {
+		if arg == "--include-partial-messages" {
+			t.Fatal("optional partial events prevent older JSONL CLI families from running")
+		}
+	}
+}
+
+func TestClaudeDenyOptionMatchesHistoricalSpelling(t *testing.T) {
+	for _, test := range []struct{ version, flag string }{{"1.0.61", "--disallowedTools"}, {"1.0.85", "--disallowedTools"}, {"1.0.86", "--disallowed-tools"}} {
+		req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000}`)
+		req.Binary.Version = test.version + " (Claude Code)"
+		req.Lock.Binary = req.Binary
+		inv, err := BuildInvocation(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(strings.Join(inv.Args(), " "), test.flag+" Agent,Task") {
+			t.Fatalf("%s emitted the wrong deny option: %v", test.version, inv.Args())
+		}
+		help := "--output-format --input-format --permission-mode " + test.flag
+		if err := CheckCapabilities(req, help); err != nil {
+			t.Fatalf("%s advertised contract rejected: %v", test.version, err)
 		}
 	}
 }

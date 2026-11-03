@@ -46,7 +46,7 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 		if req.Provider == adapter.ProviderCodex {
 			helpArgs = []string{"exec", "--help"}
 		}
-		help, helpErr := adapter.ProbeOutput(ctx, req.BinaryPath, helpArgs...)
+		help, helpErr := adapter.ProbePinnedOutput(ctx, req.Provider, lock.Binary, helpArgs...)
 		if helpErr != nil {
 			return helpErr
 		}

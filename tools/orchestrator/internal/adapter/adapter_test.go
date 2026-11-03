@@ -113,7 +113,7 @@ func TestBuildInvocationUsesExactResumeAndBoundedPermission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"/private/bin/agent", "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--include-partial-messages", "--resume", "sess_123", "--permission-mode", "plan", "--disallowed-tools", "Bash"}
+	want := []string{"/private/bin/agent", "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--resume", "sess_123", "--permission-mode", "plan", "--disallowed-tools", "Bash"}
 	if got := invocation.Args(); !equalStrings(got, want) {
 		t.Fatalf("argv = %#v, want %#v", got, want)
 	}

@@ -171,17 +171,33 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 // Reuse the native test executable: first execution of a fresh unsigned shell
 // script can exceed the production 2s probe deadline under full-suite load.
 func TestMain(m *testing.M) {
+	// Metadata probes intentionally receive no worker fixture environment.
+	// These synthetic answers do not enable the worker's behavior modes.
+	// Direct exit also avoids the race runtime's artificial 1s exit sleep; no
+	// worker or test/race check runs in these constant metadata branches.
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		if os.Getenv("GROK_CAPABILITY_FIXTURE") != "" {
+			fmt.Println("grok 1.0.34 (3736acbc8658)")
+			syscall.Exit(0)
+		}
+		fmt.Println("2.1.267 (Claude Code)")
+		syscall.Exit(0)
+	}
+	if len(os.Args) == 2 && os.Args[1] == "--help" {
+		if mode := os.Getenv("GROK_CAPABILITY_FIXTURE"); mode != "" {
+			flags := "--output-format --permission-mode"
+			if mode == "full" {
+				flags += " --session-id --leader-socket --no-subagents --disable-web-search --tools --deny"
+			}
+			fmt.Println(flags)
+			syscall.Exit(0)
+		}
+		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema")
+		syscall.Exit(0)
+	}
 	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
 	if mode == "" {
 		os.Exit(m.Run())
-	}
-	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		fmt.Println("2.1.267 (Claude Code)")
-		os.Exit(0)
-	}
-	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema")
-		os.Exit(0)
 	}
 	if mode == "progress" {
 		signal.Ignore(syscall.SIGTERM)

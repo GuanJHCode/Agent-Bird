@@ -629,6 +629,11 @@ func runMatrixCase(t *testing.T, repo string, runner matrixRunner, tc matrixCase
 	// a running process.
 	var coord *matrixCoordinator
 	defer func() { matrixCloseOutCleanup(coord, root, repo, record, started) }()
+	defer func() {
+		if record.Diagnostics == nil {
+			record.Diagnostics = matrixDiagnose(state)
+		}
+	}()
 
 	marker, err := matrixMarker()
 	if err != nil {
@@ -750,6 +755,9 @@ func runMatrixCase(t *testing.T, repo string, runner matrixRunner, tc matrixCase
 		return closeOut("final_status", "acceptance_incomplete")
 	}
 	record.OK = true
+	// Preserve the same bounded protocol counters for accepted trials as for
+	// failures, before the private successful scene is removed.
+	record.Diagnostics = matrixDiagnose(state)
 	return closeOut("", "read_collected_accepted")
 }
 

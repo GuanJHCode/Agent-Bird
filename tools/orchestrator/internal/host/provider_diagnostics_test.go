@@ -61,6 +61,31 @@ func TestProviderDiagnosticsExactCategories(t *testing.T) {
 	}
 }
 
+func TestProviderDiagnosticsPreservesGrokProtocolBoundaries(t *testing.T) {
+	input := strings.Join([]string{
+		`{"type":"text","data":"PRIVATE_SENTINEL"}`,
+		`{"type":"tool_started","name":"read_file","arguments":"PRIVATE_SENTINEL"}`,
+		`{"type":"tool_completed","result":"PRIVATE_SENTINEL"}`,
+		`{"type":"tool_call","toolCallId":"PRIVATE_SENTINEL","toolName":"read_file","rawInput":{"private":"PRIVATE_SENTINEL"}}`,
+		`{"type":"tool_call_update","toolCallId":"PRIVATE_SENTINEL","status":null,"rawOutput":"PRIVATE_SENTINEL"}`,
+		`{"type":"usage","inputTokens":17}`,
+		`{"type":"end","stopReason":"end_turn"}`,
+	}, "\n")
+	report := providerDiagnostics(input)
+	for _, event := range []string{"text", "tool_started", "tool_completed", "tool_call", "tool_call_update", "usage", "end"} {
+		if report.Events[event] != 1 {
+			t.Errorf("event %s not distinguished: %+v", event, report.Events)
+		}
+	}
+	if report.Tools["read_file"] != 1 {
+		t.Fatal("native Grok tool category not recorded")
+	}
+	body, err := json.Marshal(report)
+	if err != nil || strings.Contains(string(body), "PRIVATE_SENTINEL") {
+		t.Fatalf("protocol counters carried provider text: %s, %v", body, err)
+	}
+}
+
 func TestProviderDiagnosticsContainCountsWithoutToolInputs(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "spool")
 	h, err := NewIPC(root, "producer")

@@ -1,0 +1,15 @@
+{
+  "file": "tools/orchestrator/cmd/orchestrator/main_test.go",
+  "before_sha256": "5d16821ae1a872cb82becdd0ecc59bdaed6f624d0eb5081f7982ca966ab5b54a",
+  "before": "t.Fatalf(\"owner environment missing: %#v\", values)",
+  "after": "t.Fatal(\"owner environment missing required entries\")",
+  "reason": "Never expose the complete inherited owner environment in a failed assertion.",
+  "scope": "Only a failure-message string/call; condition and successful path unchanged.",
+  "after_sha256": "f9dc11cbb08814c11c71bacc4a49dc37e44e003dd03b3507f72f81976d27b14f",
+  "prior_patch_sha256": "e27b96eeefa2dea111ca598ef0d8eb75c11ae2fe0681f163150bfc6a8a85f0e8",
+  "prior_source_snapshot_sha256": "4d23d2891aa32aa0327c75f0805b383d1e7b238898aca700a9a29eb658185a73",
+  "current_patch_sha256": "9bea938f0fb6ddbb152f7b178bfbc7b0d79f4124349ded419a3da3bef05a34bf",
+  "current_source_snapshot_sha256": "50806ee9759ffa4530ee511aa68b11156b6bed4c4a0e52338fd0efc6b664858b",
+  "evidence_reuse": "Final complete full/race, vet/build, entrypoints/coding and SSE ran at the prior snapshot. The only subsequent source edit changes an assertion failure log that those passing runs never executed; successful paths and production bytes are identical. Reused by explicit main-session instruction.",
+  "regression_log": "<private-series-task>/data/public-series-owner-env-diagnostic-regression.jsonl"
+}

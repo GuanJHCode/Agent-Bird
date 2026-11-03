@@ -164,7 +164,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 	input := []byte(nil)
 	switch req.Provider {
 	case ProviderClaude:
-		args = append(args, "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--include-partial-messages")
+		args = append(args, "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose")
 		if req.Session.ID != "" {
 			args = append(args, "--resume", req.Session.ID)
 		}
@@ -212,7 +212,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 		args = append(args, "-")
 		input = []byte(req.Prompt)
 	}
-	appendPermissionArgs(&args, req.Provider, req.Permission)
+	appendPermissionArgs(&args, req.Provider, req.Binary.Version, req.Permission)
 	if usesCandidateReviewSchema(req) {
 		args = append(args, "--json-schema", candidateReviewSchema)
 	}
@@ -267,7 +267,7 @@ func validatePermission(provider Provider, p Permission) error {
 	return nil
 }
 
-func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
+func appendPermissionArgs(args *[]string, provider Provider, rawVersion string, p Permission) {
 	if provider == ProviderCodex {
 		return
 	}
@@ -280,11 +280,34 @@ func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
 	}
 	if len(p.Deny) > 0 {
 		flag := "--disallowed-tools"
+		if provider == ProviderClaude {
+			flag = claudeDisallowedFlag(rawVersion)
+		}
 		if provider == ProviderGrok {
 			flag = "--deny"
 		}
 		*args = append(*args, flag, strings.Join(p.Deny, ","))
 	}
+}
+
+// The kebab alias first appears in 1.0.86. Older published JSONL releases
+// advertise only the original camel-case option.
+func claudeDisallowedFlag(raw string) string {
+	version, err := parseCLIVersion(raw)
+	alias, _ := parseCLIVersion("1.0.86")
+	if err == nil && version.compare(alias) < 0 {
+		return "--disallowedTools"
+	}
+	return "--disallowed-tools"
+}
+
+func claudeLegacySeries(raw string) bool {
+	if AdmitVersion(ProviderClaude, raw) != nil {
+		return false
+	}
+	version, _ := parseCLIVersion(raw)
+	previousFloor, _ := parseCLIVersion("2.1.267")
+	return version.compare(previousFloor) < 0
 }
 
 func validateExtraArgs(args []string) error {

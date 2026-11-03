@@ -58,6 +58,7 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 			Type               string          `json:"type"`
 			Subtype            json.RawMessage `json:"subtype"`
 			Message            json.RawMessage `json:"message"`
+			GrokToolName       json.RawMessage `json:"toolName"`
 			ToolName           json.RawMessage `json:"tool_name"`
 			DecisionReasonType json.RawMessage `json:"decision_reason_type"`
 			Event              json.RawMessage `json:"event"`
@@ -126,7 +127,12 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 				result.StructuredResults++
 			}
 		}
-		result.Events[category(event.Type, "system|assistant|user|result|stream_event|error|rate_limit_event")]++
+		if event.Type == "tool_call" {
+			var name string
+			_ = json.Unmarshal(event.GrokToolName, &name)
+			result.Tools[category(name, "read_file|list_directory|search|grep|glob|Read|Glob|Grep")]++
+		}
+		result.Events[category(event.Type, "system|assistant|user|result|stream_event|error|rate_limit_event|text|tool_started|tool_completed|tool_call|tool_call_update|usage|end")]++
 		count := func(b block) {
 			if b.Type == "tool_result" && b.IsError {
 				code := "other"
@@ -136,7 +142,7 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 				result.ToolErrors[code]++
 			}
 			if b.Type == "tool_use" {
-				result.Tools[category(b.Name, "Read|Edit|Write|Bash|Glob|Grep|Agent|Skill|ExitPlanMode|EnterPlanMode|AskUserQuestion|TodoWrite")]++
+				result.Tools[category(b.Name, "Read|Edit|Write|Bash|Glob|Grep|Agent|Task|Skill|ExitPlanMode|EnterPlanMode|AskUserQuestion|TodoWrite")]++
 			}
 		}
 		for _, b := range message.Content {

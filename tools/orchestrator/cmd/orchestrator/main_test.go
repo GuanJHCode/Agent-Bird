@@ -770,6 +770,7 @@ func TestSourceEnvironmentPreservesOwnerEnvironmentWithoutToolCapabilities(t *te
 	t.Setenv("ORCHESTRATOR_REPORT_CAPABILITY", "report-secret")
 	t.Setenv("ORCHESTRATOR_BOOTSTRAP", "bootstrap-secret")
 	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
+	t.Setenv("ORCHESTRATOR_CLAUDE_NODE_BINARY", "/fixed/node")
 	values := make(map[string]string)
 	for _, item := range sourceEnvironment() {
 		parts := strings.SplitN(item, "=", 2)
@@ -778,7 +779,10 @@ func TestSourceEnvironmentPreservesOwnerEnvironmentWithoutToolCapabilities(t *te
 		}
 	}
 	if values["OWNER_PROVIDER_AUTH"] != "owner-auth" || values["ORCHESTRATOR_ENABLE_TEST_FAKE"] != "1" {
-		t.Fatalf("owner environment missing: %#v", values)
+		t.Fatal("owner environment missing required entries")
+	}
+	if values["ORCHESTRATOR_CLAUDE_NODE_BINARY"] != "/fixed/node" {
+		t.Fatal("explicit non-capability runtime pin lost before Host launch")
 	}
 	for _, key := range []string{"ORCHESTRATOR_CONTROL_TOKEN", "ORCHESTRATOR_REPORT_CAPABILITY", "ORCHESTRATOR_BOOTSTRAP"} {
 		if _, ok := values[key]; ok {

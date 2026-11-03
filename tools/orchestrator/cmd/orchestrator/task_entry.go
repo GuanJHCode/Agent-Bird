@@ -339,7 +339,7 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if err = adapter.VerifyExecutable(req.Binary, req.Binary.Version); err != nil {
 				return err
 			}
-			actual, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--version")
+			actual, err := adapter.ProbePinnedOutput(ctx, req.Provider, req.Binary, "--version")
 			if err != nil {
 				return err
 			}
@@ -350,7 +350,7 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if req.Provider == adapter.ProviderCodex {
 				helpArgs = []string{"exec", "--help"}
 			}
-			help, err := adapter.ProbeOutput(ctx, req.Binary.Path, helpArgs...)
+			help, err := adapter.ProbePinnedOutput(ctx, req.Provider, req.Binary, helpArgs...)
 			if err != nil {
 				return err
 			}
