@@ -1,0 +1,1238 @@
+{
+  "source": "68e875868215ecb1fd8daf540799fd3d0eee25e3",
+  "input_snapshot": "eb0d49ce2a06d1268edb0a14f99ce66f3402fe47",
+  "original_head": "5e7443d24cff6deef27ed1c52697a2fb32733ae4",
+  "head_unchanged": true,
+  "staged_files": 0,
+  "all_changed_files": 175,
+  "production_delta_files": 125,
+  "mismatches": [],
+  "scoped_diff_check_exit_code": 0,
+  "files": [
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "source_oid": "bbc3a4c2f10f0048bf0deb1e288c5f2d69243c36",
+      "sha256": "4b33c65b8104f354242056d8d4d7e28e4cde7feee536684cdac86f972f95d501",
+      "matches": true
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "source_oid": "84742361ef9eff78941260f997668a4bfa746288",
+      "sha256": "71c451fa2d2df4024e7de4dfb5345c10943d87be5673ef66c3215e5956d7b3af",
+      "matches": true
+    },
+    {
+      "path": "docs/provider-runtime.md",
+      "mode": "100644",
+      "source_oid": "07177a17a1e567290668f0c68025c02d0c1b1c8a",
+      "sha256": "2c0163d82d53d9f5622df155179898d737de5988699808d95994ab21c438bc05",
+      "matches": true
+    },
+    {
+      "path": "docs/support-matrix.md",
+      "mode": "100644",
+      "source_oid": "7fbf17b12a59e54441f1a7862fb2cf62e3d38272",
+      "sha256": "ca1f4f3826d002eaa177a6fcd3ad4445506921ff6ee3802c7182f6cfddda7ced",
+      "matches": true
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/auth_guard.py",
+      "mode": "100644",
+      "source_oid": "0ed25ff8e67a5bb215154d243a5017877649c909",
+      "sha256": "4c3bfcb04a74c9f5b14585a582e4c5e3931304b42a4beead5bf401373e802973",
+      "matches": true
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/codex_exec.py",
+      "mode": "100644",
+      "source_oid": "c8fa6179a457c40f60f11808d1d50d39a5ef4bba",
+      "sha256": "b9580732b6e2bba406d511449a3bb52850c3b5d7057866c26bae83cc405b1e03",
+      "matches": true
+    },
+    {
+      "path": "plugins/codex-orchestrator/scripts/invoke.sh",
+      "mode": "100755",
+      "source_oid": "f51cfac525f042f82b9033c4ada21ac9f3a99f06",
+      "sha256": "6262c620cf7350b5b3dd89ff884364d029eba8777437668e37d236cbfd0244c4",
+      "matches": true
+    },
+    {
+      "path": "plugins/codex-orchestrator/skills/orchestrate/SKILL.md",
+      "mode": "100644",
+      "source_oid": "fbe8783aafc4086c944c9e9b44b5a97567060781",
+      "sha256": "1ece6025092ec349432d5ae13975d7fc58ed16ad81a2d14004f6d1b856ecc8a0",
+      "matches": true
+    },
+    {
+      "path": "tasks/cross-cli-subagent/docs/managed-coding-trial.md",
+      "mode": "100644",
+      "source_oid": "344371f876510df346aa0679ecc2243ae33725e7",
+      "sha256": "3e441c226549a734ba8672565279765a0cc85283cb0f3b91b82e14e594c7ef16",
+      "matches": true
+    },
+    {
+      "path": "tasks/cross-cli-subagent/scripts/build-native-entries.py",
+      "mode": "100755",
+      "source_oid": "808f8b39a17f345379435562d80205cc882c8a6d",
+      "sha256": "464b79d40e715c13c6fa14b8bf32e4744a8fb93e249057511859bbd87277e58e",
+      "matches": true
+    },
+    {
+      "path": "tasks/cross-cli-subagent/scripts/managed-coding-trial.py",
+      "mode": "100755",
+      "source_oid": "2705b3847310ab3a3187cc2ae39a9e102e6e85ab",
+      "sha256": "c7e76f9c268cff402fc0cef4274717062ad874ecf6b52a849cfdb4b60d468285",
+      "matches": true
+    },
+    {
+      "path": "tasks/cross-cli-subagent/scripts/smoke-installed-package.sh",
+      "mode": "100755",
+      "source_oid": "4ffd3e8d03cdb6846ccb7557fe7fa4abad11b571",
+      "sha256": "36d7eb0ac8c14aff2b120861b03b24618aa07be9908df1dd7edf397ebc4f199e",
+      "matches": true
+    },
+    {
+      "path": "tasks/cross-cli-subagent/tests/test_delivery_scripts.py",
+      "mode": "100644",
+      "source_oid": "b7b1845322d12e931d0423a5230cbfcf827105fb",
+      "sha256": "377eba006ae45541fe103048bf329f9f349bb54ee9bc58e798aa05902212e3e3",
+      "matches": true
+    },
+    {
+      "path": "tasks/g1-g4-delivery/scripts/package-plugin.sh",
+      "mode": "100755",
+      "source_oid": "577c3ab7a8cff564439be8c483a3b64abe54cb00",
+      "sha256": "0e797bf7029e021304626773e52919a6a70c0e6675bcc0a3f4abbcabfecdac8b",
+      "matches": true
+    },
+    {
+      "path": "tasks/g1-g4-delivery/scripts/test-package-executable-modes.sh",
+      "mode": "100755",
+      "source_oid": "a110025a4d8161fed8e79124fad7934cd9bc0e37",
+      "sha256": "66a37e9bb409623e5e3da4b6d4682fd33617e2349e384398e055e445a7d03154",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/README.md",
+      "mode": "100644",
+      "source_oid": "d6a56a890212ef6d4e7efb391e8fc316add2bdc0",
+      "sha256": "7897031c0e27b02aea6aacc9b818af384deb9856da6a72353de314d375198f8b",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/bootstrap_privacy_test.go",
+      "mode": "100644",
+      "source_oid": "bedd686cf1a63c09f5178077b60674c293ad3800",
+      "sha256": "64fba8c17c7eb0278d8759f903a7f4726530fc4ddae25dfea3c3c2586d31c7a6",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/candidate_cli_test.go",
+      "mode": "100644",
+      "source_oid": "94a48070d245e423137bf18a5498fc8901cc160d",
+      "sha256": "cce9b0e28bc1a1885c65f30c96ee5d50168346b5a6d7e44ff686c7d13febf27f",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/candidate_test.go",
+      "mode": "100644",
+      "source_oid": "e09fbaa584f73e57ea911be6c78bbbd1cc67fc7e",
+      "sha256": "8a34958eef349b15edc38e3e2653dd323cabaf406e06a64519b2fefae9bf66f0",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/controller.go",
+      "mode": "100644",
+      "source_oid": "a410fd330d657ebe62307f513b66d3adf0ee31c1",
+      "sha256": "4c95a2d53830428d07db3e680716662a092d5c0adfa9d8ee2ffe6259ca8ee52b",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/controller_test.go",
+      "mode": "100644",
+      "source_oid": "14cde8005b6e2c2c84d82de45154f15907434535",
+      "sha256": "fb5f74440faefb296250be57d505d30dcf17165ea4d3fdb041865ffc69c362c3",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/coordinator_features.go",
+      "mode": "100644",
+      "source_oid": "541091860ac2085fd815cd298ad82185fe824393",
+      "sha256": "7b8c1cce52ed1b7bba5f42ec672e33c57cd2d7870e88813fdc34e9ef57aa8e20",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/cross_host_dispatch_batch_test.go",
+      "mode": "100644",
+      "source_oid": "72564d7835fc81f44ae5107b314f6dc8cdb39f53",
+      "sha256": "9609167717370fe271cde1acb88a27ae36e5a6634de4bb6c3c1ff8ff471fc6c8",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/current_codex.go",
+      "mode": "100644",
+      "source_oid": "4eb7ae246124e8f6c2063941e9f5bd4e9c0262a3",
+      "sha256": "f2c56c89b481ae18599a99d711ac627cd3bd72c7cab5f914282809ec072dddcd",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/current_codex_test.go",
+      "mode": "100644",
+      "source_oid": "68e6e8e029722ecc1d55cf581c511cc1b0d1303f",
+      "sha256": "f17192675ef7cd02ad7595e7a8573c9cd275f00b9667429918b8fd5ded680b66",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/current_owner.go",
+      "mode": "100644",
+      "source_oid": "b65895818d0ca75d8da5bb0161b82acfbcc9a7e7",
+      "sha256": "fd713f434d5945370f6f459744219a7e9f581d3ae0d2f0acf0b8b111aa40c507",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/current_owner_test.go",
+      "mode": "100644",
+      "source_oid": "7dbb29adee1f538c4fe83c1886de994f0e546336",
+      "sha256": "75d59b4944fdf4b5215a00c299bcf9b167c5101f1c78a0f927c6af950cd3d3e4",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/interruption_cli_test.go",
+      "mode": "100644",
+      "source_oid": "9990a90801e2597a80eabaad5e6034732950f56a",
+      "sha256": "26837f98fea6435df34a2d034d3f6542210eb0e463a07011c0f27741d8e86d13",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/local_owner.go",
+      "mode": "100644",
+      "source_oid": "4fbb6be4cf0355435eb744aadcaf914806f289be",
+      "sha256": "f81080104fec32410163485c959e7d0babf4bd7285d41d96c27b91ec8cb2053f",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/main.go",
+      "mode": "100644",
+      "source_oid": "23367eed44dd214aac04f5f49c5938be511cfd87",
+      "sha256": "61eb2380827dd5b737f80f5bf417bb2e076aee91b58d81dc124180af5f11be0e",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/main_test.go",
+      "mode": "100644",
+      "source_oid": "8459ab19e30d55c3fcf21d91232b6107d6de0e26",
+      "sha256": "c099009553204765fa6d9829688626938a686d80fd520877d8d86114f3b733ea",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/managed_trial_collection_test.go",
+      "mode": "100644",
+      "source_oid": "e6e17889559728b044197a11938ecb76b41433d8",
+      "sha256": "387f46643b6c7b0e35801be510d0d30cafa2f987e702b8883c001f0b9a364a64",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/native_metadata.go",
+      "mode": "100644",
+      "source_oid": "01208aacbec189c6d193c58219b1365812cc6907",
+      "sha256": "d01d8de6c12e18048c3c769e4e24a5fa759fede4d25d8eb8dd69d4ae2c4d89b7",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/native_metadata_test.go",
+      "mode": "100644",
+      "source_oid": "ade1ef737be38c5a660f104435879e23c6ed762a",
+      "sha256": "31a3abbf3e8a9a67d21fbb62e368f31ae5555abccfa34da6d44ebe892b0152b1",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/owner_rework_integration_test.go",
+      "mode": "100644",
+      "source_oid": "9dc0a75cab625b64b5821efe1cf6d728c41b4986",
+      "sha256": "e07ec5e731e0e7a10aa121df5f270b3a0e2d9146033c158c7e189adcf6d54ae9",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider.go",
+      "mode": "100644",
+      "source_oid": "ba451526ca9d496f9c61c7aae4a774bc21a945ad",
+      "sha256": "94066fa9e024760417109e4c3a652f375b43b668fe8b8cd9a9beabfb7e712217",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider_models_test.go",
+      "mode": "100644",
+      "source_oid": "5e28f68865ab4ab36adbc0423a62dff6b2882327",
+      "sha256": "97b4b1ad1252d96c788aeeb671f141822afef75a4dc44c2a5c44a49bf3678838",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider_settings.go",
+      "mode": "100644",
+      "source_oid": "c0a4349d060c6bbc19759557e8846108c54d2f4a",
+      "sha256": "c21b6420bbb29a80a16aaef2252bb64c71bfb1d3271ce9e972c53f0a0a6227ff",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider_settings_test.go",
+      "mode": "100644",
+      "source_oid": "3fadd1ee786a24bc60392273378d7e8854347171",
+      "sha256": "75062d2c4b41a15b41f638ba7607a57702f40a7a6e313c058d3b1daa04845739",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider_test.go",
+      "mode": "100644",
+      "source_oid": "1feaa34ba1ae9a0361da62478079e55bea000a38",
+      "sha256": "99c247a0fe6a2472f2ae87a685d72b616a7b290d9d9d40452309153312cb6d4a",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/real_version_matrix_test.go",
+      "mode": "100644",
+      "source_oid": "ca02e2beee20445910e00c89a8061272f836c751",
+      "sha256": "a04713e3d47b420954b2107c36885258a9cb7340096872c18b4241f71c972a2d",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/request_changes.go",
+      "mode": "100644",
+      "source_oid": "beb3c1a64d3e02d9dd6eb849cf7b07ceb3672e33",
+      "sha256": "b97e76c9f8a374d73a28f171b9169315fa3d2af85f0c8a4359db7efd40e7d61e",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/request_changes_test.go",
+      "mode": "100644",
+      "source_oid": "ccf3f7da00647c4bb59b04aaee2747b3ca3f04f2",
+      "sha256": "0124308066e876986d5016a1df2de0ea6d1d1f09ecca046d71b9cf1faab6798d",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/request_changes_timeout_test.go",
+      "mode": "100644",
+      "source_oid": "f6d947ff92f88aee916a706e3a1ac82589c1c210",
+      "sha256": "78ea485cab5c77e4c8aeea7290b0c4a3a3632d1b4e3f21b9848f71f8400c07e8",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/routing_preferences.go",
+      "mode": "100644",
+      "source_oid": "0ed627834f4c626148efa23764f2342e6eaf9a7f",
+      "sha256": "a63475c5316e85c72309e9821c6ef27754a454115626208754d6daab65973d24",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/routing_preferences_test.go",
+      "mode": "100644",
+      "source_oid": "fb3dc1841e797180b95642243717e80c997dc50d",
+      "sha256": "bb1f998a838325ddbd3fb22f2ad4939b3fc01f040a31be8d2842fb36f50413a0",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/submit_rejection_test.go",
+      "mode": "100644",
+      "source_oid": "d8926602893b57b372ce8de7cd6c36ec427eed3c",
+      "sha256": "8989569276a8327ef410d7612db09a4832c3a3fba8df49c81578b9b8b6376780",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_dispatch.go",
+      "mode": "100644",
+      "source_oid": "c49376c6e200787cdd280dee044809d5ea73d082",
+      "sha256": "3e636a04741a3e94ea0866016a8138a7d8ce52466e6c6aea53983919fbb9cbd5",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go",
+      "mode": "100644",
+      "source_oid": "d5502ce663fc5460697418eff2ead4ab7c7d2c07",
+      "sha256": "219e8b1d41adfe6be374356948207037d7556b7b09d8666515a61d0a888129dc",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_dispatch_recovery_test.go",
+      "mode": "100644",
+      "source_oid": "63f8bdf0c39d61feedc338443719923239f390d0",
+      "sha256": "92674e3ab0a073dd6b2e8c6dea6d449849014def4efe7aaf2d2423eab3f8cc45",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_dispatch_test.go",
+      "mode": "100644",
+      "source_oid": "bdca812114bcc9000970a59e25526b2088b95bb7",
+      "sha256": "decbf1fbff161a37b256d9c8b8b4ee058803595989fe96ebd4153d3e608a999c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry.go",
+      "mode": "100644",
+      "source_oid": "cb4e23a22e25fcdfa6942e3fc60272a05b0de276",
+      "sha256": "94d3950e1fa5d328ed98a9cb7e273342298a60622c6fabb2750195e7249a2522",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry_test.go",
+      "mode": "100644",
+      "source_oid": "414fb59d7a5635c4d2d4679dd8d7ae51e1ffe179",
+      "sha256": "a97343c2686f2a48576f78f7d6e98304791aaf0fd07e96ad289c00247086b1c5",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_policy_test.go",
+      "mode": "100644",
+      "source_oid": "3d67cdbdb4081f7298ae0161336c300be40421bf",
+      "sha256": "4b9f2d73ab9ac3e054ea026ab00ed14be561c4fff6db418cb70f3e4e5046c22f",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_provider_test.go",
+      "mode": "100644",
+      "source_oid": "6a23d1ce65df5862e8d829f4acee10f47e5cde0e",
+      "sha256": "3a74477c6662cc27cefcfb671b19c416b7c6dbd1bcf839ea6748c88b711b6af6",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_reconcile.go",
+      "mode": "100644",
+      "source_oid": "1359cbddb8b456a599f1b8ced755c6ee30528968",
+      "sha256": "385151f18a3a2529ff0e7eb1d5e32b286f3262be572703fe4d861fe1aba0b3fe",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_reconcile_test.go",
+      "mode": "100644",
+      "source_oid": "381aa42a8b33bb84e9098e15019b0b47764c649d",
+      "sha256": "fce25a78f4cb3229cbc86a6d4d92bac3d4a896612b748cfe23b9b8b4a90bb2f4",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_workspace_integration_test.go",
+      "mode": "100644",
+      "source_oid": "234a272004a598c185674b4b7cde85eecc22e1c1",
+      "sha256": "97efcdf14cccd9e27af13af20b4bbd5bf09341ab87ae6493d2f31a11d31a7ba5",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_workspaces.go",
+      "mode": "100644",
+      "source_oid": "960c1d43cbd020a2b6c77d666fa3c4b33e1e3803",
+      "sha256": "3cf46a0c7437e282968f96bd21bd0297101bdb2751d898a865a27b4c291b1b3d",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_workspaces_test.go",
+      "mode": "100644",
+      "source_oid": "66449aaa9d0a9c454e2a066c36245812db152dfa",
+      "sha256": "344606996447aa97be442cce097f3637e35134d5235bfd9138d88bd1cecc1a0d",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/version_cli_test.go",
+      "mode": "100644",
+      "source_oid": "61a3e6d15eeb0ec51b86d7a143a680f0c7873841",
+      "sha256": "063b12f76941a8c5db50fd614b49060df48c8d24ac7464ccfd9f0ded25f16a28",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/adapter.go",
+      "mode": "100644",
+      "source_oid": "9fd6311d977c154040f1c020a1103a5e1cda7a7b",
+      "sha256": "20523337bf1a4a1c0e4141f350465981f248855314915fa737813f06316654b2",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/adapter_test.go",
+      "mode": "100644",
+      "source_oid": "80839773b772424a28fa3a823b023c71cc824778",
+      "sha256": "da1721957ee343ef68cdc64781f8360d19d4e7aebf798684f6e3d3a8ecc2cb24",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/admit.go",
+      "mode": "100644",
+      "source_oid": "697a8188c2b5305f594acf8d773bddcc067ade69",
+      "sha256": "acad4d290903d8755b5f7dcd625fca52032891d9fff6deac70fc8d954e54da36",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/admit_test.go",
+      "mode": "100644",
+      "source_oid": "18420ce933df5c2404b4cb30240092dc5a7b8fc9",
+      "sha256": "1d5a8f1fa16ab79c886e8cc64c70561bd56adcaea99545150aaae8e71073ec68",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/catalog.go",
+      "mode": "100644",
+      "source_oid": "33c7decc1ab2384d9af5bdc373f4f468e974f4ff",
+      "sha256": "ee9e7ad6f70f4c1407339aba8d3b5fb2a4b02bb7814c5b4e06288c03156cfc19",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/claude_probe.go",
+      "mode": "100644",
+      "source_oid": "302230ac027518dd8f16c73b5e016e090a28d1ae",
+      "sha256": "4ead856b6f1520e42fbe2f6eee69e1fbb126255ad5383e129c815cf0b6e1e641",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/claude_probe_test.go",
+      "mode": "100644",
+      "source_oid": "29c91568705b80a02b3e54b44f833a897c725d48",
+      "sha256": "3982b49965a4c92f7846fb9a6d0abd1ba6c4b153ab6b04e6a6f5343d72f5d470",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/codex_empty_text_test.go",
+      "mode": "100644",
+      "source_oid": "4ee085f6cffdd9576f8b705ff8c4cec16cbc6d35",
+      "sha256": "d9dbeae7f8295ee059eaacec721e29298bcd8d76a788bf966da5a8dfb8ca3b09",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/codex_guard_diagnostics_test.go",
+      "mode": "100644",
+      "source_oid": "a30f6aefc9c3036f0d64a739c345ee33da025358",
+      "sha256": "252e77b5df54cca139494a1832613ad98aa2cfd9c280a0e3c7378fb531a67a6d",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/codex_series_pin_test.go",
+      "mode": "100644",
+      "source_oid": "6ec507782fa4f14975a7266563ef05bf446fc442",
+      "sha256": "2a1e8ae6ac5c7a5d05425339b0b2fb2cec0d8094b80011e22503a9ae2f01041b",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/compatibility_catalog.json",
+      "mode": "100644",
+      "source_oid": "33253817f27590975191850dd16ee56f207240db",
+      "sha256": "621642dffe4a3d7f9cfc664e92eedc837963084069ffb40da4622bcda150c78c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/compatibility_test.go",
+      "mode": "100644",
+      "source_oid": "d55e62513ae8d9d47dabe25c825588d6d70c269e",
+      "sha256": "4a79c327cd7573cb1f5eb19b4835c6232843df291a4893d1019002a08245932f",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/grok_profile_test.go",
+      "mode": "100644",
+      "source_oid": "79f14afa31da92c47aa75f771a505cad01e403d1",
+      "sha256": "2a12e4c52e1fa4c8c3bde464eeec2a099802c2c433e67beb1f1f15ab5183064f",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/managed_profile_test.go",
+      "mode": "100644",
+      "source_oid": "7401465221af112208e823b994a5d69857439408",
+      "sha256": "01a1d52b1d17d690f1b861dbf3a9ab2b832ef3db1399e42478f0f03a07992e7d",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/owner_rework_test.go",
+      "mode": "100644",
+      "source_oid": "459cb0d3b194d15196282b19023efb07f6db872c",
+      "sha256": "9c24b7e42263a0a5dca79a8a6c7bf4837d9db03610c9cfef0c67b62d2bba2523",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/probe.go",
+      "mode": "100644",
+      "source_oid": "a71c55d2ebcb711838e5dc5936f1454c54823b31",
+      "sha256": "05d8a59e8cdf9f63cb8df014ed214a46ed0e0845aac81c80c2065b9c314dcefa",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/probe_cause_observation_test.go",
+      "mode": "100644",
+      "source_oid": "50aaf821b674b186fab14b5a30c2a0ad62f89473",
+      "sha256": "e8f5017ba7584620fa12cd1b05fdcbfdd57be27e97d12d383488489d31a18c89",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/probe_failure_test.go",
+      "mode": "100644",
+      "source_oid": "6d18a66ce719217e3fb6c080bbf1de1a754dddce",
+      "sha256": "8a8f3c48e76e6febfb4dee7eb480c1941e288f147ed55affd55a3373a8d3ff1a",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/profile.go",
+      "mode": "100644",
+      "source_oid": "ff86967a6973c2c45efbaeb97b897e367b80d0b4",
+      "sha256": "935eb13e8b111841f4d32107703da66f05d192fd1e44b449799fd1459b783324",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/profile_test.go",
+      "mode": "100644",
+      "source_oid": "942f46e16b513bc5f454175b2db48420a65f61f6",
+      "sha256": "2ff6bbd572f9bec4de2a4aa9b0dd780a1a617ddd449658123bf6c598ae5ce9e7",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/protocol.go",
+      "mode": "100644",
+      "source_oid": "251806891163c0dfdfb530224fa9529dd60ef78f",
+      "sha256": "f33843400aaecb4a427958ef2b1d0d1f8d810eedd033961eb10b1c1df5774178",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/version.go",
+      "mode": "100644",
+      "source_oid": "92c96595d13bdfaeef38e8ea89ea6aab29fd6b5c",
+      "sha256": "fe58cd097bc7ca0897088a76068086e987e87b3adff2cf7aba9915e622625b03",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/workspace.go",
+      "mode": "100644",
+      "source_oid": "e3af09f081e7384d692be52ef356c9efdf280c03",
+      "sha256": "d246244093f2f48f57686c2a1ccd22c853f7dccdf62f802c9316fe0884af34c9",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/contract/contract.go",
+      "mode": "100644",
+      "source_oid": "7d724fd0bdfa25f01a37759cb801d4646135b192",
+      "sha256": "57a4601e6aa20211f7153b95e8f1c88014a835f058fbe7bbe63d1bd131ee11c9",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/collection_test.go",
+      "mode": "100644",
+      "source_oid": "e5a6b3f2c26ed62c0b26244d50af6d5860e92377",
+      "sha256": "0cc31197ec2c67172320012ca0d65cc7b3da253ba56308f68c50fb6590917e9e",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/cross_host_dispatch_wakeup_test.go",
+      "mode": "100644",
+      "source_oid": "6f5a8bd6362f3f9dc3f0f035756f7b339bc733ad",
+      "sha256": "1519ed8393a576f922f26645821bb8ddd668b8bbf5307e3ef394c8f5020afb18",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/local_owner_test.go",
+      "mode": "100644",
+      "source_oid": "8e29eaa9b96fc179264b57f9f52814ff8da25baf",
+      "sha256": "8f61d97ee7306014c8cf00bf0e1fe1677621ad761d736487f045089e2496ef8d",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/server.go",
+      "mode": "100644",
+      "source_oid": "3d780845be75e67d902495dbcfc77b522b0ed0c2",
+      "sha256": "0d496ca6b5aa76c1d732c209da6d223e02b1a4d3db0e832f4af0949fa507ec14",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/candidate_runner.go",
+      "mode": "100644",
+      "source_oid": "2707b3417a2bf98b7d755316ba7af7278323b383",
+      "sha256": "b64e366ea1d0cc9b62ebebfc5cb59bca0749db2ff43caf3f031eb048b9a77c83",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/candidate_verify.go",
+      "mode": "100644",
+      "source_oid": "207d53bfbe934ec75d9f6fa3294822e24644d51b",
+      "sha256": "ccdff52a23ed3ce79f1f6d4ca4a2f0da96746cfdb533deed41b53ddfe8306903",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/candidate_verify_test.go",
+      "mode": "100644",
+      "source_oid": "1e97e87667df6445ce88ce2106f5c0ad9d202ff8",
+      "sha256": "3740bda5b066b1a9eccbfe72c86ad78300cfad19f3ce6a300c85504db689af10",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/freeze.go",
+      "mode": "100644",
+      "source_oid": "16bcab1264ac6b1fadb0d7cc8080ce48878d5ea0",
+      "sha256": "c8abfdf6aa8bb17fed5d4fd43e4df2b1e97dfa8abaa11506a3c92adf0e019027",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/gitops.go",
+      "mode": "100644",
+      "source_oid": "0253b725ca792649bd0a694824a56acdc810930f",
+      "sha256": "f0d8cb4ffb658107dde3588841979f181a5d4bbdb0989f31d3aa9b3349fabf80",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/budget_measurement_test.go",
+      "mode": "100644",
+      "source_oid": "78bbffea6ab2192093a691c57adfec0a701ff0a4",
+      "sha256": "99ce5735f50eb62d9443963a210f3b4cb54402db3ae9d85ac178a55b924cb11f",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/candidate.go",
+      "mode": "100644",
+      "source_oid": "440f2fdddeb5d0462ce13873981eae43a5f6d047",
+      "sha256": "49e69f7ef0eb9119b87ec750324df7068e94696e360b34258bc4b35c7cb55d0c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/claude.go",
+      "mode": "100644",
+      "source_oid": "c06df3c20586f1c0f6df7f0573c589e65b85e50b",
+      "sha256": "20c7a4d1e2ea9ca4f2ba2faea08094f8b122117d4bb9249833e356cbacad26e4",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/claude_native_test.go",
+      "mode": "100644",
+      "source_oid": "943f9822c097c17531e69ff9f6342cecc412f65d",
+      "sha256": "aab2d9f705d22184bc00425d23e5d09922279bde8fdae36e0e2cd6195933d877",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/claude_test.go",
+      "mode": "100644",
+      "source_oid": "2a59fbe0ee0061c540c1f115804ad6b8eba45327",
+      "sha256": "4f6d3e738464858db20f7b6903419364af53a528fc0a50d578b5d441924b14c8",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/codex.go",
+      "mode": "100644",
+      "source_oid": "71d2bcca381a8a855b73ddc3fb3f94e736ca7e81",
+      "sha256": "a3fc818edc1e6069432b21202822f0bc96b010e903e1cfae9742469984b3bb61",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/codex_empty_text_test.go",
+      "mode": "100644",
+      "source_oid": "ec4fe5c9e60bdb70931b233816adbee574103ffb",
+      "sha256": "1897ecfc8726cd1a118a56aba9a2294909627f530c1785144fd6ca39c4d73380",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/codex_guard_diagnostics_test.go",
+      "mode": "100644",
+      "source_oid": "68879affe2517849fe5063fefeeee7a73dbc4af9",
+      "sha256": "de3828f191779cfc7aa6c1b00bf187c384d5f67ffa91ab6db41911c4119e1b42",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/codex_test.go",
+      "mode": "100644",
+      "source_oid": "925d4c77130109a858686094e255f425bfcae640",
+      "sha256": "f2a9b1de8a6f7847cde4d45432b051c45fd8d4e5251e562c982d9cea49e7cc64",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/grok_protocol_test.go",
+      "mode": "100644",
+      "source_oid": "e6029e205bcfdc4d4b4820ec523dfd205396a56a",
+      "sha256": "0e685d24a01f919bab7efd161402e08de47584a8da0babb141bb14cc1f8e07ef",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/host.go",
+      "mode": "100644",
+      "source_oid": "a39dea10644dadec4d9ca53aa20760acaed9f47f",
+      "sha256": "718852e199cd594dfb6a246748cbfc83c0b64d37005b4453a52ed14b600ff9f5",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/host_test.go",
+      "mode": "100644",
+      "source_oid": "127a8c673e7d9aa5a573b1e2a10e062995289b17",
+      "sha256": "dd1f57d8ac2a59d89a7546731c49ccaa06381f9427dccc3d28c62e3568b58421",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/launch_failure.go",
+      "mode": "100644",
+      "source_oid": "cbb6a1dd50613667dbfca9456f3f159fe413b31c",
+      "sha256": "77189c29aec7e43c07a384170fc5f9abaf88d24abfc23b7cf76b2bd5b32d1544",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/launch_failure_test.go",
+      "mode": "100644",
+      "source_oid": "b3636309f441783c4a07c0f8356c1bfdeb564661",
+      "sha256": "23b87e63e30106752c8630222d520d1d0b543cbebf8f088749a0bc1cbbf96e10",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/managed_policy.go",
+      "mode": "100644",
+      "source_oid": "ebc00732a9acdebf0018fbb0104c7b0141ac47ae",
+      "sha256": "84a8b00d9cabd34c7af12be0d2e544490dd241f8540de7c228a26c8dd26f84dc",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/managed_policy_test.go",
+      "mode": "100644",
+      "source_oid": "8720077f36103a87a62ef4fe0249a79a142e38d7",
+      "sha256": "7b7391fcf8c7c642cc8ca85016f7632bf950b1830c9e6b758be145ebe0fed871",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/multi_task_stop_test.go",
+      "mode": "100644",
+      "source_oid": "60ae828532653b095d8fc30f91c6dc80b5ba4021",
+      "sha256": "1f06b8cef59e74b124b739d3e381a1fdc99b3cdff4ae9192b4355a586a4db1cd",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/owner_rework_test.go",
+      "mode": "100644",
+      "source_oid": "f50a0e02e2467172fa2fb847a60feaf18973626a",
+      "sha256": "ecc6e9998b0d9910e206667b6bfda98e51a2e339e741118814893276b3664226",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/profile.go",
+      "mode": "100644",
+      "source_oid": "3e47785a0ff6ef71cadca8f630139e0829437f23",
+      "sha256": "7fabf24680522a2a00572668a4aaf52098e5ab6ef10c87d398924d108e0be1d5",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/profile_test.go",
+      "mode": "100644",
+      "source_oid": "e425dfdde5b5ed12aaab005ad7c4bc931b00cfa7",
+      "sha256": "75c97f3fe0653ef4d41d1343f68d37bee094990c86388389f3e6f05c7449fd6f",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/protocol.go",
+      "mode": "100644",
+      "source_oid": "0bdbc127af2c3d7066d289e2974ad93cec7863d2",
+      "sha256": "f9d197a84009e5378f539fb462b7dea6c9408a7766aec8a6023507558b2af345",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/protocol_test.go",
+      "mode": "100644",
+      "source_oid": "16a972e6dedba4856a5e39d31659e9af3234a358",
+      "sha256": "3004021e14bab2767b0d6c9840a916065e8f40fee637df5e326ddf75751f9273",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/provider_diagnostics.go",
+      "mode": "100644",
+      "source_oid": "98faf356aaaa8049e48b02d4e49b26afddda0227",
+      "sha256": "c05e4ad48d523c37fd75686340fc1e561d3c8d486b0d4454c750b4522794a67b",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/provider_diagnostics_test.go",
+      "mode": "100644",
+      "source_oid": "6c17d078a82907252293cc2b122420c8b4145285",
+      "sha256": "89b74fcfc938ac36657efa9a4a344da1cf2d9875da986f2c0c67ed93843e470c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/report.go",
+      "mode": "100644",
+      "source_oid": "b98dc5c60615c811ae750e41ccd7ec987afb5afb",
+      "sha256": "9898b873fc3483ca11b04927ef2f09e5d3dba5f68f7aba0d1249a02be1a80cd0",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/s4_stage_timing_test.go",
+      "mode": "100644",
+      "source_oid": "9a0b74ea0599735b7e8e665ba09e725a5ff50fbc",
+      "sha256": "99b3d5d3828dcf7ee2fa763d3595734b66d652841024631d03ed2c4703838932",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/stop_exit_publish_test.go",
+      "mode": "100644",
+      "source_oid": "cd530ae0b48526ca249b92b0312d6e4e87a536f8",
+      "sha256": "03f65a7c4e4db8cca59f2c55da3d58fa3308ada37a135100c7f0dad026fa869c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/stop_isolation_batch_test.go",
+      "mode": "100644",
+      "source_oid": "231d4f4de49585f9b20a4003b031fdaec69a4de6",
+      "sha256": "3eadade6136e1f67926af9802fe3220b73d70723d99714d9e91738e71e456daa",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/stop_lifecycle.go",
+      "mode": "100644",
+      "source_oid": "9bf135f3ce54f308bd2a2d3b66046129c1aa1fd6",
+      "sha256": "550aa74701fd359511273705adf79e549b8438677fe3f44da715458ea8d2da11",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/stop_lifecycle_batch_test.go",
+      "mode": "100644",
+      "source_oid": "f0c272ef1c9d43f2d79a7b0ea97ab434a208da98",
+      "sha256": "351506dd26d3a300e678c2dc716cfbc6f73e1697b3e5cf4f2976c66ba3be496c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/stop_lifecycle_guard_batch_test.go",
+      "mode": "100644",
+      "source_oid": "17fcd354aab0afd16212a9a9f26117b8108834dd",
+      "sha256": "2ca333461f3622888f348f9f312660ea5995d8def0fbe50129a47729ad1b03d4",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/host/stop_result_race_test.go",
+      "mode": "100644",
+      "source_oid": "429f8abb26cfadb92040795928db570d5b8ca83a",
+      "sha256": "9a4283a28d61d3b99c52fb63aecea02e2f1fdf747096cbb67c9283e9f9176de9",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/install/codex_runtime.go",
+      "mode": "100644",
+      "source_oid": "095e2b752395c500bd2367b05046a34fa526969d",
+      "sha256": "94c9d783edfbda47dd3e23034cec8777f26f6a40023321b81f33693e256c7152",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/install/codex_runtime_test.go",
+      "mode": "100644",
+      "source_oid": "d0db71114d4d2cc969cf19b6e92bf3f762db1649",
+      "sha256": "ec20f32314406ad323741d4ac93ec8fc63e29df3297229e72271573a1f2b8b07",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/install/install.go",
+      "mode": "100644",
+      "source_oid": "d4d02195f4e2b4a403853c27d041ae2ba9bdb419",
+      "sha256": "9508b2ea241177813eb7243512a85ab229ab9c5fafbdaefa6f5d0ba6dac49131",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/install/install_test.go",
+      "mode": "100644",
+      "source_oid": "8c7749dd110e3edf4869103b275bd4a796984354",
+      "sha256": "6961f948164a90f2478a8f5f3f4d099490269814b621c59ac5a0056eac87ba1a",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/ipc/ipc.go",
+      "mode": "100644",
+      "source_oid": "75ede7ac3a7d8d2469546159b7f8c36ab023f5f4",
+      "sha256": "6cb5860367261eeafe8efd16d44ff5af59ad68c3a32e87c9f904d9bab5ecde1e",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/process/group.go",
+      "mode": "100644",
+      "source_oid": "cc952085015e75513f5141c46d8672bb80aff4fe",
+      "sha256": "92c5fb73a5c51fbc3f7d0923d870203d490a495291b57a633b5bd7cce4bc458a",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/process/process.go",
+      "mode": "100644",
+      "source_oid": "fbd54c80da65fc1b5cff93e8621fd46a2ef7d5b2",
+      "sha256": "63bcaf81010ad622de5c20ba61384389d35a74a0a381e1712976870858b4d9dc",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/process/role_darwin.go",
+      "mode": "100644",
+      "source_oid": "bd4a3417320263569edc480f3e7efe37076059d7",
+      "sha256": "a3ab09bee1a56da86de11b71240df883ea5c2e9bc6522dbb41eb9c8f20ca2b29",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/process/role_darwin_test.go",
+      "mode": "100644",
+      "source_oid": "8f19f3d76b675254d93a1834dd6cd2a6ef8d47cc",
+      "sha256": "6963adf30e4d09c99f61ff7f65388869429e2e540232c3a542e69fb8ba93036c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/process/role_other.go",
+      "mode": "100644",
+      "source_oid": "2a4a335930e09a02a52cbe4ccc5fbfe25bcc149e",
+      "sha256": "0fef4fb9b5536edd9beb2702821d07a22908b25793a35acf5246ac41ed9f2fe1",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/process/start_failure_test.go",
+      "mode": "100644",
+      "source_oid": "9b44bc2fc50351b96938d636be2755099d4bf5a5",
+      "sha256": "29a1cc8beb36e9d85d12614ccace009cb054e4a89b33fde14719af95dcbc9167",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/process/stop_escalation_test.go",
+      "mode": "100644",
+      "source_oid": "fa5bfc1a79e321263b21c889cfaec03ebd2f7d97",
+      "sha256": "f84b32da166d25a5982a939561e72693999574669bf2dd402a17e9157d6300b6",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/process/stop_exitcode_test.go",
+      "mode": "100644",
+      "source_oid": "3ec96475f688e6762b601c0dee699fd07dbed6a7",
+      "sha256": "aa61b1026ab3d752c887ea6fc8f1768e4b5c075cd6cccdc6eb66618d76c5b475",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/admission.go",
+      "mode": "100644",
+      "source_oid": "2962befdd46f2fb52fb167b3c611a1cccc749353",
+      "sha256": "1bbfd8c941beac35c16fea19ddcf4938c766228a59aef15d23f02ad663131e0d",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/budget_lifecycle_batch_test.go",
+      "mode": "100644",
+      "source_oid": "9b201461fe85ab39efad63534f7b11ced08db93d",
+      "sha256": "4b60fca0b196f9965a354fa8f86564f03f1659f4bac89e0a2931e85ef32302cf",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/decisions.go",
+      "mode": "100644",
+      "source_oid": "79910b74cfe0b30bddd78fee975a3886d01e36e9",
+      "sha256": "11afbe20aebaced226e34470e1a32fe3947a1f4730f13bdd6170a5d09d33d444",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/delivery.go",
+      "mode": "100644",
+      "source_oid": "ab9a8f411554f217589c87b1bf9c5f1659b1ba46",
+      "sha256": "a717e8f9d06b69fdb888e7fdcf164cd85f0330624d7c72e5d3a646d6f180646b",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/delivery_consistency_batch_test.go",
+      "mode": "100644",
+      "source_oid": "08bae3ce1debacfe82720da1ee587dddf98a753e",
+      "sha256": "39801264baf87ac8e2bb4acc914375f7f6264098f372c423666eeb93735c71e7",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/delivery_consistency_matrix_test.go",
+      "mode": "100644",
+      "source_oid": "bd19db1b0bed9bbd6d801b71c46a104c4105d37a",
+      "sha256": "4cbd9705a3e3be679c73dbc1e869d33e1305dbbf06725e7ba558059b88e60f74",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/exit_acceptance_guard_test.go",
+      "mode": "100644",
+      "source_oid": "5c0688db46e08ece226f025520a5182e3791f0f5",
+      "sha256": "7ba0914ccc5111a4da472cfdce4d754e0262c57c8e05e93e18641643c42539cf",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/fifo_batch_test.go",
+      "mode": "100644",
+      "source_oid": "afd0afa3e2974e902a77e35cde87ec6449d61fef",
+      "sha256": "a7ac4677c94bcdae1beb9249521e8fce4d735aedbaa6e7fbb97fd0fe63af2fbb",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/fixture_policy_gate_test.go",
+      "mode": "100644",
+      "source_oid": "ccfc74a72ad42d73177c1ea32e1ce2a043fd0be7",
+      "sha256": "b9448b1153d637cddb942ec94238e1c783929979b545eed93899be6d99dbd2c3",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/host_events.go",
+      "mode": "100644",
+      "source_oid": "e889807ea0726a5b5404cb4b8decc023c11a4a0c",
+      "sha256": "4ad0259c61ece11d8188283c2f9efe12ecd87566fb885460b0fa40551a833a1c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/lifecycle.go",
+      "mode": "100644",
+      "source_oid": "bb654abad10a0ef4f638ae05eafbbd3c2be723a8",
+      "sha256": "5878c8b965134a34452aba8a50e4d5719e696cbd8ad7af08eddabe2a6c6c3c96",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/lifecycle_ledger_matrix_test.go",
+      "mode": "100644",
+      "source_oid": "f780b0f4518f5b2aa1552cf859100cd43b865429",
+      "sha256": "8303ab40ff42f18c7760dd465407b56d9856034e24495536e18210c57d588a5c",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/limits.go",
+      "mode": "100644",
+      "source_oid": "225906db2b79f326055a98c0bc085f8b0faada7e",
+      "sha256": "a2e3f079ccc666666a12ee0199618919274c1e2f199b45d7cdf5d7a1b3db5546",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/measured_settlement_test.go",
+      "mode": "100644",
+      "source_oid": "d8f8e824bed3ea7c08c99ea6bc6da1d893348d76",
+      "sha256": "4165b2e7ea5744de6f9e1cf636148ec187df7fa371a3d8a54434b86641282ade",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/migrations.go",
+      "mode": "100644",
+      "source_oid": "8e562a8e56161951ff03dddb1d46bf0bed2d2926",
+      "sha256": "e0aed4fbbd9b716a23c629b94667e639f43af7ba16c5a1721461666fc42f96a9",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_rework.go",
+      "mode": "100644",
+      "source_oid": "76353b7546f56896b484699da69987e0eed48d85",
+      "sha256": "e3ff3d7054e6c95fac0a1dd03cec4d2cd76422c4028c4021c7adea0b449bb3cc",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_rework_migration_test.go",
+      "mode": "100644",
+      "source_oid": "fb86efbaa9011d759cbdf9e965ab5d1ec77c018e",
+      "sha256": "ca2e625c81b2b5c4790cf4a4707d655dae32a7bcb52da88c0f0a942f5d315a62",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_rework_test.go",
+      "mode": "100644",
+      "source_oid": "9f8a96e548b0a869bc3c4610006bc70396234511",
+      "sha256": "fedf3fd5846237abf2278dc0d79d794b7fa4add72b7f7f5b59e335396b7a1858",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/provider_controls.go",
+      "mode": "100644",
+      "source_oid": "d1907cda41f3cc09467e4fbc27e60e8aac1f9cd7",
+      "sha256": "c00d02c64640a7f2adf3e98fe201f0c54adff46940923c3f5bd864c0cb2c4a1a",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/provider_controls_test.go",
+      "mode": "100644",
+      "source_oid": "ef5b5b428d2a6a906c832a1ac16a9aa0276961bf",
+      "sha256": "9a7acc111dcfe7a771beef51bf7ace7517715fa6b79f9d2868594b68f38832cf",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/quota_bench_test.go",
+      "mode": "100644",
+      "source_oid": "d8a55952373b5e2129b0e586c15d8072d9bead3e",
+      "sha256": "5d0b725065f10d7c6dc64ff85296b72ab78c01313e41ab7a6067fe61f6d88bdf",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/recovery_guards_test.go",
+      "mode": "100644",
+      "source_oid": "2b6c5ef2e81748d583ebe806532323829056e6f0",
+      "sha256": "4bf07384b19078a8136168bf002d2c380fe9628828a762534a8647f07a81ac9f",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/recovery_sequence_matrix_test.go",
+      "mode": "100644",
+      "source_oid": "13d574028e6f5346df19726abd5c55c2646646fb",
+      "sha256": "f3f7f2a65cfd13b19979426912c985d005ec25c4e9f1aface1ec465b59fe5f5b",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/review_retry_test.go",
+      "mode": "100644",
+      "source_oid": "f8a61dad92e3e920549276646da0d0801553bb8c",
+      "sha256": "a6130c85d8a188cd99b70d87903a149ef30491823b199db65b740c01da126739",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework_migration_test.go",
+      "mode": "100644",
+      "source_oid": "04f4e24717e98ccb2229dd713ce5a9e84307ca7f",
+      "sha256": "0c5ec6801537b6ca9422db3f2378b7d2769f24454ae41bb59a43c2c75817a345",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/runtime_test.go",
+      "mode": "100644",
+      "source_oid": "08c626e20b1d83bc8fe12e64882c877a296e9bfd",
+      "sha256": "a07846ee76fd04150dadd94f62434f029f94e765af9b2ca46e367e6b5dfb1b31",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/scheduling.go",
+      "mode": "100644",
+      "source_oid": "440940de62ddf394a32dadb052282b6bf2fbfe16",
+      "sha256": "18abddae1289f9670d223375cdf2003d4279d65602087fffef74d4b50c510972",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/summary.go",
+      "mode": "100644",
+      "source_oid": "823a7aef2400dbfd0a9ff1b193460b4f00d79e3e",
+      "sha256": "9e044dae43e4f5a67a0b672486f1dc21ddf059e299709dee4f52a33083e48493",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/summary_candidate_test.go",
+      "mode": "100644",
+      "source_oid": "4f325acf23138f933bab101508caae2c9ea5fa4e",
+      "sha256": "923a535509db62880984dde35cafd1e5364a4e9febe89212dadbaea176eb5203",
+      "matches": true
+    },
+    {
+      "path": "tools/orchestrator/internal/store/unknown_terminal_ordering_test.go",
+      "mode": "100644",
+      "source_oid": "56425ee88f3b46c96b28c2cb0d2c16a29fcee087",
+      "sha256": "c9ad84d4c4457f7cc4892993dfa120227c796aa469d98ded5e42812472cd53b2",
+      "matches": true
+    },
+    {
+      "path": "tools/real-user-trial/test_auth_guard.py",
+      "mode": "100644",
+      "source_oid": "59623ce4556b0edb78e6387adf9fde120c3cca85",
+      "sha256": "14edf87b14397f7d86ccec688c40166e5bcd8d7ae85c4ee966af41c5d64cf106",
+      "matches": true
+    },
+    {
+      "path": "tools/real-user-trial/test_codex_exec.py",
+      "mode": "100644",
+      "source_oid": "a2c9fbb9f3320100e946fcb762dfb47b8afd6a6c",
+      "sha256": "e4312fdc3977c30ec52eb0ae2d41246d01af5f631e3c8159b6c3560894acf68f",
+      "matches": true
+    },
+    {
+      "path": "tools/real-user-trial/test_native_auth_tripwire.py",
+      "mode": "100644",
+      "source_oid": "f996146df7e5f43e016154721640a0ee2e54842b",
+      "sha256": "d3c7f9c49bfa9d6f0e13d3cd8dc3b15a3a9b7674e72eb2d0ce49a498f12527d7",
+      "matches": true
+    },
+    {
+      "path": "tools/real-user-trial/test_native_codex_policy.py",
+      "mode": "100644",
+      "source_oid": "0e0f0bb1aed573a016b5fd87ce3ce16193996b18",
+      "sha256": "86317a935aa07928bb292bcd0a0ab08841024fb2e98ff2bf483677fe9a6b1c51",
+      "matches": true
+    },
+    {
+      "path": "tools/real-user-trial/test_native_codex_prepare.py",
+      "mode": "100644",
+      "source_oid": "dd5220bd29a7732bfc7760b9a574bd0b744861e8",
+      "sha256": "6f8e8ff281a130efe012ea60c2611aab22035e197905b2a056ff3e6915513a8a",
+      "matches": true
+    },
+    {
+      "path": "tools/real-user-trial/test_rpc_policy.py",
+      "mode": "100644",
+      "source_oid": "770da200b9fe46992af9decf7f178192ff148183",
+      "sha256": "0a36f59497060111ba8f34ec7e0c70a63be660fef23c0d74a486e33f3c854098",
+      "matches": true
+    }
+  ]
+}

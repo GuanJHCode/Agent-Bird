@@ -27,7 +27,7 @@ func requireProviderCoordinator(ctx context.Context, state string) error {
 }
 func bindProviderOwner(ctx context.Context, state string) (string, error) {
 	var out bytes.Buffer
-	if err := ownerBind(ctx, []string{"--current-codex", "--state-dir", state}, &out); err != nil {
+	if err := ownerBind(ctx, []string{"--current", "--state-dir", state}, &out); err != nil {
 		return "", err
 	}
 	var owner struct {
@@ -139,7 +139,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 			return err
 		}
 	}
-	if _, err := currentCodexOwner(ctx); err != nil {
+	if _, err := currentOwner(ctx); err != nil {
 		return err
 	}
 	state, err := resolveState(*stateArg)
@@ -161,7 +161,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 		}
 		results = append(results, result)
 	}
-	return json.NewEncoder(out).Encode(map[string]any{"version": 1, "providers": results, "scope": "current_codex_session", "authentication": "not_checked", "workspace_policy": "isolated-write-required"})
+	return json.NewEncoder(out).Encode(map[string]any{"version": 1, "providers": results, "scope": "current_owner", "authentication": "not_checked", "workspace_policy": "isolated-write-required"})
 }
 
 // Resolve before the final provider preflight. These concrete model values are

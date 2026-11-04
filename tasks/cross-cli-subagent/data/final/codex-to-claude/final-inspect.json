@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "run_id": "bird-0631629a781a812f6b12ccdf",
+  "counts": {
+    "blocked": 0,
+    "completed": 1,
+    "pending": 0,
+    "running": 0
+  },
+  "tasks": [
+    {
+      "technical_retry_count": 0,
+      "review_rework_count": 1,
+      "request_changes_blocked_reason": "owner_rework_unsupported",
+      "task_id": "bird-0631629a781a812f6b12ccdf-work",
+      "status": "completed",
+      "group": "completed",
+      "work_revision": 2,
+      "active_segments": 0,
+      "allowed_actions": [
+        "status",
+        "collect"
+      ]
+    }
+  ]
+}

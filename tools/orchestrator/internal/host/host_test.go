@@ -271,7 +271,15 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 			}
 			grant := contract.LaunchCommand{CommandID: "structured-command-" + tc.mode, ReservationID: "structured-reservation-" + tc.mode, RunID: "run", TaskID: "task-" + tc.mode, AttemptID: "attempt-" + tc.mode, SegmentID: "segment-" + tc.mode, WorkRevision: index + 1, GrantedActiveMS: 2000}
 			inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestStructuredProviderTerminalControlsOutcome"}, env: map[string]string{"G1_STRUCTURED_HELPER": tc.mode}}, provider: tc.provider}
-			result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
+			var result contract.Result
+			var runErr error
+			if tc.provider == "codex-cli" {
+				// Synthetic JSONL tests only the parser and terminal outcome. Native
+				// admission is tested separately and must reject this unpinned fixture.
+				result, runErr = h.execute(context.Background(), store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}, grant.RunID, grant.TaskID, invocationCommand(inv), false, launchMetadata{outputProvider: tc.provider})
+			} else {
+				result, runErr = h.ExecuteLaunch(context.Background(), grant, inv)
+			}
 			if runErr != nil {
 				t.Fatal(runErr)
 			}
@@ -308,6 +316,64 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestCodexExecCollectLoopAtHostLayer verifies only JSONL parsing and collection.
+// It calls the internal executor with a synthetic producer, deliberately below
+// the production native guard. It is never native launch/authentication evidence.
+func TestCodexExecCollectLoopAtHostLayer(t *testing.T) {
+	if mode := os.Getenv("G1_CODEX_COLLECT_HELPER"); mode == "1" {
+		_, _ = os.Stdout.WriteString(`{"type":"thread.started","thread_id":"codex-collect-session"}` + "\n")
+		_, _ = os.Stdout.WriteString(`{"type":"item.completed","item":{"id":"draft","type":"agent_message","text":"first draft"}}` + "\n")
+		_, _ = os.Stdout.WriteString(`{"type":"item.completed","item":{"id":"final","type":"agent_message","text":"codex final answer"}}` + "\n")
+		_, _ = os.Stdout.WriteString(`{"type":"turn.completed","usage":{"input_tokens":11,"cached_input_tokens":5,"cache_write_input_tokens":0,"output_tokens":4,"reasoning_output_tokens":2}}` + "\n")
+		os.Exit(0)
+	}
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "codex-collect-producer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := store.Attempt{ID: "codex-attempt", TaskID: "codex-task", SegmentID: "codex-segment"}
+	grant := contract.LaunchCommand{CommandID: "codex-collect-command", ReservationID: "codex-collect-reservation", RunID: "codex-run", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: 1, GrantedActiveMS: 5000}
+	inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestCodexExecCollectLoopAtHostLayer"}, env: map[string]string{"G1_CODEX_COLLECT_HELPER": "1"}}, provider: "codex-cli"}
+	result, err := h.execute(context.Background(), a, grant.RunID, grant.TaskID, invocationCommand(inv), false, launchMetadata{outputProvider: "codex-cli"})
+	if err != nil {
+		t.Fatalf("codex exec at the Host layer: %v", err)
+	}
+	if result.Status != "result_ready" {
+		t.Fatalf("status=%q result=%#v", result.Status, result)
+	}
+	events, err := h.Collect(context.Background(), a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var terminal *contract.Event
+	for index := range events {
+		if events[index].Kind == contract.EventResult {
+			terminal = &events[index]
+		}
+	}
+	if terminal == nil {
+		t.Fatalf("no durable result event in the collect stream: %#v", events)
+	}
+	if terminal.Artifact == nil {
+		t.Fatalf("codex result event carries no artifact: %#v", terminal)
+	}
+	body, readErr := os.ReadFile(terminal.Artifact.Path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(body) != "codex final answer" {
+		t.Fatalf("delivered answer = %q, want the last agent_message", body)
+	}
+	if terminal.SessionID != "codex-collect-session" {
+		t.Fatalf("session binding lost: %#v", terminal)
 	}
 }
 

@@ -1,0 +1,74 @@
+[
+  {
+    "package": "codex-cli-orchestration-design/tools/orchestrator/internal/adapter",
+    "test": "TestProbeCauseDecompositionObservation",
+    "output": [
+      "=== RUN   TestProbeCauseDecompositionObservation",
+      "probe_cause_observation_test.go:35: opt-in diagnostic probe cause observation",
+      "--- SKIP: TestProbeCauseDecompositionObservation (0.00s)"
+    ]
+  },
+  {
+    "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+    "test": "TestNativeClaudeGatewayReadOnlyTransport",
+    "output": [
+      "=== RUN   TestNativeClaudeGatewayReadOnlyTransport",
+      "claude_native_test.go:34: requires explicit fixed native/Node CLI path; no model or real credential",
+      "--- SKIP: TestNativeClaudeGatewayReadOnlyTransport (0.00s)"
+    ]
+  },
+  {
+    "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+    "test": "TestNativeClaudeGatewayManagedWriteTransport",
+    "output": [
+      "=== RUN   TestNativeClaudeGatewayManagedWriteTransport",
+      "claude_native_test.go:34: requires explicit fixed native/Node CLI path; no model or real credential",
+      "--- SKIP: TestNativeClaudeGatewayManagedWriteTransport (0.00s)"
+    ]
+  },
+  {
+    "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+    "test": "TestS4StageTimingObservation",
+    "output": [
+      "=== RUN   TestS4StageTimingObservation",
+      "s4_stage_timing_test.go:34: opt-in diagnostic stage timing harness",
+      "--- SKIP: TestS4StageTimingObservation (0.00s)"
+    ]
+  },
+  {
+    "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+    "test": "TestRealClaudeManagedCandidate",
+    "output": [
+      "=== RUN   TestRealClaudeManagedCandidate",
+      "real_candidate_test.go:23: requires explicit authenticated implementer trial",
+      "--- SKIP: TestRealClaudeManagedCandidate (0.00s)"
+    ]
+  },
+  {
+    "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+    "test": "TestRealClaudeReviewerProfile",
+    "output": [
+      "=== RUN   TestRealClaudeReviewerProfile",
+      "real_provider_test.go:22: requires explicit real provider trial",
+      "--- SKIP: TestRealClaudeReviewerProfile (0.00s)"
+    ]
+  },
+  {
+    "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+    "test": "TestRealVersionMatrixRead",
+    "output": [
+      "=== RUN   TestRealVersionMatrixRead",
+      "real_version_matrix_test.go:310: requires ORCHESTRATOR_REAL_VERSION_MATRIX=1; runs real provider CLIs and consumes model quota",
+      "--- SKIP: TestRealVersionMatrixRead (0.00s)"
+    ]
+  },
+  {
+    "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+    "test": "TestRealVersionMatrixInvocationStages",
+    "output": [
+      "=== RUN   TestRealVersionMatrixInvocationStages",
+      "real_version_matrix_test.go:384: requires ORCHESTRATOR_REAL_VERSION_MATRIX=1 and ORCHESTRATOR_REAL_DIAGNOSTIC=1",
+      "--- SKIP: TestRealVersionMatrixInvocationStages (0.00s)"
+    ]
+  }
+]

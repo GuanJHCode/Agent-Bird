@@ -1,0 +1,9 @@
+{
+  "exit_code": 0,
+  "stdout": "",
+  "stderr": "",
+  "sandbox": "macos-seatbelt",
+  "source_sha256": "299c6da7a82cdccf7aeb187f6abf32837592bf190fc079f12b3dcc685bc70dce",
+  "candidate_oid": "69c473c69337972e5612cf5c80a44a3a302f8b3d",
+  "work_revision": 2
+}

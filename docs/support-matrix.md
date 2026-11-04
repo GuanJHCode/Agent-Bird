@@ -25,7 +25,7 @@
 | Go 调度、SQLite、DAG、summary | 自动化测试；IPC 连接后取消、半帧及 readiness 错误有回归 | 无第二套任务数据库或队列；不等同真实 Provider 故障恢复 |
 | Host bootstrap / HostHello 身份 | `.11`起v2元数据无token、私有control+限时限长FD传输，服务端在写DB前验证真实peer/executable/live owner；Unixsocket与race回归、`.13`真实Host链通过 | v1只读启动兼容、legacy rebind明确拒绝；不能阻止同UID任意control读取，不把成功链当全部攻击边界验证 |
 | 流式权限拒绝诊断 | 修复SDK message:string漏计；`.13`真实implement捕获1次Write/classifier流式拒绝，固定字段接线有效 | 仅截断capture观察值，原因/范围未完整确证；不算完整原生审批拒绝或越界验收 |
-| 超时协议诊断 | `.13`固定快照、TryLock和停止顺序回归通过；真实implement/review均after_wait terminal_seen/wait_complete真、protocol_error=none | 正常退出接线真实通过；超时分支目前fixture验证，旧超时根因未定，group退出不等于EOF |
+| 超时协议诊断 | `.13`固定快照、TryLock和停止顺序回归通过；真实implement/review均after_wait terminal_seen/wait_complete真、protocol_error=none | 正常退出接线真实通过；超时分支2026-09-28起有真实OS子进程契约测试（宽限窗口、竞态不变量、持管道/逃逸孙进程保守终态），见[本轮交付](../tasks/long-task-reliability/docs/delivery.md)；真实模型超时仍未复验，group退出不等于EOF |
 | 本机 owner / collect / ACK / accept | 第十轮真实主脑4次直接accept和4份请求ACK均持久成功，4result全部acked | 重复请求幂等仍以专门回归证据为准，本轮未执行重复owner决定 |
 | 真实主脑自主派工 | 第十轮 `.13` 真实主会话自主生成并提交DAG，Worker真实编辑/冻结，实际测试和独立真实review approve，Host同候选集成；4任务completed、4accept、4ACK、自然结束 | 本机macOS/Claude第三方默认模型/collect/小型明确文件范围；无脚本代业务决定，正常原生审批仍逐项确认 |
 | reviewer 写入隔离 | 实际 macOS sandbox + shell/Git 测试 | 限制文件写入；保留既有 Provider 读取/认证环境，并非全系统读取白名单 |
@@ -36,14 +36,15 @@
 | Worker 非递归派工 | `.10` typed Claude 固定原生 Agent/Task deny及能力缺失拒绝，[Adapter/CLI race](../tasks/p0-feedback-loop/docs/adapter-cli-race-final-10.log)通过 | 第七轮旧 `.9` 诊断有 Agent 尝试但不能确定执行；新guard真实效果待验收，不宣称任意shell派工均被封闭 |
 | ACK 后验收绑定恢复 | summary.reviewable_result + accept --request；第九轮4次真实主脑接受均使用JSON请求，最终integration完成 | 仍要求读取真实artifact与显式业务决定；不自动批准，不等于旧事件可接受新版本 |
 | 实现技术中断重试 | 第七轮 `.9` 实现300秒stopped、修改未冻结，下游未执行；implement retry当前不支持 | 不是审查retry或反馈rework；不得重置预算、重跑原prompt冒充续接；保留原run和未冻结修改 |
-| 未测量耗时预算结算 | `.12`起缺失/零值保守扣满；第十轮四段真实退出均settled、grant/used各600000，漏扣修复已真实接线 | 当前Host未准确上报耗时，成功/失败/早停均保守收费；旧账本不追改，本轮无重试，真实重试后的累计验收仍待补 |
+| 未测量耗时预算结算 | `.12`起缺失/零值保守扣满；第十轮四段真实退出均settled、grant/used各600000，漏扣修复已真实接线 | 2026-09-28起Host上报单调测量用时（合成子进程+真实CLI试验；测量边界为[−毫秒级头差,+含排空/10s宽限的尾差]，非"只可能高报"；在盘 endurance 账本：sleep60段60010、deadline段3974/4000），store按min(测量,grant)封顶；真实Provider段耗时分布与重试后累计实数仍未重验 |
 | 审查技术中断显式重试 | 第九轮主脑自主对同一只读review做两次显式retry，第3个真实attempt返回approve并被接受、集成 | 新attempt不是原session续接或反馈返工；`.11`原计费有缺陷，不能把本轮记为完整预算恢复通过；单任务组/无结论/已退出等guard保留 |
 | 带反馈返工 | Trial13新增bool规格后真实owner reject/rework→C2→Host重测→独立复审→同候选集成，四任务revision2 completed | 有两次根线程纠正，仅计有人看护完整链；原规格reviewer主动拒绝、完全无人指导仍未验收；仅四任务线性链，非原session resume |
 | 静止run显式Host恢复 | `0.1.0-host-recovery.1`普通/race、原`.13`跨版本、独立审查通过；Trial13新main实际bind/rebind/recover成功 | 原Host已退出、全部segment已退出等guard；一次性startup intent，uncertain不盲重试，不重置预算；实际累计预算未在本轮重数 |
 | 候选 Git 安全边界 | Git 子进程身份/退出确认、取消及 unknown 保留；Git 扩展、越界文件、符号链接和资源溢出拒绝回归 | 仅支持没有可执行 hooks/filter/fsmonitor/signing 等扩展的小型仓库；失败工作区和 journal 保留，不能直接重跑续接 |
 | 新 profile 的 session resume | **拒绝** `profile_resume_not_verified` | 实际 Claude 续接试验得到 exit 1 / `process_tree_unknown`，未声称可用 |
 | Claude 旧 stream-json 协议 | 解析/会话/恢复 fixture 与 CLI 框架测试 | 旧配置不自动获得新角色隔离能力 |
-| Codex 0.154.0 协议 | 版本 fixture、结果完整性测试 | 生产 guard 保留；新 profile 和真实任务启动仍拒绝 |
+| CLI 稳定版窗口（2026-11-02 冻结） | 见[基线记录](../tasks/cli-version-compatibility/docs/baseline-20261102.md)、[矩阵](../tasks/cli-version-compatibility/docs/matrix.md)、[交付记录](../tasks/cli-version-compatibility/docs/delivery-20261102.md)与[启动失败根因](../tasks/cli-version-compatibility/docs/root-cause-launch-failure-20261102.md)。Claude 2.1.267–2.1.316、AGY 1.2.3–1.4.12、Grok 1.0.34–1.0.70、Codex 0.154.0–0.166.0 的已发布稳定版可被版本策略接受。真实闭环目前只在 AGY 两端点完成（`installed_package` 正式入口，两轮）；Claude 与 Grok 的真实端点已能进入沙箱 spawn，失败在账户态。AGY 调用现在要求二进制宣告 `--add-dir`，未宣告者判 `provider_capability_unsupported` | 不是逐版真实模型验收，两端点通过不能推广。Codex 任务还需 exact native pin、已安装 receipt 与 full-native runtime；未知摘要仍由 `codex_trial_guard_not_ready` 拒绝。resume、AGY implementer、Grok 会话写授权和权限边界保留。中间版本未逐个执行 |
+| Codex 0.154.0 协议 | 版本 fixture、结果完整性测试；0.154.0 与 0.165.0/0.166.0 的 `exec --json` 事件名一致 | 生产 guard 保留；仅 exact native pin、正式安装 receipt 和完整 native runtime 满足时允许相应 profile/任务启动，未知摘要或缺少安装/runtime 仍拒绝。write 仅 exact 0.166.0；不据此声称真实模型 coding 已验收。协议族名仍是 `codex-jsonl-0.154.0` |
 | AGY 1.2.5 reviewer（1.2.3 历史已验证） | 新 Profile；1.2.5 默认模型通过高层 task run / view_file 随机文件读取、哈希核验、ACK/accept；1.2.3 Gemini 3.8 Flash Low 底层验收保留 | 未开放 implementer/session；泛化任务选用 `run_command` 的路径出现失败/超时，尚未定因 |
 | AGY / Grok 旧协议 | 固定参数、解析与 session fixture | 不代表新角色隔离或真实续接可用 |
 | Grok 1.0.30 | 当前已登录，模型列表可见；只读 sandbox 内创建会话返回 `FS_PERMISSION_DENIED`；新 Profile 仍拒绝 | help 与旧适配参数存在差异，真实模型执行及会话隔离尚未验收；未登录仅为历史记录 |

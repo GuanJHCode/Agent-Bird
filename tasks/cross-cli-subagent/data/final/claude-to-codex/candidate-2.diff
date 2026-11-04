@@ -1,0 +1,9 @@
+diff --git a/calc.py b/calc.py
+index 4693ad3..d8f6937 100644
+--- a/calc.py
++++ b/calc.py
+@@ -1,2 +1,4 @@
+ def add(a, b):
++    if type(a) not in (int, float) or type(b) not in (int, float):
++        raise TypeError("a and b must each be an int or float")
+     return a + b

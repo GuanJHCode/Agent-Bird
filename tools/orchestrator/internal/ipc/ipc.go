@@ -41,6 +41,7 @@ const (
 	KindResume           Kind = "resume"
 	KindRetry            Kind = "retry"
 	KindRework           Kind = "rework"
+	KindRequestChanges   Kind = "request_changes"
 	KindAccept           Kind = "accept"
 	KindAnswer           Kind = "answer"
 	KindRebindOwner      Kind = "rebind_owner"

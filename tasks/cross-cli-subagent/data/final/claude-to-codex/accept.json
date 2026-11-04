@@ -1,0 +1,10 @@
+{
+  "event_id": "host-launch-8c33c75281704ad310946dd7b09529834c25:11",
+  "event_revision": 11,
+  "event_hash": "ed17ce04862a2cd2e892f39fce3ecc9b41d1d1950741a184afd799c10c5f2f5d",
+  "action_slot": "action-16a1b959286e367e58b3c73ec81f5819",
+  "task_id": "bird-cdf0eee1eede23a414ba11e0-work",
+  "work_revision": 2,
+  "command_id": "coding-155c87333f0c3c801f0e6724-accept-two",
+  "decision": "accept"
+}

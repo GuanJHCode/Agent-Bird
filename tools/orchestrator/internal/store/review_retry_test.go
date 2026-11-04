@@ -18,6 +18,7 @@ type reviewRetryFixture struct {
 	control string
 	db      *DB
 	host    string
+	hello   contract.HostHello
 	grant   contract.LaunchCommand
 	event   contract.Event
 	spec    RetrySpec
@@ -32,7 +33,7 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "claude-test", SHA256: strings.Repeat("a", 64)}}
+	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "2.1.267 (Claude Code)", SHA256: strings.Repeat("a", 64)}}
 	target := adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}
 	ids := []string{"edit", "validate", "review", "integrate"}
 	var tasks []TaskSpec
@@ -67,11 +68,12 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "gen", PID: 10, Birth: "host", Executable: "/private/bin/orchestrator"}, 1)
+	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "gen", PID: 10, Birth: "host", Executable: "/private/bin/orchestrator"}
+	h, err := db.RegisterHost(ctx, hello, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := reviewRetryFixture{db: db, host: h, control: receipt.ControlToken}
+	f := reviewRetryFixture{db: db, host: h, hello: hello, control: receipt.ControlToken}
 	var seq int64
 	for _, id := range ids[:3] {
 		g, err := db.ClaimReady(ctx, h, 1, 2)
@@ -479,6 +481,9 @@ func TestCandidateReviewRetryFailsClosedIfAnotherRunTakesItsOrdinal(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err = f.db.MarkHostOffline(ctx, f.host, 1); err != nil {
+		t.Fatal(err)
+	}
 	h, err := f.db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "other-origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "other-generation", PID: 20, Birth: "other-host", Executable: "/private/bin/orchestrator"}, 1)
 	if err != nil {
 		t.Fatal(err)
@@ -499,6 +504,9 @@ func TestCandidateReviewRetryFailsClosedIfAnotherRunTakesItsOrdinal(t *testing.T
 	e.ActiveMS = 1
 	if _, err = f.db.CommitHostEvent(ctx, e); err != nil {
 		t.Fatal(err)
+	}
+	if restored, restoreErr := f.db.RegisterHost(ctx, f.hello, 1); restoreErr != nil || restored != f.host {
+		t.Fatalf("restore original host=%q err=%v", restored, restoreErr)
 	}
 	if g, err := f.db.ClaimReady(ctx, f.host, 1, 2); err == nil {
 		p, _ := adapter.DecodeInvocationPayload(g.AdapterPayload)

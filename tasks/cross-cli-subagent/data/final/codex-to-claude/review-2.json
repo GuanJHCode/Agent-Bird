@@ -1,0 +1,13 @@
+{
+  "mode": "manual_review_of_original_runtime_artifact",
+  "work_revision": 2,
+  "candidate_oid": "c2069762bd53c57406898ad1b6add644c2f8a3f5",
+  "source_sha256": "e97b5b55324190170e22a4479232f1156dd5149ce264e5f74db1cfd4fa38f823",
+  "artifact_sha256": "14624bcb4b75aa2229adf16e96c9b2c5d24ddb9dc11f74d8479f5ce0573004ef",
+  "projection_sha256": "375f37c20160e0b9797b1af191b27150f2f4329476d1078d40536968395b7ac4",
+  "rework_sha256": "a600fea1b9bc87e9892b57d423fd7c4e452fc36b27ef8f936239ec9b15dc0b70",
+  "git_commands": 8,
+  "git_seconds": 0.124,
+  "original_HEAD_unchanged": true,
+  "original_worktree_clean": true
+}

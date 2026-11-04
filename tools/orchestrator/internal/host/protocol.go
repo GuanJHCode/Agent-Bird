@@ -251,7 +251,7 @@ func (p *protocolCollector) accept(event adapter.Event) {
 	if p.provider == adapter.ProviderClaude && event.Kind == adapter.EventMessage && event.Text != "" {
 		p.partialText, p.partialTruncated = boundedProgressText(event.Text)
 	}
-	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderCodex && event.Text != "" {
+	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderCodex {
 		if len(event.Text) > providerEventLimit {
 			p.err = errors.New("provider_critical_event_too_large")
 			return

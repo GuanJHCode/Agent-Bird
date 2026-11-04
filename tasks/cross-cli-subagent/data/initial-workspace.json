@@ -1,0 +1,442 @@
+{
+  "head": "5e7443d24cff6deef27ed1c52697a2fb32733ae4",
+  "review_commit": "4b2b4916232c9d7526f51cf0a73204748c62faf8",
+  "entries": [
+    {
+      "status": " M",
+      "path": ".gitignore",
+      "sha256": "4b33c65b8104f354242056d8d4d7e28e4cde7feee536684cdac86f972f95d501"
+    },
+    {
+      "status": " M",
+      "path": "README.md",
+      "sha256": "db398552c86b7358b8644e25e46083f98938193ad6e244def78834ab44dee7c3"
+    },
+    {
+      "status": " M",
+      "path": "docs/provider-runtime.md",
+      "sha256": "36c13273a5568d9e15d0da484fde9603bc4274fbc93634ff4294256f51f64e9d"
+    },
+    {
+      "status": " M",
+      "path": "docs/support-matrix.md",
+      "sha256": "4f492214f5ceea16d497bf881f16392ef315f9420ef9db40b8a0ae054a7684e4"
+    },
+    {
+      "status": " M",
+      "path": "tasks/g1-g4-delivery/scripts/package-plugin.sh",
+      "sha256": "ab11ee18eb301650a9ff15fc1c56b3e351fa4725f88a584cb9a881db6e864daa"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/README.md",
+      "sha256": "9249d647986295e9493ff10eea77dcf11c88f42f49db7dccea0eb0ea29ceb7a7"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/bootstrap_privacy_test.go",
+      "sha256": "64fba8c17c7eb0278d8759f903a7f4726530fc4ddae25dfea3c3c2586d31c7a6"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/candidate_cli_test.go",
+      "sha256": "cce9b0e28bc1a1885c65f30c96ee5d50168346b5a6d7e44ff686c7d13febf27f"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/candidate_test.go",
+      "sha256": "76ac2dae77ae322df92da9ffc3866832286b2981a09350eed7b6e7fb26e2855e"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/interruption_cli_test.go",
+      "sha256": "37e0eb397197b48b8e3ca5b2f73f707658b996bacc4e1d72bbe8b18cf0e09989"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/main.go",
+      "sha256": "1da9263b007444e387241d405622efd571eeb3d7d6d6eb07fe15965b311dea78"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/main_test.go",
+      "sha256": "c099009553204765fa6d9829688626938a686d80fd520877d8d86114f3b733ea"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/provider.go",
+      "sha256": "7160b72df01a60a13bf4d0ff258545690354d7b8a6f39eec5e194ab174df31ed"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/provider_test.go",
+      "sha256": "e351005813ea08c53084bb8c1a3c9cac02da564e80d85d789f86ef49630080bd"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry.go",
+      "sha256": "4635d1700c880127c369867a5bc5647b5b69f3eaaabbcf6cb7d7fe4cbadcd0bd"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry_test.go",
+      "sha256": "c1b540f86a6cb386b213a100dcc7b106fa21bf307ff82aed64a41cc7f1a8d39c"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/cmd/orchestrator/task_provider_test.go",
+      "sha256": "45ac984d800416f608b33b64f5fe033e08b849f627393023b68b9d244e3cbde5"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/adapter/adapter.go",
+      "sha256": "2dcce6fbcad21f4f7b7b4582a5a76376b7f563fc229fa54b96e40cf43a629ecd"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/adapter/adapter_test.go",
+      "sha256": "424b1aff5abbb2f038c70a74859b5c9cbfd9a2c8c046957640a544c31099acaf"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/adapter/grok_profile_test.go",
+      "sha256": "2a12e4c52e1fa4c8c3bde464eeec2a099802c2c433e67beb1f1f15ab5183064f"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/adapter/probe.go",
+      "sha256": "1201d8b262159fd5f24297568207e0a563cd63f105e3152ba69855d5f5c44e11"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/adapter/profile.go",
+      "sha256": "7e9c46d8e498c3743531f30b466a0425f83e74c5fe19afcb2367b2790c9bd573"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/adapter/profile_test.go",
+      "sha256": "339b7576fb6e6809acfa6d35f256fe8f7279dee7e774568ca7aec1aa5ea1e513"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/adapter/protocol.go",
+      "sha256": "b2679dfe2d6b66bdda2ac8d798e7e59ba6a23e2ac7283849afb2ce4012a8d6c5"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/coordinator/collection_test.go",
+      "sha256": "0cc31197ec2c67172320012ca0d65cc7b3da253ba56308f68c50fb6590917e9e"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/coordinator/server.go",
+      "sha256": "41e962bfda372a91399e360aaa53aca4e7f41b6e26413665aa5d1cfe6e984c06"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/grok_protocol_test.go",
+      "sha256": "0e685d24a01f919bab7efd161402e08de47584a8da0babb141bb14cc1f8e07ef"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/host.go",
+      "sha256": "b45309d5e546e0ad0103d3472a0b2bee22e9ee852535d642d66db94c6d9dcb60"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/host_test.go",
+      "sha256": "c9892d883a29f9ec661fad6cd36c45d7cdaf65509bf3578f9c4274d6d4d885e3"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/launch_failure.go",
+      "sha256": "77189c29aec7e43c07a384170fc5f9abaf88d24abfc23b7cf76b2bd5b32d1544"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/launch_failure_test.go",
+      "sha256": "23b87e63e30106752c8630222d520d1d0b543cbebf8f088749a0bc1cbbf96e10"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/profile.go",
+      "sha256": "7fabf24680522a2a00572668a4aaf52098e5ab6ef10c87d398924d108e0be1d5"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/profile_test.go",
+      "sha256": "75c97f3fe0653ef4d41d1343f68d37bee094990c86388389f3e6f05c7449fd6f"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/provider_diagnostics.go",
+      "sha256": "c2f163b6eebc82efeeadd55e47b1b4626000fab9c9331126829f88e938588dce"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/host/provider_diagnostics_test.go",
+      "sha256": "89b74fcfc938ac36657efa9a4a344da1cf2d9875da986f2c0c67ed93843e470c"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/install/install.go",
+      "sha256": "9508b2ea241177813eb7243512a85ab229ab9c5fafbdaefa6f5d0ba6dac49131"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/install/install_test.go",
+      "sha256": "6961f948164a90f2478a8f5f3f4d099490269814b621c59ac5a0056eac87ba1a"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/process/process.go",
+      "sha256": "63bcaf81010ad622de5c20ba61384389d35a74a0a381e1712976870858b4d9dc"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/store/decisions.go",
+      "sha256": "d904379b64814d4b0c644953c2ad8d889e813af75f057c9d14ade432464d38cf"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/store/host_events.go",
+      "sha256": "4ad0259c61ece11d8188283c2f9efe12ecd87566fb885460b0fa40551a833a1c"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/store/limits.go",
+      "sha256": "5c5100ff25bbb42488e0ef64604436a3135697b56a43a269117665d5d9a4f8a9"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/store/review_retry_test.go",
+      "sha256": "a6130c85d8a188cd99b70d87903a149ef30491823b199db65b740c01da126739"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/store/runtime_test.go",
+      "sha256": "a07846ee76fd04150dadd94f62434f029f94e765af9b2ca46e367e6b5dfb1b31"
+    },
+    {
+      "status": " M",
+      "path": "tools/orchestrator/internal/store/scheduling.go",
+      "sha256": "a1c74f2913e6fc8039c7c02d387d8327667c7bc19ffebf908ab08a56a0481a0c"
+    },
+    {
+      "status": "??",
+      "path": ".qoder/"
+    },
+    {
+      "status": "??",
+      "path": "Library/"
+    },
+    {
+      "status": "??",
+      "path": "docs/capability-index-20260930.md",
+      "sha256": "7937aadc752034a12245cbf1d474761f5f5dfb9bca6e0085f052e5288a10bd74"
+    },
+    {
+      "status": "??",
+      "path": "plugins/codex-orchestrator/lib/native_bridge/__pycache__/"
+    },
+    {
+      "status": "??",
+      "path": "plugins/codex-orchestrator/lib/trial/__pycache__/"
+    },
+    {
+      "status": "??",
+      "path": "plugins/codex-orchestrator/scripts/__pycache__/"
+    },
+    {
+      "status": "??",
+      "path": "runtime/native/__pycache__/"
+    },
+    {
+      "status": "??",
+      "path": "tasks/cli-version-compatibility/"
+    },
+    {
+      "status": "??",
+      "path": "tools/native-product-bridge/__pycache__/"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/cmd/orchestrator/cross_host_dispatch_batch_test.go",
+      "sha256": "9609167717370fe271cde1acb88a27ae36e5a6634de4bb6c3c1ff8ff471fc6c8"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/cmd/orchestrator/real_version_matrix_test.go",
+      "sha256": "a04713e3d47b420954b2107c36885258a9cb7340096872c18b4241f71c972a2d"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/cmd/orchestrator/version_cli_test.go",
+      "sha256": "a151b48121c5c1e06087742fe8cd3dad657ca96da0c91d67c53485655618eb96"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/adapter/admit.go",
+      "sha256": "49a2561142fde0879c05978fc53d99470076554a813c418d1b0d576879a0831b"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/adapter/admit_test.go",
+      "sha256": "a3a17316e715e383e3898db052401bd569d9932b0b9d93b05bd51f6047109844"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/adapter/catalog.go",
+      "sha256": "ee9e7ad6f70f4c1407339aba8d3b5fb2a4b02bb7814c5b4e06288c03156cfc19"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/adapter/compatibility_catalog.json",
+      "sha256": "621642dffe4a3d7f9cfc664e92eedc837963084069ffb40da4622bcda150c78c"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/adapter/compatibility_test.go",
+      "sha256": "4a79c327cd7573cb1f5eb19b4835c6232843df291a4893d1019002a08245932f"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/adapter/probe_cause_observation_test.go",
+      "sha256": "e8f5017ba7584620fa12cd1b05fdcbfdd57be27e97d12d383488489d31a18c89"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/adapter/probe_failure_test.go",
+      "sha256": "8a8f3c48e76e6febfb4dee7eb480c1941e288f147ed55affd55a3373a8d3ff1a"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/adapter/version.go",
+      "sha256": "fe58cd097bc7ca0897088a76068086e987e87b3adff2cf7aba9915e622625b03"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/coordinator/cross_host_dispatch_wakeup_test.go",
+      "sha256": "1519ed8393a576f922f26645821bb8ddd668b8bbf5307e3ef394c8f5020afb18"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/budget_measurement_test.go",
+      "sha256": "99ce5735f50eb62d9443963a210f3b4cb54402db3ae9d85ac178a55b924cb11f"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/multi_task_stop_test.go",
+      "sha256": "1f06b8cef59e74b124b739d3e381a1fdc99b3cdff4ae9192b4355a586a4db1cd"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/s4_stage_timing_test.go",
+      "sha256": "99b3d5d3828dcf7ee2fa763d3595734b66d652841024631d03ed2c4703838932"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/stop_exit_publish_test.go",
+      "sha256": "03f65a7c4e4db8cca59f2c55da3d58fa3308ada37a135100c7f0dad026fa869c"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/stop_isolation_batch_test.go",
+      "sha256": "3eadade6136e1f67926af9802fe3220b73d70723d99714d9e91738e71e456daa"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/stop_lifecycle.go",
+      "sha256": "550aa74701fd359511273705adf79e549b8438677fe3f44da715458ea8d2da11"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/stop_lifecycle_batch_test.go",
+      "sha256": "351506dd26d3a300e678c2dc716cfbc6f73e1697b3e5cf4f2976c66ba3be496c"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/stop_lifecycle_guard_batch_test.go",
+      "sha256": "2ca333461f3622888f348f9f312660ea5995d8def0fbe50129a47729ad1b03d4"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/host/stop_result_race_test.go",
+      "sha256": "9a4283a28d61d3b99c52fb63aecea02e2f1fdf747096cbb67c9283e9f9176de9"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/process/start_failure_test.go",
+      "sha256": "29a1cc8beb36e9d85d12614ccace009cb054e4a89b33fde14719af95dcbc9167"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/process/stop_escalation_test.go",
+      "sha256": "f84b32da166d25a5982a939561e72693999574669bf2dd402a17e9157d6300b6"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/process/stop_exitcode_test.go",
+      "sha256": "aa61b1026ab3d752c887ea6fc8f1768e4b5c075cd6cccdc6eb66618d76c5b475"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/budget_lifecycle_batch_test.go",
+      "sha256": "4b60fca0b196f9965a354fa8f86564f03f1659f4bac89e0a2931e85ef32302cf"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/delivery_consistency_batch_test.go",
+      "sha256": "39801264baf87ac8e2bb4acc914375f7f6264098f372c423666eeb93735c71e7"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/delivery_consistency_matrix_test.go",
+      "sha256": "4cbd9705a3e3be679c73dbc1e869d33e1305dbbf06725e7ba558059b88e60f74"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/exit_acceptance_guard_test.go",
+      "sha256": "7ba0914ccc5111a4da472cfdce4d754e0262c57c8e05e93e18641643c42539cf"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/fifo_batch_test.go",
+      "sha256": "a7ac4677c94bcdae1beb9249521e8fce4d735aedbaa6e7fbb97fd0fe63af2fbb"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/fixture_policy_gate_test.go",
+      "sha256": "b9448b1153d637cddb942ec94238e1c783929979b545eed93899be6d99dbd2c3"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/lifecycle_ledger_matrix_test.go",
+      "sha256": "8303ab40ff42f18c7760dd465407b56d9856034e24495536e18210c57d588a5c"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/measured_settlement_test.go",
+      "sha256": "4165b2e7ea5744de6f9e1cf636148ec187df7fa371a3d8a54434b86641282ade"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/recovery_guards_test.go",
+      "sha256": "4bf07384b19078a8136168bf002d2c380fe9628828a762534a8647f07a81ac9f"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/recovery_sequence_matrix_test.go",
+      "sha256": "f3f7f2a65cfd13b19979426912c985d005ec25c4e9f1aface1ec465b59fe5f5b"
+    },
+    {
+      "status": "??",
+      "path": "tools/orchestrator/internal/store/unknown_terminal_ordering_test.go",
+      "sha256": "c9ad84d4c4457f7cc4892993dfa120227c796aa469d98ded5e42812472cd53b2"
+    },
+    {
+      "status": "??",
+      "path": "tools/real-user-trial/__pycache__/"
+    }
+  ]
+}

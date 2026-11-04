@@ -29,6 +29,8 @@ type Event struct {
 	Status         string
 	Text           string
 	StructuredText string
+	// DiagnosticCode contains only a fixed helper diagnostic vocabulary.
+	DiagnosticCode string
 }
 
 type StreamParser struct {
@@ -111,6 +113,12 @@ func parseCodex(object map[string]json.RawMessage) (Event, error) {
 		return Event{}, err
 	}
 	switch typeName {
+	case "codex_auth_guard":
+		var code string
+		// Missing, malformed and unknown codes are disposable diagnostics.
+		// Never project extra fields or a prefix/suffix of an unknown value.
+		_ = json.Unmarshal(object["code"], &code)
+		return Event{Kind: EventDiagnostic, DiagnosticCode: safeCodexGuardCode(code)}, nil
 	case "thread.started":
 		session, err := stringField(object, "thread_id")
 		if err != nil || !safeID(session) {
@@ -135,11 +143,17 @@ func parseCodex(object map[string]json.RawMessage) (Event, error) {
 		if itemType != "agent_message" {
 			return Event{Kind: EventDiagnostic}, nil
 		}
-		text, err := stringField(item, "text")
-		if err != nil {
-			return Event{}, err
+		// Empty intermediate messages precede tools; the collector still
+		// requires a nonempty final answer after turn.completed.
+		rawText, present := item["text"]
+		if !present {
+			return Event{}, errors.New("event_text_missing")
 		}
-		return Event{Kind: EventMessage, Text: text}, nil
+		var text *string
+		if json.Unmarshal(rawText, &text) != nil || text == nil {
+			return Event{}, errors.New("event_text_invalid")
+		}
+		return Event{Kind: EventMessage, Text: *text}, nil
 	case "turn.completed":
 		if err := validateCodexUsage(object["usage"]); err != nil {
 			return Event{}, err
@@ -163,6 +177,32 @@ func parseCodex(object map[string]json.RawMessage) (Event, error) {
 		return Event{Kind: EventDiagnostic, Status: "error", Text: message}, nil
 	default:
 		return Event{Kind: EventDiagnostic}, nil
+	}
+}
+
+// This vocabulary is intentionally pinned to the trusted codex_exec.py helper
+// and its auth_guard.py dependency. Additions require explicit review; provider
+// error messages, paths, environment and unknown codes must never pass through.
+func safeCodexGuardCode(code string) string {
+	switch code {
+	case "ready", "launch_failed",
+		"auth_access_token_expired", "auth_config_source_unsupported", "auth_config_source_unverified",
+		"auth_environment_unsupported", "auth_expiry_unverified", "auth_kind_unsupported",
+		"auth_metadata_expired", "auth_projection_changed", "auth_projection_path_untrusted",
+		"auth_source_changed", "auth_source_invalid", "auth_source_unavailable", "auth_source_untrusted",
+		"codex_exec_args_invalid", "codex_policy_untrusted",
+		"native_binary_unavailable", "native_bundle_untrusted", "native_login_status_failed",
+		"native_login_status_unverified", "native_path_untrusted", "native_sha256_mismatch",
+		"native_version_mismatch", "native_workspace_write_unverified", "refresh_override_already_present",
+		"auth_path_inconsistent", "bootstrap_auth_kind_missing", "credential_store_unsupported",
+		"external_auth_configured", "metadata_not_verified", "metadata_proof_invalid", "metadata_proof_missing",
+		"metadata_source_failed", "metadata_source_invalid", "metadata_source_untrusted", "metadata_source_unverified",
+		"use_agent_identity_enabled", "auth_kind_unknown", "auth_kind_workload_identity",
+		"auth_kind_command_external", "auth_kind_external_chatgpt_tokens", "bootstrap_auth_kind_unknown",
+		"bootstrap_auth_kind_workload_identity", "bootstrap_auth_kind_command_external", "bootstrap_auth_kind_external_chatgpt_tokens":
+		return code
+	default:
+		return ""
 	}
 }
 
@@ -302,6 +342,10 @@ func parseGrok(object map[string]json.RawMessage) (Event, error) {
 	case "text":
 		text, err := stringFieldOptional(object, "data")
 		return Event{Kind: EventMessage, SessionID: session, Text: text}, err
+	case "usage":
+		// Additive streaming-json record observed by 1.0.67. Token counts are
+		// not an answer and do not move the tool-boundary cursor.
+		return Event{Kind: EventDiagnostic, SessionID: session, Status: "usage"}, nil
 	case "tool_started", "tool_completed":
 		// Message boundary; tool names and outcomes stay provider-private.
 		return Event{Kind: EventProgress, SessionID: session, Status: typeName}, nil

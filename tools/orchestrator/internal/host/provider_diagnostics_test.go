@@ -13,6 +13,44 @@ import (
 	"testing"
 )
 
+func TestProviderDiagnosticsKeepsCountersForStringNamedEvents(t *testing.T) {
+	// AGY names each lifecycle event with a string ("init", "step_update",
+	// "result") instead of an Anthropic-shaped object. The observer declared the
+	// field as a struct, so every AGY line failed to unmarshal, landed in
+	// events.unparsed and never reached result_shapes or structured_results: a
+	// healthy AGY run was recorded as output that could not be parsed at all.
+	agy := strings.Join([]string{
+		`{"type":"system","subtype":"init","event":"init"}`,
+		`{"type":"assistant","event":"step_update","message":{"content":[{"type":"tool_use","name":"Read"}]}}`,
+		`{"type":"result","event":"result","result":"MATRIX-0123456789abcdef01234567","structured_output":{"marker":"MATRIX-0123456789abcdef01234567"}}`,
+	}, "\n")
+	report := providerDiagnostics(agy)
+	if got := report.Events["unparsed"]; got != 0 {
+		t.Fatalf("string-named AGY events counted as unparsed: %d, report %+v", got, report)
+	}
+	if report.Tools["Read"] != 1 {
+		t.Errorf("tool_use inside a string-named event lost: %+v", report.Tools)
+	}
+	if report.ResultShapes["text"] != 1 {
+		t.Errorf("final answer shape not recorded for the result line: %+v", report.ResultShapes)
+	}
+	if report.StructuredResults != 1 {
+		t.Errorf("structured result dropped for the result line: %+v", report.StructuredResults)
+	}
+	// Nothing about the tolerance may hide a body the observer genuinely cannot
+	// classify: an event that is neither an object nor a string, and a line that
+	// is not JSON at all, both still have to be counted.
+	for name, output := range map[string]string{
+		"array shaped event":  `{"type":"assistant","event":[1,2]}`,
+		"number shaped event": `{"type":"assistant","event":7}`,
+		"not json at all":     `{"type":"result","event":`,
+	} {
+		if got := providerDiagnostics(output).Events["unparsed"]; got != 1 {
+			t.Errorf("%s: unparsed = %d, want 1", name, got)
+		}
+	}
+}
+
 func TestProviderDiagnosticsExactCategories(t *testing.T) {
 	body, err := json.Marshal(providerDiagnostics(`{"type":"system|assistant","message":{"content":[{"type":"tool_use","name":"Read|Edit"}]}}`))
 	if err != nil {

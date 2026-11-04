@@ -1,0 +1,8 @@
+diff --git a/calc.py b/calc.py
+index 643fa8c..4693ad3 100644
+--- a/calc.py
++++ b/calc.py
+@@ -1,2 +1,2 @@
+ def add(a, b):
+-    raise NotImplementedError
++    return a + b

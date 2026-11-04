@@ -42,7 +42,7 @@ func TestReworkMigrationFromFiveRollsBackOnFailure(t *testing.T) {
 		t.Fatalf("missing rework ledger column: %d %v", cols, err)
 	}
 	// Recreate the exact old ledger layout, then cause the new trigger DDL to fail.
-	_, err = db.sql.Exec(`DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; UPDATE schema_meta SET version=5; CREATE TRIGGER quota_rework_INSERT AFTER INSERT ON retry_decisions BEGIN SELECT 1; END`)
+	_, err = db.sql.Exec(`ALTER TABLE runtime_hosts DROP COLUMN owner_request_changes_v2; DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; UPDATE schema_meta SET version=5; CREATE TRIGGER quota_rework_INSERT AFTER INSERT ON retry_decisions BEGIN SELECT 1; END`)
 	if err != nil {
 		t.Fatal(err)
 	}

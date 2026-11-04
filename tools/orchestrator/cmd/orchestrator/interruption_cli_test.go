@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -32,9 +33,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 			stopCoordinator(t, state)
 		}
 	}()
-	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
-		t.Fatalf("build: %s %v", out, err)
-	}
+	bin = deliveryTestBinary(t, bin)
 	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
 	defer cancel()
 	birth, err := process.Birth(os.Getpid())
@@ -72,7 +71,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 	hash := sha256.Sum256(contents)
-	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "max_active_ms": 20000, "adapter": map[string]any{"provider": "claude-code", "directory": root, "prompt": "fixture", "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 20000}, "provider_lock": map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]any{"path": provider, "version": "fixture-v1", "sha256": hex.EncodeToString(hash[:])}}}}}
+	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "max_active_ms": 20000, "adapter": map[string]any{"provider": "claude-code", "directory": root, "prompt": "fixture", "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 20000}, "provider_lock": map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]any{"path": provider, "version": "2.1.267 (Claude Code)", "sha256": hex.EncodeToString(hash[:])}}}}}
 
 	write(owner)
 	var submitted struct {
@@ -86,6 +85,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 	liveProgress := false
+	stopRequested := false
 	lastInspect := time.Time{}
 	for {
 		s := taskStatus(t, ctx, bin, state, "task", submitted.ControlFile)
@@ -101,6 +101,8 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 		if time.Since(lastInspect) > time.Second {
 			var status struct {
 				Tasks []struct {
+					TaskID         string                `json:"task_id"`
+					WorkRevision   int                   `json:"work_revision"`
 					LatestProgress *contract.ArtifactRef `json:"latest_progress"`
 				} `json:"tasks"`
 			}
@@ -109,6 +111,15 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 			}
 			if len(status.Tasks) == 1 && status.Tasks[0].LatestProgress != nil {
 				liveProgress = true
+				if !stopRequested {
+					// The initial shortcut is intentionally invalid: stopping
+					// must bind the currently observed task and work revision.
+					if out, err := exec.CommandContext(ctx, bin, "task", "stop", "--handle", handle).CombinedOutput(); err == nil || !strings.Contains(string(out), "invalid_args") {
+						t.Fatalf("unbound stop: %s %v", out, err)
+					}
+					runBinary(t, ctx, bin, "task", "stop", "--handle", handle, "--task-id", status.Tasks[0].TaskID, "--work-revision", strconv.Itoa(status.Tasks[0].WorkRevision))
+					stopRequested = true
+				}
 			}
 			lastInspect = time.Now()
 		}
@@ -122,7 +133,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 	if err = json.Unmarshal(runBinary(t, ctx, bin, "task", "collect", "--handle", handle, "--include-diagnostics"), &collection); err != nil {
 		t.Fatal(err)
 	}
-	if !liveProgress {
+	if !liveProgress || !stopRequested {
 		t.Fatal("no progress visible before interruption")
 	}
 	if collection.CollectionProofSHA256 == "" {
@@ -148,7 +159,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 			}
 		}
 	}
-	if !found || event.StopReason == "" || event.Artifact != nil {
+	if !found || event.StopReason != "owner_stop_requested" || event.Artifact != nil {
 		t.Fatalf("missing interruption: %+v", event)
 	}
 
@@ -161,6 +172,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 	}
 	var summary struct {
 		Tasks []struct {
+			ActiveSegments      int    `json:"active_segments"`
 			Status              string `json:"status"`
 			ResumeBlockedReason string `json:"resume_blocked_reason"`
 			StopReason          string `json:"stop_reason"`
@@ -169,7 +181,7 @@ func TestCLIInterruptionFeedbackUsesIndependentProgress(t *testing.T) {
 	if err = json.Unmarshal(runBinary(t, ctx, bin, "task", "inspect", "--handle", handle), &summary); err != nil {
 		t.Fatal(err)
 	}
-	if len(summary.Tasks) != 1 || summary.Tasks[0].Status != "interrupted" || summary.Tasks[0].ResumeBlockedReason != "profile_resume_not_verified" || summary.Tasks[0].StopReason != event.StopReason {
+	if len(summary.Tasks) != 1 || summary.Tasks[0].Status != "interrupted" || summary.Tasks[0].ActiveSegments != 0 || summary.Tasks[0].ResumeBlockedReason != "profile_resume_not_verified" || summary.Tasks[0].StopReason != event.StopReason {
 		t.Fatalf("%+v", summary)
 	}
 	output, err := exec.CommandContext(ctx, bin, "task", "resume", "--handle", handle, "--work-revision", "1").CombinedOutput()

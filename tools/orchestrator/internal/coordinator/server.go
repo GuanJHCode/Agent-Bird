@@ -102,6 +102,12 @@ type RetryRequest struct {
 	CommandID       string `json:"command_id"`
 }
 
+type RequestChangesRequest struct {
+	store.OwnerReworkSpec
+	ControllerThread string `json:"controller_thread"`
+	ControlToken     string `json:"control_token"`
+}
+
 type ReworkRequest struct {
 	store.ReworkSpec
 	ControllerThread string `json:"controller_thread"`
@@ -445,12 +451,12 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 	var payload json.RawMessage
 	var err error
 	switch message.Kind {
-	case ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
+	case ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindRequestChanges, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
 		ctx, err = s.authorizePeer(ctx, conn)
 	}
 	if err == nil {
 		switch message.Kind {
-		case ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
+		case ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindRequestChanges, ipc.KindAccept, ipc.KindAnswer:
 			ancestry, _ := ctx.Value(peerAncestryKey{}).(map[int]string)
 			err = s.db.ValidateDispatchPeer(ctx, ancestry)
 		}
@@ -469,7 +475,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "owner_request_changes_v2"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
@@ -621,6 +627,20 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		s.dispatchAll()
 		return json.Marshal(receipt)
+	case ipc.KindRequestChanges:
+		var request RequestChangesRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+			return nil, err
+		}
+		receipt, err := s.db.QueueRequestChanges(ctx, request.OwnerReworkSpec)
+		if err != nil {
+			return nil, err
+		}
+		s.dispatchAll()
+		return json.Marshal(receipt)
 	case ipc.KindRework:
 		var request ReworkRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -648,6 +668,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			return nil, err
 		}
 		s.dispatchAll()
+		s.retireCompletedHosts()
 		s.releaseTaskPins()
 		return json.Marshal(StatusResponse{Status: status})
 	case ipc.KindAnswer:
@@ -875,9 +896,10 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	if err = s.db.FinishHostReconcile(context.Background(), hostID); err != nil {
 		return
 	}
-	if err = s.dispatch(session, true); err != nil {
+	if _, err = s.dispatch(session, true); err != nil {
 		return
 	}
+	s.dispatchAll()
 	for {
 		incoming, readErr := ipc.Read(conn)
 		if readErr != nil || incoming.Epoch != s.epoch {
@@ -901,13 +923,14 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		}
 		s.dispatchPendingStops()
 		s.retireCompletedHosts()
+		s.dispatchAll()
 		s.mu.Lock()
 		_, stillRegistered := s.hosts[session.id]
 		s.mu.Unlock()
 		if !stillRegistered {
 			return
 		}
-		if err = s.dispatch(session, false); err != nil {
+		if _, err = s.dispatch(session, false); err != nil {
 			return
 		}
 	}
@@ -964,29 +987,31 @@ func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (b
 	return true, session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindDurableAck, RequestID: incoming.RequestID, Epoch: s.epoch, Payload: body})
 }
 
-func (s *Server) dispatch(session *hostSession, includePending bool) error {
+func (s *Server) dispatch(session *hostSession, includePending bool) (bool, error) {
+	launched := false
 	if includePending {
 		pending, err := s.db.PendingLaunches(context.Background(), session.id, s.epoch)
 		if err != nil {
-			return err
+			return false, err
 		}
 		for _, command := range pending {
 			if err = sendLaunch(session, s.epoch, command); err != nil {
-				return err
+				return false, err
 			}
 		}
 	}
 	for {
 		command, err := s.db.ClaimReady(context.Background(), session.id, s.epoch, 0)
 		if errors.Is(err, store.ErrNoReady) || errors.Is(err, store.ErrNoSlot) {
-			return nil
+			return launched, nil
 		}
 		if err != nil {
-			return err
+			return launched, err
 		}
 		if err = sendLaunch(session, s.epoch, command); err != nil {
-			return err
+			return launched, err
 		}
+		launched = true
 	}
 }
 
@@ -997,8 +1022,17 @@ func (s *Server) dispatchAll() {
 		hosts = append(hosts, host)
 	}
 	s.mu.Unlock()
-	for _, host := range hosts {
-		_ = s.dispatch(host, false)
+	for pass := 0; pass < 32; pass++ {
+		progressed := false
+		for _, host := range hosts {
+			launched, err := s.dispatch(host, false)
+			if err == nil && launched {
+				progressed = true
+			}
+		}
+		if !progressed {
+			return
+		}
 	}
 }
 

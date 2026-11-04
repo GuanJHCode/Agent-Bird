@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 	"context"
 	"os"
 	"path/filepath"
@@ -26,6 +27,35 @@ func TestCurrentCodexRejectsIdentityOverrides(t *testing.T) {
 		err := run(context.Background(), args, &bytes.Buffer{}, &bytes.Buffer{})
 		if err == nil || err.Error() != "invalid_args" {
 			t.Fatalf("%v: %v", extra, err)
+		}
+	}
+}
+
+func TestCurrentCodexOwnerExcludesOnlyExactObservedDaemon(t *testing.T) {
+	for _, daemonFirst := range []bool{false, true} {
+		var req coordinator.OwnerBindRequest
+		var err error
+		if daemonFirst {
+			req, err = observeCodexOwner(req, "thread", 10, "daemon-birth", true)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		req, err = observeCodexOwner(req, "thread", 20, "session-birth", false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !daemonFirst {
+			req, err = observeCodexOwner(req, "thread", 10, "daemon-birth", true)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		if req.OriginPID != 20 || req.OriginBirth != "session-birth" {
+			t.Fatalf("selected=%+v", req)
+		}
+		if _, err = observeCodexOwner(req, "thread", 30, "another-session", false); err == nil || err.Error() != "current_codex_origin_ambiguous" {
+			t.Fatalf("multiple sessions=%v", err)
 		}
 	}
 }

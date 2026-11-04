@@ -19,6 +19,10 @@ const (
 	ProviderGrok   Provider = "grok-build"
 	ProviderCodex  Provider = "codex-cli"
 
+	// CodexVersion and CodexSHA256 identify the historical 0.154.0 baseline
+	// binary. They still block that exact identity when it is presented as
+	// another provider. They are not an allow-list for later stable releases;
+	// each run binds its own path, raw --version text, and SHA-256.
 	CodexVersion = "codex-cli 0.154.0"
 	CodexSHA256  = "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
 )
@@ -108,7 +112,10 @@ func BuildInvocation(req Request) (Invocation, error) {
 			req.Permission = Permission{Mode: "default"}
 		}
 		if req.Provider == ProviderClaude {
-			req.Permission.Deny = []string{"Agent", "Task"}
+			req.Permission.Deny = []string{"Bash", "Agent", "Task", "WebFetch", "WebSearch", "mcp__*"}
+			if req.Profile.Role == Reviewer {
+				req.Permission.Deny = append(req.Permission.Deny, "Edit", "MultiEdit", "Write", "NotebookEdit")
+			}
 		}
 	}
 	if req.Provider != ProviderClaude && req.Provider != ProviderAGY && req.Provider != ProviderGrok && req.Provider != ProviderCodex {
@@ -120,14 +127,17 @@ func BuildInvocation(req Request) (Invocation, error) {
 	if req.Binary.Version == "" || !hex64.MatchString(strings.ToLower(req.Binary.SHA256)) {
 		return Invocation{}, errors.New("binary_pin_invalid")
 	}
-	if req.Provider == ProviderCodex && (req.Binary.Version != CodexVersion || strings.ToLower(req.Binary.SHA256) != CodexSHA256) {
-		return Invocation{}, errors.New("codex_binary_pin_mismatch")
+	if err := AdmitVersion(req.Provider, req.Binary.Version); err != nil {
+		return Invocation{}, err
 	}
 	if req.CWD == "" || !filepath.IsAbs(req.CWD) || filepath.Clean(req.CWD) != req.CWD {
 		return Invocation{}, errors.New("cwd_invalid")
 	}
 	if req.Provider == ProviderCodex && (req.Prompt == "" || strings.ContainsRune(req.Prompt, '\x00')) {
 		return Invocation{}, errors.New("codex_prompt_invalid")
+	}
+	if req.Provider == ProviderCodex && req.Profile == nil && req.Permission.Mode != "plan" {
+		return Invocation{}, errors.New("codex_readonly_plan_required")
 	}
 	if err := validatePermission(req.Provider, req.Permission); err != nil {
 		return Invocation{}, err
@@ -145,6 +155,9 @@ func BuildInvocation(req Request) (Invocation, error) {
 		return Invocation{}, errors.New("session_reference_invalid")
 	}
 	if req.Session.ID != "" {
+		if req.Provider == ProviderCodex {
+			return Invocation{}, errors.New("profile_resume_not_verified")
+		}
 		if req.Provider == ProviderAGY && req.Session.Kind != ConversationID {
 			return Invocation{}, errors.New("agy_requires_conversation_id")
 		}
@@ -157,13 +170,27 @@ func BuildInvocation(req Request) (Invocation, error) {
 	input := []byte(nil)
 	switch req.Provider {
 	case ProviderClaude:
-		args = append(args, "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--include-partial-messages")
+		args = append(args, "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose")
 		if req.Session.ID != "" {
 			args = append(args, "--resume", req.Session.ID)
+		}
+		if req.Profile != nil {
+			tools := "Read,Glob,Grep"
+			if req.Profile.Role == Implementer {
+				tools += ",Edit,MultiEdit,Write,NotebookEdit"
+			}
+			args = append(args, "--tools", tools)
 		}
 		input = userEvent(req.Prompt)
 	case ProviderAGY:
 		args = append(args, "--output-format", "stream-json", "--input-format", "stream-json")
+		// Not every released AGY in the frozen window treats the process working
+		// directory as its workspace. 1.2.3 answers a cwd-scoped read with "no
+		// active workspace" after searching from the user's home; 1.4.12 honors the
+		// working directory. Declare the directory explicitly so both endpoints of
+		// the window share one argv. This is the directory the profile already
+		// authorizes, so it widens no scope.
+		args = append(args, "--add-dir", req.CWD)
 		if req.Session.ID != "" {
 			args = append(args, "--conversation", req.Session.ID)
 		}
@@ -177,20 +204,31 @@ func BuildInvocation(req Request) (Invocation, error) {
 			args = append(args, "--resume", req.Session.ID)
 		}
 	case ProviderCodex:
+		model, effort := "gpt-5.6-luna", "medium"
+		if req.Profile != nil {
+			if req.Profile.Model != "" {
+				model = string(req.Profile.Model)
+			}
+			if req.Profile.Reasoning != "" {
+				effort = string(req.Profile.Reasoning)
+			}
+		}
 		args = append(args,
 			"exec", "--json", "--color", "never",
-			"--model", "gpt-5.6-luna",
-			"--sandbox", "read-only",
-			"-c", `model_reasoning_effort="medium"`,
+			"--ephemeral", "--skip-git-repo-check", "--strict-config", "--ignore-rules",
+			"-c", `model_reasoning_effort="`+effort+`"`,
 			"-c", `approval_policy="never"`,
 		)
-		if req.Session.ID != "" {
-			args = append(args, "resume", req.Session.ID)
+		if req.Profile == nil || !req.Profile.CLIModelDefault {
+			args = append(args, "--model", model)
 		}
 		args = append(args, "-")
 		input = []byte(req.Prompt)
 	}
-	appendPermissionArgs(&args, req.Provider, req.Permission)
+	appendPermissionArgs(&args, req.Provider, req.Binary.Version, req.Permission)
+	if req.Provider == ProviderClaude && req.Profile != nil && req.Profile.Role == Implementer {
+		args = append(args, "--permission-mode", "acceptEdits")
+	}
 	if usesCandidateReviewSchema(req) {
 		args = append(args, "--json-schema", candidateReviewSchema)
 	}
@@ -221,7 +259,7 @@ func validatePermission(provider Provider, p Permission) error {
 		return errors.New("permission_allow_expansion_forbidden")
 	}
 	if provider == ProviderCodex {
-		if p.Mode != "plan" || len(p.Deny) > 0 {
+		if (p.Mode != "plan" && p.Mode != "default") || len(p.Deny) > 0 {
 			return errors.New("codex_readonly_plan_required")
 		}
 		return nil
@@ -245,7 +283,7 @@ func validatePermission(provider Provider, p Permission) error {
 	return nil
 }
 
-func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
+func appendPermissionArgs(args *[]string, provider Provider, rawVersion string, p Permission) {
 	if provider == ProviderCodex {
 		return
 	}
@@ -258,11 +296,34 @@ func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
 	}
 	if len(p.Deny) > 0 {
 		flag := "--disallowed-tools"
+		if provider == ProviderClaude {
+			flag = claudeDisallowedFlag(rawVersion)
+		}
 		if provider == ProviderGrok {
 			flag = "--deny"
 		}
 		*args = append(*args, flag, strings.Join(p.Deny, ","))
 	}
+}
+
+// The kebab alias first appears in 1.0.86. Older published JSONL releases
+// advertise only the original camel-case option.
+func claudeDisallowedFlag(raw string) string {
+	version, err := parseCLIVersion(raw)
+	alias, _ := parseCLIVersion("1.0.86")
+	if err == nil && version.compare(alias) < 0 {
+		return "--disallowedTools"
+	}
+	return "--disallowed-tools"
+}
+
+func claudeLegacySeries(raw string) bool {
+	if AdmitVersion(ProviderClaude, raw) != nil {
+		return false
+	}
+	version, _ := parseCLIVersion(raw)
+	previousFloor, _ := parseCLIVersion("2.1.267")
+	return version.compare(previousFloor) < 0
 }
 
 func validateExtraArgs(args []string) error {

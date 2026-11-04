@@ -1,0 +1,11 @@
+{
+  "status": "rework_queued",
+  "task_id": "bird-cdf0eee1eede23a414ba11e0-work",
+  "work_revision": 2,
+  "candidate_oid": "50c619a6f1d672584e11bf42227449f778bf29f9",
+  "review_event_id": "",
+  "revision_sha256": "930bbf5f610693a7d0ee383a63d23614f107fb5d6ea222c63fdd0428e3ee9ba5",
+  "task_revisions": {
+    "bird-cdf0eee1eede23a414ba11e0-work": 2
+  }
+}

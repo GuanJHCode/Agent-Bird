@@ -1,0 +1,89 @@
+{
+  "source": "68e875868215ecb1fd8daf540799fd3d0eee25e3",
+  "counts": {
+    "pass": 1175,
+    "skip": 8
+  },
+  "top_level": {
+    "pass": 540,
+    "skip": 8
+  },
+  "failures": [],
+  "packages": [
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/contract",
+      "Action": "skip",
+      "Elapsed": 0
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker",
+      "Action": "pass",
+      "Elapsed": 3.392
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/admincli",
+      "Action": "pass",
+      "Elapsed": 3.461
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/events",
+      "Action": "pass",
+      "Elapsed": 4.7379999999999995
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/instance",
+      "Action": "pass",
+      "Elapsed": 6.237
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/ipc",
+      "Action": "pass",
+      "Elapsed": 8.038
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/adapter",
+      "Action": "pass",
+      "Elapsed": 8.159
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/install",
+      "Action": "pass",
+      "Elapsed": 8.435
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator",
+      "Action": "pass",
+      "Elapsed": 13.306
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/nativebridgecli",
+      "Action": "pass",
+      "Elapsed": 10.049
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/process",
+      "Action": "pass",
+      "Elapsed": 12.507
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/gitops",
+      "Action": "pass",
+      "Elapsed": 30.378
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+      "Action": "pass",
+      "Elapsed": 152.275
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/internal/store",
+      "Action": "pass",
+      "Elapsed": 162.48
+    },
+    {
+      "Package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+      "Action": "pass",
+      "Elapsed": 285.274
+    }
+  ]
+}

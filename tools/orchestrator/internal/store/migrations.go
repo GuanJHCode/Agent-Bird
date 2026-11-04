@@ -1,6 +1,6 @@
 package store
 
-const currentSchemaVersion = 8
+const currentSchemaVersion = 9
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
@@ -65,6 +65,11 @@ func (d *DB) migrateRuntime() error {
 	}
 	if version < 8 {
 		if _, err = tx.Exec(`CREATE TABLE provider_settings(controller_thread TEXT NOT NULL, provider TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)), model TEXT, PRIMARY KEY(controller_thread,provider)); UPDATE schema_meta SET version=8`); err != nil {
+			return err
+		}
+	}
+	if version < 9 {
+		if _, err = tx.Exec(`ALTER TABLE runtime_hosts ADD COLUMN owner_request_changes_v2 INTEGER NOT NULL DEFAULT 0 CHECK(owner_request_changes_v2 IN (0,1)); UPDATE schema_meta SET version=9`); err != nil {
 			return err
 		}
 	}

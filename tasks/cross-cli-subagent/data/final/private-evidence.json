@@ -1,0 +1,55 @@
+{
+  "files": [
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/go-race-v7.json",
+      "size": 1215704,
+      "sha256": "de58d401260e580b09d2deaad7e2bd25a0e52f37fde84c62197fb8eea207c7dc"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/go-vet-v7.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/original-go-build.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/reverse-v7-parent.stdout",
+      "size": 334623,
+      "sha256": "a05a6e59272f1304ffbcb5534ad5db8742aa045c15603829cfc0714b5c159fe0"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/reverse-v7-parent.stderr",
+      "size": 91,
+      "sha256": "d8e28b065c6ef95bf89ab3afc1c22dfbb6b038fdfc00a82bc4ce85d084743f8a"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/reverse-v7-parent-summary.json",
+      "size": 26960,
+      "sha256": "e57f445a02c4bdad4c23e8aaf804d0c348a312baec2f8eb4df94c601340cb0f4"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/python-native-final.xml",
+      "size": 36656,
+      "sha256": "2a23096242e7458075ac61ce2d968582e900557dff94054f67a160134688f0fa"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/python-native-final.log",
+      "size": 3884,
+      "sha256": "07f21f0ee278d4ec3f93b11faeb861183ac21075c8160401c29586eb6184002d"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/python-package-v7.xml",
+      "size": 4664,
+      "sha256": "612b35ca2d493f28b42adc2e9471a5bc0fe2796d7ef9c1adc4a676703843b7c7"
+    },
+    {
+      "path": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/data/final/python-package-v7.log",
+      "size": 99,
+      "sha256": "6be03d80d17804a98d575f4a9cc9d180c4eed9c40f8549ac5fe15f3c507f910e"
+    }
+  ],
+  "retention": "Retain failure diagnostics and immutable runtime bindings until blocker resolution; no automatic deletion scheduled."
+}

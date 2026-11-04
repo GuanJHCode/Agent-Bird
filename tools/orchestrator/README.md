@@ -75,7 +75,9 @@ verify the brief, artifacts and actual test evidence before approving the bound
 candidate. Prefer 30-second `wait-events` over status polling and retain cursors
 and receipt paths for recovery after context compression.
 
-Codex JSONL currently uses the pinned 0.154.0 contract. Structured records above
+Provider versions are a frozen inclusive window of published stable releases, recorded in `internal/adapter/compatibility_catalog.json` (queried 2026-11-02). Claude is 2.1.267–2.1.316, AGY 1.2.3–1.4.12, Grok 1.0.34–1.0.70, and Codex 0.154.0–0.166.0. The runtime does not resolve `latest` on each launch. A run still pins the absolute binary, the raw `--version` text, and its SHA-256. To move the ceiling, replace that catalog from the official release source and re-check the new binary; do not turn the check into a network lookup. Codex launch requires an exact native SHA pin and a receipt-backed full-native installation; an unknown digest stays `codex_trial_guard_not_ready`, and a source binary or collect-only package remains blocked by the package/runtime guard. Pre-release, nightly, and dev builds stay outside the window.
+
+Codex JSONL keeps the `codex-jsonl-0.154.0` contract family. Structured records above
 64 KiB fail with a bounded artifact containing `status: incomplete` and reason
 `provider_critical_event_too_large`; earlier messages are never used as the final
 answer after that failure. This conservatively includes oversized structured
@@ -159,8 +161,7 @@ New requests use separate protocol, Execution Profile and Provider Lock objects;
 see [configuration and recovery](../../docs/provider-runtime.md) for exact JSON,
 `provider-probe` / confirmed `provider-lock`, and the persisted concurrency policy.
 Legacy invocation fields remain accepted within their existing boundary; they are
-not a fallback for a rejected profile. Typed Codex/AGY/Grok and typed session
-resume are explicitly unsupported until their capability gates are verified.
+not a fallback for a rejected profile. Typed Codex/AGY/Grok readonly requests retain their provider capability gates; typed session resume remains explicitly unsupported. Codex managed write additionally requires its exact 0.166.0 pin and full-native installation.
 
 `owner-bind --request <private-json>` registers a local main-agent identity using
 kernel peer ancestry and PID birth. Submit with `owner_mode=local` and
@@ -182,12 +183,36 @@ or the Host is subsequently lost again. See the installed orchestration Skill
 for the request shape and recovery limits. This is not Provider session resume.
 
 Production Python source is in `runtime/native`; the package retains the pinned
-`runtime/g0` installed layout. Database schema v5 uses atomic, ordered migrations
-and transactionally maintained storage counters. Newer databases cannot be
-opened by older binaries. Spool ACK archives the confirmed prefix; it does not
-release storage quota or discard reconciliation history.
+`runtime/g0` installed layout. Current database schema v9 uses atomic, ordered
+migrations: v5 introduced transactional storage counters, v6 added retry revision
+payloads, v7 added Host progress records and quota triggers, v8 added per-controller
+Provider settings, and v9 added the Host `owner_request_changes_v2` capability bit.
+Newer databases cannot be opened by older binaries. Spool ACK archives the
+confirmed prefix; it does not release storage quota or discard reconciliation
+history.
 
 See [installation](../../docs/installation.md), [support matrix](../../docs/support-matrix.md)
 and [test layers](../../docs/testing.md) before enabling a Provider in a main-agent
 workflow. The real CLI trial and synthetic protocol tests establish different
 claims and are reported separately.
+
+
+Managed main sessions use the installed `scripts/invoke.sh controller start --provider claude|grok|agy`.
+Native Codex can bind its verified current owner. `routing` stores advisory preferences;
+it never starts a model or grants execution. `task dispatch --request <private-json>`
+returns the stable handle for an explicit version-1 request with request_id, provider,
+confirmed provider_lock, directory, prompt, role, acceptance, max_attempts and
+max_active_ms (plus paths for implementation). Reuse that handle for bounded `task wait`,
+`inspect` and `collect`. Use `reconcile` only for submitting/submit_uncertain handles with their original control receipt, or a reconciled replay; it never silently resubmits. To cancel, inspect the exact task_id/work_revision and call `task stop --handle H --task-id <observed-task-id> --work-revision <observed-work-revision>`, then verify the terminal execution-tree state.
+
+`task request-changes --handle H --request private.json` accepts the strict owner
+brief `{work_revision,candidate_oid,feedback,acceptance,command_id}` and task_id for
+multi-task handles. The observed tuple comes from inspect. Replays preserve the original
+checkpoint; new work uses a fresh invocation and workspace. The corresponding
+launch must have exactly one ready Host advertising `owner_request_changes_v2`;
+an older Host causes `host_upgrade_required`. Schema migration defaults this bit
+to false; HostHello registration/reconnection updates it. Queued v2 rework is
+checked again before scheduling and launch delivery. `task accept` retains its
+full event tuple contract, and delivery ACK remains separate. Managed write support is
+narrower than readonly admission: exact Claude gateway 2.1.267/2.1.316 and Codex 0.166.0.
+Do not treat catalog admission or fixture tests as live model acceptance.

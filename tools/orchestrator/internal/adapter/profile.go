@@ -3,6 +3,7 @@ package adapter
 import (
 	"errors"
 	"regexp"
+	"strings"
 )
 
 type Role string
@@ -63,6 +64,9 @@ func validateProfile(req Request) error {
 	}
 	p := req.Profile
 	if p == nil {
+		if req.Provider == ProviderClaude && claudeLegacySeries(req.Binary.Version) {
+			return errors.New("claude_legacy_typed_readonly_required")
+		}
 		return nil
 	}
 	if p.GrokSessionWrite && req.Provider != ProviderGrok {
@@ -71,11 +75,20 @@ func validateProfile(req Request) error {
 	if req.Lock == nil {
 		return errors.New("provider_lock_invalid")
 	}
+	if err := AdmitVersion(req.Provider, req.Binary.Version); err != nil {
+		return err
+	}
 	if req.Session.ID != "" {
 		return errors.New("profile_resume_not_verified")
 	}
 	if req.Provider == ProviderCodex {
-		return errors.New("codex_trial_guard_not_ready")
+		want, ok := CodexNativePins()[req.Binary.Version]
+		if !ok || !strings.EqualFold(req.Binary.SHA256, want) {
+			return CodexTrialBlocked()
+		}
+	}
+	if req.Provider == ProviderClaude && claudeLegacySeries(req.Binary.Version) && (p.Role != Reviewer || p.Permission != ReadOnly || req.Action != nil || req.Workspace != nil) {
+		return errors.New("claude_legacy_typed_readonly_required")
 	}
 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
 		return errors.New("execution_profile_invalid")
@@ -89,13 +102,8 @@ func validateProfile(req Request) error {
 	if p.Reasoning != "" && p.Reasoning != "low" && p.Reasoning != "medium" && p.Reasoning != "high" {
 		return errors.New("reasoning_unsupported")
 	}
-	if req.Provider == ProviderGrok {
-		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
-			return errors.New("grok_version_not_verified")
-		}
-		if !p.GrokSessionWrite {
-			return errors.New("grok_session_write_required")
-		}
+	if req.Provider == ProviderGrok && !p.GrokSessionWrite {
+		return errors.New("grok_session_write_required")
 	}
 	if req.Provider != ProviderClaude && req.Provider != ProviderCodex && req.Provider != ProviderAGY && req.Provider != ProviderGrok {
 		return errors.New("execution_profile_unsupported")
@@ -103,8 +111,13 @@ func validateProfile(req Request) error {
 	if len(req.Permission.Allow) > 0 || len(req.Permission.Deny) > 0 || (req.Permission.Mode != "" && req.Permission.Mode != "plan" && req.Permission.Mode != "default") {
 		return errors.New("profile_legacy_permission_conflict")
 	}
-	if p.Role == Implementer && req.Provider != ProviderClaude {
+	if p.Role == Implementer && req.Provider != ProviderClaude && req.Provider != ProviderCodex {
 		return errors.New("implementer_unsupported")
+	}
+	if p.Role == Implementer && req.Provider == ProviderCodex {
+		if err := CodexWorkspaceWriteAdmission(req.Binary.Version, req.Binary.SHA256); err != nil {
+			return err
+		}
 	}
 	if p.Role == Implementer && req.Permission.Mode == "plan" {
 		return errors.New("profile_legacy_permission_conflict")
@@ -131,24 +144,27 @@ func CheckCapabilities(req Request, help string) error {
 	}
 	flags := []string{"--output-format", "--input-format", "--permission-mode"}
 	if req.Provider == ProviderClaude {
-		flags = append(flags, "--disallowed-tools")
+		flags = append(flags, claudeDisallowedFlag(req.Binary.Version), "--tools")
 	}
 	if usesCandidateReviewSchema(req) {
 		flags = append(flags, "--json-schema")
 	}
 	if req.Provider == ProviderAGY {
-		flags = []string{"--output-format", "--input-format", "--mode"}
+		// --add-dir is how the profile's own directory is declared as the AGY
+		// workspace. A build that does not advertise it cannot be pointed at that
+		// directory, so its capability is not established and it stays rejected.
+		flags = []string{"--output-format", "--input-format", "--mode", "--add-dir"}
 	}
 	if req.Provider == ProviderGrok {
 		flags = []string{"--output-format", "--permission-mode", "--no-subagents", "--disable-web-search", "--session-id", "--leader-socket", "--tools", "--deny"}
 	}
 	if req.Provider == ProviderCodex {
-		return errors.New("codex_trial_guard_not_ready")
+		flags = []string{"--json", "--color", "--model", "--config", "--ephemeral", "--skip-git-repo-check", "--strict-config", "--ignore-rules"}
 	}
 	if req.Profile.Model != "" {
 		flags = append(flags, "--model")
 	}
-	if req.Profile.Reasoning != "" {
+	if req.Profile.Reasoning != "" && req.Provider != ProviderCodex {
 		flags = append(flags, "--effort")
 	}
 	if req.Session.ID != "" {

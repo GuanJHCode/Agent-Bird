@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from dataclasses import dataclass
 from typing import Mapping
 from typing import Protocol
@@ -10,6 +11,30 @@ EXPECTED_NATIVE_VERSION = "0.154.0"
 EXPECTED_NATIVE_SHA256 = (
     "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
 )
+# Each additional native identity requires a native refresh-tripwire acceptance.
+NATIVE_ADMISSIONS = {
+    '0.154.0': '4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc',
+    '0.155.0': 'b0b14f9c1901c1ec44671094b2dc18b39e4bd8d36a6dc2302cc9d961a7e2a197',
+    '0.155.1': '8eaf1ad12fe6bf89b1710330f58900014322c7c5af677e43be116d8ac5fc0a9e',
+    '0.156.0': '6b42db4d33fd53516162bd76a0e2d07e0567287c44e036d4e4c06cb555a432f9',
+    '0.156.1': '0196e89fe5a7598f816ee54232c3d7c26d75e502ab5cfe2c9240e81d90f7255a',
+    '0.157.0': 'ad0be20d04e2ba6146ecdb51d7f8b7b0fe15420a15dc9b0057518d858f1f3714',
+    '0.157.1': '27ceb5f9b957b43a519efe4eaa3816a0bffb0a531a2c89af18840c0a3c016a7d',
+    '0.158.0': '788a818fbb9596869c7a487554507cb8bdca17584b8671112b23f9e225ba35c8',
+    '0.159.0': 'e89718aa1969bfc4a471277bdc4679a3a3529293de0a309909822dfd67ddb77a',
+    '0.159.1': 'ab2ed513b0ae735151799ab57045e05ca721c4730859b5aa2f2a9e9bed287eb8',
+    '0.159.2': '16593cc2f422d5f398a8e40f550ebbaf1245392528957be342c295920a300704',
+    '0.159.3': '4d210f7c5a18fd0386434df23b5bdbb8c0e7257d3e8a2b30b0769c8bbe99a878',
+    '0.160.0': '112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b',
+    '0.160.1': '09fa44fdc37a5fc70dc1ace31235f90468a2e193d0e85f7552eab068ea2582be',
+    '0.161.0': '12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de',
+    '0.162.0': '8238273076041e55beded03ba1d51e034f997b7d100b0642d36daf036620fe57',
+    '0.162.1': '74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0',
+    '0.163.0': '8813367285524ac798dd96d1b071aea30d58708c7226fd236cd275cf1cfdee31',
+    '0.164.0': 'd8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf',
+    '0.165.0': 'a45099154d7fb4a5ed8a56f40966a95deb938e508bab23e6985035c709e9a85a',
+    '0.166.0': '39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1',
+}
 REFRESH_OVERRIDE_ENV = "CODEX_REFRESH_TOKEN_URL_OVERRIDE"
 REFRESH_TRIPWIRE = "invalid://refresh-blocked"
 
@@ -74,6 +99,7 @@ class VerifiedAuthMetadata:
         "_source_kind",
         "_proof_sha256",
         "_seal",
+        "_observed_at",
     )
 
     def __init__(
@@ -98,6 +124,7 @@ class VerifiedAuthMetadata:
         self._source_kind = source_kind
         self._proof_sha256 = proof_sha256
         self._seal = _seal
+        self._observed_at = time.monotonic()
 
 
 class VerifiedMetadataSource(Protocol):
@@ -144,9 +171,9 @@ def extract_safe_auth_metadata(source: VerifiedMetadataSource) -> VerifiedAuthMe
         )
     ):
         raise AuthGuardBlocked("metadata_source_invalid")
-    if observation.native_version != EXPECTED_NATIVE_VERSION:
+    if observation.native_version not in NATIVE_ADMISSIONS:
         raise AuthGuardBlocked("native_version_mismatch")
-    if observation.native_sha256 != EXPECTED_NATIVE_SHA256:
+    if observation.native_sha256 != NATIVE_ADMISSIONS[observation.native_version]:
         raise AuthGuardBlocked("native_sha256_mismatch")
     if not observation.proof_sha256:
         raise AuthGuardBlocked("metadata_proof_missing")
@@ -176,6 +203,8 @@ def prepare_guarded_environment(
         metadata._seal is not _VERIFIED_METADATA_SEAL
     ):
         raise AuthGuardBlocked("metadata_not_verified")
+    if time.monotonic() - metadata._observed_at > 30:
+        raise AuthGuardBlocked("auth_metadata_expired")
     if REFRESH_OVERRIDE_ENV in source_env:
         raise AuthGuardBlocked("refresh_override_already_present")
     if metadata._auth_kind not in _SUPPORTED_STORES:

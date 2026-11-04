@@ -89,15 +89,16 @@ type HostIdentity struct {
 // HostHello binds a source Host process to a coordinator-approved launch.
 // Credentials and environment data are deliberately absent.
 type HostHello struct {
-	LaunchID        string `json:"launch_id"`
-	LaunchToken     string `json:"launch_token"`
-	OriginContextID string `json:"origin_context_id"`
-	OriginPID       int    `json:"origin_pid"`
-	OriginBirth     string `json:"origin_birth"`
-	HostGeneration  string `json:"host_generation"`
-	PID             int    `json:"pid"`
-	Birth           string `json:"birth"`
-	Executable      string `json:"executable"`
+	OwnerRequestChangesV2 bool   `json:"owner_request_changes_v2,omitempty"`
+	LaunchID              string `json:"launch_id"`
+	LaunchToken           string `json:"launch_token"`
+	OriginContextID       string `json:"origin_context_id"`
+	OriginPID             int    `json:"origin_pid"`
+	OriginBirth           string `json:"origin_birth"`
+	HostGeneration        string `json:"host_generation"`
+	PID                   int    `json:"pid"`
+	Birth                 string `json:"birth"`
+	Executable            string `json:"executable"`
 }
 
 type HostReady struct {

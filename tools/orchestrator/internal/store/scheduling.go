@@ -36,7 +36,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if active >= slots {
 		return rollback(ErrNoSlot)
 	}
-	selected, err := selectReady(ctx, tx, launchID, limits)
+	selected, err := selectReady(ctx, tx, launchID, epoch, limits)
 	taskID, runID, taskStatus, budgetGroup := selected.taskID, selected.runID, selected.status, selected.group
 	workRevision, maxAttempts, maxActive, adapterPayload := selected.revision, selected.maxAttempts, selected.maxActive, selected.payload
 	if errors.Is(err, sql.ErrNoRows) {
@@ -174,7 +174,8 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 	}
 	rollback := func(e error) ([]contract.LaunchCommand, error) { _ = tx.Rollback(); return nil, e }
 	var registered uint64
-	if err = tx.QueryRowContext(ctx, `SELECT coordinator_epoch FROM runtime_hosts WHERE id=? AND status='ready'`, hostID).Scan(&registered); err != nil || registered != epoch {
+	var launchID string
+	if err = tx.QueryRowContext(ctx, `SELECT coordinator_epoch,launch_id FROM runtime_hosts WHERE id=? AND status='ready'`, hostID).Scan(&registered, &launchID); err != nil || registered != epoch {
 		return rollback(ErrHostRejected)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE segment_runtime SET execution_epoch=? WHERE host_id=? AND status='launch_requested'`, epoch, hostID); err != nil {
@@ -198,8 +199,15 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 	if err = rows.Close(); err != nil {
 		return rollback(err)
 	}
+	var supported []contract.LaunchCommand
 	for index := range commands {
 		command := &commands[index]
+		if gateErr := checkOwnerReworkHost(ctx, tx, command.TaskID, launchID, command.AdapterPayload); gateErr != nil {
+			if gateErr == CodeError("host_upgrade_required") {
+				continue
+			}
+			return rollback(gateErr)
+		}
 		if err = tx.QueryRowContext(ctx, `SELECT plan_revision FROM runs WHERE id=?`, command.RunID).Scan(&command.PlanRevision); err != nil {
 			return rollback(err)
 		}
@@ -213,9 +221,10 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 		if err = validateLaunchSize(*command); err != nil {
 			return rollback(err)
 		}
+		supported = append(supported, *command)
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
-	return commands, nil
+	return supported, nil
 }

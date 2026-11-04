@@ -23,7 +23,7 @@ func equalStrings(a, b []string) bool {
 }
 
 func pinForTest() BinaryPin {
-	return BinaryPin{Path: "/private/bin/agent", Version: "1.2.3", SHA256: strings.Repeat("a", 64)}
+	return BinaryPin{Path: "/private/bin/agent", Version: baselineRaw(ProviderClaude), SHA256: strings.Repeat("a", 64)}
 }
 
 func codexPinForTest() BinaryPin {
@@ -43,9 +43,9 @@ func TestBuildCodexInvocationUsesFixedReadOnlyPlanContract(t *testing.T) {
 	}
 	want := []string{
 		"/private/bin/codex", "exec", "--json", "--color", "never",
-		"--model", "gpt-5.6-luna", "--sandbox", "read-only",
+		"--ephemeral", "--skip-git-repo-check", "--strict-config", "--ignore-rules",
 		"-c", `model_reasoning_effort="medium"`,
-		"-c", `approval_policy="never"`, "-",
+		"-c", `approval_policy="never"`, "--model", "gpt-5.6-luna", "-",
 	}
 	if got := invocation.Args(); !equalStrings(got, want) {
 		t.Fatalf("argv = %#v, want %#v", got, want)
@@ -57,39 +57,24 @@ func TestBuildCodexInvocationUsesFixedReadOnlyPlanContract(t *testing.T) {
 		t.Fatalf("environment overrides = %#v", got)
 	}
 	for _, arg := range invocation.Args() {
-		if arg == "inspect the bounded change" || arg == "--ephemeral" {
+		if arg == "inspect the bounded change" {
 			t.Fatalf("prompt or forbidden flag leaked into argv: %#v", invocation.Args())
 		}
 	}
 }
 
-func TestBuildCodexResumeUsesExactSessionAndStdin(t *testing.T) {
-	invocation, err := BuildInvocation(Request{
-		Provider:   ProviderCodex,
-		Binary:     codexPinForTest(),
-		CWD:        "/private/workspace",
-		Prompt:     "continue the review",
-		Session:    SessionRef{Kind: SessionID, ID: "0199aabb-1234-7000-8000-aabbccddeeff"},
-		Permission: Permission{Mode: "plan"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantTail := []string{"resume", "0199aabb-1234-7000-8000-aabbccddeeff", "-"}
-	got := invocation.Args()
-	if len(got) < len(wantTail) || !equalStrings(got[len(got)-len(wantTail):], wantTail) {
-		t.Fatalf("resume argv = %#v", got)
-	}
-	if string(invocation.Stdin()) != "continue the review" {
-		t.Fatalf("stdin = %q", invocation.Stdin())
+func TestBuildCodexResumeRejectedBeforeNativeLaunch(t *testing.T) {
+	_, err := BuildInvocation(Request{Provider: ProviderCodex, Binary: codexPinForTest(), CWD: "/private/workspace", Prompt: "continue", Session: SessionRef{Kind: SessionID, ID: "prior-session"}, Permission: Permission{Mode: "plan"}})
+	if err == nil || err.Error() != "profile_resume_not_verified" {
+		t.Fatalf("resume error=%v", err)
 	}
 }
 
 func TestBuildCodexInvocationRejectsContractExpansion(t *testing.T) {
 	base := Request{Provider: ProviderCodex, Binary: codexPinForTest(), CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
 	cases := []Request{
-		func() Request { value := base; value.Binary.Version = "0.154.0"; return value }(),
-		func() Request { value := base; value.Binary.SHA256 = strings.Repeat("b", 64); return value }(),
+		func() Request { value := base; value.Binary.Version = "codex-cli 0.153.4"; return value }(),
+		func() Request { value := base; value.Binary.Version = "codex-cli 0.167.0-alpha.1"; return value }(),
 		func() Request { value := base; value.Permission.Mode = "default"; return value }(),
 		func() Request { value := base; value.Permission.Allow = []string{"Read"}; return value }(),
 		func() Request { value := base; value.Permission.Deny = []string{"Bash"}; return value }(),
@@ -128,7 +113,7 @@ func TestBuildInvocationUsesExactResumeAndBoundedPermission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"/private/bin/agent", "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--include-partial-messages", "--resume", "sess_123", "--permission-mode", "plan", "--disallowed-tools", "Bash"}
+	want := []string{"/private/bin/agent", "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--resume", "sess_123", "--permission-mode", "plan", "--disallowed-tools", "Bash"}
 	if got := invocation.Args(); !equalStrings(got, want) {
 		t.Fatalf("argv = %#v, want %#v", got, want)
 	}
@@ -145,13 +130,13 @@ func TestBuildInvocationUsesExactResumeAndBoundedPermission(t *testing.T) {
 func TestBuildInvocationRejectsPermissionExpansionAndAuthFlags(t *testing.T) {
 	cases := []Request{
 		{Provider: ProviderClaude, Binary: pinForTest(), Permission: Permission{Mode: "bypassPermissions"}},
-		{Provider: ProviderAGY, Binary: pinForTest(), Permission: Permission{Mode: "dangerously-skip-permissions"}},
-		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"--oauth"}},
-		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"login"}},
-		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"--model", "other"}},
-		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"--settings", "foreign.json"}},
-		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"--resume", "other"}},
-		{Provider: ProviderAGY, Binary: pinForTest(), Permission: Permission{Allow: []string{"Read"}}},
+		{Provider: ProviderAGY, Binary: pinForProvider(ProviderAGY), Permission: Permission{Mode: "dangerously-skip-permissions"}},
+		{Provider: ProviderGrok, Binary: pinForProvider(ProviderGrok), ExtraArgs: []string{"--oauth"}},
+		{Provider: ProviderGrok, Binary: pinForProvider(ProviderGrok), ExtraArgs: []string{"login"}},
+		{Provider: ProviderGrok, Binary: pinForProvider(ProviderGrok), ExtraArgs: []string{"--model", "other"}},
+		{Provider: ProviderGrok, Binary: pinForProvider(ProviderGrok), ExtraArgs: []string{"--settings", "foreign.json"}},
+		{Provider: ProviderGrok, Binary: pinForProvider(ProviderGrok), ExtraArgs: []string{"--resume", "other"}},
+		{Provider: ProviderAGY, Binary: pinForProvider(ProviderAGY), Permission: Permission{Allow: []string{"Read"}}},
 	}
 	for i, tc := range cases {
 		if _, err := BuildInvocation(tc); err == nil {
@@ -160,8 +145,14 @@ func TestBuildInvocationRejectsPermissionExpansionAndAuthFlags(t *testing.T) {
 	}
 }
 
+func pinForProvider(provider Provider) BinaryPin {
+	pin := pinForTest()
+	pin.Version = baselineRaw(provider)
+	return pin
+}
+
 func TestDefaultPermissionDoesNotAddApprovalFlags(t *testing.T) {
-	invocation, err := BuildInvocation(Request{Provider: ProviderAGY, Binary: pinForTest(), CWD: "/private/workspace", Prompt: "inspect"})
+	invocation, err := BuildInvocation(Request{Provider: ProviderAGY, Binary: pinForProvider(ProviderAGY), CWD: "/private/workspace", Prompt: "inspect"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,11 +384,13 @@ func TestStreamParserConsumesEventsIncrementally(t *testing.T) {
 }
 
 func TestValidatePinRequiresVersionAndDigest(t *testing.T) {
-	if err := ValidatePin(pinForTest(), "1.2.3", strings.Repeat("a", 64)); err != nil {
+	pin := pinForTest()
+	if err := ValidatePin(pin, pin.Version, pin.SHA256); err != nil {
 		t.Fatal(err)
 	}
-	for _, pair := range [][2]string{{"1.2.4", strings.Repeat("a", 64)}, {"1.2.3", strings.Repeat("b", 64)}} {
-		if err := ValidatePin(pinForTest(), pair[0], pair[1]); err == nil {
+	// Same normalized release with a different raw --version line is still drift.
+	for _, pair := range [][2]string{{"2.1.267", pin.SHA256}, {pin.Version, strings.Repeat("b", 64)}} {
+		if err := ValidatePin(pin, pair[0], pair[1]); err == nil {
 			t.Fatalf("accepted drift: %#v", pair)
 		}
 	}

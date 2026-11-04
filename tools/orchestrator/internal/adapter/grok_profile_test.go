@@ -48,14 +48,15 @@ func TestGrokRequiresExplicitSessionWriteAuthorization(t *testing.T) {
 	}
 	req = grokProfileRequest(t)
 	req.Provider = ProviderClaude
-	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("non-Grok accepted Grok write authorization")
+	req.Binary.Version = baselineRaw(ProviderClaude)
+	req.Lock.Provider, req.Lock.Protocol, req.Lock.Binary = req.Provider, ProtocolID(req.Provider), req.Binary
+	if _, err := BuildInvocation(req); err == nil || err.Error() != "profile_provider_state_mismatch" {
+		t.Fatalf("non-Grok write err=%v", err)
 	}
 	req = grokProfileRequest(t)
 	req.Binary.Version = "grok future"
 	req.Lock.Binary = req.Binary
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("unverified version accepted")
+	if _, err := BuildInvocation(req); err == nil || err.Error() != "cli_version_unparsed" {
+		t.Fatalf("unparsed version err=%v", err)
 	}
 }

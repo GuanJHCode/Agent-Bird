@@ -1,0 +1,50 @@
+{
+  "repo_identity": {
+    "device": 16777232,
+    "inode": 239743274,
+    "mode": 2147484096,
+    "uid": 501
+  },
+  "common_identity": {
+    "device": 16777232,
+    "inode": 239743275,
+    "mode": 2147484141,
+    "uid": 501
+  },
+  "binding": {
+    "run_id": "bird-0631629a781a812f6b12ccdf",
+    "task_id": "bird-0631629a781a812f6b12ccdf-work",
+    "attempt_id": "attempt-3eae1509cabc82f538ac78f2",
+    "segment_id": "segment-f6ee83ca9f6f36f7db4ab127",
+    "work_revision": 1,
+    "plan_revision": 1
+  },
+  "changes": [
+    {
+      "path": "calc.py",
+      "mode": "100644",
+      "blob_oid": "4693ad3cf8b0903b98497fb89b8b524fbf1b93f4"
+    }
+  ],
+  "attempt_id": "attempt-3eae1509cabc82f538ac78f2",
+  "repo_root": "/private/tmp/bird-c2c-5c9j/repo",
+  "worktree": "/private/tmp/bird-c2c-5c9j/state/dispatch/34b9f2fa4786490e1fdb4fee/c47f974d91cfe19b9617413f/workspace-3d45d70b50d77e2b2e0e12a9.attempt-9e07b52c20b506ff361b510e",
+  "common_dir": "/private/tmp/bird-c2c-5c9j/repo/.git",
+  "base_oid": "5322173e62899562ef476f82f8baa285c683431b",
+  "candidate_oid": "a4b158afe296c286a38f687caf1f6319539e712e",
+  "tree_oid": "0b5146d69a7f3435916ca594d9f5fe68057ea59a",
+  "ordered_input_oids": [
+    "5322173e62899562ef476f82f8baa285c683431b"
+  ],
+  "root_identity": {
+    "device": 16777232,
+    "inode": 239747504,
+    "mode": 2147484141,
+    "uid": 501
+  },
+  "worktree_identity": "/private/tmp/bird-c2c-5c9j/state/dispatch/34b9f2fa4786490e1fdb4fee/c47f974d91cfe19b9617413f/workspace-3d45d70b50d77e2b2e0e12a9.attempt-9e07b52c20b506ff361b510e",
+  "files": null,
+  "plan_revision": 1,
+  "private_ref": "refs/orchestrator/g3/candidate-9e07b52c20b506ff361b510ef7196c5313a228ccefb9400fe48810f36d5cb8a1",
+  "private_ref_expected_oid": "a4b158afe296c286a38f687caf1f6319539e712e"
+}

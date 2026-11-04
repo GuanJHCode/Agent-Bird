@@ -17,21 +17,26 @@ type RunSummary struct {
 }
 
 type SummaryTask struct {
-	TaskID              string                   `json:"task_id"`
-	Status              string                   `json:"status"`
-	Group               string                   `json:"group"`
-	WorkRevision        int                      `json:"work_revision"`
-	ActiveSegments      int                      `json:"active_segments"`
-	AllowedActions      []string                 `json:"allowed_actions"`
-	ReviewableResult    *ReviewableResultBinding `json:"reviewable_result,omitempty"`
-	ResumeBlockedReason string                   `json:"resume_blocked_reason,omitempty"`
-	StopReason          string                   `json:"stop_reason,omitempty"`
-	LatestProgress      *contract.ArtifactRef    `json:"latest_progress,omitempty"`
+	TechnicalRetryCount         int                      `json:"technical_retry_count"`
+	ReviewReworkCount           int                      `json:"review_rework_count"`
+	RequestChangesBlockedReason string                   `json:"request_changes_blocked_reason,omitempty"`
+	TaskID                      string                   `json:"task_id"`
+	Status                      string                   `json:"status"`
+	Group                       string                   `json:"group"`
+	WorkRevision                int                      `json:"work_revision"`
+	ActiveSegments              int                      `json:"active_segments"`
+	AllowedActions              []string                 `json:"allowed_actions"`
+	ReviewableResult            *ReviewableResultBinding `json:"reviewable_result,omitempty"`
+	ResumeBlockedReason         string                   `json:"resume_blocked_reason,omitempty"`
+	StopReason                  string                   `json:"stop_reason,omitempty"`
+	LatestProgress              *contract.ArtifactRef    `json:"latest_progress,omitempty"`
 }
 
 // ReviewableResultBinding recovers the existing immutable accept/reject tuple
 // after collection ACK. It carries no result body or owner capability.
 type ReviewableResultBinding struct {
+	SegmentID     string `json:"segment_id,omitempty"`
+	CandidateOID  string `json:"candidate_oid,omitempty"`
 	EventID       string `json:"event_id"`
 	EventRevision int64  `json:"event_revision"`
 	EventHash     string `json:"event_hash"`
@@ -54,7 +59,7 @@ SELECT t.run_id,t.id,t.status,r.work_revision,
  EXISTS(SELECT 1 FROM runtime_events e JOIN segments s ON s.id=e.segment_id JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id AND a.status='failed' AND a.attempt_no=(SELECT MAX(attempt_no) FROM attempts WHERE task_id=t.id) AND (json_extract(e.body_json,'$.kind')='failed' OR (json_extract(e.body_json,'$.kind')='result' AND EXISTS(SELECT 1 FROM review_decisions rd WHERE rd.event_id=e.event_id AND rd.decision='reject')))),r.adapter_payload,
  EXISTS(SELECT 1 FROM runtime_events e JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id WHERE e.task_id=t.id AND s.status='exited' AND s.outcome=json_extract(e.body_json,'$.kind') AND json_extract(e.body_json,'$.kind') IN ('stopped','failed') AND json_extract(e.body_json,'$.artifact') IS NULL AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1)),
  (SELECT COUNT(*) FROM task_runtime other WHERE other.budget_group_id=r.budget_group_id),
- COALESCE((SELECT json_object('event_id',e.event_id,'event_revision',e.event_revision,'event_hash',e.payload_hash,'action_slot',e.action_slot,'work_revision',r.work_revision)
+ COALESCE((SELECT json_object('event_id',e.event_id,'event_revision',e.event_revision,'event_hash',e.payload_hash,'action_slot',e.action_slot,'work_revision',r.work_revision,'segment_id',e.segment_id)
   FROM runtime_events e JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id AND s.attempt_id=e.attempt_id
   JOIN attempts a ON a.id=s.attempt_id AND a.task_id=t.id
   WHERE e.task_id=t.id AND t.status='result_ready' AND s.status='exited' AND s.outcome='result'
@@ -136,5 +141,43 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 		summary.Counts[task.Group]++
 		summary.Tasks = append(summary.Tasks, task)
 	}
-	return summary, rows.Err()
+	if err := rows.Err(); err != nil {
+		return RunSummary{}, err
+	}
+	if err := rows.Close(); err != nil {
+		return RunSummary{}, err
+	}
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return RunSummary{}, err
+	}
+	defer tx.Rollback()
+	for i := range summary.Tasks {
+		task := &summary.Tasks[i]
+		task.ReviewReworkCount = task.WorkRevision - 1
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions WHERE task_id=? AND (revision_payload='' OR json_extract(revision_payload,'$.kind')=?)`, task.TaskID, reviewRetryKind).Scan(&task.TechnicalRetryCount); err != nil {
+			return RunSummary{}, err
+		}
+		state, checkErr := d.ownerReworkEligibility(ctx, tx, task.TaskID)
+		if checkErr == nil {
+			task.AllowedActions = append(task.AllowedActions, "request-changes")
+		} else if state.payload.Profile != nil && state.payload.Profile.Role == "implementer" && state.payload.CandidateWorkspace != nil {
+			task.RequestChangesBlockedReason = checkErr.Error()
+		}
+		if task.ReviewableResult != nil {
+			candidateState, candidateErr := state, checkErr
+			if checkErr != nil && !state.evidenceChecked {
+				candidateState, candidateErr = d.loadOwnerCandidateState(ctx, tx, task.TaskID)
+				if candidateErr == nil {
+					candidateState, candidateErr = d.ownerCandidateEvidence(ctx, tx, candidateState, true)
+				}
+			}
+			binding := task.ReviewableResult
+			event := candidateState.event
+			if candidateErr == nil && binding.EventID == event.EventID && binding.EventRevision == event.EventRevision && binding.EventHash == event.PayloadHash && binding.ActionSlot == event.ActionSlot && binding.SegmentID == event.SegmentID && binding.WorkRevision == event.WorkRevision {
+				binding.CandidateOID = candidateState.candidate.CandidateOID
+			}
+		}
+	}
+	return summary, nil
 }

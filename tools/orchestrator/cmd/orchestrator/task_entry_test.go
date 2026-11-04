@@ -136,19 +136,19 @@ func TestTaskRunChecksProviderBeforeBinding(t *testing.T) {
 		name, help, want string
 		tamper           bool
 	}{
-		{"supported", "--output-format --input-format --permission-mode --disallowed-tools", "current_codex_thread_unavailable", false},
+		{"supported", "--output-format --input-format --permission-mode --disallowed-tools --tools", "current_codex_thread_unavailable", false},
 		{"missing_guard", "--output-format --input-format --permission-mode", "provider_capability_unsupported", false},
-		{"changed_binary", "--output-format --input-format --permission-mode --disallowed-tools", "binary_sha256_mismatch", true},
+		{"changed_binary", "--output-format --input-format --permission-mode --disallowed-tools --tools", "binary_sha256_mismatch", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := privateTaskTemp(t)
 			bin := filepath.Join(root, "provider")
-			body := []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo fixture-v1;;\n--help) echo '" + tc.help + "';;\n*) exit 99;;\nesac\n")
+			body := []byte("#!/bin/sh\ncase \"$1\" in\n--version) echo '2.1.267 (Claude Code)';;\n--help) echo '" + tc.help + "';;\n*) exit 99;;\nesac\n")
 			if err := os.WriteFile(bin, body, 0700); err != nil {
 				t.Fatal(err)
 			}
 			hash := sha256.Sum256(body)
-			lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: "claude-stream-json-v1", Binary: adapter.BinaryPin{Path: bin, Version: "fixture-v1", SHA256: hex.EncodeToString(hash[:])}}
+			lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: "claude-stream-json-v1", Binary: adapter.BinaryPin{Path: bin, Version: "2.1.267 (Claude Code)", SHA256: hex.EncodeToString(hash[:])}}
 			lockPath := filepath.Join(root, "lock.json")
 			if err := writeExclusiveJSON(lockPath, lock); err != nil {
 				t.Fatal(err)

@@ -1,0 +1,9 @@
+{
+  "workspace": "/private/tmp/agent-bird-cross-cli-5c9jyn8o/source",
+  "task_root": "/private/tmp/agent-bird-cross-cli-5c9jyn8o",
+  "source_root": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design",
+  "original_head": "5e7443d24cff6deef27ed1c52697a2fb32733ae4",
+  "snapshot": "eb0d49ce2a06d1268edb0a14f99ce66f3402fe47",
+  "copied_untracked_go_files": 35,
+  "go": "/private/tmp/go1.26.10-sdk/bin/go"
+}

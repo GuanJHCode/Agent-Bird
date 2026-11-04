@@ -164,7 +164,8 @@ def test_prepare_does_not_echo_unknown_auth_kind_in_block_reason() -> None:
 @pytest.mark.parametrize(
     ("field", "value", "expected_code"),
     [
-        ("native_version", "0.155.0", "native_version_mismatch"),
+        ("native_version", "0.155.0", "native_sha256_mismatch"),
+        ("native_version", "0.167.0", "native_version_mismatch"),
         ("native_sha256", "b" * 64, "native_sha256_mismatch"),
         ("proof_sha256", "", "metadata_proof_missing"),
         ("source_kind", "worker_report", "metadata_source_untrusted"),

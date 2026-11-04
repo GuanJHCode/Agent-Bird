@@ -325,6 +325,10 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	attemptStatus, taskStatus := "interrupted", "interrupted"
 	switch outcome {
 	case contract.EventResult:
+		if event.ExitCode == nil || *event.ExitCode != 0 {
+			attemptStatus, taskStatus = "failed", "failed"
+			break
+		}
 		attemptStatus, taskStatus = "result_ready", "result_ready"
 		var policy, expected string
 		if err := tx.QueryRowContext(ctx, `SELECT completion_policy,expected_artifact_sha256 FROM task_runtime WHERE task_id=?`, event.TaskID).Scan(&policy, &expected); err != nil {

@@ -69,8 +69,18 @@ try:
 except (OSError, ValueError) as error:
     raise SystemExit("plugin_skills_invalid: " + str(error))
 PY
+# Codex execution needs these receipt-bound helpers, not just the portable entry.
+for helper in auth_guard.py codex_exec.py auth_wire.py rpc_policy.py; do
+  [ -f "$plugin_source/lib/trial/$helper" ] && [ ! -L "$plugin_source/lib/trial/$helper" ] || {
+    echo "native_helper_missing_or_symlink:$helper" >&2
+    exit 1
+  }
+done
 mkdir -m 700 "$out/plugin"
 cp -R "$plugin_source"/. "$out/plugin/"
+# Bytecode caches are build residue from running the packaged scripts, not part of
+# the plugin; left in place they ship the developer's layout into the user's root.
+find "$out/plugin" \( -name '__pycache__' -o -name '*.pyc' -o -name '*.pyo' \) -prune -delete
 # Empty source directories have no manifest identity and would be retained as
 # unknown objects by the installer. Remove them only from this fresh package.
 find "$out/plugin" -depth -type d -empty ! -path "$out/plugin" -delete

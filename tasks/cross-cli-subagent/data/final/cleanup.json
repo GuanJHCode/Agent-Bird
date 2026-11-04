@@ -1,0 +1,19 @@
+{
+  "private_coordinator_pid": 19660,
+  "exact_image_and_birth_verified": true,
+  "active_segments_before_stop": 0,
+  "released_hosts_before_stop": true,
+  "graceful_exit_confirmed": true,
+  "removed_task_owned_bytecode": [
+    "/private/tmp/agent-bird-cross-cli-5c9jyn8o/source/tasks/cross-cli-subagent/scripts/__pycache__/managed-coding-trial.cpython-314.pyc"
+  ],
+  "retained": [
+    "fixed native pins and immutable installs",
+    "real trial states and candidate refs",
+    "failed native-auth fixture and diagnostic evidence"
+  ],
+  "preserved_existing_unowned_directories": true,
+  "credential_runner_cleared": true,
+  "credential_runner_exit_code": 0,
+  "root_credential_reference_cleared": true
+}

@@ -50,6 +50,12 @@ import hashlib, json, os, stat, sys
 root = Path(sys.argv[1])
 manifest = json.loads((root / "package-manifest.json").read_text(encoding="utf-8"))
 entries = {entry["path"]: entry for entry in manifest["files"]}
+runtime = json.loads((root / "plugin/runtime/g0/runtime-manifest.json").read_text())
+assert runtime["version"] == 1 and runtime.get("kind", "") == ""
+assert runtime["interpreter"]["path"] and len(runtime["files"]) == 11
+for helper in ("auth_guard.py", "codex_exec.py", "auth_wire.py", "rpc_policy.py"):
+    path = "plugin/lib/trial/" + helper
+    assert entries[path]["sha256"] == hashlib.sha256((root / path).read_bytes()).hexdigest()
 for relative in ("scripts/invoke.sh", "scripts/native-product-bridge.py"):
     packaged = "plugin/" + relative
     path = root / packaged

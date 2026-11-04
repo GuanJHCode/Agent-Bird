@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -53,7 +54,7 @@ func TestTaskModelInvalidBeforeOwnerBinding(t *testing.T) {
 func TestTaskAutomaticallyPlansSeparateWorkspaces(t *testing.T) {
 	root := privateTaskTemp(t)
 	tasks := []coordinator.TaskRequest{{ID: "a", AdapterPayload: json.RawMessage(`{"candidate_workspace":{"version":1}}`)}, {ID: "b", AdapterPayload: json.RawMessage(`{"candidate_workspace":{"version":1}}`)}}
-	if err := prepareTaskWorkspaces(filepath.Join(root, "handle"), tasks); err != nil {
+	if err := prepareTaskWorkspaces(filepath.Join(root, "state"), filepath.Join(root, "handle"), tasks); err != nil {
 		t.Fatal(err)
 	}
 	paths := map[string]bool{}
@@ -62,12 +63,32 @@ func TestTaskAutomaticallyPlansSeparateWorkspaces(t *testing.T) {
 			Directory string `json:"directory"`
 		}
 		json.Unmarshal(task.AdapterPayload, &p)
-		if p.Directory == "" || paths[p.Directory] || filepath.Dir(p.Directory) != root {
+		if p.Directory == "" || paths[p.Directory] || filepath.Dir(filepath.Dir(p.Directory)) != root {
 			t.Fatalf("workspace not isolated: %s", p.Directory)
 		}
 		paths[p.Directory] = true
 		if _, err := os.Stat(p.Directory); !os.IsNotExist(err) {
 			t.Fatal("controller materialized worktree")
 		}
+	}
+}
+
+func TestTaskAutoWorkspaceOutsideState(t *testing.T) {
+	root := privateTaskTemp(t)
+	state := filepath.Join(root, "state")
+	handle := filepath.Join(state, "dispatch", "owner", "request", "handle.json")
+	tasks := []coordinator.TaskRequest{{ID: "work", AdapterPayload: json.RawMessage(`{"candidate_workspace":{"version":1}}`)}}
+	if err := prepareTaskWorkspaces(state, handle, tasks); err != nil {
+		t.Fatal(err)
+	}
+	var p struct {
+		Directory string `json:"directory"`
+	}
+	if err := json.Unmarshal(tasks[0].AdapterPayload, &p); err != nil {
+		t.Fatal(err)
+	}
+	rel, err := filepath.Rel(state, p.Directory)
+	if err != nil || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
+		t.Fatalf("automatic workspace is inside protected state: %s", p.Directory)
 	}
 }

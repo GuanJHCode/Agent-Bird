@@ -36,6 +36,38 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 		{"input_changed", errors.New("candidate_input_changed"), "candidate_input_changed"},
 		{"target", errors.New("candidate_target_mismatch"), "candidate_target_mismatch"},
 		{"missing_invocation", errors.New("invocation_unavailable"), "invocation_unavailable"},
+		// Path and workspace trust rejections. These are fixed codes with no
+		// path or credential in them, so naming them cannot leak, and leaving
+		// them collapsed hides which guard stopped the launch.
+		{"report_capability_path", errors.New("report_capability_path_untrusted"), "report_capability_path_untrusted"},
+		{"profile_role", errors.New("profile_role_invalid"), "profile_role_invalid"},
+		{"isolated_worktree", errors.New("isolated_worktree_required"), "isolated_worktree_required"},
+		// Binary pin and version drift. The compatibility contract requires the
+		// pin, the raw --version and the digest to stay attributable per run.
+		{"binary_path", errors.New("binary_path_invalid"), "binary_path_invalid"},
+		{"binary_pin", errors.New("binary_pin_invalid"), "binary_pin_invalid"},
+		{"binary_version_mismatch", errors.New("binary_version_mismatch"), "binary_version_mismatch"},
+		{"binary_sha256_mismatch", errors.New("binary_sha256_mismatch"), "binary_sha256_mismatch"},
+		{"binary_path_changed", errors.New("binary_path_changed"), "binary_path_changed"},
+		{"binary_file_unsafe", errors.New("binary_file_unsafe"), "binary_file_unsafe"},
+		{"binary_read_failed", errors.New("binary_read_failed"), "binary_read_failed"},
+		{"binary_version_probe", errors.New("binary_version_probe_failed"), "binary_version_probe_failed"},
+		{"capability_unsupported", errors.New("provider_capability_unsupported"), "provider_capability_unsupported"},
+		{"codex_trial_guard", errors.New("codex_trial_guard_not_ready"), "codex_trial_guard_not_ready"},
+		// Frozen-window decisions.
+		{"version_below_baseline", errors.New("cli_version_below_baseline"), "cli_version_below_baseline"},
+		{"version_above_ceiling", errors.New("cli_version_above_ceiling"), "cli_version_above_ceiling"},
+		{"version_not_published", errors.New("cli_version_not_published"), "cli_version_not_published"},
+		{"version_prerelease", errors.New("cli_version_prerelease"), "cli_version_prerelease"},
+		{"version_unrecognized_note", errors.New("cli_version_unrecognized_note"), "cli_version_unrecognized_note"},
+		{"version_product_mismatch", errors.New("cli_version_product_mismatch"), "cli_version_product_mismatch"},
+		{"version_unparsed", errors.New("cli_version_unparsed"), "cli_version_unparsed"},
+		{"version_catalog_invalid", errors.New("cli_version_catalog_invalid"), "cli_version_catalog_invalid"},
+		// Naming a code never loosens the match: anything that is not exactly one
+		// of these whole errors still collapses, including a code carrying a path.
+		{"report_capability_path_with_suffix", errors.New("report_capability_path_untrusted: PRIVATE_SENTINEL"), "launch_failed"},
+		{"codex_guard_wrapped", fmt.Errorf("PRIVATE_SENTINEL: %w", errors.New("codex_trial_guard_not_ready")), "launch_failed"},
+		{"binary_drift_with_path", errors.New("binary_path_changed: PRIVATE_SENTINEL"), "launch_failed"},
 		{"unknown", errors.New("PRIVATE_SENTINEL /credentials/token.json"), "launch_failed"},
 		{"prefix", errors.New("invalid_json: PRIVATE_SENTINEL"), "launch_failed"},
 		{"wrapped", fmt.Errorf("PRIVATE_SENTINEL: %w", errors.New("invalid_json")), "launch_failed"},
@@ -207,6 +239,72 @@ func TestLaunchFailureRejectsAmbiguousPartialEvidence(t *testing.T) {
 			after, err := h.Collect(context.Background(), a)
 			if err != nil || !reflect.DeepEqual(before, after) {
 				t.Fatalf("partial evidence changed: %v", err)
+			}
+		})
+	}
+}
+
+// events.go publishes a record once os.Link has made it durable, so
+// ExecuteLaunch can fail after its exited event is already on disk. The unknown
+// fallback must then preserve that confirmed terminal instead of appending a
+// second one; the sibling recordLaunchFailed already refuses both kinds.
+func TestLaunchUnknownNeverAppendsAfterDurableExited(t *testing.T) {
+	for _, prior := range [][]string{
+		{contract.EventExited},
+		{contract.EventResult, contract.EventExited},
+		{contract.EventFailed, contract.EventExited},
+	} {
+		name := strings.Join(prior, "+")
+		t.Run(name, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "spool")
+			h, err := NewIPC(root, "unknown-producer")
+			if err != nil {
+				t.Fatal(err)
+			}
+			a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
+			sp, err := h.spool(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
+			for index, kind := range prior {
+				if _, err = h.appendPhaseEvent(sp, "r", "t", a, meta, kind, fmt.Sprintf("hash-%d", index), nil, nil, nil); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err = sp.WriteMetadata("launch.json", map[string]any{"phase": "exited", "marker": "original"}); err != nil {
+				t.Fatal(err)
+			}
+			before, err := h.Collect(context.Background(), a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = h.ensureLaunchUnknown(a, "r", "t", meta, errors.New("host died after publishing exited")); err != nil {
+				t.Fatalf("fallback over confirmed terminal: %v", err)
+			}
+			after, err := h.Collect(context.Background(), a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(before, after) {
+				t.Fatalf("unknown fallback appended to a durable exited: before=%v after=%v", eventKinds(before), eventKinds(after))
+			}
+			records, err := sp.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			terminals := 0
+			for _, record := range records {
+				if record.Kind == contract.EventUnknown || record.Kind == contract.EventExited {
+					terminals++
+				}
+			}
+			if terminals != 1 {
+				t.Fatalf("segment carries %d process terminals: %#v", terminals, records)
+			}
+			var launch map[string]any
+			if err = sp.ReadMetadata("launch.json", &launch); err != nil || launch["marker"] != "original" {
+				t.Fatalf("launch metadata changed: %+v %v", launch, err)
 			}
 		})
 	}

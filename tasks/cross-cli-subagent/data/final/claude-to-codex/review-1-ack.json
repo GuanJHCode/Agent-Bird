@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "task_id": "bird-cdf0eee1eede23a414ba11e0-work",
+  "delivery_id": "collection-3297c274a6b13909958e630be09b69cb4e68d224fd1c9ceb669871e1ab5f1463",
+  "collection_proof_sha256": "3297c274a6b13909958e630be09b69cb4e68d224fd1c9ceb669871e1ab5f1463",
+  "decisions": [
+    {
+      "event_id": "host-launch-8c33c75281704ad310946dd7b09529834c25:5",
+      "event_revision": 5,
+      "event_hash": "2d9a3ae632fd2b8242727e9c18c354a36df0895e436998347d567dc34b7dd177",
+      "action_slot": "action-2bf05936404e0f07a83f15b3f9d4b9ce",
+      "decision": "handled",
+      "command_id": "coding-155c87333f0c3c801f0e6724-ack-1"
+    }
+  ]
+}

@@ -193,8 +193,14 @@ func applyAckDecision(ctx context.Context, tx *sql.Tx, taskID string, decision A
 		}
 		var workRevision int
 		var currentSegment sql.NullString
-		if err = tx.QueryRowContext(ctx, `SELECT r.work_revision,(SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1) FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&workRevision, &currentSegment); err != nil || event.WorkRevision != workRevision || !currentSegment.Valid {
+		if err = tx.QueryRowContext(ctx, `SELECT r.work_revision,(SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1) FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&workRevision, &currentSegment); err != nil || !currentSegment.Valid {
 			return ErrConflict
+		}
+		if event.WorkRevision != workRevision {
+			var ownerRevision int
+			if decision.Decision != "handled" || tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions WHERE task_id=? AND work_revision=? AND source_event_id=? AND source_event_revision=? AND source_event_hash=? AND source_segment_id=? AND action_slot=? AND json_extract(revision_payload,'$.kind')=?`, taskID, event.WorkRevision, decision.EventID, decision.EventRevision, decision.EventHash, event.SegmentID, decision.ActionSlot, ownerReworkDecisionKind).Scan(&ownerRevision) != nil || ownerRevision != 1 {
+				return ErrConflict
+			}
 		}
 		if currentSegment.String != event.SegmentID && (decision.Decision != "handled" || !hasBoundBusinessEffect(ctx, tx, taskID, event, decision)) {
 			return ErrConflict

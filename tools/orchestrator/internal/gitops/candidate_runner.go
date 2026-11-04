@@ -66,6 +66,9 @@ func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...stri
 		}
 	}
 	env = append(env, "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
+	if readOnly, _ := ctx.Value(candidateReadOnlyKey{}).(bool); readOnly {
+		env = append(env, "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1")
+	}
 	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
 	commandDigest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
 	journal, _ := ctx.Value(candidateJournalKey{}).(GitProcessJournal)

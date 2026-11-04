@@ -203,7 +203,15 @@ func FreezeWorkspace(ctx context.Context, prepared PreparedWorkspace, journal Ca
 	if err = PrivateRef(ctx, r.RepoRoot, prepared.PrivateRef, "", candidate); err != nil {
 		return CandidateReceipt{}, err
 	}
-	receipt := CandidateReceipt{AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: candidate, TreeOID: tree, OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, Files: postFiles, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: candidate, Binding: &prepared.Binding, Changes: changes}
+	repoIdentity, err := directoryIdentity(r.RepoRoot)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	commonIdentity, err := directoryIdentity(r.CommonDir)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	receipt := CandidateReceipt{RepoIdentity: &repoIdentity, CommonIdentity: &commonIdentity, AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: candidate, TreeOID: tree, OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, Files: postFiles, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: candidate, Binding: &prepared.Binding, Changes: changes}
 	if err = journal.RecordCandidateFreeze(ctx, receipt); err != nil {
 		return CandidateReceipt{}, err
 	}
@@ -321,12 +329,15 @@ func CandidateArtifact(providerResult string, receipt CandidateReceipt) ([]byte,
 	full, _ := json.Marshal(receipt)
 	digest := DigestDetail(string(full))
 	receipt.Files = nil
+	projection := CandidateProjectionDigest(receipt)
 	body, err := json.Marshal(struct {
-		ReceiptSHA256  string           `json:"candidate_receipt_sha256"`
-		Version        int              `json:"version"`
-		ProviderResult string           `json:"provider_result"`
-		Candidate      CandidateReceipt `json:"candidate"`
-	}{digest, 1, providerResult, receipt})
+		ProjectionVersion int              `json:"candidate_projection_version"`
+		ProjectionSHA256  string           `json:"candidate_projection_sha256"`
+		ReceiptSHA256     string           `json:"candidate_receipt_sha256"`
+		Version           int              `json:"version"`
+		ProviderResult    string           `json:"provider_result"`
+		Candidate         CandidateReceipt `json:"candidate"`
+	}{1, projection, digest, 1, providerResult, receipt})
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +351,8 @@ func CandidateArtifact(providerResult string, receipt CandidateReceipt) ([]byte,
 // contain paths outside prepared.Paths; all variable-length identities are known.
 func CheckCandidateArtifactBudget(prepared PreparedWorkspace, providerResult string) error {
 	r := prepared.Receipt
-	bound := CandidateReceipt{Binding: &prepared.Binding, AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: strings.Repeat("f", 64), TreeOID: strings.Repeat("f", 64), OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: strings.Repeat("f", 64)}
+	identityBound := DirectoryIdentity{Device: 9223372036854775807, Inode: 9223372036854775807, Mode: 9223372036854775807, UID: 9223372036854775807}
+	bound := CandidateReceipt{RepoIdentity: &identityBound, CommonIdentity: &identityBound, Binding: &prepared.Binding, AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: strings.Repeat("f", 64), TreeOID: strings.Repeat("f", 64), OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: strings.Repeat("f", 64)}
 	for _, path := range prepared.Paths {
 		bound.Changes = append(bound.Changes, CandidateChange{Path: path, Mode: "100755", BlobOID: strings.Repeat("f", 64), Deleted: true})
 	}

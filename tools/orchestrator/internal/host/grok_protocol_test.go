@@ -32,6 +32,21 @@ func TestGrokTerminalRegistersSession(t *testing.T) {
 	}
 }
 
+func TestGrokUsageEventDoesNotReplaceFinalAnswer(t *testing.T) {
+	p, err := newProtocolCollector("grok-build")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = p.Write([]byte("{\"type\":\"text\",\"data\":\"GROK_READ_final\"}\n" +
+		"{\"type\":\"usage\",\"stopReason\":\"end_turn\",\"usage\":{\"output_tokens\":3}}\n" +
+		"{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n" +
+		"{\"type\":\"usage\",\"stopReason\":\"end_turn\"}\n"))
+	event, session, err := p.Finish()
+	if err != nil || session != "grok-1" || event.Text != "GROK_READ_final" {
+		t.Fatalf("usage changed the answer: %+v %q %v", event, session, err)
+	}
+}
+
 func TestGrokRejectsTextAfterTerminal(t *testing.T) {
 	p, _ := newProtocolCollector("grok-build")
 	_, _ = p.Write([]byte("{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"grok-1\"}\n" +
@@ -116,4 +131,3 @@ func TestGrokRejectsToolEventWithDifferentGrantedSession(t *testing.T) {
 		t.Fatalf("mismatched tool session: %v", err)
 	}
 }
-

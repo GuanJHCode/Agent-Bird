@@ -1,40 +1,78 @@
 ---
 name: orchestrate
-description: Submit, inspect, collect, acknowledge, explicitly resume, or stop local Codex orchestration tasks through the installed owner-bound codex-orchestrator CLI. Use when the user asks Codex to enable/disable Claude, AGY, or Grok delegation, configure worker models, delegate implementation or review, or coordinate local subtasks.
+description: Submit, inspect, collect, acknowledge, explicitly resume, or stop local orchestration tasks through the installed owner-bound codex-orchestrator CLI. Use when the user asks the current CLI to enable/disable Claude, Codex, AGY, or Grok delegation, configure worker models, delegate implementation or review, or coordinate local subtasks.
 ---
 
 # Local orchestration
 
-## Codex main, provider worker
+## Current CLI main, provider worker
 
 When the user says “use Claude/AGY/Grok to handle this task” (including “用 AGY 分析任务”),
-keep the current Codex conversation as the main agent. Do not ask the user to
+keep the current verified controller as the main agent. Native Codex sessions can bind directly; other CLIs must be launched through `controller start --provider claude|grok|agy` and share that managed process scope. Do not ask the user to
 launch a separate provider main session, run trial preparation scripts, supply a context
 file, construct requests, or manage worker terminals. Read the repository and
 infer the allowed scope and test command where possible; ask only for missing
 business requirements or necessary permission.
 
-For a packaged collect-only plugin, its wrapper installs the bundled runtime
-into a private version directory on first explicit use. No Go build or Python
-runtime setup is required from the user. Execute the wrapper by its absolute
+Use the wrapper from an explicitly installed version. The full native package pins its Python interpreter and helper manifest and preserves its install receipt; Codex execution requires this complete runtime. A portable collect-only package does not establish Codex execution support. Execute the wrapper by its absolute
 path from this plugin; it resolves its own root if PLUGIN_ROOT is not exported.
-Prefer the high-level `task` commands below. They bind the current Codex owner,
+Prefer the high-level `task` commands below. They bind the current verified owner,
 probe the pinned provider and preserve an explicit handle to the original run.
 Do not manually assemble owner/process fields for new high-level submissions.
+
+
+## Managed controller and dispatch
+
+Use the installed wrapper without `PLUGIN_ROOT`; it resolves its own root.
+
+```
+<plugin-root>/scripts/invoke.sh controller start --provider claude --state-dir <private-state> -- <normal-cli-arguments>
+<plugin-root>/scripts/invoke.sh routing status --state-dir <private-state>
+<plugin-root>/scripts/invoke.sh task dispatch --request <private-dispatch.json> --state-dir <private-state>
+<plugin-root>/scripts/invoke.sh task wait --handle <original-handle> --timeout-ms 30000
+<plugin-root>/scripts/invoke.sh task inspect --handle <original-handle>
+# Only cancel after observing the exact task_id and work_revision:
+<plugin-root>/scripts/invoke.sh task stop --handle <original-handle> --task-id <observed-task-id> --work-revision <observed-work-revision>
+```
+
+`task reconcile --handle <original-handle>` is only for `submitting` or
+`submit_uncertain` handles with their original control receipt, or an idempotent
+`reconciled` replay. Do not reconcile a normally queued successful submission.
+It observes the existing run and never resubmits or starts a coordinator.
+
+A dispatch brief has `version:1`, a stable `request_id`, explicit `provider`,
+confirmed `provider_lock`, `directory`, `prompt`, `role`, `paths` for an
+implementer, `acceptance`, `max_attempts` and `max_active_ms`. Repeating the same
+request preserves its handle; changed content conflicts. Routing preferences
+never authorize execution, quota or provider substitution. Preserve existing
+handles and their original runtime binding through upgrades.
+
+Owner feedback uses `task request-changes --handle <handle> --request <brief>`.
+The strict brief contains `work_revision`, `candidate_oid`, `feedback`,
+`acceptance`, `command_id`, and `task_id` for a multi-task handle. Read the exact
+revision and candidate from `inspect`; do not invent them. A repeated identical
+command replays its checkpoint. Revision 2 uses a fresh invocation and candidate.
+`task accept` still requires the full original tuple: `task_id`, `work_revision`,
+`event_id`, `event_revision`, `event_hash`, `action_slot`, `command_id`, and
+`decision:"accept"` (or `"reject"`). Construct these from
+`summary.tasks[].reviewable_result`, never from guessed owner/hash fields.
+Acceptance and delivery ACK are independent; inspect their actual outcomes.
 
 ## Session controls and saved defaults
 
 Handle `$orchestrate 开启 claude|grok|agy`, `关闭`, `状态`, and model settings
 through the installed wrapper. These are orchestration controls for the current
-Codex conversation, not instructions to launch an interactive CLI window.
+verified owner scope. Use controller start only when starting a managed main session.
 
 ```
-<plugin-root>/scripts/invoke.sh provider enable --provider <claude|grok|agy> --provider-lock <confirmed-lock.json>
-<plugin-root>/scripts/invoke.sh provider disable --provider <claude|grok|agy>
+<plugin-root>/scripts/invoke.sh provider enable --provider <claude|codex|grok|agy> --provider-lock <confirmed-lock.json>
+<plugin-root>/scripts/invoke.sh provider disable --provider <claude|codex|grok|agy>
 <plugin-root>/scripts/invoke.sh provider status
-<plugin-root>/scripts/invoke.sh provider model --provider <claude|grok|agy> --model <model-id|cli-default>
-<plugin-root>/scripts/invoke.sh provider default-model --provider <claude|grok|agy> --model <model-id|cli-default>
+<plugin-root>/scripts/invoke.sh provider model --provider <claude|codex|grok|agy> --model <model-id|cli-default>
+<plugin-root>/scripts/invoke.sh provider default-model --provider <claude|codex|grok|agy> --model <model-id|cli-default>
 ```
+
+For Codex controls pass `--provider codex` explicitly. The aggregate provider status and saved routing preference order currently list Claude/Grok/AGY; that list does not disable explicit Codex dispatch.
 
 Enable probes the actual environment and confirmed binary. Discover the CLI with
 `task probe`; reuse a confirmed unchanged lock. Missing CLI, changed pin or
@@ -75,7 +113,10 @@ The packaged `defaults.json` declares `write_workspace=isolated-worktree` and
 every time without asking the user to repeat isolation instructions. Code edits
 must use a managed `candidate_workspace` with an immutable base and owned paths.
 For managed tasks, omit `directory` to let `task submit` allocate a unique path
-beside the private handle; the source Host materializes it through the existing
+under a deterministic owner-only workspace root beside the selected runtime
+state directory, outside its protected tree. Handles and frozen plans remain in
+state; existing plan directories are never relocated. The source Host materializes
+the workspace through the existing
 Git journal. Validation/build commands use the candidate validation stage, so
 their generated files remain isolated. Only pure read-only analysis may read the
 original workspace. Never send an implementer to the original checkout or reuse
@@ -96,7 +137,7 @@ Record the handle path in the existing task handoff so another conversation can
 find the same run. Never choose a "latest" run or reuse a handle for submission.
 
 For provider discovery, use `<plugin-root>/scripts/invoke.sh task probe` (optional
-`--provider claude|agy|grok` and `--binary <path>`). This only probes version/help and never authenticates or
+`--provider claude|codex|agy|grok` and `--binary <path>`). This only probes version/help and never authenticates or
 changes a provider lock. Reuse an already confirmed unchanged lock. First use or
 changed digest still requires the existing explicit pin confirmation and
 `provider-lock` procedure below; never fabricate confirmation from probe output.
@@ -104,7 +145,7 @@ changed digest still requires the existing explicit pin confirmation and
 For a single read-only analysis/review:
 
 ```
-<plugin-root>/scripts/invoke.sh task run --provider <claude|agy|grok> --run-id <unique-id> --directory <workspace> --prompt-file <private-brief.txt> --provider-lock <confirmed-lock.json> --timeout-ms <authorized-budget> --handle <new-private-handle.json>
+<plugin-root>/scripts/invoke.sh task run --provider <claude|codex|agy|grok> --run-id <unique-id> --directory <workspace> --prompt-file <private-brief.txt> --provider-lock <confirmed-lock.json> --timeout-ms <authorized-budget> --handle <new-private-handle.json>
 ```
 
 This creates one read-only Worker with one attempt and owner review. Select the
@@ -124,7 +165,7 @@ Do not claim a whole-artifact exact-match check passed when only the final
 answer matched; retain the original artifact and document the distinction.
 Stop on `profile_supported=false`; do not fall back to legacy requests or another
 provider. A successful probe establishes capabilities, not model success.
-Implementation and candidate review remain Claude-only.
+Implementation uses managed candidates only. Claude gateway write is admitted only for exact 2.1.267/2.1.316 pins and Codex write only for exact 0.166.0; readonly catalog admission does not establish coding or model acceptance.
 
 Grok additionally reports `requires_session_write_authorization=true`. Obtain
 explicit user authorization for this task's fresh Grok session directory writes
@@ -231,10 +272,10 @@ ID is a routing label, not protection against same-user environment forgery.
 The collect-only package does not provide native-bridge.
 
 
-Use only the installed wrapper at `${PLUGIN_ROOT}/scripts/invoke.sh`. The full
-legacy package accepts
+Use only the original installed wrapper at `<plugin-root>/scripts/invoke.sh`; it resolves its own root and ignores ambient `PLUGIN_ROOT`. The full native package accepts
+`controller`, `routing`, `provider`, `task`, `runtime-status`, `preflight`, and
 `provider-probe`, `provider-lock`, `owner-bind`, `ensure-running`, `submit`, `status`, `summary`, `collect`, `wait-events`, `ack`, `accept`,
-`answer`, `retry`, `rework`, `resume`, `stop`, `native-bridge`, `rebind-owner`, `recover-host`, `install`, `doctor`,
+`answer`, `retry`, `rework`, `request-changes`, `resume`, `stop`, `native-bridge`, `rebind-owner`, `recover-host`, `install`, `doctor`,
 `uninstall`, `pin`, and `unpin`.
 The portable collect-only wrapper supports runtime owner/provider/task commands
 and `check`, `preflight`, and `task`; it rejects `native-bridge`, `install`, `doctor`, `uninstall`, `pin`
@@ -243,7 +284,7 @@ and `unpin`. Do not use full-package administration commands through it.
 Never invoke `codex` as a replacement entry point, never invent an MCP server,
 and never bypass a blocked CLI result with direct process or Git operations.
 
-All commands return JSON on stdout. A command error returns JSON on stderr and
+Control commands return JSON on stdout; controller start attaches the main CLI streams. A command error returns JSON on stderr and
 exit status 2. Preserve that structured reason in the response.
 
 ## Main-agent task contract

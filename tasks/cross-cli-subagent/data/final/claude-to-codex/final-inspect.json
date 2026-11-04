@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "run_id": "bird-cdf0eee1eede23a414ba11e0",
+  "counts": {
+    "blocked": 0,
+    "completed": 1,
+    "pending": 0,
+    "running": 0
+  },
+  "tasks": [
+    {
+      "technical_retry_count": 0,
+      "review_rework_count": 1,
+      "request_changes_blocked_reason": "owner_rework_unsupported",
+      "task_id": "bird-cdf0eee1eede23a414ba11e0-work",
+      "status": "completed",
+      "group": "completed",
+      "work_revision": 2,
+      "active_segments": 0,
+      "allowed_actions": [
+        "status",
+        "collect"
+      ],
+      "latest_progress": {
+        "id": "provider-progress",
+        "path": "/private/tmp/bird-reverse-5c9j-r3/state/host-spool/host-launch-8c33c75281704ad310946dd7b09529834c25/attempt-c753af306a3259704ce2c066/segment-9fe2b968f69dd924d28d9940/progress/002/result-output.bin",
+        "size": 163,
+        "sha256": "96e15c5a9ba5713a6a6c951e9c64e8fea72ecc030cbc96bf9490c05eee6bd91c"
+      }
+    }
+  ]
+}

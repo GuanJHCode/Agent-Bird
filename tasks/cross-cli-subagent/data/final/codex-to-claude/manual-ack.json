@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "task_id": "bird-0631629a781a812f6b12ccdf-work",
+  "delivery_id": "collection-ad678caf9c0f5531ecdab4b9a3a0ed66cffd623742d9378825db9598ffc36bab",
+  "collection_proof_sha256": "ad678caf9c0f5531ecdab4b9a3a0ed66cffd623742d9378825db9598ffc36bab",
+  "decisions": [
+    {
+      "event_id": "host-launch-8434b67c36c7a8c5b79b853ea6255bb922d9:11",
+      "event_revision": 11,
+      "event_hash": "14624bcb4b75aa2229adf16e96c9b2c5d24ddb9dc11f74d8479f5ce0573004ef",
+      "action_slot": "action-6ee99de0d59d4f4d54cc40d4aa0a55b2",
+      "decision": "handled",
+      "command_id": "manual-owner-ack-two"
+    }
+  ]
+}

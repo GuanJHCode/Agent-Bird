@@ -1,0 +1,32 @@
+{
+  "source": "68e875868215ecb1fd8daf540799fd3d0eee25e3",
+  "counts": {
+    "python-native-final": {
+      "tests": 212,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 211
+    },
+    "python-package-v7": {
+      "tests": 26,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 26
+    },
+    "package-v7-smoke": {
+      "pass": 7,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "build_exit_code": 0,
+  "vet_exit_code": 0,
+  "package_v7_pytest_exit_code": 0,
+  "native_pytest_exit_code": 1,
+  "notes": [
+    "Native Python report predates only workspace allocation and whitelisted guard diagnostics Go deltas; Python/native auth code unchanged. Final-package G1 and delivery regressions executed after those deltas.",
+    "Go race counts include subtests; top-level test count is separately recorded."
+  ]
+}

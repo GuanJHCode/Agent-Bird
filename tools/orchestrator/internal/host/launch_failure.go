@@ -16,6 +16,64 @@ type launchFailureDiagnostic struct {
 	CauseCode string `json:"cause_code"`
 }
 
+// safeLaunchFailureCauseCodes maps a whole error string to the cause code that
+// may be recorded verbatim in a durable launch diagnostic. Every entry is a
+// fixed literal chosen by this package or by the adapter's version/pin gates, so
+// none of them can carry a path, a provider message, a decoder field name, or a
+// credential.
+//
+// Membership here does not weaken any guard. The launch is still refused exactly
+// as before; only the reason becomes attributable instead of collapsing into the
+// opaque "launch_failed". That attribution is what makes binary pin drift, a
+// frozen-window rejection, or a path-trust rejection distinguishable per run.
+var safeLaunchFailureCauseCodes = map[string]string{
+	// Payload and candidate source contracts.
+	"invalid_json":                         "invocation_payload_invalid",
+	"candidate_validation_source_invalid":  "candidate_validation_source_invalid",
+	"candidate_review_source_invalid":      "candidate_review_source_invalid",
+	"candidate_integration_source_invalid": "candidate_integration_source_invalid",
+	"candidate_input_changed":              "candidate_input_changed",
+	"candidate_target_mismatch":            "candidate_target_mismatch",
+	"invocation_unavailable":               "invocation_unavailable",
+	// Path and workspace trust.
+	"profile_workspace_untrusted":      "profile_workspace_untrusted",
+	"report_capability_path_untrusted": "report_capability_path_untrusted",
+	"profile_role_invalid":             "profile_role_invalid",
+	"isolated_worktree_required":       "isolated_worktree_required",
+	// Binary pin and version drift.
+	"binary_path_invalid":         "binary_path_invalid",
+	"binary_pin_invalid":          "binary_pin_invalid",
+	"binary_version_mismatch":     "binary_version_mismatch",
+	"binary_sha256_mismatch":      "binary_sha256_mismatch",
+	"binary_path_changed":         "binary_path_changed",
+	"binary_file_unsafe":          "binary_file_unsafe",
+	"binary_read_failed":          "binary_read_failed",
+	"binary_version_probe_failed": "binary_version_probe_failed",
+	// Capability and trial gates.
+	"provider_capability_unsupported": "provider_capability_unsupported",
+	"codex_trial_guard_not_ready":     "codex_trial_guard_not_ready",
+	// Frozen compatibility window.
+	"cli_version_unparsed":          "cli_version_unparsed",
+	"cli_version_catalog_invalid":   "cli_version_catalog_invalid",
+	"cli_version_product_mismatch":  "cli_version_product_mismatch",
+	"cli_version_prerelease":        "cli_version_prerelease",
+	"cli_version_unrecognized_note": "cli_version_unrecognized_note",
+	"cli_version_below_baseline":    "cli_version_below_baseline",
+	"cli_version_above_ceiling":     "cli_version_above_ceiling",
+	"cli_version_not_published":     "cli_version_not_published",
+}
+
+// recordedLaunchFailureCodes is the closed set of cause codes that may appear in
+// a durable diagnostic. It is derived from the same table that produces them, so
+// the writer and the grant-ledger recovery reader cannot drift apart.
+var recordedLaunchFailureCodes = func() map[string]struct{} {
+	codes := map[string]struct{}{"launch_failed": {}}
+	for _, code := range safeLaunchFailureCauseCodes {
+		codes[code] = struct{}{}
+	}
+	return codes
+}()
+
 // Only grant-ledger recovery may reuse a pre-event durable diagnostic.
 type recoveredLaunchFailure struct{}
 
@@ -47,9 +105,7 @@ func readRecoveredLaunchFailure(path string) ([]byte, launchFailureCause, error)
 	if json.Unmarshal(body, &diagnostic) != nil || diagnostic.Version != 1 || diagnostic.Kind != "launch_failure" || diagnostic.Stage != "prelaunch" {
 		return nil, "", invalid
 	}
-	switch diagnostic.CauseCode {
-	case "launch_failed", "invocation_payload_invalid", "candidate_validation_source_invalid", "candidate_review_source_invalid", "candidate_integration_source_invalid", "candidate_input_changed", "candidate_target_mismatch", "invocation_unavailable", "profile_workspace_untrusted":
-	default:
+	if _, ok := recordedLaunchFailureCodes[diagnostic.CauseCode]; !ok {
 		return nil, "", invalid
 	}
 	// Exact canonical bytes reject unknown/duplicate fields and trailing content;
@@ -73,24 +129,8 @@ func safeLaunchFailureCause(cause error) launchFailureCause {
 	}
 	// Deliberately match the entire error. Do not unwrap, trim, parse prefixes,
 	// echo decoder field names, or copy paths/Provider error text into artifacts.
-	switch cause.Error() {
-	case "profile_workspace_untrusted":
-		return "profile_workspace_untrusted"
-	case "invalid_json":
-		return "invocation_payload_invalid"
-	case "candidate_validation_source_invalid":
-		return "candidate_validation_source_invalid"
-	case "candidate_review_source_invalid":
-		return "candidate_review_source_invalid"
-	case "candidate_integration_source_invalid":
-		return "candidate_integration_source_invalid"
-	case "candidate_input_changed":
-		return "candidate_input_changed"
-	case "candidate_target_mismatch":
-		return "candidate_target_mismatch"
-	case "invocation_unavailable":
-		return "invocation_unavailable"
-	default:
-		return "launch_failed"
+	if code, ok := safeLaunchFailureCauseCodes[cause.Error()]; ok {
+		return launchFailureCause(code)
 	}
+	return "launch_failed"
 }

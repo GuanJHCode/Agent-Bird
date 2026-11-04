@@ -13,6 +13,14 @@ import (
 )
 
 func TestTaskModelResolutionFreezesDefaultsAndExplicitChoices(t *testing.T) {
+	for _, provider := range []string{"claude-code", "codex-cli"} {
+		t.Run(provider, func(t *testing.T) {
+			testTaskModelResolutionFreezesDefaultsAndExplicitChoices(t, provider)
+		})
+	}
+}
+
+func testTaskModelResolutionFreezesDefaultsAndExplicitChoices(t *testing.T, provider string) {
 	root, err := os.MkdirTemp("/tmp", "provider-model-")
 	if err != nil {
 		t.Fatal(err)
@@ -42,19 +50,19 @@ func TestTaskModelResolutionFreezesDefaultsAndExplicitChoices(t *testing.T) {
 		t.Fatal(err)
 	}
 	model := "preset-model"
-	if _, err = providerSettingsCall(ctx, state, bound.Path, "claude-code", "default-model", &model); err != nil {
+	if _, err = providerSettingsCall(ctx, state, bound.Path, provider, "default-model", &model); err != nil {
 		t.Fatal(err)
 	}
 	tasks := []coordinator.TaskRequest{
-		{ID: "inherited", AdapterPayload: json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000}}`)},
-		{ID: "explicit", AdapterPayload: json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000,"model":"task-model"}}`)},
-		{ID: "default", AdapterPayload: json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000,"cli_model_default":true}}`)},
+		{ID: "inherited", AdapterPayload: json.RawMessage(`{"provider":"` + provider + `","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000}}`)},
+		{ID: "explicit", AdapterPayload: json.RawMessage(`{"provider":"` + provider + `","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000,"model":"task-model"}}`)},
+		{ID: "default", AdapterPayload: json.RawMessage(`{"provider":"` + provider + `","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000,"cli_model_default":true}}`)},
 	}
 	if err = resolveTaskModels(ctx, state, bound.Path, tasks); err != nil {
 		t.Fatal(err)
 	}
 	model = "changed-model"
-	if _, err = providerSettingsCall(ctx, state, bound.Path, "claude-code", "default-model", &model); err != nil {
+	if _, err = providerSettingsCall(ctx, state, bound.Path, provider, "default-model", &model); err != nil {
 		t.Fatal(err)
 	}
 	for i, want := range []string{"preset-model", "task-model", ""} {
@@ -63,7 +71,7 @@ func TestTaskModelResolutionFreezesDefaultsAndExplicitChoices(t *testing.T) {
 			t.Fatalf("model[%d]=%v %v", i, p.Profile, err)
 		}
 	}
-	if _, err = providerSettingsCall(ctx, state, bound.Path, "claude-code", "disable", nil); err != nil {
+	if _, err = providerSettingsCall(ctx, state, bound.Path, provider, "disable", nil); err != nil {
 		t.Fatal(err)
 	}
 	if err = resolveTaskModels(ctx, state, bound.Path, tasks); err == nil || err.Error() != "provider_disabled" {

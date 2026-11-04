@@ -87,7 +87,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 			sum := sha256.Sum256(executable)
 			payload, _ := json.Marshal(map[string]any{
 				"provider": "claude-code", "directory": work, "prompt": "fixture implementation",
-				"provider_lock":       map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "fixture-v1", "sha256": hex.EncodeToString(sum[:])}},
+				"provider_lock":       map[string]any{"version": 1, "provider": "claude-code", "protocol": "claude-stream-json-v1", "binary": map[string]string{"path": binary, "version": "2.1.267 (Claude Code)", "sha256": hex.EncodeToString(sum[:])}},
 				"profile":             map[string]any{"version": 1, "role": "implementer", "permission": "workspace-write", "timeout_ms": 15000},
 				"candidate_workspace": map[string]any{"version": 1, "repo_root": repo, "base_oid": base, "paths": []string{"README", "added.txt", "obsolete.txt"}},
 			})
@@ -171,17 +171,17 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 // Reuse the native test executable: first execution of a fresh unsigned shell
 // script can exceed the production 2s probe deadline under full-suite load.
 func TestMain(m *testing.M) {
-	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
-	if mode == "" {
-		os.Exit(m.Run())
-	}
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		fmt.Println("fixture-v1")
+		fmt.Println("2.1.267 (Claude Code)")
 		os.Exit(0)
 	}
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema")
+		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema --tools")
 		os.Exit(0)
+	}
+	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
+	if mode == "" {
+		os.Exit(m.Run())
 	}
 	if mode == "progress" {
 		signal.Ignore(syscall.SIGTERM)
@@ -193,6 +193,11 @@ func TestMain(m *testing.M) {
 	reworking := mode == "rework"
 	revised := false
 	if reworking {
+		for _, arg := range os.Args {
+			if arg == "--resume" {
+				os.Exit(9)
+			}
+		}
 		input, _ := io.ReadAll(io.LimitReader(os.Stdin, 1024*1024))
 		revised = strings.Contains(string(input), "Owner-authorized revision.")
 		if revised && !strings.Contains(string(input), "ACCEPTANCE_MARKER") {

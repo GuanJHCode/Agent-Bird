@@ -1,0 +1,31 @@
+{
+  "status": "core_functional_evidence_verified",
+  "run_id": "bird-cdf0eee1eede23a414ba11e0",
+  "candidate_oids": [
+    "50c619a6f1d672584e11bf42227449f778bf29f9",
+    "69c473c69337972e5612cf5c80a44a3a302f8b3d"
+  ],
+  "validation_exit_codes": [
+    0,
+    0
+  ],
+  "original_HEAD_unchanged": true,
+  "original_worktree_clean": true,
+  "candidate_lineage_verified": true,
+  "both_private_refs_retained": true,
+  "workspaces_outside_state": true,
+  "attempts": 2,
+  "segment_states": [
+    [
+      "exited",
+      "result"
+    ],
+    [
+      "exited",
+      "result"
+    ]
+  ],
+  "pending_events": 0,
+  "final_status": "completed",
+  "work_revision": 2
+}

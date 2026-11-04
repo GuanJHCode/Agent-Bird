@@ -1,0 +1,317 @@
+{
+  "source": "68e875868215ecb1fd8daf540799fd3d0eee25e3",
+  "files": [
+    {
+      "path": "claude-to-codex/accept-result.json",
+      "size": 27,
+      "sha256": "eab7cee30109b61198a9ab9b5bf396b842d68ca5396fa6161ada7ba0795511a2"
+    },
+    {
+      "path": "claude-to-codex/accept.json",
+      "size": 399,
+      "sha256": "e3261cfa7d1c950da434d7d7569a268ebaa812c095bd3271a3ade756c82c92f4"
+    },
+    {
+      "path": "claude-to-codex/ack-result.json",
+      "size": 143,
+      "sha256": "9c103b190cb3105e6c45c864ccc711caa6fe2ee07ca80d9d042fcc9d9caaddf5"
+    },
+    {
+      "path": "claude-to-codex/ack.json",
+      "size": 639,
+      "sha256": "cc78a4ff95209c1e7202f8e24fd95893ab4434c4da5e796ccb7e0d36bf5bd2d4"
+    },
+    {
+      "path": "claude-to-codex/candidate-1.diff",
+      "size": 170,
+      "sha256": "9d30b4e1bc09c15a949529b387fb79ad0873cfcea83f090a6837dd145dfe8dc2"
+    },
+    {
+      "path": "claude-to-codex/candidate-1.json",
+      "size": 1776,
+      "sha256": "82f7e5d5938451781153a2730c78e397049a37cd0f11e8a97afd35fe030a2791"
+    },
+    {
+      "path": "claude-to-codex/candidate-1.py",
+      "size": 32,
+      "sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772"
+    },
+    {
+      "path": "claude-to-codex/candidate-2.diff",
+      "size": 272,
+      "sha256": "edef525051d66ff2440fde8adaff24ffff6d459ef5b47a5ea03d1bd8bf89cd4a"
+    },
+    {
+      "path": "claude-to-codex/candidate-2.json",
+      "size": 1901,
+      "sha256": "cd39264637c37312caa1d645b746e5cd83b7d19ee931c0d3b714f900f589d92d"
+    },
+    {
+      "path": "claude-to-codex/candidate-2.py",
+      "size": 163,
+      "sha256": "299c6da7a82cdccf7aeb187f6abf32837592bf190fc079f12b3dcc685bc70dce"
+    },
+    {
+      "path": "claude-to-codex/feedback-result.json",
+      "size": 353,
+      "sha256": "e78d699906e8d3746dfda1ca0b66861fc8aabf61d8235e6c5a7accc2ec67cb65"
+    },
+    {
+      "path": "claude-to-codex/final-inspect.json",
+      "size": 950,
+      "sha256": "8b0d028184dee449a76d59160bd141d723bfc3f445931fae688d714f5890e4e4"
+    },
+    {
+      "path": "claude-to-codex/parent-summary.json",
+      "size": 26960,
+      "sha256": "e57f445a02c4bdad4c23e8aaf804d0c348a312baec2f8eb4df94c601340cb0f4"
+    },
+    {
+      "path": "claude-to-codex/review-1-ack-result.json",
+      "size": 143,
+      "sha256": "f0016447532468d82f8f22e5396699e0811fb3d6bc4470b9c032736eae7195a9"
+    },
+    {
+      "path": "claude-to-codex/review-1-ack.json",
+      "size": 637,
+      "sha256": "8cfde81532d864679c18c1bc433846fa5493581258298aaddeafc56960bf2c39"
+    },
+    {
+      "path": "claude-to-codex/review-1.json",
+      "size": 349,
+      "sha256": "a4f97ae7293c527cbf1fe5a8b6af45ae25aecbe8becfc8b54437a83ff3d6a582"
+    },
+    {
+      "path": "claude-to-codex/review-2.json",
+      "size": 349,
+      "sha256": "857749d95adc09cff93686669ae6139994b613e8878ec9e4ea049fbbaa2f718e"
+    },
+    {
+      "path": "claude-to-codex/root-final-proof.json",
+      "size": 655,
+      "sha256": "7a45e1cddce4325b5104a9f04d58d8d791c5ee3c799e00e3e4c73ae095c3e47f"
+    },
+    {
+      "path": "claude-to-codex/validation-1.json",
+      "size": 256,
+      "sha256": "6206290f11f774da21aba0663ad2153e05d050dfcae3a37312ae27310d91abcb"
+    },
+    {
+      "path": "claude-to-codex/validation-2.json",
+      "size": 256,
+      "sha256": "070b047234ffed008dcbef35125254772402c6b57448d8f8b105d991554a13da"
+    },
+    {
+      "path": "cleanup.json",
+      "size": 706,
+      "sha256": "71f5d301ff719615d6a3fed4bdfa0f4d4b965f635ba634cce6b7ebd3b565322e"
+    },
+    {
+      "path": "codex-to-claude/candidate-1.diff",
+      "size": 170,
+      "sha256": "9d30b4e1bc09c15a949529b387fb79ad0873cfcea83f090a6837dd145dfe8dc2"
+    },
+    {
+      "path": "codex-to-claude/candidate-1.json",
+      "size": 1768,
+      "sha256": "04d54371c145e51faea91f05194ee8ba98011420d934e1a29a41316bb050b2c1"
+    },
+    {
+      "path": "codex-to-claude/candidate-1.py",
+      "size": 32,
+      "sha256": "ba1a531f581d2e6094e978ed6f7aca7a8d92eeb62c6e7ad73ee692f7f18bc772"
+    },
+    {
+      "path": "codex-to-claude/candidate-2.diff",
+      "size": 351,
+      "sha256": "2ed758a1e342d7f55f9198f2430e407547783dc23338259877b300cd83eb86bb"
+    },
+    {
+      "path": "codex-to-claude/candidate-2.json",
+      "size": 1893,
+      "sha256": "e61b4cd511fbf0199f6bceb9dd9e1880909b124228b0a72b04e8839c24ed9454"
+    },
+    {
+      "path": "codex-to-claude/candidate-2.py",
+      "size": 239,
+      "sha256": "e97b5b55324190170e22a4479232f1156dd5149ce264e5f74db1cfd4fa38f823"
+    },
+    {
+      "path": "codex-to-claude/feedback-replay-proof.json",
+      "size": 101,
+      "sha256": "5354ab5c47a16c321883871b504088c84c10c0b3c148a98e2330ce54f0d16675"
+    },
+    {
+      "path": "codex-to-claude/feedback-result.json",
+      "size": 353,
+      "sha256": "8a58d0a3d3ab42b6c22d1fbbf1da5beac7e87fb33e81005ef7480b15313cf927"
+    },
+    {
+      "path": "codex-to-claude/final-empty-collect.json",
+      "size": 58,
+      "sha256": "e2a0f7f4c08882e906ff21d86b98485e198a716afbc2a50a8d280c0e05b8b7e0"
+    },
+    {
+      "path": "codex-to-claude/final-inspect.json",
+      "size": 557,
+      "sha256": "54ae1265daa6dd07b678c15d0b9eff4fadb7703d56839307b8378a2c7ef60c69"
+    },
+    {
+      "path": "codex-to-claude/integration-proof.json",
+      "size": 200,
+      "sha256": "b11bf7cfa7e63b2c36af28ba411dab2be1ed6d7ff660b2a9fd87760a23fe7d0f"
+    },
+    {
+      "path": "codex-to-claude/manual-accept-result.json",
+      "size": 27,
+      "sha256": "eab7cee30109b61198a9ab9b5bf396b842d68ca5396fa6161ada7ba0795511a2"
+    },
+    {
+      "path": "codex-to-claude/manual-accept.json",
+      "size": 412,
+      "sha256": "f99c5c12e9d0d68dadd8db32a7cf9d693b850e82252e3a48def359fbc8e34a1b"
+    },
+    {
+      "path": "codex-to-claude/manual-ack-result.json",
+      "size": 143,
+      "sha256": "19982962c3c7787d25364f70186d1c0de034e088695da1fa77a0c37ef3ce6b09"
+    },
+    {
+      "path": "codex-to-claude/manual-ack.json",
+      "size": 622,
+      "sha256": "2ae100d11a014b0cc317e1ffc3242b307dac1c98720dc91b859fbff75bc5d394"
+    },
+    {
+      "path": "codex-to-claude/manual-review-2.json",
+      "size": 613,
+      "sha256": "6c59c55dd5286ea505d1a3d4f69a559588612d857d40fd4de58d584f004f11e9"
+    },
+    {
+      "path": "codex-to-claude/review-1-ack-result.json",
+      "size": 143,
+      "sha256": "96dd37eeb00692b1a9f3130059634ebf5e34af96d0d3c85b818163c3ad0e841c"
+    },
+    {
+      "path": "codex-to-claude/review-1-ack.json",
+      "size": 637,
+      "sha256": "e2eb4f8a1ede2a0cc55ad9988ea8a96fb43a1f2fd5902d952166db4296e8c60a"
+    },
+    {
+      "path": "codex-to-claude/review-1.json",
+      "size": 349,
+      "sha256": "8fcd5c6a979da6a06a68d644f97b0f9d2d749be8c028135c24edc2c8ec642dc0"
+    },
+    {
+      "path": "codex-to-claude/review-2.json",
+      "size": 613,
+      "sha256": "6c59c55dd5286ea505d1a3d4f69a559588612d857d40fd4de58d584f004f11e9"
+    },
+    {
+      "path": "codex-to-claude/validation-1.json",
+      "size": 256,
+      "sha256": "8efd01b0f63d16812e74f9b7cee86b78bb4b8e0c0302f30cedebbd9f417ae742"
+    },
+    {
+      "path": "codex-to-claude/validation-2.json",
+      "size": 300,
+      "sha256": "91765bbe5ecd365ec601652fbb3a2a4d10c700dbd3d903058fe9ce9a8c16ada1"
+    },
+    {
+      "path": "integration-proof.json",
+      "size": 49019,
+      "sha256": "3b98809ebc56648e08c7ec55e921ad8231e29a8a3a4655f6369c264019dd65ac"
+    },
+    {
+      "path": "package/entry-result.json",
+      "size": 407,
+      "sha256": "b528c449794d44cc02ccb78f7de5c418d0d3fddd59e0cbeaebfefa1056d0fcbc"
+    },
+    {
+      "path": "package/install-result.json",
+      "size": 1869,
+      "sha256": "c124db57ddbab8d8a3414f3ec0a1fa923e12edeb2defbaeed5314f316bd78487"
+    },
+    {
+      "path": "package/smoke.jsonl",
+      "size": 7951,
+      "sha256": "1cfafe72423e16a91605aa639a8051745dcb422cd8a9c0c366f2619304599b50"
+    },
+    {
+      "path": "private-evidence.json",
+      "size": 2247,
+      "sha256": "96f10ae4f0a273099e89981c6038cfaff627273cf1814118d8ffe6f967e4a1ab"
+    },
+    {
+      "path": "tests/counts.json",
+      "size": 858,
+      "sha256": "7d4b878a32a39ce8035631d8305bae252826130ff26f79e300b141569fc1ab21"
+    },
+    {
+      "path": "tests/final-credential-proof.json",
+      "size": 328,
+      "sha256": "202b03456e4b3a74b914596e63b4d7f7dbd7e876e9822fc053f4ecb608e2a61f"
+    },
+    {
+      "path": "tests/go-race-v7-counts.json",
+      "size": 2433,
+      "sha256": "96f775b9363dd966e31217849b1a2d1844e441027e5232e21cf678aaea8d54b7"
+    },
+    {
+      "path": "tests/go-skips.json",
+      "size": 3036,
+      "sha256": "da6463a36b4e281d3333279d0e2ad23e2e59a661ed895bc259930a116e7e5d23"
+    },
+    {
+      "path": "tests/go-vet-v7.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/native-claude-267-race.json",
+      "size": 3557,
+      "sha256": "6cccceb1726c78f22e2cd7e09626394b478cf93234863b91f775754986b17f85"
+    },
+    {
+      "path": "tests/native-claude-316-race.json",
+      "size": 3558,
+      "sha256": "fc5991204b5e446da79dcaeac84c3a85edfa17fe9982381646058aa38bd0b0e9"
+    },
+    {
+      "path": "tests/original-go-build.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests/python-native-final.log",
+      "size": 3884,
+      "sha256": "07f21f0ee278d4ec3f93b11faeb861183ac21075c8160401c29586eb6184002d"
+    },
+    {
+      "path": "tests/python-native-final.xml",
+      "size": 36656,
+      "sha256": "2a23096242e7458075ac61ce2d968582e900557dff94054f67a160134688f0fa"
+    },
+    {
+      "path": "tests/python-package-v7.log",
+      "size": 99,
+      "sha256": "6be03d80d17804a98d575f4a9cc9d180c4eed9c40f8549ac5fe15f3c507f910e"
+    },
+    {
+      "path": "tests/python-package-v7.xml",
+      "size": 4664,
+      "sha256": "612b35ca2d493f28b42adc2e9471a5bc0fe2796d7ef9c1adc4a676703843b7c7"
+    }
+  ],
+  "private_root": "/private/tmp/agent-bird-cross-cli-5c9jyn8o",
+  "trial_roots": [
+    "/private/tmp/bird-c2c-5c9j",
+    "/private/tmp/bird-reverse-5c9j-r3"
+  ],
+  "excluded": [
+    "credentials",
+    "owner capabilities",
+    "control/bootstrap files",
+    "auth files",
+    "raw model transcripts"
+  ]
+}

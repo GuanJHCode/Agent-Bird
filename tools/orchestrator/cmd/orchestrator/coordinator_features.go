@@ -44,3 +44,18 @@ func checkCoordinatorTasks(capabilities []string, tasks []coordinator.TaskReques
 	}
 	return nil
 }
+
+func coordinatorHasOwnerChanges(capabilities []string) bool {
+	return slices.Contains(capabilities, "owner_request_changes_v2")
+}
+func requireOwnerChangesCoordinator(ctx context.Context, state string) error {
+	ready, err := ensureServer(ctx, state)
+	if err != nil {
+		return err
+	}
+	capabilities, _ := ready["capabilities"].([]string)
+	if !coordinatorHasOwnerChanges(capabilities) {
+		return codeError("coordinator_upgrade_required")
+	}
+	return nil
+}

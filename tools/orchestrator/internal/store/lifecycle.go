@@ -77,26 +77,84 @@ func (d *DB) CompletelyIdle(ctx context.Context) (bool, error) {
 	return count == 0, err
 }
 
-func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT h.id FROM runtime_hosts h WHERE h.status='ready'
-	 AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','result_ready','cancelled','failed','budget_exhausted','blocked_dependency'))
-	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.producer_id=h.id AND e.delivery_status='pending_session')
- ORDER BY h.id`)
+// Retirement and request-changes share the same serialized lifecycle boundary.
+// A capable source Host remains useful while its owner can revise a candidate.
+func (d *DB) hostRetirable(ctx context.Context, tx *sql.Tx, hostID string) (bool, error) {
+	var blocked, ready int
+	err := tx.QueryRowContext(ctx, `SELECT
+ (SELECT COUNT(*) FROM runtime_hosts WHERE id=? AND status='ready'),
+ (SELECT COUNT(*) FROM task_runtime r JOIN tasks t ON t.id=r.task_id JOIN runtime_hosts h ON h.launch_id=r.host_launch_id WHERE h.id=? AND t.status NOT IN ('completed','result_ready','cancelled','failed','budget_exhausted','blocked_dependency'))+
+ (SELECT COUNT(*) FROM segment_runtime WHERE host_id=? AND status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))+
+ (SELECT COUNT(*) FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.producer_id=? AND e.delivery_status='pending_session')`, hostID, hostID, hostID, hostID).Scan(&ready, &blocked)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	defer rows.Close()
-	var ids []string
+	if ready != 1 || blocked != 0 {
+		return false, nil
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT t.id FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN runtime_hosts h ON h.launch_id=r.host_launch_id WHERE h.id=? AND h.status='ready' AND t.status='result_ready'`, hostID)
+	if err != nil {
+		return false, err
+	}
+	var tasks []string
 	for rows.Next() {
 		var id string
 		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return false, err
+		}
+		tasks = append(tasks, id)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return false, err
+	}
+	for _, id := range tasks {
+		if _, err = d.ownerReworkState(ctx, tx, id, false); err == nil {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM runtime_hosts WHERE status='ready' ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	var all []string
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		ids = append(ids, id)
+		all = append(all, id)
 	}
-	return ids, rows.Err()
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for _, id := range all {
+		retire, err := d.hostRetirable(ctx, tx, id)
+		if err != nil {
+			return nil, err
+		}
+		if retire {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
 }
-
 func (d *DB) RetireHost(ctx context.Context, hostID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -104,12 +162,19 @@ func (d *DB) RetireHost(ctx context.Context, hostID string) error {
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer tx.Rollback()
+	retire, err := d.hostRetirable(ctx, tx, hostID)
+	if err != nil {
+		return err
+	}
+	if !retire {
+		return ErrConflict
+	}
 	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='released',updated_at=? WHERE id=? AND status='ready'`, time.Now().UTC().Format(time.RFC3339Nano), hostID); err != nil {
-		return rollback(err)
+		return err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='released' WHERE host_id=?`, hostID); err != nil {
-		return rollback(err)
+		return err
 	}
 	return tx.Commit()
 }

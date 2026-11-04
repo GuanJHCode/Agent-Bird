@@ -131,39 +131,63 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 	h.identity = Identity{PID: cmd.Process.Pid, PGID: h.pgid, Executable: resolved, ExecutableSHA256: digest, StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	// Keep the child waitable until its birth is captured: even a child that
 	// has already exited retains its PID and start time until Wait reaps it.
-	birth, birthErr := processBirth(cmd.Process.Pid)
+	birth, birthErr := birthLookup(cmd.Process.Pid)
 	if birthErr == nil {
 		h.identity.Birth, h.identity.BirthKnown = birth, true
 	}
-	go func() {
-		err := cmd.Wait()
-		h.mu.Lock()
-		h.waited = true
-		if cmd.ProcessState != nil {
-			h.exit = cmd.ProcessState.ExitCode()
-			if h.exit < 0 {
-				if ws, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
-					h.exit = -int(ws.Signal())
+	reap := func() {
+		go func() {
+			err := cmd.Wait()
+			h.mu.Lock()
+			h.waited = true
+			if cmd.ProcessState != nil {
+				h.exit = cmd.ProcessState.ExitCode()
+				if h.exit < 0 {
+					if ws, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+						h.exit = -int(ws.Signal())
+					}
 				}
+			} else if err != nil {
+				h.exit = -1
 			}
-		} else if err != nil {
-			h.exit = -1
-		}
-		h.mu.Unlock()
-		close(h.done)
-	}()
+			h.mu.Unlock()
+			close(h.done)
+		}()
+	}
 	if birthErr != nil {
-		stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		_ = h.Stop(stopCtx)
-		cancel()
+		// Stop cannot clean this up: it refuses to signal a pid whose birth
+		// it cannot prove. Start needs no such proof, but the cleanup signal
+		// must complete before any reap can release the pid for reuse: the
+		// child this group named is only guaranteed to be ours while it is
+		// still waitable. Signal first, then start the reap. A reap that
+		// outlives the bounded wait below (a descendant holding the pipes)
+		// still finishes in the background; no signal is sent after it, so
+		// a timed-out cleanup cannot be redirected at a recycled pid either.
+		_ = syscall.Kill(-h.pgid, syscall.SIGKILL)
+		reap()
+		select {
+		case <-h.done:
+		case <-time.After(time.Second):
+		}
 		return nil, CodeError("process_birth_unknown")
 	}
+	reap()
 	return h, nil
 }
 func (h *Handle) PID() int           { return h.cmd.Process.Pid }
 func (h *Handle) PGID() int          { return h.pgid }
 func (h *Handle) Identity() Identity { h.mu.Lock(); defer h.mu.Unlock(); return h.identity }
-func (h *Handle) ExitCode() int      { h.mu.Lock(); defer h.mu.Unlock(); return h.exit }
+
+// ExitCode returns the leader's exit code: the process exit status, or
+// -signal when the leader was killed by a signal. Until the leader's Wait
+// has published it, ExitCode returns the -1 sentinel, which is not a result.
+// A nil return from Wait guarantees publication, and so does a nil return
+// from ConfirmTreeExited, which requires that same publication. Stop
+// deliberately guarantees neither: it proves the process group is gone, and
+// the pipes Wait drains may still be held open past that point, so a caller
+// that needs the final code after Stop must Wait (or confirm the tree) for
+// it instead of reading the sentinel.
+func (h *Handle) ExitCode() int { h.mu.Lock(); defer h.mu.Unlock(); return h.exit }
 func (h *Handle) Output() string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -194,6 +218,12 @@ func (h *Handle) ConfirmTreeExited() error {
 	return nil
 }
 
+// Stop terminates the leader's process group. A nil return proves only
+// that no member of the group survives; it is not a Wait and does not prove
+// the exit code has been published (see ExitCode). Keeping the two apart is
+// what lets a caller terminate a group whose output consumer is blocked:
+// the group dies on Stop's signals alone, without waiting for pipe drain
+// or EOF, and Wait settles the exit code afterwards.
 func (h *Handle) Stop(ctx context.Context) error {
 	h.mu.Lock()
 	waited := h.waited
@@ -209,7 +239,7 @@ func (h *Handle) Stop(ctx context.Context) error {
 	if h.pgid <= 0 {
 		return ErrProcessTreeUnknown
 	}
-	birth, err := processBirth(identity.PID)
+	birth, err := birthLookup(identity.PID)
 	if err != nil || !identity.BirthKnown || birth != identity.Birth {
 		alive, groupErr := processGroupAlive(h.pgid)
 		if groupErr != nil || alive {
@@ -223,7 +253,7 @@ func (h *Handle) Stop(ctx context.Context) error {
 	if waitProcessGroupGone(ctx, h.pgid) {
 		return nil
 	}
-	birth, err = processBirth(identity.PID)
+	birth, err = birthLookup(identity.PID)
 	if err != nil || birth != identity.Birth {
 		return ErrProcessTreeUnknown
 	}
@@ -389,3 +419,8 @@ func processBirth(pid int) (string, error) {
 
 // Birth returns the kernel-reported macOS process start time for pid.
 func Birth(pid int) (string, error) { return processBirth(pid) }
+
+// birthLookup is the birth query Start and Stop rely on. It is a variable
+// only so package tests can fail it deterministically; production code must
+// never replace it.
+var birthLookup = processBirth

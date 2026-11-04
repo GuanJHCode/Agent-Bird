@@ -1,6 +1,6 @@
 # Codex Bird Orchestrator
 
-在 **Codex CLI 中直接让 Claude 处理任务**。Codex 负责派发、检查结果和后续决策，Claude 负责执行。
+在当前 CLI 中通过 **Agent Bird** 派发独立任务、检查候选结果并明确验收。Codex 原生会话可直接绑定；Claude、Grok、AGY 主会话通过受控 controller 启动绑定。
 
 > 用 Claude 检查这个项目的代码，列出问题和改进建议。
 
@@ -39,7 +39,7 @@
 
 ## 开发与协议
 
-实现采用 Go + SQLite，提供持久化任务调度、Host 事件、结果验收及候选版本绑定。
+实现采用 Go + SQLite，提供持久化任务调度、Host 事件、结果验收及候选版本绑定。各 Provider 的 CLI 试用窗口是冻结的已发布稳定版区间，不是单一版本常量；见 [provider-runtime](docs/provider-runtime.md) 与 [支持矩阵](docs/support-matrix.md)。版本窗口不等于真实模型或 coding 验收；Codex 执行还需要 exact pin、已安装 receipt 和完整 native runtime。
 
 [开发者构建](docs/development-install.md) · [CLI 接口](tools/orchestrator/README.md) · [分层测试](docs/testing.md) · [运行协议](docs/runtime-protocols.md) · [Git 协议](docs/git-cleanup-protocol.md)
 
@@ -48,3 +48,24 @@
 ## 许可证
 
 [MIT](LICENSE)。预编译包内的 `THIRD_PARTY_NOTICES.md` 和 `licenses/` 保留 Go 及依赖的许可信息。[参考项目记录](docs/reference-projects.md) 单独说明设计参考范围。
+
+## 当前源码的多 CLI 入口
+
+当前源码支持 `controller start`、`routing`、`task dispatch/wait/reconcile`，以及
+`inspect/collect/request-changes/accept/ack/stop`。`reconcile` 仅用于保留原 control receipt 的 `submitting`/`submit_uncertain` handle 或 `reconciled` 重放；正常 queued 提交无需 reconcile。取消先用 `task inspect --handle H` 观察 task_id/work_revision，再调用 `task stop --handle H --task-id <observed-task-id> --work-revision <observed-work-revision>`，并检查执行树确已终止。历史下载包不自动获得这些能力。
+安装后使用该版本的 `scripts/invoke.sh` 绝对路径；无需 `PLUGIN_ROOT`。
+Claude、Grok、AGY 的 owner 是受控主进程作用域，同一进程内多个原生聊天共享此作用域。
+Worker 不能再次派发。已有 handle 保留原 runtime 路由，升级不能改绑为“最新任务”。
+
+完整 native 包可通过 [私有包装 smoke](tasks/cross-cli-subagent/scripts/smoke-installed-package.sh)
+在任务目录实际构建、安装和 fixture 验证，不修改全局账户或 CLI 配置。
+[入口生成器](tasks/cross-cli-subagent/scripts/build-native-entries.py) 以
+`--installed-root <private-dest>/versions/<version> --output <new-entry-dir>`
+生成 Codex/Claude/Grok/AGY Skill 入口。入口绑定当前安装的绝对 wrapper，不复制 receipt-bound binary。
+保留该安装及固定 Python 路径；移动或修改后需重新正式安装、重新生成入口。
+这些入口文件的生成不等于各 CLI 已加载插件，需显式加载所需 Skill，且不能据此声称已通过原生 UI 验收。
+
+写任务限定 managed candidate：Claude gateway 仅 exact 2.1.267/2.1.316，Codex 仅 exact 0.166.0。
+AGY/Grok 继续只读。能力 probe 不执行模型；fixture、版本 catalog 与 CLI 帮助也不证明真实 coding 成功。
+主审从 `inspect` 读取 revision、candidate 和完整 reviewable tuple，使用 `request-changes`
+提交反馈，后续 revision 使用 fresh invocation；`accept` 仍需完整 event tuple，结果投递 ACK 独立。

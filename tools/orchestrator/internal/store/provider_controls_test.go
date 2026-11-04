@@ -13,6 +13,14 @@ func providerTestPlan(run, thread, provider string) PlanSpec {
 	return PlanSpec{Run: RunSpec{ID: run, ControllerThread: thread, PlanRevision: 1, OriginContextID: run, OriginPID: 7, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: run, HostGeneration: run, Executable: "/private/host"}, Tasks: []TaskSpec{{ID: run + "-task", RunID: run, MaxAttempts: 2, AdapterPayload: raw}}}
 }
 func TestProviderCloseIsDurableAndSessionScoped(t *testing.T) {
+	for _, provider := range []string{"grok-build", "codex-cli"} {
+		t.Run(provider, func(t *testing.T) {
+			testProviderCloseIsDurableAndSessionScoped(t, provider)
+		})
+	}
+}
+
+func testProviderCloseIsDurableAndSessionScoped(t *testing.T, provider string) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "state.db")
 	db, err := Open(path)
@@ -20,8 +28,8 @@ func TestProviderCloseIsDurableAndSessionScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { db.Close() }()
-	a := providerTestPlan("a", "thread-a", "grok-build")
-	b := providerTestPlan("b", "thread-b", "grok-build")
+	a := providerTestPlan("a", "thread-a", provider)
+	b := providerTestPlan("b", "thread-b", provider)
 	ra, err := db.SubmitPlan(ctx, a)
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +45,7 @@ func TestProviderCloseIsDurableAndSessionScoped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := db.ProviderControl(ctx, "thread-a", "grok-build", "disable", nil)
+	result, err := db.ProviderControl(ctx, "thread-a", provider, "disable", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +64,7 @@ func TestProviderCloseIsDurableAndSessionScoped(t *testing.T) {
 	if err = db.sql.QueryRow(`SELECT status FROM tasks WHERE id='b-task'`).Scan(&status); err != nil || status != "ready" {
 		t.Fatalf("other session affected: %s %v", status, err)
 	}
-	if _, err = db.SubmitPlan(ctx, providerTestPlan("c", "thread-a", "grok-build")); err == nil || err.Error() != "provider_disabled" {
+	if _, err = db.SubmitPlan(ctx, providerTestPlan("c", "thread-a", provider)); err == nil || err.Error() != "provider_disabled" {
 		t.Fatalf("admission=%v", err)
 	}
 	db.Close()
@@ -64,33 +72,42 @@ func TestProviderCloseIsDurableAndSessionScoped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.SubmitPlan(ctx, providerTestPlan("d", "thread-a", "grok-build")); err == nil || err.Error() != "provider_disabled" {
+	if _, err = db.SubmitPlan(ctx, providerTestPlan("d", "thread-a", provider)); err == nil || err.Error() != "provider_disabled" {
 		t.Fatalf("restart admission=%v", err)
 	}
-	if _, err = db.ProviderControl(ctx, "thread-a", "grok-build", "enable", nil); err == nil || err.Error() != "provider_stop_pending" {
+	if _, err = db.ProviderControl(ctx, "thread-a", provider, "enable", nil); err == nil || err.Error() != "provider_stop_pending" {
 		t.Fatalf("reopen before exit=%v", err)
 	}
 }
+
 func TestProviderCloseCancelsQueuedAndRejectsFallback(t *testing.T) {
+	for _, provider := range []string{"grok-build", "codex-cli"} {
+		t.Run(provider, func(t *testing.T) {
+			testProviderCloseCancelsQueuedAndRejectsFallback(t, provider)
+		})
+	}
+}
+
+func testProviderCloseCancelsQueuedAndRejectsFallback(t *testing.T, provider string) {
 	ctx := context.Background()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err = db.SubmitPlan(ctx, providerTestPlan("a", "a", "grok-build")); err != nil {
+	if _, err = db.SubmitPlan(ctx, providerTestPlan("a", "a", provider)); err != nil {
 		t.Fatal(err)
 	}
-	r, err := db.ProviderControl(ctx, "a", "grok-build", "disable", nil)
+	r, err := db.ProviderControl(ctx, "a", provider, "disable", nil)
 	if err != nil || r.Status != "disabled" {
 		t.Fatalf("%+v %v", r, err)
 	}
 	p := providerTestPlan("b", "a", "claude-code")
-	p.Tasks[0].FallbackPayloads = []json.RawMessage{json.RawMessage(`{"provider":"grok-build"}`)}
+	p.Tasks[0].FallbackPayloads = []json.RawMessage{json.RawMessage(`{"provider":"` + provider + `"}`)}
 	if _, err = db.SubmitPlan(ctx, p); err == nil || err.Error() != "provider_disabled" {
 		t.Fatalf("fallback=%v", err)
 	}
-	if _, err = db.ProviderControl(ctx, "a", "grok-build", "enable", nil); err != nil {
+	if _, err = db.ProviderControl(ctx, "a", provider, "enable", nil); err != nil {
 		t.Fatal(err)
 	}
 	var status string
@@ -98,11 +115,20 @@ func TestProviderCloseCancelsQueuedAndRejectsFallback(t *testing.T) {
 	if status != "cancelled" {
 		t.Fatalf("old task restarted: %s", status)
 	}
-	if _, err = db.SubmitPlan(ctx, providerTestPlan("new", "a", "grok-build")); err != nil {
+	if _, err = db.SubmitPlan(ctx, providerTestPlan("new", "a", provider)); err != nil {
 		t.Fatal(err)
 	}
 }
+
 func TestProviderModelDefaultsAndCLIDefault(t *testing.T) {
+	for _, provider := range []string{"claude-code", "codex-cli"} {
+		t.Run(provider, func(t *testing.T) {
+			testProviderModelDefaultsAndCLIDefault(t, provider)
+		})
+	}
+}
+
+func testProviderModelDefaultsAndCLIDefault(t *testing.T, provider string) {
 	ctx := context.Background()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
@@ -110,30 +136,30 @@ func TestProviderModelDefaultsAndCLIDefault(t *testing.T) {
 	}
 	defer db.Close()
 	model := "global-model"
-	if _, err = db.ProviderControl(ctx, "a", "claude-code", "default-model", &model); err != nil {
+	if _, err = db.ProviderControl(ctx, "a", provider, "default-model", &model); err != nil {
 		t.Fatal(err)
 	}
-	r, err := db.ProviderControl(ctx, "b", "claude-code", "status", nil)
+	r, err := db.ProviderControl(ctx, "b", provider, "status", nil)
 	if err != nil || r.Model != "global-model" {
 		t.Fatalf("%+v %v", r, err)
 	}
 	model = "session-model"
-	if _, err = db.ProviderControl(ctx, "a", "claude-code", "model", &model); err != nil {
+	if _, err = db.ProviderControl(ctx, "a", provider, "model", &model); err != nil {
 		t.Fatal(err)
 	}
-	r, _ = db.ProviderControl(ctx, "a", "claude-code", "status", nil)
+	r, _ = db.ProviderControl(ctx, "a", provider, "status", nil)
 	if r.Model != "session-model" {
 		t.Fatal(r)
 	}
 	model = ""
-	if _, err = db.ProviderControl(ctx, "a", "claude-code", "model", &model); err != nil {
+	if _, err = db.ProviderControl(ctx, "a", provider, "model", &model); err != nil {
 		t.Fatal(err)
 	}
-	r, _ = db.ProviderControl(ctx, "a", "claude-code", "status", nil)
+	r, _ = db.ProviderControl(ctx, "a", provider, "status", nil)
 	if r.Model != "" {
 		t.Fatal("CLI default lost", r)
 	}
-	r, _ = db.ProviderControl(ctx, "b", "claude-code", "status", nil)
+	r, _ = db.ProviderControl(ctx, "b", provider, "status", nil)
 	if r.Model != "global-model" {
 		t.Fatal("other session changed", r)
 	}
@@ -149,16 +175,24 @@ func TestProviderDisabledBlocksExplicitReviewRetry(t *testing.T) {
 	}
 }
 func TestProviderDisabledBlocksResume(t *testing.T) {
+	for _, provider := range []string{"grok-build", "codex-cli"} {
+		t.Run(provider, func(t *testing.T) {
+			testProviderDisabledBlocksResume(t, provider)
+		})
+	}
+}
+
+func testProviderDisabledBlocksResume(t *testing.T, provider string) {
 	ctx := context.Background()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if _, err = db.SubmitPlan(ctx, providerTestPlan("a", "a", "grok-build")); err != nil {
+	if _, err = db.SubmitPlan(ctx, providerTestPlan("a", "a", provider)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.ProviderControl(ctx, "a", "grok-build", "disable", nil); err != nil {
+	if _, err = db.ProviderControl(ctx, "a", provider, "disable", nil); err != nil {
 		t.Fatal(err)
 	}
 	if err = db.QueueResume(ctx, "a-task", 1); err == nil || err.Error() != "provider_disabled" {
@@ -176,7 +210,7 @@ func TestProviderMigrationPreservesVersionSevenRuns(t *testing.T) {
 	if _, err = db.SubmitPlan(ctx, providerTestPlan("history", "owner", "grok-build")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.sql.Exec(`DROP TABLE provider_settings; UPDATE schema_meta SET version=7`); err != nil {
+	if _, err = db.sql.Exec(`ALTER TABLE runtime_hosts DROP COLUMN owner_request_changes_v2; DROP TABLE provider_settings; UPDATE schema_meta SET version=7`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()

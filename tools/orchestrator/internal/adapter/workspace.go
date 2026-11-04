@@ -21,18 +21,22 @@ type CandidateWorkspace struct {
 // ReworkContext records the owner's revised brief and immutable evidence. It
 // grants no permissions and is bound into the new candidate's Host receipt.
 type ReworkContext struct {
-	Version              int    `json:"version"`
-	RunID                string `json:"run_id"`
-	TaskID               string `json:"task_id"`
-	PreviousWorkRevision int    `json:"previous_work_revision"`
-	PreviousCandidateOID string `json:"previous_candidate_oid"`
-	CandidateEventID     string `json:"candidate_event_id"`
-	CandidateSHA256      string `json:"candidate_sha256"`
-	ReviewEventID        string `json:"review_event_id"`
-	ReviewSHA256         string `json:"review_sha256"`
-	ReviewSummary        string `json:"review_summary"`
-	Feedback             string `json:"feedback"`
-	Acceptance           string `json:"acceptance"`
+	Version              int              `json:"version"`
+	RunID                string           `json:"run_id"`
+	TaskID               string           `json:"task_id"`
+	PreviousWorkRevision int              `json:"previous_work_revision"`
+	PreviousCandidateOID string           `json:"previous_candidate_oid"`
+	CandidateEventID     string           `json:"candidate_event_id"`
+	CandidateSHA256      string           `json:"candidate_sha256"`
+	ReviewEventID        string           `json:"review_event_id"`
+	ReviewSHA256         string           `json:"review_sha256"`
+	ReviewSummary        string           `json:"review_summary"`
+	Feedback             string           `json:"feedback"`
+	Acceptance           string           `json:"acceptance"`
+	Source               string           `json:"source,omitempty"`
+	OwnerDecisionID      string           `json:"owner_decision_id,omitempty"`
+	OwnerSpec            *OwnerReworkSpec `json:"owner_spec,omitempty"`
+	OwnerSpecSHA256      string           `json:"owner_spec_sha256,omitempty"`
 }
 
 func (r ReworkContext) Digest() string {
@@ -49,6 +53,10 @@ func cloneWorkspace(value *CandidateWorkspace) *CandidateWorkspace {
 	copy.Paths = append([]string(nil), value.Paths...)
 	if value.Rework != nil {
 		r := *value.Rework
+		if r.OwnerSpec != nil {
+			spec := *r.OwnerSpec
+			r.OwnerSpec = &spec
+		}
 		copy.Rework = &r
 	}
 	return &copy
@@ -67,4 +75,26 @@ func validateWorkspace(req Request) error {
 		return errors.New("candidate_workspace_profile_invalid")
 	}
 	return nil
+}
+
+// OwnerReworkSpec is the complete immutable owner decision. Unlike v1 rework,
+// it refers directly to a Host-frozen result and contains no reviewer event.
+type OwnerReworkSpec struct {
+	TaskID        string `json:"task_id"`
+	WorkRevision  int    `json:"work_revision"`
+	EventID       string `json:"event_id"`
+	EventRevision int64  `json:"event_revision"`
+	EventHash     string `json:"event_hash"`
+	ActionSlot    string `json:"action_slot"`
+	SegmentID     string `json:"segment_id"`
+	CandidateOID  string `json:"candidate_oid"`
+	Feedback      string `json:"feedback"`
+	Acceptance    string `json:"acceptance"`
+	CommandID     string `json:"command_id"`
+}
+
+func (s OwnerReworkSpec) Digest() string {
+	body, _ := json.Marshal(s)
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:])
 }

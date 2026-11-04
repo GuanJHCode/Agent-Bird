@@ -127,4 +127,3 @@ def test_known_non_auth_operation_or_notification_is_unchanged(
 def test_json_rpc_response_without_method_is_unchanged() -> None:
     message = {"id": 1, "result": {"account": None}}
     assert enforce_auth_rpc_policy("server_to_client", message) is message
-

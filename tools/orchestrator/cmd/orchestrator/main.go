@@ -42,7 +42,7 @@ func (e remoteError) Error() string { return string(e) }
 
 func main() {
 	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
-		_ = json.NewEncoder(os.Stderr).Encode(map[string]any{"version": 1, "status": "error", "error": errorCode(err)})
+		_ = json.NewEncoder(os.Stderr).Encode(errorResponse(err))
 		os.Exit(2)
 	}
 }
@@ -54,6 +54,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	switch args[0] {
 	case "runtime-status":
 		return runtimeStatus(ctx, args[1:], stdout)
+	case "routing":
+		return routingEntry(ctx, args[1:], stdout)
 	case "provider":
 		return providerSettingsEntry(ctx, args[1:], stdout)
 	case "task":
@@ -64,6 +66,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return pluginRun(ctx, args[1:], stdout)
 	case "owner-bind":
 		return ownerBind(ctx, args[1:], stdout)
+	case "controller":
+		return controllerEntry(ctx, args[1:])
 	case "provider-probe", "provider-lock":
 		return providerControl(ctx, args[0], args[1:], stdout)
 	case "serve":
@@ -98,6 +102,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskControl(ctx, ipc.KindResume, args[1:], stdout)
 	case "retry":
 		return retryTask(ctx, args[1:], stdout)
+	case "request-changes":
+		return requestChanges(ctx, args[1:], stdout)
 	case "rework":
 		return reworkTask(ctx, args[1:], stdout)
 	case "accept":
@@ -262,6 +268,11 @@ func serve(parent context.Context, args []string, stderr io.Writer) error {
 }
 
 func submit(ctx context.Context, args []string, stdout io.Writer) error {
+	return submitWithPreparedControl(ctx, args, stdout, nil)
+}
+
+// Persist the high-level recovery route before any submission can reach the coordinator.
+func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Writer, onPrepared func(string) error, rejectionCheckpoint ...func() error) error {
 	fs := flag.NewFlagSet("submit", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
@@ -346,16 +357,31 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 		}
 		pinned = append(pinned, task.ID)
 	}
+	if onPrepared != nil {
+		if err = onPrepared(controlPath); err != nil {
+			// Atomic replacement may have persisted the route before a directory
+			// sync failed. Keep the capability even though no RPC has been sent.
+			return codeError("submit_preparation_uncertain")
+		}
+	}
 	request.LaunchID, request.LaunchToken, request.ControlToken = launchID, launchToken, controlToken
 	response, err := call(ctx, state, ipc.KindSubmit, request)
 	if err != nil {
 		var rejected remoteError
 		if errors.As(err, &rejected) {
-			for _, taskID := range pinned {
-				_ = install.UnpinRunningVersion(executable, taskID)
+			var checkpoint func() error
+			if len(rejectionCheckpoint) > 0 {
+				checkpoint = rejectionCheckpoint[0]
 			}
-			_ = os.Remove(controlPath)
-			_ = os.Remove(bootstrapPath)
+			if checkpointErr := finishSubmitRejection(checkpoint, func() {
+				for _, taskID := range pinned {
+					_ = install.UnpinRunningVersion(executable, taskID)
+				}
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+			}); checkpointErr != nil {
+				return checkpointErr
+			}
 			return err
 		}
 		_ = startSourceHost(executable, state, bootstrap)
@@ -375,6 +401,18 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 		return codeError("source_host_start_timeout")
 	}
 	return json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "queued", "run_id": request.RunID, "control_file": controlPath})
+}
+
+// A high-level rejection must be durable before its recovery route is removed.
+// If persistence fails, the original submitting handle and capabilities survive.
+func finishSubmitRejection(checkpoint func() error, cleanup func()) error {
+	if checkpoint != nil {
+		if err := checkpoint(); err != nil {
+			return codeError("submit_rejection_uncertain")
+		}
+	}
+	cleanup()
+	return nil
 }
 
 type controlCapability struct {
@@ -941,6 +979,13 @@ func sourceHost(parent context.Context, args []string) error {
 		return err
 	}
 	bootstrap.Hello.PID, bootstrap.Hello.Birth, bootstrap.Hello.Executable = os.Getpid(), birth, executable
+	// Capability comes from the running binary, never old bootstrap metadata.
+	ready, err := ensureServer(parent, state)
+	if err != nil {
+		return err
+	}
+	features, _ := ready["capabilities"].([]string)
+	bootstrap.Hello.OwnerRequestChangesV2 = coordinatorHasOwnerChanges(features)
 	ctx, cancel := signal.NotifyContext(parent, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	err = host.RunSource(ctx, host.SourceConfig{
@@ -1019,8 +1064,12 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		}
 		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
 	}
-	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
-		return nil, codeError("codex_trial_guard_not_ready")
+	// Fake fixtures have no provider version. A fake that still presents the
+	// historical Codex identity keeps the trial guard.
+	if payload.Kind != "fake" || payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+		if err := nativeExecutionAdmission(adapter.Provider(payload.Provider), adapter.BinaryPin{Path: payload.BinaryPath, Version: payload.BinaryVersion, SHA256: payload.BinarySHA256}); err != nil {
+			return nil, err
+		}
 	}
 	if grant.Answer != "" {
 		if grant.QuestionID == "" || grant.QuestionRevision < 1 || grant.SessionKind == "" || grant.SessionID == "" || payload.Kind == "fake" {
@@ -1039,9 +1088,9 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	if err := adapter.VerifyExecutable(request.Binary, request.Binary.Version); err != nil {
 		return nil, err
 	}
-	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
 	defer cancel()
-	version, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--version")
+	version, err := providerMetadata(probeCtx, request.Provider, request.Binary, "--version")
 	if err != nil {
 		return nil, codeError("binary_version_probe_failed")
 	}
@@ -1049,7 +1098,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		return nil, err
 	}
 	if request.Profile != nil {
-		help, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--help")
+		help, err := providerHelp(probeCtx, request.Provider, request.Binary)
 		if err != nil {
 			return nil, err
 		}
@@ -1398,6 +1447,24 @@ func writePID(state string) error {
 		return err
 	}
 	return os.Rename(stage, path)
+}
+
+func errorResponse(err error) map[string]any {
+	payload := map[string]any{"version": 1, "status": "error", "error": errorCode(err)}
+	var rejected *adapter.VersionError
+	if errors.As(err, &rejected) && rejected != nil {
+		payload["provider"] = rejected.Provider
+		payload["normalized"] = rejected.Normalized
+		payload["baseline"] = rejected.Baseline
+		payload["ceiling"] = rejected.Ceiling
+		payload["reason"] = rejected.Code
+	}
+	var trial *adapter.TrialBlockedError
+	if errors.As(err, &trial) && trial != nil {
+		payload["reason"] = trial.Error()
+		payload["missing"] = trial.Missing
+	}
+	return payload
 }
 
 func errorCode(err error) string {

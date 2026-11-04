@@ -1,0 +1,19 @@
+{
+  "source_candidate": "68e875868215ecb1fd8daf540799fd3d0eee25e3",
+  "input_snapshot": "eb0d49ce2a06d1268edb0a14f99ce66f3402fe47",
+  "original_head": "5e7443d24cff6deef27ed1c52697a2fb32733ae4",
+  "protected_files_checked": 80,
+  "changed_protected_files": [],
+  "patch_sha256": "571b9d2886aa67a145f31171e0f586ba9e51de9ef4b478f661f6e84806dfbb63",
+  "method": "git apply without index/reset/stash",
+  "state": "applied",
+  "native_auth_fixture": "blocked_baseline_not_observed",
+  "files_verified": 175,
+  "mismatches": [],
+  "head_unchanged": true,
+  "last_delta_sha256": "526dd35290ba394888c37251f9fc37869131d17ad537a7996d7cd504a1eac6af",
+  "last_delta_files": 13,
+  "production_delta_files": 125,
+  "final_verification": "final/integration-proof.json",
+  "staged_files": 0
+}

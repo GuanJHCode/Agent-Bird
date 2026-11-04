@@ -1,0 +1,18 @@
+{
+  "initial_head": "5e7443d24cff6deef27ed1c52697a2fb32733ae4",
+  "current_head": "5e7443d24cff6deef27ed1c52697a2fb32733ae4",
+  "protected_files_checked": 80,
+  "changed_protected_files": [],
+  "non_file_entries_preserved": [
+    ".qoder/",
+    "Library/",
+    "plugins/codex-orchestrator/lib/native_bridge/__pycache__/",
+    "plugins/codex-orchestrator/lib/trial/__pycache__/",
+    "plugins/codex-orchestrator/scripts/__pycache__/",
+    "runtime/native/__pycache__/",
+    "tasks/cli-version-compatibility/",
+    "tools/native-product-bridge/__pycache__/",
+    "tools/real-user-trial/__pycache__/"
+  ],
+  "candidate_22d_apply_check": true
+}

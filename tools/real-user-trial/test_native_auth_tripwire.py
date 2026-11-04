@@ -1,4 +1,4 @@
-"""Opt-in native Codex 0.154 refresh-tripwire regression.
+"""Opt-in pinned native Codex refresh-tripwire regression.
 
 This fixture uses only synthetic credentials in new /private/tmp homes.  It is
 reviewable by default and must not run unless the caller explicitly supplies
@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import ctypes
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -24,6 +25,7 @@ import sys
 import tempfile
 import threading
 import time
+from urllib.parse import urlsplit
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler
 from typing import Callable, Mapping, Protocol
@@ -54,6 +56,35 @@ DIAGNOSTIC_CONTEXT_OPT_IN = (
     os.environ.get("CODEX_RUN_NATIVE_AUTH_DIAGNOSTIC_CONTEXT") == "1"
 )
 NATIVE_BINARY_INPUT = os.environ.get("CODEX_TRIAL_NATIVE_BINARY")
+NATIVE_VERSION_INPUT = os.environ.get("CODEX_TRIAL_NATIVE_VERSION", "0.154.0")
+NATIVE_TEST_PINS = {
+    "0.154.0": EXPECTED_NATIVE_SHA256,
+    "0.166.0": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+}
+CANDIDATE_VERSIONS = (
+    "0.154.0",
+    "0.155.0",
+    "0.155.1",
+    "0.156.0",
+    "0.156.1",
+    "0.157.0",
+    "0.157.1",
+    "0.158.0",
+    "0.159.0",
+    "0.159.1",
+    "0.159.2",
+    "0.159.3",
+    "0.160.0",
+    "0.160.1",
+    "0.161.0",
+    "0.162.0",
+    "0.162.1",
+    "0.163.0",
+    "0.164.0",
+    "0.165.0",
+    "0.166.0",
+)
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 MANAGED_CONFIG_PATHS = (
     Path("/etc/codex/config.toml"),
     Path("/etc/codex/requirements.toml"),
@@ -70,10 +101,18 @@ NATIVE_OPT_IN = pytest.mark.skipif(
 
 
 class _FixtureMetadataSource:
+    def __init__(
+        self,
+        native_version: str = "0.154.0",
+        native_sha256: str = EXPECTED_NATIVE_SHA256,
+    ) -> None:
+        self.native_version = native_version
+        self.native_sha256 = native_sha256
+
     def read_verified_nonsecret_metadata(self) -> MetadataObservation:
         return MetadataObservation(
-            native_version="0.154.0",
-            native_sha256=EXPECTED_NATIVE_SHA256,
+            native_version=self.native_version,
+            native_sha256=self.native_sha256,
             auth_kind="managed_chatgpt",
             bootstrap_auth_kind="managed_chatgpt",
             credential_store="file",
@@ -82,6 +121,12 @@ class _FixtureMetadataSource:
             source_kind="fixed_native_internal_sdk",
             proof_sha256="f" * 64,
         )
+
+
+def _selected_fixture_metadata_source() -> _FixtureMetadataSource:
+    return _FixtureMetadataSource(
+        NATIVE_VERSION_INPUT, NATIVE_TEST_PINS[NATIVE_VERSION_INPUT]
+    )
 
 
 @dataclass(frozen=True)
@@ -104,6 +149,17 @@ class _ProcessIdentity:
     pgid: int
     birth: str
     executable: str
+
+
+@dataclass(frozen=True)
+class _CandidatePin:
+    version: str
+    raw_version: str
+    sha256: str
+    binary: Path
+    companion_sha256: str | None = None
+    companion: Path | None = None
+    manifest: Path | None = None
 
 
 class _VersionProcess(Protocol):
@@ -284,6 +340,9 @@ def _stable_sha256(path: Path) -> str:
         if (
             not stat.S_ISREG(before.st_mode)
             or before.st_uid != os.getuid()
+            or before.st_nlink != 1
+            or before.st_mode & 0o022
+            or before.st_size <= 0
             or not before.st_mode & 0o111
             or before.st_size > 512 * 1024 * 1024
         ):
@@ -293,13 +352,122 @@ def _stable_sha256(path: Path) -> str:
         after = os.fstat(fd)
     finally:
         os.close(fd)
-    fields = ("st_dev", "st_ino", "st_uid", "st_mode", "st_size", "st_mtime_ns")
-    if any(getattr(before, name) != getattr(after, name) for name in fields):
+    fields = ("st_dev", "st_ino", "st_uid", "st_mode", "st_size", "st_mtime_ns", "st_ctime_ns")
+    if any(getattr(before, name) != getattr(after, name) or getattr(before, name) != getattr(path.stat(), name) for name in fields):
         raise AssertionError("native_binary_changed_while_hashing")
     return digest.hexdigest()
 
 
-def _verify_native_binary(raw: str) -> Path:
+def _read_candidate_pin_manifest(path: Path) -> dict[str, object]:
+    if not path.is_absolute() or path.resolve(strict=True) != path:
+        raise AssertionError("candidate_pin_manifest_path_invalid")
+    info = os.lstat(path)
+    if (
+        stat.S_ISLNK(info.st_mode)
+        or not stat.S_ISREG(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_nlink != 1
+        or stat.S_IMODE(info.st_mode) != 0o600
+        or not 0 < info.st_size <= 1024 * 1024
+    ):
+        raise AssertionError("candidate_pin_manifest_identity_invalid")
+
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise AssertionError("candidate_pin_manifest_duplicate_key")
+            result[key] = value
+        return result
+
+    try:
+        with path.open("r", encoding="utf-8") as stream:
+            value = json.load(stream, object_pairs_hook=unique)
+    except AssertionError:
+        raise
+    except Exception as error:
+        raise AssertionError("candidate_pin_manifest_invalid") from error
+    if not isinstance(value, dict):
+        raise AssertionError("candidate_pin_manifest_invalid")
+    current = os.lstat(path)
+    fields = ("st_dev", "st_ino", "st_uid", "st_mode", "st_size", "st_mtime_ns", "st_ctime_ns")
+    if any(getattr(info, field) != getattr(current, field) for field in fields):
+        raise AssertionError("candidate_pin_manifest_changed")
+    return value
+
+
+def _load_candidate_pin(
+    raw_binary: str,
+    version: str,
+    *,
+    require_manifest: bool = False,
+) -> _CandidatePin:
+    if version not in CANDIDATE_VERSIONS:
+        raise AssertionError("candidate_version_unsupported")
+    binary = Path(raw_binary)
+    explicit = os.environ.get("CODEX_TRIAL_PIN_MANIFEST")
+    inferred = binary.parent.parent / "pin.json"
+    manifest = Path(explicit) if explicit else inferred
+    if not explicit and not manifest.exists():
+        digest = NATIVE_TEST_PINS.get(version)
+        if require_manifest or digest is None:
+            raise AssertionError("candidate_pin_manifest_required")
+        return _CandidatePin(
+            version=version,
+            raw_version=f"codex-cli {version}",
+            sha256=digest,
+            binary=binary,
+        )
+
+    data = _read_candidate_pin_manifest(manifest)
+    expected_raw = f"codex-cli {version}"
+    if (
+        data.get("provider") != "codex-cli"
+        or data.get("version") != version
+        or data.get("raw_version") != expected_raw
+        or data.get("version_exit") != 0
+    ):
+        raise AssertionError("candidate_pin_manifest_version_mismatch")
+    digest = data.get("sha256")
+    companion_digest = data.get("companion_sha256")
+    if (
+        not isinstance(digest, str)
+        or _SHA256_RE.fullmatch(digest) is None
+        or not isinstance(companion_digest, str)
+        or _SHA256_RE.fullmatch(companion_digest) is None
+    ):
+        raise AssertionError("candidate_pin_manifest_digest_invalid")
+    try:
+        actual = Path(str(data["actual_path"]))
+        companion = Path(str(data["companion_path"]))
+        expected_companion = (
+            actual.parent.parent / "codex-resources" / "codex-code-mode-host"
+        )
+        if (
+            actual.name != "codex"
+            or actual.parent.name != "bin"
+            or actual.resolve(strict=True) != actual
+            or companion.resolve(strict=True) != companion
+            or binary.resolve(strict=True) != actual
+            or companion != expected_companion
+        ):
+            raise AssertionError("candidate_pin_manifest_path_mismatch")
+    except (KeyError, OSError, RuntimeError, ValueError) as error:
+        raise AssertionError("candidate_pin_manifest_path_mismatch") from error
+    if _stable_sha256(actual) != digest or _stable_sha256(companion) != companion_digest:
+        raise AssertionError("candidate_pin_manifest_artifact_mismatch")
+    return _CandidatePin(
+        version=version,
+        raw_version=expected_raw,
+        sha256=digest,
+        binary=actual,
+        companion_sha256=companion_digest,
+        companion=companion,
+        manifest=manifest,
+    )
+
+
+def _verify_native_binary(raw: str, expected_sha256: str | None = None) -> Path:
     binary = Path(raw)
     if not binary.is_absolute():
         raise AssertionError("native_binary_must_be_absolute")
@@ -310,16 +478,69 @@ def _verify_native_binary(raw: str) -> Path:
         stat.S_ISLNK(info.st_mode)
         or not stat.S_ISREG(info.st_mode)
         or info.st_uid != os.getuid()
+        or info.st_nlink != 1
+        or info.st_mode & 0o022
+        or not 0 < info.st_size <= 512 * 1024 * 1024
         or not info.st_mode & 0o111
     ):
         raise AssertionError("native_binary_identity_invalid")
-    if _stable_sha256(binary) != EXPECTED_NATIVE_SHA256:
+    expected = expected_sha256 or NATIVE_TEST_PINS.get(NATIVE_VERSION_INPUT)
+    if expected is None or _stable_sha256(binary) != expected:
         raise AssertionError("native_binary_sha256_mismatch")
     current = os.lstat(binary)
-    fields = ("st_dev", "st_ino", "st_uid", "st_mode", "st_size", "st_mtime_ns")
+    fields = ("st_dev", "st_ino", "st_uid", "st_mode", "st_size", "st_mtime_ns", "st_ctime_ns")
     if any(getattr(info, field) != getattr(current, field) for field in fields):
         raise AssertionError("native_binary_changed_during_admission")
     return binary
+
+
+@pytest.mark.parametrize(
+    "fault", ["none", "version", "main_digest", "companion_digest", "mode"]
+)
+def test_candidate_pin_manifest_binds_exact_artifact_pair(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    monkeypatch.delenv("CODEX_TRIAL_PIN_MANIFEST", raising=False)
+    root = tmp_path / "codex-0.155.0"
+    binary = root / "bin" / "codex"
+    companion = root / "codex-resources" / "codex-code-mode-host"
+    binary.parent.mkdir(parents=True)
+    companion.parent.mkdir(parents=True)
+    binary.write_bytes(b"synthetic-main")
+    companion.write_bytes(b"synthetic-companion")
+    binary.chmod(0o700)
+    companion.chmod(0o700)
+    main_sha = _stable_sha256(binary)
+    companion_sha = _stable_sha256(companion)
+    manifest = {
+        "provider": "codex-cli",
+        "version": "0.155.0" if fault != "version" else "0.155.1",
+        "raw_version": "codex-cli 0.155.0",
+        "version_exit": 0,
+        "sha256": "0" * 64 if fault == "main_digest" else main_sha,
+        "companion_sha256": (
+            "0" * 64 if fault == "companion_digest" else companion_sha
+        ),
+        "actual_path": str(binary),
+        "companion_path": str(companion),
+    }
+    manifest_path = root / "pin.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    manifest_path.chmod(0o644 if fault == "mode" else 0o600)
+    if fault == "none":
+        pin = _load_candidate_pin(str(binary), "0.155.0")
+        assert pin == _CandidatePin(
+            version="0.155.0",
+            raw_version="codex-cli 0.155.0",
+            sha256=main_sha,
+            binary=binary,
+            companion_sha256=companion_sha,
+            companion=companion,
+            manifest=manifest_path,
+        )
+    else:
+        with pytest.raises(AssertionError, match="^candidate_pin_manifest_"):
+            _load_candidate_pin(str(binary), "0.155.0")
 
 
 def _quote_sbpl(path: Path) -> str:
@@ -569,7 +790,7 @@ def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
         auth_path=root / "codex-home/auth.json",
         auth_bytes=b"",
     )
-    binary = Path("/Users/synthetic/native/codex")
+    binary = Path("/private/fixture/native/codex")
 
     profile = _strict_sandbox_profile(home, binary, 43123)
 
@@ -603,7 +824,7 @@ def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
     assert '(subpath "/private/tmp")' not in profile
     assert (
         '(allow process-exec '
-        '(literal "/Users/synthetic/native/codex"))'
+        '(literal "/private/fixture/native/codex"))'
     ) in profile
     assert "(allow process-exec*)" not in profile
     assert "(allow mach-bootstrap)" not in profile
@@ -755,6 +976,128 @@ def test_stdio_jsonl_initialize_contract_uses_fixed_native_version() -> None:
     assert _verify_initialize_user_agent(response) == "0.154.0"
 
 
+@pytest.mark.parametrize("version", ["0.154.0", "0.166.0"])
+def test_guarded_fixture_metadata_binds_selected_native_pin(monkeypatch, version):
+    monkeypatch.setitem(globals(), "NATIVE_VERSION_INPUT", version)
+
+    source = _selected_fixture_metadata_source()
+    observation = source.read_verified_nonsecret_metadata()
+
+    assert observation.native_version == version
+    assert observation.native_sha256 == NATIVE_TEST_PINS[version]
+
+
+class _ScriptedRefreshClient:
+    def __init__(self, account):
+        frames = [
+            {
+                "id": 1,
+                "result": {
+                    "userAgent": "native-auth-tripwire-fixture/0.166.0 (macOS; arm64)"
+                },
+            },
+            {"id": 2, **account},
+        ]
+        self.frames = iter(json.dumps(frame).encode() + b"\n" for frame in frames)
+
+    def send(self, _frame):
+        pass
+
+    def read_line(self):
+        return next(self.frames)
+
+
+@pytest.mark.parametrize(
+    "account",
+    [
+        {"result": {}},
+        {"error": {"code": -32603, "message": "workspace requirements unavailable"}},
+        {"error": {"code": -32603, "message": "synthetic secret must not be exposed"}},
+    ],
+)
+def test_refresh_request_accepts_rpc_terminal_envelopes(monkeypatch, account):
+    monkeypatch.setitem(globals(), "NATIVE_VERSION_INPUT", "0.166.0")
+    _request_refresh_without_model_turn(_ScriptedRefreshClient(account))
+
+
+@pytest.mark.parametrize("account", [{}, {"result": {}, "error": {"message": "secret"}}])
+def test_refresh_request_rejects_missing_or_ambiguous_terminal(monkeypatch, account):
+    monkeypatch.setitem(globals(), "NATIVE_VERSION_INPUT", "0.166.0")
+    with pytest.raises(NativeStdioProtocolError, match="^account_read_invalid_terminal$"):
+        _request_refresh_without_model_turn(_ScriptedRefreshClient(account))
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    ["valid", "missing_baseline", "guarded_egress", "auth_modified", "auth_replaced"],
+)
+def test_rpc_error_preserves_real_http_and_auth_oracles(monkeypatch, scenario):
+    monkeypatch.setitem(globals(), "NATIVE_VERSION_INPUT", "0.166.0")
+    monkeypatch.setitem(globals(), "NATIVE_BINARY_INPUT", "/synthetic/codex")
+    monkeypatch.setattr(
+        sys.modules[__name__], "_verify_native_binary", lambda _: Path("/synthetic/codex")
+    )
+    new_home = _new_fixture_home
+    homes = []
+    calls = []
+    endpoint = None
+
+    def tracked_home():
+        home = new_home()
+        homes.append(home)
+        return home
+
+    def run(_binary, home, environment, _profile):
+        nonlocal endpoint
+        calls.append(home)
+        baseline = len(calls) == 1
+        if baseline:
+            endpoint = urlsplit(environment["CODEX_REFRESH_TOKEN_URL_OVERRIDE"])
+        _request_refresh_without_model_turn(
+            _ScriptedRefreshClient({
+                "error": {"code": -32603, "message": "synthetic secret must not escape"}
+            })
+        )
+        if (baseline and scenario != "missing_baseline") or (
+            not baseline and scenario == "guarded_egress"
+        ):
+            connection = http.client.HTTPConnection(
+                endpoint.hostname, endpoint.port, timeout=2
+            )
+            try:
+                connection.request("POST", endpoint.path, json.dumps({
+                    "client_id": "app_EMoamEEZ73f0CkXaXp7hrann",
+                    "grant_type": "refresh_token",
+                    "refresh_token": SYNTHETIC_REFRESH_TOKEN,
+                }), {"Content-Type": "application/json"})
+                response = connection.getresponse()
+                assert response.status == 400
+                response.read()
+            finally:
+                connection.close()
+        if not baseline and scenario == "auth_modified":
+            home.auth_path.write_bytes(home.auth_bytes + b" ")
+        if not baseline and scenario == "auth_replaced":
+            replacement = home.root / "replacement-auth"
+            _write_exclusive(replacement, home.auth_bytes)
+            os.replace(replacement, home.auth_path)
+
+    monkeypatch.setattr(sys.modules[__name__], "_new_fixture_home", tracked_home)
+    monkeypatch.setattr(sys.modules[__name__], "_run_fixed_native", run)
+    try:
+        if scenario == "valid":
+            test_fixed_native_refresh_tripwire_blocks_oauth_egress()
+            assert len(calls) == 2
+        else:
+            with pytest.raises(AssertionError):
+                test_fixed_native_refresh_tripwire_blocks_oauth_egress()
+            assert len(calls) == (1 if scenario == "missing_baseline" else 2)
+    finally:
+        for home in homes:
+            if home.root.exists():
+                shutil.rmtree(home.root)
+
+
 def _minimal_environment(home: _FixtureHome) -> dict[str, str]:
     return {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
@@ -809,7 +1152,7 @@ def _verify_synthetic_diagnostic_preconditions(
     expected_auth = _synthetic_auth_bytes()
     if current_auth != expected_auth or home.auth_bytes != expected_auth:
         raise AssertionError("diagnostic_auth_not_synthetic")
-    if _stable_sha256(binary) != EXPECTED_NATIVE_SHA256:
+    if _stable_sha256(binary) != NATIVE_TEST_PINS.get(NATIVE_VERSION_INPUT):
         raise AssertionError("diagnostic_native_binary_changed")
 
     child_environment = dict(environment)
@@ -962,7 +1305,7 @@ def _verify_initialize_user_agent(response: Mapping[str, object]) -> str:
     user_agent = result.get("userAgent") if isinstance(result, dict) else None
     match = (
         re.fullmatch(
-            r"native-auth-tripwire-fixture/(0\.154\.0)(?: [\x20-\x7E]*)?",
+            r"native-auth-tripwire-fixture/(" + "|".join(re.escape(v) for v in CANDIDATE_VERSIONS) + r")(?: [\x20-\x7E]*)?",
             user_agent,
         )
         if isinstance(user_agent, str)
@@ -974,13 +1317,16 @@ def _verify_initialize_user_agent(response: Mapping[str, object]) -> str:
 
 
 class _BoundedStdioJsonlClient:
-    def __init__(self, process: subprocess.Popen[bytes]) -> None:
+    def __init__(self, process: subprocess.Popen[bytes], *, response_timeout: float = 5) -> None:
         if process.stdin is None or process.stdout is None:
             raise AssertionError("native_stdio_pipe_missing")
+        if not 0 < response_timeout <= 20:
+            raise AssertionError("native_stdio_timeout_invalid")
         self._stdin = process.stdin
         self._stdout = process.stdout
         self._buffer = bytearray()
         self._bytes_read = 0
+        self._response_timeout = response_timeout
 
     def send(self, packet: Mapping[str, object]) -> None:
         payload = json.dumps(packet, separators=(",", ":")).encode("utf-8") + b"\n"
@@ -993,7 +1339,7 @@ class _BoundedStdioJsonlClient:
             raise NativeStdioProtocolError("stdio_stdin_closed") from None
 
     def read_line(self) -> bytes:
-        deadline = time.monotonic() + 5
+        deadline = time.monotonic() + self._response_timeout
         while True:
             newline = self._buffer.find(b"\n")
             if newline >= 0:
@@ -1040,7 +1386,8 @@ def _request_refresh_without_model_turn(client: _BoundedStdioJsonlClient) -> Non
         }
     )
     initialized = _receive_bounded_jsonl_response(client.read_line, 1)
-    _verify_initialize_user_agent(initialized)
+    if _verify_initialize_user_agent(initialized) != NATIVE_VERSION_INPUT:
+        raise NativeStdioProtocolError("initialize_user_agent_mismatch")
     client.send({"method": "initialized"})
     client.send(
         {
@@ -1050,8 +1397,10 @@ def _request_refresh_without_model_turn(client: _BoundedStdioJsonlClient) -> Non
         }
     )
     account = _receive_bounded_jsonl_response(client.read_line, 2)
-    if "result" not in account and "error" not in account:
-        raise NativeStdioProtocolError("account_read_missing_result")
+    # Refresh may run before account routing independently fails. Both terminal
+    # envelopes must reach the HTTP and auth identity oracles below.
+    if ("result" in account) == ("error" in account):
+        raise NativeStdioProtocolError("account_read_invalid_terminal")
 
 
 def _run_fixed_native(
@@ -1060,7 +1409,7 @@ def _run_fixed_native(
     environment: Mapping[str, str],
     profile: str,
 ) -> None:
-    if _stable_sha256(binary) != EXPECTED_NATIVE_SHA256:
+    if _stable_sha256(binary) != NATIVE_TEST_PINS.get(NATIVE_VERSION_INPUT):
         raise AssertionError("native_binary_changed_before_launch")
     profile_path = home.root / "sandbox.sb"
     _write_exclusive(profile_path, profile.encode("utf-8"))
@@ -1395,7 +1744,7 @@ def test_fixed_native_refresh_tripwire_blocks_oauth_egress() -> None:
         assert not baseline_unexpected
 
         before_bytes, before_identity = _auth_identity(guarded.auth_path)
-        metadata = extract_safe_auth_metadata(_FixtureMetadataSource())
+        metadata = extract_safe_auth_metadata(_selected_fixture_metadata_source())
         guarded_env = prepare_guarded_environment(
             _minimal_environment(guarded), metadata
         )
@@ -1422,3 +1771,23 @@ def test_fixed_native_refresh_tripwire_blocks_oauth_egress() -> None:
                 if fixture.root.parent != Path("/private/tmp"):
                     raise AssertionError("refusing_cleanup_outside_private_tmp")
                 shutil.rmtree(fixture.root)
+
+
+def test_initialize_user_agent_accepts_only_explicit_candidate_versions():
+    for version in CANDIDATE_VERSIONS:
+        assert _verify_initialize_user_agent({"result":{"userAgent":f"native-auth-tripwire-fixture/{version} (macOS; arm64)"}}) == version
+    for version in ("0.153.0","0.167.0","0.155.0-dev","0.155.0+unknown"):
+        with pytest.raises(NativeStdioProtocolError):
+            _verify_initialize_user_agent({"result":{"userAgent":f"native-auth-tripwire-fixture/{version}"}})
+
+
+@pytest.mark.parametrize("fault", ["writable", "hardlink", "empty"])
+def test_native_fixture_rejects_artifacts_production_would_refuse(tmp_path, fault):
+    binary = tmp_path / "native"
+    binary.write_bytes(b"synthetic executable")
+    binary.chmod(0o700)
+    if fault == "writable": binary.chmod(0o720)
+    if fault == "hardlink": os.link(binary, tmp_path / "second-link")
+    if fault == "empty": binary.write_bytes(b"")
+    with pytest.raises(AssertionError, match="native_binary"):
+        _verify_native_binary(str(binary), hashlib.sha256(binary.read_bytes()).hexdigest())

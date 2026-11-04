@@ -112,6 +112,8 @@ type CandidateCompositionRequest struct {
 }
 
 type CandidateReceipt struct {
+	RepoIdentity          *DirectoryIdentity      `json:"repo_identity,omitempty"`
+	CommonIdentity        *DirectoryIdentity      `json:"common_identity,omitempty"`
 	Binding               *CandidateBinding       `json:"binding,omitempty"`
 	Changes               []CandidateChange       `json:"changes,omitempty"`
 	AttemptID             string                  `json:"attempt_id"`

@@ -43,7 +43,7 @@
 - 不添加 bypass、自动接受所有工具、`acceptEdits` 或全盘写权限参数。Provider 原生审批拒绝时，任务失败或等待，主脑不能伪造审批。
 - typed Claude 的两个角色固定禁用原生 `Agent`、`Task` 工具；CLI 缺少 `--disallowed-tools` 能力时拒绝启动。主脑派发的任务说明也应明确禁止 Worker 再派工。该限制不等于任意 Bash 启动其他 CLI 的路径均已封闭；`.10` 参数与能力回归通过，真实 CLI 效果仍待验证。
 
-当前新 profile 的真实续接测试未通过，故拒绝 session resume：`profile_resume_not_verified`。Codex 生产启动仍被 `codex_trial_guard_not_ready` 拒绝；Grok 的新 profile 返回 `execution_profile_unsupported`。AGY 只开放 reviewer，implementer 返回 `implementer_unsupported`。旧协议的显式恢复接口与已有安全校验保留，不能通过退回旧 profile 规避新请求的权限要求。
+当前新 profile 的真实续接测试未通过，故拒绝 session resume：`profile_resume_not_verified`。Codex 生产启动要求 exact native SHA pin 与正式安装的 receipt/full-native runtime，未知摘要仍返回 `codex_trial_guard_not_ready`；Grok 的只读 profile 需要明确会话写授权。AGY 只开放 reviewer，implementer 返回 `implementer_unsupported`。旧协议的显式恢复接口与已有安全校验保留，不能通过退回旧 profile 规避新请求的权限要求。
 
 Claude + AGY 的生产安装主流程已通过同 run 的真实随机文件读取、产物哈希、collect、ACK 与 accept 验收；脚本自动生成 owner-only 请求文件，见 [复现入口](../tasks/multi-cli-mainflow/docs/usage.md)。它验证 CLI 调用闭环，不代表模型编辑、候选提交生成或原生主脑 TUI 已验收。
 
@@ -114,7 +114,7 @@ ACK 后 collect 为空属于正常消费行为。对当前版本、最新已退�
 
 事务保留任务 ID、DAG、plan revision、Provider Lock、权限、文件范围、测试命令、目标 base、全部 attempts 和预算账本；四个任务的 work revision 一起提升。实现从旧候选建立新 worktree，prompt 包含旧审查意见及新验收条件；冻结 receipt 的 `revision_sha256` 绑定这次反馈上下文。下游重做测试与独立审查，不能接受旧事件来完成新版本。
 
-消费审查的 action slot，复用 `retry_decisions.revision_payload` 保存规范化决策、新 adapter 和 receipt。重复同一决定返回原 receipt；不同反馈/候选/验收条件冲突。数据库 schema v6 原子迁移，新增记录纳入 global/run quota，删除时由事务触发器释放额度；不会重置额度或另建任务队列。
+消费审查的 action slot，复用 `retry_decisions.revision_payload` 保存规范化决策、新 adapter 和 receipt。重复同一决定返回原 receipt；不同反馈/候选/验收条件冲突。该 revision payload 字段由 schema v6 的原子迁移引入（当前 schema 为 v9），新增记录纳入 global/run quota，删除时由事务触发器释放额度；不会重置额度或另建任务队列。
 
 任一相关 segment 活跃/unknown、旧问题仍未解决、Host 非 ready、剩余 attempt/时间预算不足，或集成曾建立过 attempt，整笔返工拒绝。旧 Worker report capability 撤销，只允许经认证的原事件精确重放 ACK；新事件拒绝。旧 Host event 同样保留 durable ACK；晚到旧版本事件核对原 segment 身份后仅记 internal 历史，不推进当前任务。伪造新版本的旧 segment 事件拒绝。
 
@@ -122,11 +122,30 @@ feedback/acceptance 各最多 16 KiB；编码后的单任务 adapter 另限 16 K
 
 ### 探测与升级
 
+每个 Provider 有一份冻结的稳定版窗口，而不是单版本常量。窗口记录在 `tools/orchestrator/internal/adapter/compatibility_catalog.json`，本次上限的查询时间是 2026-11-02T01:53:00Z。运行时不联网解析 `latest`。规范化版本只用来判断是否落在基线和上限之间，并且必须出现在该次冻结的已发布清单里；锁和启动身份仍使用原始 `--version` 文本、绝对路径和 SHA-256。`ValidatePin` 与最终启动前的摘要复核保留。区间外、无法解析、预发布或未发布版本返回明确错误码和窗口两端，不降级执行。
+
+| Provider | 基线 | 冻结上限 | 协议 |
+| --- | --- | --- | --- |
+| Claude Code | 2.1.267 | 2.1.316 | `claude-stream-json-v1` |
+| AGY | 1.2.3 | 1.4.12 | `agy-stream-json-v1` |
+| Grok | 1.0.34 | 1.0.70 | `grok-streaming-json-v1` |
+| Codex | 0.154.0 | 0.166.0 | `codex-jsonl-0.154.0` |
+
+Codex 协议名仍然表示 0.154.0 起的 JSONL 合同，不表示只允许 0.154.0。历史 SHA `4f859826…afcc` 只用于识别那一枚基线二进制，防止它被标成其他 Provider。Codex 生产 profile 还要求 exact native pin 与已安装完整 native runtime；原生认证 guard（`plugins/codex-orchestrator/lib/trial/auth_guard.py`）按受控 bundle 与精确 pin 验证。Codex write 仅 exact 0.166.0；只读目录窗口不能扩大 coding 门禁。
+
+AGY 的调用参数在本批次多了一项：`BuildInvocation` 对每个 AGY 版本都追加 `--add-dir <请求的工作目录>`，`CheckCapabilities` 也把 `--add-dir` 列为 AGY 必需 flag。原因是窗口两端行为不同——1.2.3 不把进程 cwd 当工作区，cwd 范围的读取会答成"没有活跃工作区"并转向用户 HOME 搜索，1.4.12 遵守 cwd。该目录本来就是 profile 自己授权、并且已经过 `EvalSymlinks` 复核的工作目录（`internal/host/profile.go`），沙箱读侧是 `allow default`、写侧默认全拒只放开 scratch，Implementer 角色才放开工作目录，所以显式声明工作区不扩大任何文件权限。不宣告该 flag 的构建判 `provider_capability_unsupported`，不会被降级执行。
+
+版本放行不打开其他能力。`profile_resume_not_verified`、AGY `implementer_unsupported`、Grok `grok_session_write_required`、Claude 对 `Agent`/`Task` 的拒绝，以及权限扩展拒绝都保留。`--help` 里有某个参数，只满足能力检查；事件协议仍走现有解析器。Grok 1.0.67 及 1.0.70 的 `streaming-json` 增加 `usage` 记录，解析为诊断事件，不进入最终回答，也不移动工具边界。
+
+更新上限时，重新查询上表中的官方发布源，替换目录文件和 `tasks/cli-version-compatibility/data/` 下的清单，保留旧清单。不要把运行时改成每次启动访问网络。然后重跑 adapter 测试，并对新上限二进制做 `--version`、`--help` 和事件字段核对。预发布版继续排除。
+
 源码新增 Grok 1.0.34 的显式只读会话写授权：`task run --grok-session-write` / `profile.grok_session_write=true`。Host 派生新目录，原认证配置保留；内置工具限定为读取/列目录/搜索，另加 MCPTool 拒绝规则。当前新高层原生验收尚未完成，本机已安装插件仍为旧版；此实现不等于已对外开放。见[本轮进度](../tasks/mvp-grok-readonly/docs/progress.md)。
 
 2026-09-28 起,Grok 结果流按真实协议事件 `tool_started`/`tool_completed` 识别助手消息边界:结果 artifact 只保留最后一个工具边界之后的公开文本(最终回答),此前记录的整体公开拼接不再作为结果;无工具事件时行为不变。工具事件本身不投影任何内容,终态后的文本或工具事件均按 `provider_event_after_terminal` 拒绝。该边界修复尚无新版真实模型复核,见 `tasks/grok-final-answer/docs/delivery.md`。
 
-高层入口新增 `task probe --provider claude|agy|grok` 和 `task run --provider claude|agy|grok`，默认 Claude。AGY 1.2.5 已完成真实高层只读验收；Grok 1.0.30 已登录但原生会话创建仍被文件写隔离拒绝，`execution_profile_unsupported` 保留。详见[本轮证据](../tasks/mvp-multi-provider-entry/docs/delivery.md)。
+高层入口支持 `task probe --provider claude|codex|agy|grok` 和 `task run --provider claude|codex|agy|grok`，默认 Claude。`task run` 固定创建一个 reviewer / read-only Worker、一次 attempt，并由 owner review；实现任务使用 managed candidate 提交路径，不能由只读入口或版本目录放行推导写能力。AGY 与 Grok 不支持 implementer；Codex 仍要求 exact native SHA pin 与正式 full-native runtime，managed write 另限 exact 0.166.0。
+
+Grok 只读任务也须事先取得本任务新会话目录写入及有界执行的明确授权，再设置 `--grok-session-write`（managed submission 使用 `profile.grok_session_write=true`）；缺少授权字段返回 `grok_session_write_required`。登录、锁确认或 probe 成功不替代该授权；它不授予工作区写权限。probe 仅检查版本与能力，不证明真实模型成功。此前 AGY 1.2.5 的真实高层只读验收及 Grok 1.0.30 的会话创建失败属于[历史试验](../tasks/mvp-multi-provider-entry/docs/delivery.md)，不代表当前 Grok 错误码或当前版本的真实验收结论。
 
 ```text
 orchestrator provider-probe --request /private/probe.json
@@ -197,7 +216,9 @@ orchestrator provider-lock  --request /private/confirmed-lock.json
 
 数值范围 1–32；未指定的 Provider/工作区沿用全局值。默认全局 2。路径按规范工作区归一化；不合法字段、版本、权限或数值拒绝启动，不静默忽略。修改配置在下一次安全重启后生效；删除配置文件不会撤销数据库中已保存的策略。降低上限不杀现有任务；prepared/running/stopping/unknown 均计数。符合其他资源限制的 ready 任务可继续启动。
 
-数据库当前 schema v6：v2 归并既有 runtime schema，v3 增加 local owner / collection receipt，v4 保存并发策略，v5 增加事务额度计数，v6 在既有 retry 账本保存绑定反馈的 revision payload。DDL、回填与 schema 版本更新在同一事务中提交。旧二进制拒绝新 schema；升级前应在协调器安全停止后备份整个 state，不能直接降级覆盖。
+数据库当前 schema v9：v2 归并既有 runtime schema，v3 增加 local owner / collection receipt，v4 保存并发策略，v5 增加事务额度计数，v6 在既有 retry 账本保存绑定反馈的 revision payload，v7 增加 Host progress 记录及 global/run 额度触发器，v8 增加按 controller thread / Provider 保存 enabled 与 model 的 provider settings，v9 在 runtime_hosts 增加 owner_request_changes_v2 能力位。DDL、回填与 schema 版本更新在同一事务中提交。旧二进制拒绝新 schema；升级前应在协调器安全停止后备份整个 state，不能直接降级覆盖。
+
+`owner_request_changes_v2` 默认 false，由 HostHello 注册或重连时更新；升级数据库不会自动赋予旧 Host 新能力。owner `request-changes` 要求对应 launch 唯一 ready Host 声明该能力，否则返回 `host_upgrade_required`（没有唯一 ready Host 时为 `rework_host_not_ready`）。已排队的 v2 返工在调度及下发 launch 时再次校验；不支持的 Host 不获得该 launch，旧任务不因缺少此能力而被一律拒绝。
 
 spool 的 `ReadAfter` 只读取未归档后缀；`Read` 包括历史，供会话与进程恢复使用。ACK 前缀先持久化，再归档；中断产生的双份记录按 sequence/content 对账。归档不等于清理或释放存储额度。额度由 SQLite triggers 跟随事件 insert/update/delete 同事务变化，包含全局、run 和报告 capability；回滚不会泄漏计数。
 
@@ -210,7 +231,9 @@ spool 的 `ReadAfter` 只读取未归档后缀；`Read` 包括历史，供会话
 
 ### 未测量耗时的保守结算
 
-`.12`修复退出事件省略`active_ms`时的免费结算。首次确认`Exited`后，缺失、零值或负值耗时均按该段`granted_ms`计满；可证明的正数耗时封顶于grant。UNKNOWN继续保留预占，重复退出不重复计费或退款。当前Host尚未上报精确耗时，因此真实成功、失败、提前停止与启动前失败也会保守消耗整个获授额度；这不是准确计时。旧已结算账本不自动追补、不重置。
+`.12`修复退出事件省略`active_ms`时的免费结算。首次确认`Exited`后，缺失、零值或负值耗时均按该段`granted_ms`计满；可证明的正数耗时封顶于grant。UNKNOWN继续保留预占，重复退出不重复计费或退款。旧已结算账本不自动追补、不重置。
+
+2026-09-28 起 Host 上报单调测量的段用时：`spawned` 成功并复核身份后打点，到"退出被观察（Wait 返回，含管道排空）或停止被确认（含宽限与强杀确认）"为止，毫秒向下取整，仅注入 `Exited` 事件（`internal/host/host.go`）。测量边界为 [−头差, +尾差]：起点前 exec→打点有毫秒级少计窗口，终点侧管道排空与最多 10 秒停止宽限计入、方向为多计；合成观测中尾差主导（在盘账本 `data/endurance/ledger-before-restart.json`：真实 `sleep 60` 上报 60010ms），deadline 段上报 3974/grant 4000（spawn 前调度间隙在窗外）。store 端仍按 `used=min(测量, granted)` 封顶结算；2026-09-29 起 Host 侧终态对称：`ensureLaunchUnknown` 与 `recordLaunchFailed` 一样，遇到已落盘的 `exited` 记录不再追加 `unknown`——`internal/events` 在 `os.Link` 使记录持久之后才返回，故 `ExecuteLaunch` 可能在终态已持久化的情况下才报错。段的 spool 因此不会同时携带两个进程终态；存储侧 `status!='exited'` 守卫继续保证迟到的 unknown 只成为历史、不重开结算。确认退出前的停止（pre-spawn `finalizeStopped`）与不确定路径保持 0，继续走保守计满，绝不臆造已用时间。deadline 自停改用独立有界宽限上下文（最多 `gracefulStopWindow`＝10 秒）后再强杀，兑现 §6"先温和取消、最多等 10 秒"的承诺；此前该路径复用已过期预算上下文，宽限窗口坍缩为 0。该窗口的两端现在都有测试：下界由 `TestDeadlineStopAllowsGracefulTerminationWindow`（要求子进程真的有时间清理）钉住，上界由 `TestTERMIgnoringChildIsEscalatedWithinBoundedGrace`（`trap '' TERM` 的真子进程必须在 15 秒字面预算内被 SIGKILL 收口）钉住，把常量改成 30 秒会让后者转红。以上为合成 OS 子进程与 store 回归验证的层次；真实 Provider 段的精确耗时分布尚未复验。
 
 本机MVP试验的`max_active_ms=600000`是单segment上限；默认预算组总额是`7200000ms`，还受累计已用/预留额度和attempt次数限制。不能把单段上限当作组总额，也不能另起run绕过恢复预算。
 

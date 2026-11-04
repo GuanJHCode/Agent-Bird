@@ -24,12 +24,13 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 		return nil, func() {}, errors.New("candidate_workspace_profile_invalid")
 	}
 	binding := gitops.CandidateBinding{RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
-	if r := spec.Rework; r != nil {
-		if r.Version != 1 || r.RunID != grant.RunID || r.TaskID != grant.TaskID || r.PreviousWorkRevision+1 != grant.WorkRevision || r.PreviousCandidateOID != spec.BaseOID || r.CandidateEventID == "" || len(r.CandidateSHA256) != 64 || r.ReviewEventID == "" || len(r.ReviewSHA256) != 64 || r.Feedback == "" || r.Acceptance == "" {
-			return nil, func() {}, errors.New("candidate_rework_binding_invalid")
-		}
-		binding.RevisionSHA256 = r.Digest()
+	if err := validateCandidateRework(spec, grant); err != nil {
+		return nil, func() {}, err
 	}
+	if spec.Rework != nil {
+		binding.RevisionSHA256 = spec.Rework.Digest()
+	}
+
 	key := hashText(grant.RunID + "\x00" + grant.TaskID + "\x00" + grant.AttemptID + "\x00" + grant.SegmentID)
 	journal, err := gitopsworker.OpenJournal(filepath.Join(h.spoolRoot, ".gitops-journal", key))
 	if err != nil {
@@ -90,4 +91,23 @@ func candidateDirectory(base string, grant contract.LaunchCommand, automatic boo
 		return base
 	}
 	return base + ".attempt-" + hashText(grant.RunID + "\x00" + grant.TaskID + "\x00" + grant.AttemptID + "\x00" + grant.SegmentID)[:24]
+}
+
+func validateCandidateRework(spec *adapter.CandidateWorkspace, grant contract.LaunchCommand) error {
+	if r := spec.Rework; r != nil {
+		if (r.Version != 1 && r.Version != 2) || r.RunID != grant.RunID || r.TaskID != grant.TaskID || r.PreviousWorkRevision+1 != grant.WorkRevision || r.PreviousCandidateOID != spec.BaseOID || r.CandidateEventID == "" || len(r.CandidateSHA256) != 64 || r.Feedback == "" || r.Acceptance == "" {
+			return errors.New("candidate_rework_binding_invalid")
+		}
+		if r.Version == 1 {
+			if r.ReviewEventID == "" || len(r.ReviewSHA256) != 64 || r.Source != "" || r.OwnerDecisionID != "" || r.OwnerSpec != nil || r.OwnerSpecSHA256 != "" {
+				return errors.New("candidate_rework_binding_invalid")
+			}
+		} else {
+			s := r.OwnerSpec
+			if r.Source != "owner" || r.OwnerDecisionID == "" || s == nil || r.OwnerSpecSHA256 != s.Digest() || s.CommandID != r.OwnerDecisionID || s.TaskID != r.TaskID || s.WorkRevision != r.PreviousWorkRevision || s.CandidateOID != r.PreviousCandidateOID || s.EventID != r.CandidateEventID || s.EventHash != r.CandidateSHA256 || s.EventRevision < 1 || s.ActionSlot == "" || s.SegmentID == "" || s.Feedback != r.Feedback || s.Acceptance != r.Acceptance || r.ReviewEventID != "" || r.ReviewSHA256 != "" || r.ReviewSummary != "" {
+				return errors.New("candidate_rework_binding_invalid")
+			}
+		}
+	}
+	return nil
 }

@@ -49,19 +49,35 @@ func currentCodexOwner(ctx context.Context) (coordinator.OwnerBindRequest, error
 			return req, codeError("current_codex_origin_unverified")
 		}
 		executable.Close()
+		daemon, err := process.IsCodexAppServerDaemon(pid, path)
+		if err != nil {
+			return req, codeError("current_codex_origin_unverified")
+		}
 		if now, err := process.Birth(pid); err != nil || now != birth {
 			return req, codeError("current_codex_origin_unverified")
 		}
 		if now, err := process.ExecutablePath(pid); err != nil || now != path {
 			return req, codeError("current_codex_origin_unverified")
 		}
-		if req.OriginPID != 0 {
-			return req, codeError("current_codex_origin_ambiguous")
+		req, err = observeCodexOwner(req, thread, pid, birth, daemon)
+		if err != nil {
+			return req, err
 		}
-		req = coordinator.OwnerBindRequest{ControllerThread: thread, OriginPID: pid, OriginBirth: birth}
 	}
 	if req.OriginPID == 0 {
 		return req, codeError("current_codex_origin_unverified")
 	}
 	return req, nil
+}
+
+// Only a verified exact daemon role is excluded. No ordering/nearest-ancestor
+// heuristic can turn two ordinary Codex processes into one owner.
+func observeCodexOwner(current coordinator.OwnerBindRequest, thread string, pid int, birth string, daemon bool) (coordinator.OwnerBindRequest, error) {
+	if daemon {
+		return current, nil
+	}
+	if current.OriginPID != 0 {
+		return current, codeError("current_codex_origin_ambiguous")
+	}
+	return coordinator.OwnerBindRequest{ControllerThread: thread, OriginPID: pid, OriginBirth: birth}, nil
 }

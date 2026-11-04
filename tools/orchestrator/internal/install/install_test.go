@@ -11,6 +11,59 @@ import (
 	"testing"
 )
 
+func TestCopyTreeStagesRuntimeFilesAtExactlyTheirRequiredMode(t *testing.T) {
+	// The runtime identity check demands 0o644 on g0 runtime modules, so a stage
+	// that silently drops the group and other read bits makes a correctly packaged
+	// runtime unreadable to its own verifier (g0_runtime_invalid). The mode the
+	// caller happens to run under must not decide that.
+	root := t.TempDir()
+	source := filepath.Join(root, "source")
+	files := map[string]os.FileMode{
+		"runtime/g0/handler.py":                         0o644,
+		"runtime/g0/projectproxy_launchd_entrypoint.py": 0o755,
+		"bin/tool.sh":  0o755,
+		"lib/plain.py": 0o644,
+	}
+	for relative, mode := range files {
+		path := filepath.Join(source, relative)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("payload\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(path, mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	destination := filepath.Join(root, "staged")
+	if err := os.MkdirAll(destination, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	previous := syscall.Umask(0o077)
+	t.Cleanup(func() { syscall.Umask(previous) })
+	if err := copyTree(source, destination); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct {
+		relative string
+		mode     os.FileMode
+	}{
+		{"runtime/g0/handler.py", 0o644},
+		{"runtime/g0/projectproxy_launchd_entrypoint.py", 0o700},
+		{"bin/tool.sh", 0o700},
+		{"lib/plain.py", 0o600},
+	} {
+		info, err := os.Stat(filepath.Join(destination, want.relative))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != want.mode {
+			t.Errorf("umask 077 staged %s as %o, want exactly %o", want.relative, info.Mode().Perm(), want.mode)
+		}
+	}
+}
+
 func makePackage(t *testing.T, root, version string) (string, string) {
 	t.Helper()
 	source := filepath.Join(root, "source-"+version)

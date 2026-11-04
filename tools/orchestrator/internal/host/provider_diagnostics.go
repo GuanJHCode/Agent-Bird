@@ -4,9 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"strings"
+
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 )
 
 type providerDiagnosticReport struct {
+	CodexAuthGuard      map[string]int `json:"codex_auth_guard,omitempty"`
+	guardFailureCode    string
 	ToolErrors          map[string]int       `json:"tool_errors"`
 	ResultShapes        map[string]int       `json:"result_shapes"`
 	StructuredResults   int                  `json:"structured_results"`
@@ -26,6 +30,10 @@ type providerDiagnosticReport struct {
 // Capture only allowlisted event/tool categories from the already bounded
 // process buffer. Prompts, tool arguments, messages and environment are omitted.
 func providerDiagnostics(output string) providerDiagnosticReport {
+	return providerDiagnosticsFor("", output)
+}
+
+func providerDiagnosticsFor(provider adapter.Provider, output string) providerDiagnosticReport {
 	result := providerDiagnosticReport{ToolErrors: map[string]int{}, ResultShapes: map[string]int{}, Version: 1, Bytes: len(output), Truncated: len(output) >= 1024*1024, Events: map[string]int{}, SystemSubtypes: map[string]int{}, Tools: map[string]int{}, StreamDeniedTools: map[string]int{}, StreamDenialReasons: map[string]int{}}
 	category := func(value string, allowed string) string {
 		for _, entry := range strings.Split(allowed, "|") {
@@ -50,6 +58,26 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 			result.Truncated = true
 			break
 		}
+		var header struct {
+			Type string `json:"type"`
+		}
+		if provider == adapter.ProviderCodex && json.Unmarshal(scanner.Bytes(), &header) == nil && header.Type == "codex_auth_guard" {
+			// The helper writes to stderr, which is captured but deliberately
+			// excluded from the business protocol collector. Reuse the Codex
+			// parser's fixed projection rather than copying arbitrary stderr.
+			projected, err := adapter.ParseEvent(adapter.ProviderCodex, scanner.Text(), providerEventLimit)
+			if err == nil && projected.DiagnosticCode != "" {
+				if result.CodexAuthGuard == nil {
+					result.CodexAuthGuard = map[string]int{}
+				}
+				result.CodexAuthGuard[projected.DiagnosticCode]++
+				if projected.DiagnosticCode != "ready" && result.guardFailureCode == "" {
+					result.guardFailureCode = projected.DiagnosticCode
+				}
+			}
+			result.Events["codex_auth_guard"]++
+			continue
+		}
 		var event struct {
 			Result             string          `json:"result"`
 			StructuredOutput   json.RawMessage `json:"structured_output"`
@@ -58,12 +86,21 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 			Message            json.RawMessage `json:"message"`
 			ToolName           json.RawMessage `json:"tool_name"`
 			DecisionReasonType json.RawMessage `json:"decision_reason_type"`
-			Event              struct {
-				ContentBlock *block `json:"content_block"`
-			} `json:"event"`
-			PermissionDenials []struct{} `json:"permission_denials"`
+			Event              json.RawMessage `json:"event"`
+			PermissionDenials  []struct{}      `json:"permission_denials"`
 		}
 		if json.Unmarshal(scanner.Bytes(), &event) != nil {
+			result.Events["unparsed"]++
+			continue
+		}
+		// Providers disagree about the shape of "event": Anthropic-shaped output
+		// carries an object, AGY names each lifecycle step with a string. Only an
+		// object can hold a content_block, so a string is read as "nothing to
+		// count" rather than as unparseable output.
+		var streamEvent struct {
+			ContentBlock *block `json:"content_block"`
+		}
+		if len(event.Event) != 0 && !isJSONString(event.Event) && json.Unmarshal(event.Event, &streamEvent) != nil {
 			result.Events["unparsed"]++
 			continue
 		}
@@ -126,8 +163,8 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 		for _, b := range message.Content {
 			count(b)
 		}
-		if event.Event.ContentBlock != nil {
-			count(*event.Event.ContentBlock)
+		if streamEvent.ContentBlock != nil {
+			count(*streamEvent.ContentBlock)
 		}
 		result.PermissionDenials += len(event.PermissionDenials)
 	}
@@ -135,4 +172,9 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 		result.Truncated = true
 	}
 	return result
+}
+
+func isJSONString(raw json.RawMessage) bool {
+	trimmed := strings.TrimLeft(string(raw), " \t\r\n")
+	return len(trimmed) > 0 && trimmed[0] == '"'
 }
