@@ -1,0 +1,187 @@
+{
+  "status": "readonly_native_and_gateway_accepted_not_published",
+  "public_base": "2e78f24c5e9694f287d19065f2ce9c80b16a59af",
+  "patch": "public-native.patch",
+  "patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+  "changed_files": [
+    "docs/provider-runtime.md",
+    "plugins/codex-orchestrator/lib/trial/auth_guard.py",
+    "plugins/codex-orchestrator/lib/trial/codex_exec.py",
+    "plugins/codex-orchestrator/skills/orchestrate/SKILL.md",
+    "tools/orchestrator/cmd/orchestrator/candidate_cli_test.go",
+    "tools/orchestrator/cmd/orchestrator/candidate_test.go",
+    "tools/orchestrator/cmd/orchestrator/interruption_cli_test.go",
+    "tools/orchestrator/cmd/orchestrator/main.go",
+    "tools/orchestrator/cmd/orchestrator/main_test.go",
+    "tools/orchestrator/cmd/orchestrator/provider.go",
+    "tools/orchestrator/cmd/orchestrator/provider_models_test.go",
+    "tools/orchestrator/cmd/orchestrator/provider_settings.go",
+    "tools/orchestrator/cmd/orchestrator/provider_test.go",
+    "tools/orchestrator/cmd/orchestrator/task_dispatch_integration_test.go",
+    "tools/orchestrator/cmd/orchestrator/task_entry.go",
+    "tools/orchestrator/cmd/orchestrator/task_entry_test.go",
+    "tools/orchestrator/cmd/orchestrator/task_provider_test.go",
+    "tools/orchestrator/cmd/orchestrator/version_cli_test.go",
+    "tools/orchestrator/internal/adapter/adapter.go",
+    "tools/orchestrator/internal/adapter/adapter_test.go",
+    "tools/orchestrator/internal/adapter/admit.go",
+    "tools/orchestrator/internal/adapter/admit_test.go",
+    "tools/orchestrator/internal/adapter/agy_finished_reason_test.go",
+    "tools/orchestrator/internal/adapter/catalog.go",
+    "tools/orchestrator/internal/adapter/claude_probe.go",
+    "tools/orchestrator/internal/adapter/claude_probe_test.go",
+    "tools/orchestrator/internal/adapter/codex_empty_text_test.go",
+    "tools/orchestrator/internal/adapter/codex_series_pin_test.go",
+    "tools/orchestrator/internal/adapter/coding_profiles_test.go",
+    "tools/orchestrator/internal/adapter/compatibility_catalog.json",
+    "tools/orchestrator/internal/adapter/compatibility_test.go",
+    "tools/orchestrator/internal/adapter/probe.go",
+    "tools/orchestrator/internal/adapter/probe_failure_test.go",
+    "tools/orchestrator/internal/adapter/profile.go",
+    "tools/orchestrator/internal/adapter/profile_test.go",
+    "tools/orchestrator/internal/adapter/protocol.go",
+    "tools/orchestrator/internal/adapter/version.go",
+    "tools/orchestrator/internal/host/agy_finished_reason_test.go",
+    "tools/orchestrator/internal/host/claude.go",
+    "tools/orchestrator/internal/host/claude_native_test.go",
+    "tools/orchestrator/internal/host/claude_test.go",
+    "tools/orchestrator/internal/host/codex.go",
+    "tools/orchestrator/internal/host/codex_empty_text_test.go",
+    "tools/orchestrator/internal/host/codex_test.go",
+    "tools/orchestrator/internal/host/grok_protocol_test.go",
+    "tools/orchestrator/internal/host/host.go",
+    "tools/orchestrator/internal/host/host_test.go",
+    "tools/orchestrator/internal/host/profile.go",
+    "tools/orchestrator/internal/host/profile_test.go",
+    "tools/orchestrator/internal/host/protocol.go",
+    "tools/orchestrator/internal/host/protocol_test.go",
+    "tools/orchestrator/internal/host/provider_diagnostics.go",
+    "tools/orchestrator/internal/host/provider_diagnostics_test.go",
+    "tools/orchestrator/internal/host/report.go",
+    "tools/orchestrator/internal/install/codex_runtime.go",
+    "tools/orchestrator/internal/install/codex_runtime_test.go",
+    "tools/orchestrator/internal/install/install.go",
+    "tools/orchestrator/internal/install/install_test.go",
+    "tools/orchestrator/internal/store/provider_controls.go",
+    "tools/orchestrator/internal/store/provider_controls_test.go",
+    "tools/orchestrator/internal/store/review_retry_test.go",
+    "tools/real-user-trial/test_auth_guard.py",
+    "tools/real-user-trial/test_codex_exec.py",
+    "tools/real-user-trial/test_codex_series_pins.py"
+  ],
+  "changed_file_count": 64,
+  "source_manifest": "public-native-source-manifest.json",
+  "source_files": 243,
+  "snapshot_sha256": "d68b6b5fc9c1c671d33e9067805df8a15ee83cac158b7170e6e48bc1c586a84f",
+  "snapshot_hash_algorithm": "sha256 of compact sorted-key JSON files array",
+  "source_manifest_file_sha256": "d66ecef9b40983f346ade1ee4554656c945f09c6b3dc0fbbc9c4f7b98d499e1f",
+  "verification": "public-native-verification.json",
+  "verification_sha256": "a6d69473acf68ce0f124c765fe63db8fb51c683d895e8f11d250a0dd397b2012",
+  "package": {
+    "status": "passed",
+    "version": "0.1.21-public-native",
+    "binary_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+    "outer_manifest_sha256": "a3b8955a48f48fcef6c3285f01ee07d46cdb6aac6f57dc67515ef336435d9888",
+    "installed_manifest_sha256": "8610f411c926e53c56e8c81a4d5bcc524eb6ad13a196da93847172c4e8bbfd8c",
+    "receipt_sha256": "abb07dac192ed2733d1a62edfc7716e69af981dfff84c00c5cef8c87bde65154",
+    "runtime_manifest_sha256": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0",
+    "interpreter_sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
+    "helpers": [
+      {
+        "path": "lib/trial/auth_guard.py",
+        "sha256": "4c3bfcb04a74c9f5b14585a582e4c5e3931304b42a4beead5bf401373e802973"
+      },
+      {
+        "path": "lib/trial/codex_exec.py",
+        "sha256": "462986a698ce87617f678fd3a04d7e006a3afe45cc5c175ded541aa94fcab816"
+      }
+    ],
+    "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+    "source_snapshot_sha256": "d68b6b5fc9c1c671d33e9067805df8a15ee83cac158b7170e6e48bc1c586a84f",
+    "file_count": 24,
+    "all_installed_bytes_modes_match": true,
+    "no_extra_files": true
+  },
+  "go": {
+    "status": "passed",
+    "report_sha256": "fd8fdfb6a4521dd66e1ca116bc1c09496854de92f6981b1470f08a14fe5c3e72",
+    "checks": [
+      {
+        "name": "full",
+        "status": "passed",
+        "log_sha256": "7bf8ea4407845cc8e3e28d0a3440dccc23277eb5d4416ac4d86df00b6abc170a",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {
+          "pass": 444,
+          "skip": 5
+        },
+        "all_cases": {
+          "pass": 879,
+          "skip": 5
+        }
+      },
+      {
+        "name": "race",
+        "status": "passed",
+        "log_sha256": "99f4a58fcb5c849d4caf7701b7b4c53603cef61ac42f8f5353b725867ecb5c8c",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {
+          "pass": 444,
+          "skip": 5
+        },
+        "all_cases": {
+          "pass": 879,
+          "skip": 5
+        }
+      },
+      {
+        "name": "vet",
+        "status": "passed",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {},
+        "all_cases": {}
+      },
+      {
+        "name": "build",
+        "status": "passed",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {},
+        "all_cases": {}
+      },
+      {
+        "name": "binary",
+        "status": "passed",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {},
+        "all_cases": {}
+      }
+    ]
+  },
+  "python": {
+    "pass": 151,
+    "skip": 1,
+    "fail": 0
+  },
+  "native_real": {
+    "codex": 21,
+    "agy": 6
+  },
+  "gateway_real": {
+    "claude": [
+      "1.0.61",
+      "2.1.317"
+    ],
+    "grok": [
+      "1.0.34",
+      "1.0.70"
+    ],
+    "status": "passed",
+    "total_direct_owner_loops": 31
+  },
+  "product_boundary": "Full-native Codex selectively integrated. currentOwner/Controller/Dispatch/coding/Claude/Grok/AGY/portable collect-only preserved. No main/master merge or publication. Native tools retain named readonly profile; no outer Host Seatbelt.",
+  "execution_status": "validation_complete",
+  "independent_evidence_review": "passed"
+}

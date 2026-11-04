@@ -1,0 +1,3765 @@
+{
+  "version": 1,
+  "recorded_at": "2026-11-03T12:46:00.655823+00:00",
+  "baseline_commit": "7824e05e5b09ec04ad49c43e3417fa6c3d544c46",
+  "catalog_sha256": "67a34b8716782c36fa3dcda432fa4778aedc6f5785946e5908ce0bd2dbe88d50",
+  "scope": "Frozen Codex/AGY native series records; 27 current native owner loops. Additional current main gateway4 records are separate, totaling31 current installed-package owner loops.",
+  "platform": "darwin-arm64",
+  "package": {
+    "version": "0.1.22-cli-series",
+    "binary_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+    "installed_manifest_sha256": "94f32c3945ae52d122216b7789ef4a5a15086cd7eeb4f6e552ec0b69353a0141",
+    "outer_package_manifest_sha256": "cff7cd53b5d6803d8363d265c3f15651de8cdae87fba6728e49a6ed6cb499784"
+  },
+  "summary": {
+    "metadata_passed": 56,
+    "current_package_direct_model_passed": 27,
+    "codex_exact_production_pins": 21,
+    "by_provider": {
+      "codex-cli": {
+        "catalog": 21,
+        "model_passed": 21
+      },
+      "antigravity-cli": {
+        "catalog": 35,
+        "model_passed": 6
+      }
+    }
+  },
+  "versions": [
+    {
+      "provider": "codex-cli",
+      "version": "0.154.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.154.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "raw_version": "codex-cli 0.154.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.154.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "ae333510948167d42f848e6996af9dc3d12174092921b81c162013712b66a539",
+        "version_stdout": "codex-cli 0.154.0\n",
+        "version_stderr_sha256": "3c328b49d1275b6b7d4b7b854747ea658cf8a15b17db21abffb8639e52476fb9",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "525978cb86eb11d3291b775e05a0f61d981b3101860393aa5a2db0ee07a80b5a",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.154.0",
+          "round": "20261103T101732Z",
+          "round_sha256": "e7e84254ea0fed597744d2f8a4519cefd6dc717dcb70cbc6ccf69971919a2b57",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+          "recorded_at": "2026-11-03T10:17:49.458561Z",
+          "duration_ms": 16265,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "4f3ba4bdb92c912751a0b910fc3b4a88327c6114fe92f663c1242cd7f27eaf5d",
+            "observed_size": 31,
+            "observed_sha256": "4f3ba4bdb92c912751a0b910fc3b4a88327c6114fe92f663c1242cd7f27eaf5d",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "426d73aaeb2aeef45e98b5add99e8ef9594a31673d281489bb2cb06b38c27423",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.154.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "344310a0a591c1b192e04feff304321a69907c9498baaac331ca7e16ebcef9d7",
+      "companion_archive_sha256": "500ee2a02ea598ae519052e7d7d8e201d1db01986f30c214ef4143645dc86fad",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.154.0-20261103T093242Z.log",
+        "log_sha256": "957c89fb2e2a58424a7f1a7aaf7f30ed294658cff13ddcacef34561ad01e6ff7",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.155.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "b0b14f9c1901c1ec44671094b2dc18b39e4bd8d36a6dc2302cc9d961a7e2a197",
+      "raw_version": "codex-cli 0.155.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.155.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "883fd5f1b5f3f1de4f0007da170855830ad4706d1edd2ec60a6f9e174760a982",
+        "version_stdout": "codex-cli 0.155.0\n",
+        "version_stderr_sha256": "bf66ee706dd0c61c242e1862dd26e44c8d210f7dbf84519451f17f79e5418147",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "f4a4c513c6b56e9ac58439f581b45f08f50b4ef959441b718d5467578c95db76",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.155.0",
+          "round": "20261103T101750Z",
+          "round_sha256": "1949dfa7c2b4f7215ffa25d3bb47e63bd6a88ef4442771a515ff30ffd77e834a",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "b0b14f9c1901c1ec44671094b2dc18b39e4bd8d36a6dc2302cc9d961a7e2a197",
+          "recorded_at": "2026-11-03T10:18:05.608744Z",
+          "duration_ms": 15525,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "c1b5383b50aa016d06206f12620aef82fd7c14cdf547e4611e90ff95d02935a8",
+            "observed_size": 31,
+            "observed_sha256": "c1b5383b50aa016d06206f12620aef82fd7c14cdf547e4611e90ff95d02935a8",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "c9a1c8ffa0c709ed96cb41073d24ce5a354c37a22e11cf1e4f150b9de07ce0d9",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.155.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "5a584b7cddc2a97083cada53f10f5bc4231526b7f64105f6a5bb82d01ccdba49",
+      "companion_archive_sha256": "3d751deef91b4526f086029c9395feb872abf7a717e45752ad1b33dcb387fa6b",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.155.0-20261103T093245Z.log",
+        "log_sha256": "c91db26c4f7af5071cb930f5c5de129464c30dc683206a175eb0713c150ace51",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.1",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.155.1/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "8eaf1ad12fe6bf89b1710330f58900014322c7c5af677e43be116d8ac5fc0a9e",
+      "raw_version": "codex-cli 0.155.1",
+      "path": "<private-isolation>/tmp/fixed/codex-0.155.1/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "7528f16798817b4f00171ea2fc3202df181f3e11469d512613e3173a8a17ad65",
+        "version_stdout": "codex-cli 0.155.1\n",
+        "version_stderr_sha256": "287397f2d94e1d18b830557d108b1b22bd7e98d1c5cf3cc74c292a0eb419c889",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "f00b910830ba1c87b07644fef000d7df93e8df4d0fbce51b3a6e083e4b18eeec",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.155.1",
+          "round": "20261103T101806Z",
+          "round_sha256": "75e9071f110879a49b37311676afc52bc28659ba7196bb27afe7140406eb5858",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "8eaf1ad12fe6bf89b1710330f58900014322c7c5af677e43be116d8ac5fc0a9e",
+          "recorded_at": "2026-11-03T10:18:22.514689Z",
+          "duration_ms": 16397,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "18b18357157f61f7788c7ba9b1104bb962555da9810e5ce258b8a2e433d82699",
+            "observed_size": 31,
+            "observed_sha256": "18b18357157f61f7788c7ba9b1104bb962555da9810e5ce258b8a2e433d82699",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "59a702a68f1ef79fceaca644db46b8385ceefbb66035e78b8ade7cdcc21fda55",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.155.1/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "5e5a51470dce2423f9d96bd191d0bbc4cc0e2848a6833df5178eaf47a07a3768",
+      "companion_archive_sha256": "e8957108eebd70963b0906857ceb7f7a2b477d1972a7147041c625d4071b508a",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.155.1-20261103T093247Z.log",
+        "log_sha256": "81c212bf4f2d63a168fdd90307ac895fa2a8691263ed80f870eaaad89a0b0523",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.156.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.156.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "6b42db4d33fd53516162bd76a0e2d07e0567287c44e036d4e4c06cb555a432f9",
+      "raw_version": "codex-cli 0.156.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.156.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "3d4da4ad94d9f7fe3cf3542c30daa7be0e879e7fa30ee86f531973695294d0fe",
+        "version_stdout": "codex-cli 0.156.0\n",
+        "version_stderr_sha256": "362aaf3c321f2e653da0cd826fec3d3a33a4f3c758021b78646480821b609c6e",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "bc254603d4be66fe5507deaa1d797eeaeb5795d585a3bf2b689ab25ad74ffa9f",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.156.0",
+          "round": "20261103T101823Z",
+          "round_sha256": "d251c62f915be7fc1938e8293ea77884294018b3cf8749a288633cb91c7b8250",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "6b42db4d33fd53516162bd76a0e2d07e0567287c44e036d4e4c06cb555a432f9",
+          "recorded_at": "2026-11-03T10:18:38.703153Z",
+          "duration_ms": 15588,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "bcb9be6e967940da2405fce60d8ce2c40ff7e284a06fb216507c9480a90f6020",
+            "observed_size": 31,
+            "observed_sha256": "bcb9be6e967940da2405fce60d8ce2c40ff7e284a06fb216507c9480a90f6020",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "5be43a1e34665382fa2526803bece18e8d6c42c299d9b4b025b43304203e7b2f",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.156.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "30dae0e553768a7bc564cf9c42d6e619d24e89565ebe6d1bc589e858ca202ac3",
+      "companion_archive_sha256": "77e47e9f00820566b2d6e25bfcc1890c1a6eb10a8a0b0a178dcc0b37127739ee",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.156.0-20261103T093249Z.log",
+        "log_sha256": "2d58f11dbda39058f32d83105bdb8d235aedf9bb975f639c1232b927793d4b72",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.156.1",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.156.1/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "0196e89fe5a7598f816ee54232c3d7c26d75e502ab5cfe2c9240e81d90f7255a",
+      "raw_version": "codex-cli 0.156.1",
+      "path": "<private-isolation>/tmp/fixed/codex-0.156.1/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "0ff75cd6ddc496718fc5b9845551fb7595955c2d2b18052ae0e101a75f56325c",
+        "version_stdout": "codex-cli 0.156.1\n",
+        "version_stderr_sha256": "d1cce2178f8c91395550499b27b1a144a53f0a0f3c4808c0f01368a5efe3b50b",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "228cf71fe9f2ec7babc52d4f62d07235371f8af4ca5ff650e4cdf785607d9fb3",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.156.1",
+          "round": "20261103T101839Z",
+          "round_sha256": "6d4a54820fb98a674010f5bcd4c0df4f8eb46e83b4fa58bf9234598a72d7be3f",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "0196e89fe5a7598f816ee54232c3d7c26d75e502ab5cfe2c9240e81d90f7255a",
+          "recorded_at": "2026-11-03T10:18:56.017122Z",
+          "duration_ms": 16778,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "87bb030b3f356895f0055b8d2bd38d7d97a48bac4947064304a6ddb93f784596",
+            "observed_size": 31,
+            "observed_sha256": "87bb030b3f356895f0055b8d2bd38d7d97a48bac4947064304a6ddb93f784596",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "588df0df1dab35f99f272f9f499a9fada658c613d09ef34562fe274dd54287d6",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.156.1/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "2bd64af14dedd47795f2f6bfd5d125cf79199acc2c7ba222144e08127111a5ca",
+      "companion_archive_sha256": "2625d023e2b6e03d2bcc437a3e0e0831c25d3c722d2854638a8e74921ff79bd9",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.156.1-20261103T093300Z.log",
+        "log_sha256": "2127e7be62d5755806356ec031d7fce0745e04f0208b68e84475815e1a3f75e0",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.157.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.157.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "ad0be20d04e2ba6146ecdb51d7f8b7b0fe15420a15dc9b0057518d858f1f3714",
+      "raw_version": "codex-cli 0.157.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.157.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "6026440170f3c73e61f7f2c6ca7ca3f207b30c1b5bf2aa2622b1abb1f7ecaffc",
+        "version_stdout": "codex-cli 0.157.0\n",
+        "version_stderr_sha256": "a040a0ecd411944b9d65387f7830b710f415bf68aefa6c082c036ab0dbbe1ac3",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a838592cf1b38cc25f68c36f7579c6776fe1bf711e23efb8267ec2b782d13919",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.157.0",
+          "round": "20261103T101856Z",
+          "round_sha256": "337cac039aa6f8b457c6f035fe4012f5726416a1f94a0aa3b73f5e4fdedfe42c",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "ad0be20d04e2ba6146ecdb51d7f8b7b0fe15420a15dc9b0057518d858f1f3714",
+          "recorded_at": "2026-11-03T10:19:13.46311Z",
+          "duration_ms": 16902,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "076e7afd48aa7e10780b01efec5747064c2270cfdc9c50e509ac6b89822eec6a",
+            "observed_size": 31,
+            "observed_sha256": "076e7afd48aa7e10780b01efec5747064c2270cfdc9c50e509ac6b89822eec6a",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "92672414d06556905c775c8ee8a8840f259055f66708adbf819b57dd613dd388",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.157.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "0f1522362bf8c8bbb58bf2fa8a3c600a0b723f1d4e3405ab831afeda32438909",
+      "companion_archive_sha256": "a5b33ff6c7a50134d0885fbbf194caf1ce2745bc57946445cb664165b06d2357",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.157.0-20261103T093311Z.log",
+        "log_sha256": "8ef5c16145bc75aedf56b0e912d3b1637d6ac9db1dffee49107e0cbe9110832b",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.157.1",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.157.1/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "27ceb5f9b957b43a519efe4eaa3816a0bffb0a531a2c89af18840c0a3c016a7d",
+      "raw_version": "codex-cli 0.157.1",
+      "path": "<private-isolation>/tmp/fixed/codex-0.157.1/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "514377bd9612d959c00debacdbc64d8c8ffab8e21dedfd344aece348777871b3",
+        "version_stdout": "codex-cli 0.157.1\n",
+        "version_stderr_sha256": "fff6f6ee7210f4bd42d77c31d229ec012c7d202496046a8bb1aedd0d2b967b2c",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "053dd1d2208906ec244b1cfe126e9860447db0700da6b8dc383d11bc1b9c6746",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.157.1",
+          "round": "20261103T101913Z",
+          "round_sha256": "f598383af39713df28e26e9032885d8808430931646966a5e8761fe9f84a577a",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "27ceb5f9b957b43a519efe4eaa3816a0bffb0a531a2c89af18840c0a3c016a7d",
+          "recorded_at": "2026-11-03T10:19:31.695676Z",
+          "duration_ms": 17718,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "135a22e1c06e7b6200418ae54d77921c83b32c81edb09d5c73740e8bc9025655",
+            "observed_size": 31,
+            "observed_sha256": "135a22e1c06e7b6200418ae54d77921c83b32c81edb09d5c73740e8bc9025655",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "80fdf166c3da068282d5692f67a852715a327ae7dc1913abb93b8c3d3030103f",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.157.1/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "3c45b162b7a76f51325015b1d0a8112c73219b7a9b59cd5762c37c9ba55894fa",
+      "companion_archive_sha256": "288332d2c970df5c61c8fbdfeac64a8bf72fb1ac1945942da4537ecf63138314",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.157.1-20261103T093321Z.log",
+        "log_sha256": "54ddb0551f3f7d0ad72061356a4bdfa70d4f1b6462578849f915f6cb9065f701",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.158.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.158.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "788a818fbb9596869c7a487554507cb8bdca17584b8671112b23f9e225ba35c8",
+      "raw_version": "codex-cli 0.158.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.158.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "aba7a7f7d3ae007207835f31274170e311f13beec276d4565fab17668c4c1060",
+        "version_stdout": "codex-cli 0.158.0\n",
+        "version_stderr_sha256": "2d5ca3e7dd04b7a5fc7276864e080d0047f907e32e09acf5305fa7c726f90e9d",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "42d812c3b917ad3a6f33de2ae86c76c9468a627b28cec86bdbf41120db3390ce",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.158.0",
+          "round": "20261103T101932Z",
+          "round_sha256": "7af67a33bcc5bb5678351641201fd5852ee9218c144b2747bbecb9abbe360eb3",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "788a818fbb9596869c7a487554507cb8bdca17584b8671112b23f9e225ba35c8",
+          "recorded_at": "2026-11-03T10:19:48.438662Z",
+          "duration_ms": 16161,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "2f6660bab175495f0659bff51f56891d1100b6aa090c1bb9e538539b55cddc7a",
+            "observed_size": 31,
+            "observed_sha256": "2f6660bab175495f0659bff51f56891d1100b6aa090c1bb9e538539b55cddc7a",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "d47e28a83f8b5c38f3dbf59f9590c580b3d95ae66102e3e180f0e0d6f050fc4c",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.158.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "341c4a08f9ce1935b3007376dc2a3d50a0a89112930e9a474ae61367218f6e8a",
+      "companion_archive_sha256": "19363918da75f5d2b805b6fffafd84ea3c8976e03e751192c04aea5bd70d4ab4",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.158.0-20261103T093329Z.log",
+        "log_sha256": "54b1b115bc1387a23a7fd38b1097f3e4d9d3680aa3f1d2fd44ef2f5c01509272",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.159.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "e89718aa1969bfc4a471277bdc4679a3a3529293de0a309909822dfd67ddb77a",
+      "raw_version": "codex-cli 0.159.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.159.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "878969059e81bb8c0acf92a2cddc6f99f6edd02d33ac6bca5f51516a38d1bd80",
+        "version_stdout": "codex-cli 0.159.0\n",
+        "version_stderr_sha256": "b6d0e5171c5792a9cf0ea0afdcd8c9dfead43a4dc3b9d35d8f3495a779e0d545",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "b9ca0f53f229423bbee0afc8b5a96775025cf3d420d6834305b887dc4b53575c",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.159.0",
+          "round": "20261103T101948Z",
+          "round_sha256": "8cef2c46e2794122fd8dbd68ac80e15d0e6a3cc557ef52ff251a0b46ed2f7628",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "e89718aa1969bfc4a471277bdc4679a3a3529293de0a309909822dfd67ddb77a",
+          "recorded_at": "2026-11-03T10:20:05.727006Z",
+          "duration_ms": 16782,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "63cd3e51873ccd43538582f90a08fbfda22f27e9be3d34eed7fbe8e7c5e75bfa",
+            "observed_size": 31,
+            "observed_sha256": "63cd3e51873ccd43538582f90a08fbfda22f27e9be3d34eed7fbe8e7c5e75bfa",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "c83b50d881ea5153fa9855cad6763fd7f847b24e60931b26513311fed3f71fbd",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.159.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "976ffe03c2d064ebeb5a900f523c4d4a369f299b5193e2232cfc05a642739d33",
+      "companion_archive_sha256": "40b55636ff9dd1fa010143e11351c6d356feb3f8cacdabde592282f2268be10a",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.159.0-20261103T093339Z.log",
+        "log_sha256": "cbed9e97926eaa7dc05d7d1a9ea707cfb55659d1f83f981c67cfe0fa2cdbf619",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.1",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.159.1/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "ab2ed513b0ae735151799ab57045e05ca721c4730859b5aa2f2a9e9bed287eb8",
+      "raw_version": "codex-cli 0.159.1",
+      "path": "<private-isolation>/tmp/fixed/codex-0.159.1/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "ece9be59e20e7b32504fd52feeb7373236cb6acd7ff244a063a63382d39bad22",
+        "version_stdout": "codex-cli 0.159.1\n",
+        "version_stderr_sha256": "ff2288ffff9a20c45dd0827c48aecc4b6de6ec500afc0517506d8f9028f3b809",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "c86522ad8d669f4cba85ba88ae04d16936cb23618931bbadd2b760f6e0427013",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.159.1",
+          "round": "20261103T102006Z",
+          "round_sha256": "0504960a95d3022c9bbd950061c18b9fa478907a1393574da21ec79df2509430",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "ab2ed513b0ae735151799ab57045e05ca721c4730859b5aa2f2a9e9bed287eb8",
+          "recorded_at": "2026-11-03T10:20:22.84634Z",
+          "duration_ms": 16594,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "0ffcc2f6a291209a5a152a98651fe2d76acf0f341642e143a550b005962e2c25",
+            "observed_size": 31,
+            "observed_sha256": "0ffcc2f6a291209a5a152a98651fe2d76acf0f341642e143a550b005962e2c25",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "b4b3a741c08ae62495ba8d0326c821ddf7001068518c7cf98fd8bc791d1d18e8",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.159.1/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "5098086ea2fda26bbe63b164cad03541b4d69e4177962bc475daaf008512945f",
+      "companion_archive_sha256": "574e792ca61377cb8356c7afbc88245910a91daff5159029e761d7eb37c9ef75",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.159.1-20261103T093349Z.log",
+        "log_sha256": "33511470f3378c0069af0502dd74cbfff3f1f74fd9656a1dd2f3c58ecabf64be",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.2",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.159.2/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "16593cc2f422d5f398a8e40f550ebbaf1245392528957be342c295920a300704",
+      "raw_version": "codex-cli 0.159.2",
+      "path": "<private-isolation>/tmp/fixed/codex-0.159.2/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "9bd198625bdb02b621e8f8487a4be235f3282112ccfce3a71703cd8c58cf06d8",
+        "version_stdout": "codex-cli 0.159.2\n",
+        "version_stderr_sha256": "84882111fec8667290a51c18f7aa59e831ea440d76b090eb8eb5e0a893eb796c",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "3a62cff29ce584f0de8a3fb3b48ed2eef3bf20362f007198dbb6a4bc81c201bb",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.159.2",
+          "round": "20261103T102023Z",
+          "round_sha256": "e1d24e1dfe578a803bc2b345a02219fabfcf3e5f414e6160e4facc815300bfa3",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "16593cc2f422d5f398a8e40f550ebbaf1245392528957be342c295920a300704",
+          "recorded_at": "2026-11-03T10:20:40.946084Z",
+          "duration_ms": 17631,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "4f378fa70f94e4941ed51cc7fa239498da75990e8cadc07c11e811a7f495172d",
+            "observed_size": 31,
+            "observed_sha256": "4f378fa70f94e4941ed51cc7fa239498da75990e8cadc07c11e811a7f495172d",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "ed79fbc9e1683feb29d73fb421f3e16932d178a459f63741754014c6c7ea6107",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.159.2/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "025deffd84cbc99d88ef952e585dc67c7c94e4273f89ba3d45f7e5799743c13c",
+      "companion_archive_sha256": "4f9f3c0e3eabe9bee128946bb04cc9523423e82f9751880b7f03d41aa9e482f2",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.159.2-20261103T093400Z.log",
+        "log_sha256": "b376731fcbfd570393c5662e29fc34514c81b9c479f1c35d187c12786ff3cb85",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.3",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.159.3/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "4d210f7c5a18fd0386434df23b5bdbb8c0e7257d3e8a2b30b0769c8bbe99a878",
+      "raw_version": "codex-cli 0.159.3",
+      "path": "<private-isolation>/tmp/fixed/codex-0.159.3/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "33b15a7c198a4b6dbe9789643896621a7457fa1569bc8deeebe23b509255ffbd",
+        "version_stdout": "codex-cli 0.159.3\n",
+        "version_stderr_sha256": "643218723b4a88acef327e0eb7d40f9004353ab3e6dbe092e84bfb8bccefd91c",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "55452ec7018263dacf688bcc7ee843b93ac0a3fc6a41a34f8f3cc70ba0a72bf4",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.159.3",
+          "round": "20261103T102041Z",
+          "round_sha256": "af264e73ed8ea8b0284303772374ac2ef27c86000aaf690230ecccf4a0f30a15",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "4d210f7c5a18fd0386434df23b5bdbb8c0e7257d3e8a2b30b0769c8bbe99a878",
+          "recorded_at": "2026-11-03T10:20:58.121896Z",
+          "duration_ms": 16618,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "b9b9a449bff1459e18eddd516e1b38bc23dedd73ca31972cfa6155c967557d30",
+            "observed_size": 31,
+            "observed_sha256": "b9b9a449bff1459e18eddd516e1b38bc23dedd73ca31972cfa6155c967557d30",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "9a4f2a846c9f509ca2a9f68ace6f0df2f73c7ed21835e8b186ee52bfccdfa8f3",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.159.3/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "51de50a39ea592b5b0a64ae0474548c282181cb6b96d9bd08965a682ae12774c",
+      "companion_archive_sha256": "d1a3254374b733fff1fa31cbeb20f65e3ef871e3431c196353dea189df15d4c5",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.159.3-20261103T093411Z.log",
+        "log_sha256": "400488b8d447878c48d973efc7cbe7af91d8f6d14e2311721f4da302dfefd16c",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.160.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.160.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+      "raw_version": "codex-cli 0.160.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.160.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "fca60156d975ac5256a177fbfe18884a83c20134bb0a7085d4974c00f3dc9242",
+        "version_stdout": "codex-cli 0.160.0\n",
+        "version_stderr_sha256": "c5b311ab7b40e980e9f5aa6e90d031df4e429db31e591f177662de280f9a603b",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "e5464593843af31edf5c1fe80c248390d9d6b2b568db40fe083cfd2301ade840",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.160.0",
+          "round": "20261103T102058Z",
+          "round_sha256": "05f348e0ee67a09fe54a7e8389fe913f7c40beb45349d31bbf5d44694f8c456d",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+          "recorded_at": "2026-11-03T10:21:15.427077Z",
+          "duration_ms": 16679,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "dd29d0d186fe3972e780439cdd1c1ce9c548ea6d22e69b115abff84d52e77c01",
+            "observed_size": 31,
+            "observed_sha256": "dd29d0d186fe3972e780439cdd1c1ce9c548ea6d22e69b115abff84d52e77c01",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "679eedaea70529aa1cffc9bc0a0788c186412663544fa76c09d63b57f383a65a",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.160.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "07c3c7ca376a8f791115342f53138dda37e97cfa29b8125d0652d93784894b5d",
+      "companion_archive_sha256": "dc70fbc76e9dcae5ae3d5424808c8e7c2df5e0db4ac827ddd4fbe339015aad75",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.160.0-20261103T093423Z.log",
+        "log_sha256": "f7a2ba0eaf2051c8dc251d54d4b53903fc111fe464871ff92ce37bba28e61167",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.160.1",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.160.1/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "09fa44fdc37a5fc70dc1ace31235f90468a2e193d0e85f7552eab068ea2582be",
+      "raw_version": "codex-cli 0.160.1",
+      "path": "<private-isolation>/tmp/fixed/codex-0.160.1/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "9fa297444f8195a8f0a6b11145f8997e8d0165e6acd4bf0b4b2209e88174067f",
+        "version_stdout": "codex-cli 0.160.1\n",
+        "version_stderr_sha256": "314bb77ad3c4e9faccd7c6162b62df0184fb642c14fa82262fa106e4e1052649",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "4b66e2fc48d1760d80014fb5c5671fd4051963b36e988a2812171a6fc32cc385",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.160.1",
+          "round": "20261103T102115Z",
+          "round_sha256": "fbffa1b290c21db980476760a4692e86255bce1f28703ee790ba389b21535214",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "09fa44fdc37a5fc70dc1ace31235f90468a2e193d0e85f7552eab068ea2582be",
+          "recorded_at": "2026-11-03T10:21:33.606007Z",
+          "duration_ms": 17658,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "e6cc2caa31942fac1bfbedfd08fc5148327b73a49b8e86586f83baf2fcc8ab1e",
+            "observed_size": 31,
+            "observed_sha256": "e6cc2caa31942fac1bfbedfd08fc5148327b73a49b8e86586f83baf2fcc8ab1e",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "6ac432b170e2c30f90de5af0da584def5201497a0d3d988d37dc58b951236b2f",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.160.1/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "670af2b049d9c95afb74d7da385f30c5033d13a07175001dd8958c51944984d0",
+      "companion_archive_sha256": "6e502df69d9220fa305b0c3c7c17ba8f31ab1d4591fc140084dbb823e800c7db",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.160.1-20261103T093434Z.log",
+        "log_sha256": "081abcde3d337dde93b4a6dc1ad17c2adfbc46b8381f3e08a58d9f8b604ec261",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.161.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.161.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de",
+      "raw_version": "codex-cli 0.161.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.161.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "4a7562c6193499cadbef339a8d8474628234bc09a34c0bcd228775b39656d515",
+        "version_stdout": "codex-cli 0.161.0\n",
+        "version_stderr_sha256": "ccc868e40b0207cb7f1308ca18f5c100fe3ef6f4438a5626ffc53bc2277f3eb9",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "f16b105428dd10d604aebf8ff2de9b8f7b09f83882d03347586c0522f6d148f7",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.161.0",
+          "round": "20261103T102134Z",
+          "round_sha256": "08464278176ea04dbcf01727a9ab4bcaa26f290e7f0b0f90191dc64044927bf0",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de",
+          "recorded_at": "2026-11-03T10:21:51.483437Z",
+          "duration_ms": 17276,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "8d515d0eca2c64bd2577c5e1c29adfb03decc177df2c53dffe911025769617e9",
+            "observed_size": 31,
+            "observed_sha256": "8d515d0eca2c64bd2577c5e1c29adfb03decc177df2c53dffe911025769617e9",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "35f1c633130f7b214fc568b6f643f6831aac0c6f25e3cf78287ebadb7820ddf9",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.161.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "bd83479f3ae21474c407ec2164fbc2a63fa763f7afbbd123fb6a69c5201cfd38",
+      "companion_archive_sha256": "821224158c51304cb3f19af6f3fa85ca4566d8a12be0787604cf10f070c4c644",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.161.0-20261103T093444Z.log",
+        "log_sha256": "f7a2ba0eaf2051c8dc251d54d4b53903fc111fe464871ff92ce37bba28e61167",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.162.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.162.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "8238273076041e55beded03ba1d51e034f997b7d100b0642d36daf036620fe57",
+      "raw_version": "codex-cli 0.162.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.162.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "58ce8c7c9691a08cbb0ec8e3868fc53254f5994a698ac50d793c5a65f85762b1",
+        "version_stdout": "codex-cli 0.162.0\n",
+        "version_stderr_sha256": "a36ca52e827e8897a0253a8d1a892cf02c4cc21a88b7beb8e7c8a4dd8c028ceb",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "ee3f79db24d4d00dc1f94bbd0578d119de6e8e86a706acc468f796fba3f8b637",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.162.0",
+          "round": "20261103T102152Z",
+          "round_sha256": "1d06b354cd5b184a9f0fcebe97978c09e0273a0d1b2015de68faba913eabfece",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "8238273076041e55beded03ba1d51e034f997b7d100b0642d36daf036620fe57",
+          "recorded_at": "2026-11-03T10:22:10.566043Z",
+          "duration_ms": 18377,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "29778c7302d69328ea2be5a00826c48fd3cba95562a2ed3a6e688ae71fcba402",
+            "observed_size": 31,
+            "observed_sha256": "29778c7302d69328ea2be5a00826c48fd3cba95562a2ed3a6e688ae71fcba402",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "0b74f513cd960f32e60836f39c574761e6fd1500e608135f3f34347acc3e0e6a",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.162.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "98e9413a1bd167ae573723939ff178e6d44f1bb21d5cda960dbeb2fa65f49104",
+      "companion_archive_sha256": "9455c17fa9ba6e89f8ec24ebfd3419825e2c651c56f8bd8df7141411e6decdc2",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.162.0-20261103T093454Z.log",
+        "log_sha256": "f57754fee7dd39194a245cd526cd331230952fb80348a759f062043ec7899e2b",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.162.1",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.162.1/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0",
+      "raw_version": "codex-cli 0.162.1",
+      "path": "<private-isolation>/tmp/fixed/codex-0.162.1/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "310f46ef1d6e3c2cd8706aa1ef129f35edce76e85b0e87b43a43455559294afe",
+        "version_stdout": "codex-cli 0.162.1\n",
+        "version_stderr_sha256": "5d0f9df9538cf06cb54e3791bf949af0230b099ce60c60ef78f92d1bcdb4f53c",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "f9f685960d9f3396ed4666f3f30239948d96706a8feba9bd021d9e8503c89b28",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.162.1",
+          "round": "20261103T102211Z",
+          "round_sha256": "cba4d85f06f64347fe986af4c074d890132bb673aa638518049f6b0731e3644e",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0",
+          "recorded_at": "2026-11-03T10:22:29.066946Z",
+          "duration_ms": 17745,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "bb7e74609db8f7aa08bfdf35b3a96c6f78221df4f5a74c157a9be7eb2eafb0d4",
+            "observed_size": 31,
+            "observed_sha256": "bb7e74609db8f7aa08bfdf35b3a96c6f78221df4f5a74c157a9be7eb2eafb0d4",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "0960435a104cf926e18bb938b8f6f8fcdf7e27be0c8d88e1911bc22a1de7d3e6",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.162.1/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "b293a0fcdd871900a44c0a4f40a1aa401b31e02854f790ebdb8bd5d1177fd1fe",
+      "companion_archive_sha256": "1f464a2894adbc916e431b6bf19bef2cb485cf7e13e636d42578c581962b3727",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.162.1-20261103T093504Z.log",
+        "log_sha256": "ffd999f85d3ca0245ab1b9d8e330e15b869908c70765767f249aebfb1c1a3686",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.163.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.163.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "8813367285524ac798dd96d1b071aea30d58708c7226fd236cd275cf1cfdee31",
+      "raw_version": "codex-cli 0.163.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.163.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "897408e094021c5719d2079a37357fd387d3a92fb32ea44614365f9295c95db5",
+        "version_stdout": "codex-cli 0.163.0\n",
+        "version_stderr_sha256": "949f09a0613cbf41fca086635f602d3d4987dd7ceb30973d02a775ce2395821d",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "89059ea8257e66f8e6165483b7f6e96b6963ecf63645d5d86714f1cb07c187c7",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.163.0",
+          "round": "20261103T102229Z",
+          "round_sha256": "6333d8b4079ffa6e378a20d913cd3d738afe6327d6f728bf4faa307d14faa7bb",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "8813367285524ac798dd96d1b071aea30d58708c7226fd236cd275cf1cfdee31",
+          "recorded_at": "2026-11-03T10:22:50.132688Z",
+          "duration_ms": 20356,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "d39bc27f5d76dc2b28358873846657f775117fb2100e2fedf0cb3f5088d1cdb9",
+            "observed_size": 31,
+            "observed_sha256": "d39bc27f5d76dc2b28358873846657f775117fb2100e2fedf0cb3f5088d1cdb9",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "79f123a85dbc61e8f5d0f0c050dfc3f4b81a8305d33a32b41e008b7f6e035698",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.163.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "61c4d9a92521bdb42b0c1d9f87c673f6da628a06de5945cbdd9a0010632f6d10",
+      "companion_archive_sha256": "2e28f49a4767a97586843c92692b96481be74d837199b49038f731cec88e9941",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.163.0-20261103T093516Z.log",
+        "log_sha256": "f81260e937decc73ca77f4259d9db3745fa2612e00032d7d11980a8f19d161f3",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.164.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.164.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf",
+      "raw_version": "codex-cli 0.164.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.164.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "95c5d2da41eb9c41493151b7205030ddf24c384cc00b5bec41f3ea1f41b45678",
+        "version_stdout": "codex-cli 0.164.0\n",
+        "version_stderr_sha256": "5ef706f0d301baaffce93f982936278c635e3bc76c490e90eab228c8c4d29d50",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "fcc7341dc63815e555242cce4a0d441ed9b95fd813d91f56da141cec62cb911f",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.164.0",
+          "round": "20261103T102250Z",
+          "round_sha256": "0401dc6d7376340ea9951e8d99c02a661c83a9f01db1e11035dfc21f0ca3652e",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf",
+          "recorded_at": "2026-11-03T10:23:07.941294Z",
+          "duration_ms": 17276,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "eacbab2ddc33ff8ea3ad8c602d9aaebe8dcc30f2cf703c6be1dc56839e330e5b",
+            "observed_size": 31,
+            "observed_sha256": "eacbab2ddc33ff8ea3ad8c602d9aaebe8dcc30f2cf703c6be1dc56839e330e5b",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "416721e33af8822041dc650793512b3e58d43e0be4f3a5c6187eb4dfaad3148a",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.164.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "aa8299c169d80111aac05543ad2621c9bdbedb9bc252c905fe3f5a5baf9a4142",
+      "companion_archive_sha256": "7bc3ca697567bc884a76233999c46cb22b023b09f2d4d4ab3518f1354c64e415",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.164.0-20261103T093527Z.log",
+        "log_sha256": "48371d0832dcc8bc16f6da2630d07999aed90d74b9af7c71d58f79d9f9126344",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token",
+          "refresh_reason=proactive_expiry"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.165.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.165.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "a45099154d7fb4a5ed8a56f40966a95deb938e508bab23e6985035c709e9a85a",
+      "raw_version": "codex-cli 0.165.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.165.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "c18ee8818508db333b9fcf8cdd6e8ed5e15ae070783c24c900769670e702e8ec",
+        "version_stdout": "codex-cli 0.165.0\n",
+        "version_stderr_sha256": "3bfb2e2010f9a9bb700121ee439d55d45c41fe6ca1ab3848a45c9eb293549dca",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "513676eec6fbecff991ca5b04bb1ba3b3db313740c48c66c8fb603af0ae5ab52",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.165.0",
+          "round": "20261103T102308Z",
+          "round_sha256": "1f8a58bc30f69fdbd0c7fd673bf4c2ab484370510460547cfe3869153a16627c",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "a45099154d7fb4a5ed8a56f40966a95deb938e508bab23e6985035c709e9a85a",
+          "recorded_at": "2026-11-03T10:23:26.930077Z",
+          "duration_ms": 18375,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "fd2c9783f1806d2c5c39ee851b8473e74a592c1ea00f11da3759c6f92824ca74",
+            "observed_size": 31,
+            "observed_sha256": "fd2c9783f1806d2c5c39ee851b8473e74a592c1ea00f11da3759c6f92824ca74",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "e723d01c65aba4b81451d486d57318232b2738889de67c35051734be917d96ba",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.165.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "78ea9c178d2dc8fde71d6494df3b9eab902fd6d6de0a84e65234220d93bb6144",
+      "companion_archive_sha256": "d861a7dd3656e91d04d3753f2ca5624f100e37401993b299661ab6631bda8610",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.165.0-20261103T093538Z.log",
+        "log_sha256": "2f8b3dc5ce5d39c800d08db0e4f25887c0852cfd50d21cd7acf0b49b3de0bc43",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token",
+          "refresh_reason=proactive_expiry"
+        ]
+      }
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.166.0",
+      "source": "https://github.com/openai/codex/releases/download/rust-v0.166.0/codex-aarch64-apple-darwin.tar.gz",
+      "binary_sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+      "raw_version": "codex-cli 0.166.0",
+      "path": "<private-isolation>/tmp/fixed/codex-0.166.0/bin/codex",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "9d77edf7282abe15d80e4df2c27f228c96b5b0a1cfd019c870685bc53bfeed91",
+        "version_stdout": "codex-cli 0.166.0\n",
+        "version_stderr_sha256": "276c7328c28ee176810ef28fe284448408e943466deca5dd6fddbbd47d677286",
+        "capability_parameters": [
+          "exec",
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "632d6d93a9f6b82401b31414116767811158fa7de3b6cb8542cfa2d3c76ea785",
+        "required_flags": [
+          "--json",
+          "--color",
+          "--model",
+          "--config",
+          "--ephemeral",
+          "--skip-git-repo-check",
+          "--strict-config",
+          "--ignore-rules"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "codex-cli",
+          "version": "0.166.0",
+          "round": "20261103T102327Z",
+          "round_sha256": "6f297bb5a13bd48e68cabfafa978e5932e51dee315a366c14c32e6903d040c01",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+          "recorded_at": "2026-11-03T10:23:44.897452Z",
+          "duration_ms": 17415,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gpt-5.6-luna",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 31,
+            "declared_sha256": "76daa1c26255f487726ba630e47e2e45b05a2df44678e920829a16888026ff98",
+            "observed_size": 31,
+            "observed_sha256": "76daa1c26255f487726ba630e47e2e45b05a2df44678e920829a16888026ff98",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "companion_sha256": "fd37051bfdce0b65cf22a7077e265720a7bd6709d5e400dcbc26197f3041400a",
+      "companion_source": "https://github.com/openai/codex/releases/download/rust-v0.166.0/codex-code-mode-host-aarch64-apple-darwin.tar.gz",
+      "main_archive_sha256": "c48824462fc57681eafb0925d97b11b589010475613904f570b42fea53e240d5",
+      "companion_archive_sha256": "7abd50fe5f033495a7b693c45fb82dc57093a18f1c4ba3e8043577de46c5c7c5",
+      "production_admitted": true,
+      "native_contracts": {
+        "status": "passed",
+        "tests_passed": 6,
+        "tests_skipped": 0,
+        "log": "native-0.166.0-20261103T093550Z.log",
+        "log_sha256": "4113552379bac1cbff346a5b4a1e8134b47740faf2f8c61801ec220428ba8914",
+        "scope": "production prepare_launch native synthetic login status/projection + synthetic native refresh positive/guarded + real named readonly tool policy; no live model or real auth",
+        "real_model": false,
+        "refresh_request_keys": [
+          "client_id",
+          "grant_type",
+          "refresh_token",
+          "refresh_reason=proactive_expiry"
+        ]
+      }
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.3",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.3/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "e0c2743e3fd062e11c13d2eb5fabaa244936094bbe39c30fdfbac619bb78e554",
+      "raw_version": "1.2.3",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.3/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "d82f34ae9aa41bc4a0cb529a1ac0898fed09d6b479fb1cc44cb66c34f15ee84d",
+        "version_stdout": "1.2.3\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "86e12777f67fad42b7d6ba8cc9288fd3f9aae35553b53c0948de07de30334109",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "antigravity-cli",
+          "version": "1.2.3",
+          "round": "20261103T102345Z",
+          "round_sha256": "1c7da46e310be935c937c931d90bc97c8b3558e93622bd4b20d88c40e2d35691",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "e0c2743e3fd062e11c13d2eb5fabaa244936094bbe39c30fdfbac619bb78e554",
+          "recorded_at": "2026-11-03T10:24:09.286039Z",
+          "duration_ms": 23894,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gemini-3.8-flash-low",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 32,
+            "declared_sha256": "36522f7821b1d8c5c92ee3b801561db2f6cdd776e00e5abc86dc9e325a8013fb",
+            "observed_size": 32,
+            "observed_sha256": "36522f7821b1d8c5c92ee3b801561db2f6cdd776e00e5abc86dc9e325a8013fb",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "c244ec966f5d8c22d845117332a6858f3abaf0fb5c8058e337d51b77b2c93e50",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.4",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.4/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "a939016cfb86e3862112ee57124f1bc14f30defdd69e181a8526b6e7c80a4471",
+      "raw_version": "1.2.4",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.4/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "563a0b4eec3c77bbc34ac630d4fa5214f5c6726ae01468404fd704473110084e",
+        "version_stdout": "1.2.4\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "86e12777f67fad42b7d6ba8cc9288fd3f9aae35553b53c0948de07de30334109",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "f59c12c289e74bbb48178f827702c6224bd0aa920914319f85b42760dfc72f4c",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.5",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.5/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "cdf6bcff6840b12184b7ff3210c156a522f9d855ce32f4e27ce34c40091a8409",
+      "raw_version": "1.2.5",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.5/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "fe2b7c237b5a6e42818aa3e4f7fc5820f49c32289c32c96260ef89a8c8f6d3d7",
+        "version_stdout": "1.2.5\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "69c7a7660a33d78516f684df80cd81b2924658fffb23ec5672f9560aace83d60",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "b37495eebe53e1c565dd6d77bdd1d3ba603216b5d3acddafb185f97d35fdf9eb",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.6",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.6/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "7e1a1036b68cd8e2ad66097ddc8f43dc2081079d51d340863647dc8de2a1bc84",
+      "raw_version": "1.2.6",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.6/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "5844ffcc346f89c07b13ba7596bfb3788ed73f4755e541182d7822d43b7c7a24",
+        "version_stdout": "1.2.6\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "05670b45f1e15f105646ecfe9763812fecc31b207a8c86ec95d6c702ef538942",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "14e1be7ed9b35e512b6aa2f2b2ba3ad79877dbde1b2d487892d3721806ff9e59",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.7",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.7/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "8c01ef82307dc01455418eb2e6e82f2989a3fa8b815c4b192efaaa89a55bef8d",
+      "raw_version": "1.2.7",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.7/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "d9e8e8429c6a7d0b965e4fac26a5efff7103f055faa98cceb5bd4731fd24603a",
+        "version_stdout": "1.2.7\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "05670b45f1e15f105646ecfe9763812fecc31b207a8c86ec95d6c702ef538942",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "ce9fe3f4d6f44a2b1c83b334fc5c8f2975079959e24dd805e10eb49ab8c76a7e",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.8",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.8/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "62913fb38f14d376e67b62014e701063f4061aba60b0e049cb6af9cab62763ef",
+      "raw_version": "1.2.8",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.8/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "d2d31534641da01801512a3ec793bc8d57132d4cefa19a5fb503e8995f39eb8f",
+        "version_stdout": "1.2.8\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "05670b45f1e15f105646ecfe9763812fecc31b207a8c86ec95d6c702ef538942",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "antigravity-cli",
+          "version": "1.2.8",
+          "round": "20261103T102409Z",
+          "round_sha256": "1c2e95bd6a9d8e409519e7641da17d4bf8d87512ec8a785b6b137a90fc41eb9e",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "62913fb38f14d376e67b62014e701063f4061aba60b0e049cb6af9cab62763ef",
+          "recorded_at": "2026-11-03T10:24:29.277664Z",
+          "duration_ms": 19518,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gemini-3.8-flash-low",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 32,
+            "declared_sha256": "7f6a214c47eae6b45caa815d6d92a7b2806096f7b455fc3dc07d7c197bbafd0d",
+            "observed_size": 32,
+            "observed_sha256": "7f6a214c47eae6b45caa815d6d92a7b2806096f7b455fc3dc07d7c197bbafd0d",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "f77d57d99ca83e50a3a767d70621c99962ce4242e5470220f3adbf1c50844538",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.9",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.9/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "0ff346ae903f15d863bd6a3e401638b612848210d28b174461acdb8780ac8c22",
+      "raw_version": "1.2.9",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.9/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "c8d83c2672c5e397ce16a2ee275ac45917002b9b36765f77d99f31bdf81ee828",
+        "version_stdout": "1.2.9\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "05670b45f1e15f105646ecfe9763812fecc31b207a8c86ec95d6c702ef538942",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "antigravity-cli",
+          "version": "1.2.9",
+          "round": "20261103T102429Z",
+          "round_sha256": "71eb5df011446ba65965b9cd3e71a164983982928ef9befb1485187e57ac7f0b",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "0ff346ae903f15d863bd6a3e401638b612848210d28b174461acdb8780ac8c22",
+          "recorded_at": "2026-11-03T10:24:56.915231Z",
+          "duration_ms": 27236,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gemini-3.8-flash-low",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 32,
+            "declared_sha256": "bc8bd85957a9e401f27cd6a321643a8190383a62cc48f8257fd013823634323e",
+            "observed_size": 32,
+            "observed_sha256": "bc8bd85957a9e401f27cd6a321643a8190383a62cc48f8257fd013823634323e",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "2b2671c846f62cb1159817517e4a9fff3e9a2ffe01f9dd0b3e227298d88b46f6",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.10",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.10/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "1e43262d55f69e20bf4ba4f087252d65dd4ed37c0a980fae50a6bd5bc3637650",
+      "raw_version": "1.2.10",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.10/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "4304275f30e076c76abdc0f280f0fdd5537f1ac700953ba1908e29a64d531919",
+        "version_stdout": "1.2.10\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "05670b45f1e15f105646ecfe9763812fecc31b207a8c86ec95d6c702ef538942",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "95d5d8ab8870b849a157f647bb4d9953184f97855cbfbedebdedcc421ca5b435",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.11",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.11/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "42e76bedafb5896bc6a6eefb61902162f6ba08ddf59efd3357767102e3a59a0c",
+      "raw_version": "1.2.11",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.11/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "37310c7f348165122ccb9f4a854c29485395bb3af0659ba5a77be066c1511679",
+        "version_stdout": "1.2.11\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "f427f6d0a33512fdfc3aa9cff43d1aa82e08ab4336ee9d397acd10052119f4cc",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "437a813cd7c606ccbb3180886887fc69361c28fe8e880327b3b82201afa900cc",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.12",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.12/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "6f4785c17acc4b8b539e055e926ddc65cc83279581d24357a3b6e051a2337ae3",
+      "raw_version": "1.2.12",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.12/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "c808fbaccc0ce69f91e3a684328fc872f2212b4233fbd81c40a076e8032e1236",
+        "version_stdout": "1.2.12\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "f427f6d0a33512fdfc3aa9cff43d1aa82e08ab4336ee9d397acd10052119f4cc",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "076a1f0a1874a2843862af9d0eeae751775a84e736e35a84de0dd268069c28cb",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.13",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.13/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "ef3728208834483754b06fd99963b4b6320740bf237212768dfed5256ae24ddb",
+      "raw_version": "1.2.13",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.13/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "c21698334b1e2308b8556ac1d10402342b8d3e837f65fa1c431eb23392824b1d",
+        "version_stdout": "1.2.13\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "f427f6d0a33512fdfc3aa9cff43d1aa82e08ab4336ee9d397acd10052119f4cc",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "092513fcc213cf5034680146a8bad24c4064ecec723a630f42ee7d1046eacc98",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.14",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.14/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "a33fdf084ecd199df00694f35a243200a3efacb1f4f3adf04ca19d76f7f714c4",
+      "raw_version": "1.2.14",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.14/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "22e988bfb2127d8584cc829f76868c2c85e138af32fe0989b29f7580b88a00a5",
+        "version_stdout": "1.2.14\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "f427f6d0a33512fdfc3aa9cff43d1aa82e08ab4336ee9d397acd10052119f4cc",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "468edcc454b6bb1c321d8d42591a16ace4d1a1d628a4f1ce95ad236c9ee4cc19",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.15",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.15/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "d15693410c904242c1c3423a579f60a81e018444bb51fbccc6505f988b62a91d",
+      "raw_version": "1.2.15",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.15/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "091d55b64de2013341ba60beea22ca1392e1c258d68ff2aa2e8f901cf9723d63",
+        "version_stdout": "1.2.15\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a399e2542c5a3f3484739bc8302b3ac187f366ff6c78a81552850bd04d16948b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "66f7e9e8750a506e8a2caaedaadf479f023820f712015c9c55cfb91a2891521b",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.16",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.16/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "7dca095cfc1df2c057a385ed88a76c7ba98dc103258a80be87a8f42e484cb3aa",
+      "raw_version": "1.2.16",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.16/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "e15910100f07274528d58c696204c6ed9577f346839f119bb4a63dadfdfbb6c5",
+        "version_stdout": "1.2.16\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a399e2542c5a3f3484739bc8302b3ac187f366ff6c78a81552850bd04d16948b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "97b03ea3e90916e0c8a49edea615406f8ec69047dde17228a478c1854445d32a",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.17",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.2.17/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "132ef8e1c0cba05e9a8259c4ee10ce30375ab93656bf71fa9ec255c7ba292611",
+      "raw_version": "1.2.17",
+      "path": "<private-isolation>/tmp/fixed/agy-1.2.17/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "def65f6e126b8289916c66a36d8532fe268897e174531b44e2b3fb1b0022865b",
+        "version_stdout": "1.2.17\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a399e2542c5a3f3484739bc8302b3ac187f366ff6c78a81552850bd04d16948b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "700b4c1f3544d547784baa0e4c727019ca7f34944d5269cd636e897a4d6320c6",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.0",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.0/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "0e895226cb31f3ca07c780fb1eb13356f74b2470d721d266363467289bb462fb",
+      "raw_version": "1.3.0",
+      "path": "<private-isolation>/tmp/fixed/agy-1.3.0/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "64d23f858ef51b0f996e4966d4e27c0371b437e2d2787890b1f7ad22d4ec5663",
+        "version_stdout": "1.3.0\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a399e2542c5a3f3484739bc8302b3ac187f366ff6c78a81552850bd04d16948b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "7fca9f07c3fd4b7ffcf8c61903ad6ea1550d0a35790b809ab078ee6b4a9581bf",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.1",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.1/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "88db8b4d21ece4999fa58e0b54cea77154e47b319ee178d086c446262317f3fa",
+      "raw_version": "1.3.1",
+      "path": "<private-isolation>/tmp/fixed/agy-1.3.1/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "10e2e117b01523891ca271a615ae36e9d5e52348fd7d642f66727602c1b8dcbe",
+        "version_stdout": "1.3.1\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a399e2542c5a3f3484739bc8302b3ac187f366ff6c78a81552850bd04d16948b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "ef5e385b32afda4cf1612368bb4bf155d3f8f4c55d51488649f508baefe77c86",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.2",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.2/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "07ca8348fa9724e988c7236f2dbecf6b089684a6f18be5f7dd61f97e8fd4561a",
+      "raw_version": "1.3.2",
+      "path": "<private-isolation>/tmp/fixed/agy-1.3.2/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "33158972a53877b421cfe2598b8d93cab169963a4964b45ee889e85349979018",
+        "version_stdout": "1.3.2\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a399e2542c5a3f3484739bc8302b3ac187f366ff6c78a81552850bd04d16948b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "133d497faa7ddd3aa7754d25fa1ba17afa9175eee6c2baa9e3a92ca9b345a50f",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.3",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.3/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "96dd362d5583c60485f5277fa64e43dd64c3ff02a2bf109fd683b99777da370d",
+      "raw_version": "1.3.3",
+      "path": "<private-isolation>/tmp/fixed/agy-1.3.3/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "a74a0cf84ef0b15e01e64746c3465813312b763796f4f6362b092f092dccb8b5",
+        "version_stdout": "1.3.3\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a399e2542c5a3f3484739bc8302b3ac187f366ff6c78a81552850bd04d16948b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "c39926f3312e87eaa56d750658cf442669d0a716f49319d06369be7fa80520eb",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.4",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.4/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "9da414c0624c27aa2969a86030a070b5341c0657700512eba70b21725ce253f5",
+      "raw_version": "1.3.4",
+      "path": "<private-isolation>/tmp/fixed/agy-1.3.4/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "e0a72941ba72e471c37b0bce5e8c292659befc51dbf1c7ceea354b26642c39c3",
+        "version_stdout": "1.3.4\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "a399e2542c5a3f3484739bc8302b3ac187f366ff6c78a81552850bd04d16948b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "ede28149c568c69f549b796a6142ba592b44294111acf8b79cdbffae74e72147",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.5",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.5/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "ebd71c4db14f79fca3fd0160332a38d9037146737422dcfc1f1d21ba01a13fff",
+      "raw_version": "1.3.5",
+      "path": "<private-isolation>/tmp/fixed/agy-1.3.5/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "fc253dae4f432925780b608f87298fbbd2f948cd811d2e894cdcbb98ec855d2e",
+        "version_stdout": "1.3.5\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "60b46713d0e7217b796560ffc1c3c569f4e0b3357076ee6b60d464832d6d4105",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.3.6",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.3.6/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "827ba22b4aa33557614a57aac2cc13f386e17db6b802febd3932226906ac05ab",
+      "raw_version": "1.3.6",
+      "path": "<private-isolation>/tmp/fixed/agy-1.3.6/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "f4eaae07c72dd003028a4583ee93e5146e4fb2e5ba80566d3e79d73edd39ee36",
+        "version_stdout": "1.3.6\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "44e2c5a5982f67994599c533625d81b7ed56f568452ec132388bd30c42ed7465",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.0",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.0/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "a4502aaf310b2fd6eb657fcfec2fcc31a690fbbd0c2d14c8eefbb556409024ce",
+      "raw_version": "1.4.0",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.0/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "78b591400c56b7b67b8cb3b2b8a8e65e9093897f02ce0878e6b5405c68620fa7",
+        "version_stdout": "1.4.0\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "92b4bfb5b51e7b44ff3dcdb1a3179cb2c31b798a79185e19df3a51ae9ff121c7",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.1",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.1/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "da7e0766b076e411343542db4c09380bf4656df24da47168c0fa0f7986813e11",
+      "raw_version": "1.4.1",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.1/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "7d072b48526b023950e4c48db01e8c273554a6401119f5691e7589ba9bc65d9d",
+        "version_stdout": "1.4.1\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "603c83664ba6c92e3f53b634d522341c415c9dd6a6ddeb5cfe0546f0c4353900",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.2",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.2/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "74935642426b5bb1fcf07a5555f847c478f4517dd002c72b9c98159cb773b932",
+      "raw_version": "1.4.2",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.2/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "b99b4c7cdf236f59bc9f65d963deaecae3b16a7dad87939cacb9057f7664daee",
+        "version_stdout": "1.4.2\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "4fed2474da314f109cf505f1325eb84307afcd586242e6b691f074fd1a73e6aa",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.3",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.3/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "836c446f6118140e86679ec6966a785eeedbf56b3711a8eb1f41947483e9802a",
+      "raw_version": "1.4.3",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.3/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "bd31e8d9cf8d14a1e9e3fdf3b9f6a524819aed0d1b14627523c6765767c7d8f1",
+        "version_stdout": "1.4.3\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "be7a40acd87ff43e453ae216e57843919c77dc7c0278ba2d97e21591fc3b27cb",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.4",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.4/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "9abb478686dc08d48699ba1604c14d15819ef6a2542d5d32173acbd5f02d712d",
+      "raw_version": "1.4.4",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.4/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "d03d8b268b4171328ac2458ce8ca82d69a1fde38469d4e4faae4f8fa8d8a5e35",
+        "version_stdout": "1.4.4\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "85482aa8969300183f71c9653d9f581248fba7f506342a8eb087f3d2503203bd",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.5",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.5/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "b89677b741d8d9d38cf0a6911ab468fac629158194039904cbfd645fdb897554",
+      "raw_version": "1.4.5",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.5/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "f43a0292c674542a2d676a0f4f588a7ffbe1cbac25090df344b12ff1279f7820",
+        "version_stdout": "1.4.5\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "6d628d7d25dfa188ef676564e39714667c4899b52bea6b5639d6591bc22b8696",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.6",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.6/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "cab004f3c5c6cb7dc8b8712d3bc30431bd4480b17ff38a07eb1865abeffd2f27",
+      "raw_version": "1.4.6",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.6/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "563d5c80c54e77e2f8454ecd5c14388f9ab3af77edc73b6f4736ada64527952c",
+        "version_stdout": "1.4.6\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "8854514fc3f577c8b4271e735a7605562ecd353aae270c323c3ee6876e892296",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.7",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.7/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "b7a13e53c9f49921692676ef8edc2e60ceb67064c00bc732d9a364ec3ad75b32",
+      "raw_version": "1.4.7",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.7/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+        "version_stdout": "1.4.7\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "9fed7bfe90cb158ac00b5b2da64dd54af732f7c062259e68ebd060b827fd0d88",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.8",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.8/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "09fcdd8554e03bed9b2ec936e454c7f115d5610610de09ed7d79fa2feae76940",
+      "raw_version": "1.4.8",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.8/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "7df3598542760c06a06a832d7cbc12bd20b3fd1beae5c8c0399e9642f7073717",
+        "version_stdout": "1.4.8\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "ecd1f7b35927bc23ed4496139aeb0e39b99c4b1c63d5f1f3b8fc25ab515e7631",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.9",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.9/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "a66421b7962ffe5642e00cffdd2844dfde440e540502a29d206be5544a065c7b",
+      "raw_version": "1.4.9",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.9/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "c7ec5b917108bf8f2189f99515c56d2437598fa77f6e65f0cb72e9e1de693d56",
+        "version_stdout": "1.4.9\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "480f00e946bee64f646b27d2190181af99cba57a850946278b21f8be348f8833",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "not_tested"
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "64204e14975e632ae7f26912bed48d49ffe17bb2719093ca38c00276b1f134f0",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.10",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.10/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "35605054a9dc4591dd7e6ea83a9392238153d4c55d265512ed9b5b7f97cc0423",
+      "raw_version": "1.4.10",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.10/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "ca0eb65c1e54347a8a433a5c76b9127deeffaa1966953c3e92c0ca41aaad237d",
+        "version_stdout": "1.4.10\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "453d844d94a5cbfab7fdff00eaf275881a6206101bc46c06f51536587a435b2b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "antigravity-cli",
+          "version": "1.4.10",
+          "round": "20261103T102457Z",
+          "round_sha256": "f6f1fbb1e3d746a61ba481e3096504fc640df8b6892e78aaed9622c7c636b12d",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "35605054a9dc4591dd7e6ea83a9392238153d4c55d265512ed9b5b7f97cc0423",
+          "recorded_at": "2026-11-03T10:25:14.319657Z",
+          "duration_ms": 16878,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gemini-3.8-flash-low",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 32,
+            "declared_sha256": "2c41a245afdbde5e9607acd101fbf8b3d4cdd696ab827baf2f8ca492763065b0",
+            "observed_size": 32,
+            "observed_sha256": "2c41a245afdbde5e9607acd101fbf8b3d4cdd696ab827baf2f8ca492763065b0",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "05a7fc6dd348d2003787f3a750ffe9e9b067c44504002c6a834412831ff30c15",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.11",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.11/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "09cefed6a1d217e14ba1751dce4442b97c2797e88c297c77fda3690f92ceddcd",
+      "raw_version": "1.4.11",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.11/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "2145628b86000bcf2753d8b35ffa41b75659de9c8ba72bf7c4e7bb07d4f3bb3a",
+        "version_stdout": "1.4.11\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "453d844d94a5cbfab7fdff00eaf275881a6206101bc46c06f51536587a435b2b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "antigravity-cli",
+          "version": "1.4.11",
+          "round": "20261103T102514Z",
+          "round_sha256": "f206243dde1e6e0fed6f7d278fb643e97d28ae67c95cf7a0bbdc52106e66acb5",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "09cefed6a1d217e14ba1751dce4442b97c2797e88c297c77fda3690f92ceddcd",
+          "recorded_at": "2026-11-03T10:26:03.357886Z",
+          "duration_ms": 21461,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gemini-3.8-flash-low",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 32,
+            "declared_sha256": "60631c242ed7b7ef46d04c4f110756843fa1fb01ad0a21b6cc8f6a0654fc48ae",
+            "observed_size": 32,
+            "observed_sha256": "60631c242ed7b7ef46d04c4f110756843fa1fb01ad0a21b6cc8f6a0654fc48ae",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "084887b4d4485d5a44ac47ed6df6ab7f92ba01337050524f0a98a690c8662228",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.12",
+      "source": "https://github.com/google-antigravity/antigravity-cli/releases/download/1.4.12/agy_cli_mac_arm64.tar.gz",
+      "binary_sha256": "34423fc9b0af3841e7646aa72a2d40ffeab8218b22d1cb99eac7355f9eba31e3",
+      "raw_version": "1.4.12",
+      "path": "<private-isolation>/tmp/fixed/agy-1.4.12/antigravity",
+      "metadata": {
+        "status": "passed",
+        "version_parameters": [
+          "--version"
+        ],
+        "version_exit": 0,
+        "version_output_sha256": "5dd084c2f564d65c853f24ba55ed8acfbc208ae3ac9aff835e29df5a0c764f1a",
+        "version_stdout": "1.4.12\n",
+        "version_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "capability_parameters": [
+          "--help"
+        ],
+        "help_exit": 0,
+        "help_sha256": "453d844d94a5cbfab7fdff00eaf275881a6206101bc46c06f51536587a435b2b",
+        "required_flags": [
+          "--output-format",
+          "--input-format",
+          "--mode",
+          "--add-dir",
+          "--model"
+        ],
+        "required_flags_verified": true
+      },
+      "model": {
+        "status": "passed",
+        "evidence": {
+          "provider": "antigravity-cli",
+          "version": "1.4.12",
+          "round": "20261103T124438Z",
+          "round_sha256": "ade5941e2839554e6bd62d0967e5a5140df0ea6e75fe40da87a92bc67ee08ec6",
+          "package": "0.1.22-cli-series",
+          "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+          "installed_package": true,
+          "pin_bypass": false,
+          "binary_sha256": "34423fc9b0af3841e7646aa72a2d40ffeab8218b22d1cb99eac7355f9eba31e3",
+          "recorded_at": "2026-11-03T12:45:14.971563Z",
+          "duration_ms": 36765,
+          "cleanup": "exited; state_removed",
+          "requested_model": "gemini-3.8-flash-low",
+          "route": "existing native login",
+          "status": "passed",
+          "artifact": {
+            "declared_size": 32,
+            "declared_sha256": "bbfff367a768ca8ed4782ba79fafa839379b182d24c90c563b4d21afb9071ae3",
+            "observed_size": 32,
+            "observed_sha256": "bbfff367a768ca8ed4782ba79fafa839379b182d24c90c563b4d21afb9071ae3",
+            "size_matches": true,
+            "digest_matches": true,
+            "exact_match": true
+          },
+          "collect": "passed",
+          "ack": "acknowledged",
+          "accept": "accepted",
+          "final_status": "completed"
+        }
+      },
+      "version_catalog_admission": "configured_published_version",
+      "archive_sha256": "4c989b5ccf0e39c99a1ce6df82410abb628d4d83e0d3183527702df744d9c589",
+      "protocol_native_synthetic": "not_tested; metadata is not a model or stream-protocol acceptance"
+    }
+  ],
+  "agy_cohorts": [
+    {
+      "id": "agy-legacy-eof",
+      "reason": "explicit workspace; legacy EOF/background cleanup",
+      "versions": [
+        "1.2.3",
+        "1.2.4",
+        "1.2.5",
+        "1.2.6",
+        "1.2.7",
+        "1.2.8"
+      ],
+      "required_anchors": [
+        "1.2.3",
+        "1.2.8"
+      ],
+      "direct_model_versions": [
+        "1.2.3",
+        "1.2.8"
+      ],
+      "inferred_versions": [
+        "1.2.4",
+        "1.2.5",
+        "1.2.6",
+        "1.2.7"
+      ],
+      "inference_status": "supported",
+      "inference_scope": "typed readonly, declared workspace, explicit model; inferred releases remain without direct model acceptance"
+    },
+    {
+      "id": "agy-background-fixed",
+      "reason": "fixed EOF/background cleanup; explicit plan and effort-qualified fixed model; no structured-schema/editing claim",
+      "versions": [
+        "1.2.9",
+        "1.2.10",
+        "1.2.11",
+        "1.2.12",
+        "1.2.13",
+        "1.2.14",
+        "1.2.15",
+        "1.2.16",
+        "1.2.17",
+        "1.3.0",
+        "1.3.1",
+        "1.3.2",
+        "1.3.3",
+        "1.3.4",
+        "1.3.5",
+        "1.3.6",
+        "1.4.0",
+        "1.4.1",
+        "1.4.2",
+        "1.4.3",
+        "1.4.4",
+        "1.4.5",
+        "1.4.6",
+        "1.4.7",
+        "1.4.8",
+        "1.4.9",
+        "1.4.10"
+      ],
+      "required_anchors": [
+        "1.2.9",
+        "1.4.10"
+      ],
+      "direct_model_versions": [
+        "1.2.9",
+        "1.4.10"
+      ],
+      "inferred_versions": [
+        "1.2.10",
+        "1.2.11",
+        "1.2.12",
+        "1.2.13",
+        "1.2.14",
+        "1.2.15",
+        "1.2.16",
+        "1.2.17",
+        "1.3.0",
+        "1.3.1",
+        "1.3.2",
+        "1.3.3",
+        "1.3.4",
+        "1.3.5",
+        "1.3.6",
+        "1.4.0",
+        "1.4.1",
+        "1.4.2",
+        "1.4.3",
+        "1.4.4",
+        "1.4.5",
+        "1.4.6",
+        "1.4.7",
+        "1.4.8",
+        "1.4.9"
+      ],
+      "inference_status": "supported",
+      "inference_scope": "typed readonly, declared workspace, explicit model; inferred releases remain without direct model acceptance"
+    },
+    {
+      "id": "agy-finished-reason",
+      "reason": "finished_reason causes incomplete-result rejection before any artifact publication",
+      "versions": [
+        "1.4.11",
+        "1.4.12"
+      ],
+      "required_anchors": [
+        "1.4.11",
+        "1.4.12"
+      ],
+      "direct_model_versions": [
+        "1.4.11",
+        "1.4.12"
+      ],
+      "inferred_versions": [],
+      "inference_status": "supported",
+      "inference_scope": "typed readonly, declared workspace, explicit model; inferred releases remain without direct model acceptance"
+    }
+  ],
+  "failed_attempts": [
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.3",
+      "round": "20261103T075537Z",
+      "round_sha256": "3e186d2c343f23faab2678c802c698e7d93a8d720bc0f51b57aba4f15fbd4478",
+      "package": "0.1.18-cli-series",
+      "orchestrator_sha256": "25300adb3b1d9d6177bbf07ccb7884e516e37e0405ea31a0652fd00fd7ab8f04",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "e0c2743e3fd062e11c13d2eb5fabaa244936094bbe39c30fdfbac619bb78e554",
+      "recorded_at": "2026-11-03T07:55:51.557753Z",
+      "duration_ms": 13770,
+      "cleanup": "exited; failure_scene_preserved",
+      "requested_model": "gemini-3.8-flash-low",
+      "route": "existing native login",
+      "status": "failed",
+      "failure_stage": "terminal_status",
+      "failure": "terminal status failed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.0",
+      "round": "20261103T095147Z",
+      "round_sha256": "a04549cd5c4bdc43812d4666b0536c382e9aa7c75a927269464efebe7a72f10f",
+      "package": "0.1.19-cli-series",
+      "orchestrator_sha256": "facfcbb367a113cdf95b3e2c7e409edd2f3a3c3b3bff1255613e86864d1ed4d7",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "b0b14f9c1901c1ec44671094b2dc18b39e4bd8d36a6dc2302cc9d961a7e2a197",
+      "recorded_at": "2026-11-03T09:52:04.351109Z",
+      "duration_ms": 17108,
+      "cleanup": "exited; failure_scene_preserved",
+      "requested_model": "gpt-5.6-luna",
+      "route": "existing native login",
+      "status": "failed",
+      "failure_stage": "terminal_status",
+      "failure": "terminal status failed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.12",
+      "round": "20261103T102605Z",
+      "round_sha256": "c0e9f9e6b367fbd0a6a96fbd1c812971ba8d408854d1afdd301dcb47227b3e44",
+      "package": "0.1.22-cli-series",
+      "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "34423fc9b0af3841e7646aa72a2d40ffeab8218b22d1cb99eac7355f9eba31e3",
+      "recorded_at": "2026-11-03T11:05:07.423793Z",
+      "duration_ms": 172411,
+      "cleanup": "exited; failure_scene_preserved",
+      "requested_model": "gemini-3.8-flash-low",
+      "route": "existing native login",
+      "status": "failed",
+      "failure_stage": "terminal_status",
+      "failure": "terminal status interrupted"
+    }
+  ],
+  "historical_package_real_passes": [
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.3",
+      "round": "20261103T081931Z",
+      "round_sha256": "919b7be348fc272c108242f87487771482c563f5a48b71e303ab6d7cc17b41d7",
+      "package": "0.1.18-cli-series",
+      "orchestrator_sha256": "25300adb3b1d9d6177bbf07ccb7884e516e37e0405ea31a0652fd00fd7ab8f04",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "e0c2743e3fd062e11c13d2eb5fabaa244936094bbe39c30fdfbac619bb78e554",
+      "recorded_at": "2026-11-03T08:20:08.162741Z",
+      "duration_ms": 36672,
+      "cleanup": "exited; state_removed",
+      "requested_model": "gemini-3.8-flash-low",
+      "route": "existing native login",
+      "status": "passed",
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "fc794adcc0867c42a696069b9399ef8ca35c4852ac5c3a6954da172bc9f8c95b",
+        "observed_size": 32,
+        "observed_sha256": "fc794adcc0867c42a696069b9399ef8ca35c4852ac5c3a6954da172bc9f8c95b",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.8",
+      "round": "20261103T082008Z",
+      "round_sha256": "dfdc61c0c1a6c366f458ec1732bbb9af8f9c32d96509f7dc9a4e2b67f9e387eb",
+      "package": "0.1.18-cli-series",
+      "orchestrator_sha256": "25300adb3b1d9d6177bbf07ccb7884e516e37e0405ea31a0652fd00fd7ab8f04",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "62913fb38f14d376e67b62014e701063f4061aba60b0e049cb6af9cab62763ef",
+      "recorded_at": "2026-11-03T08:20:36.705757Z",
+      "duration_ms": 28041,
+      "cleanup": "exited; state_removed",
+      "requested_model": "gemini-3.8-flash-low",
+      "route": "existing native login",
+      "status": "passed",
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "c2556992d011ee4d55ca090d47204abc018d6906e267877ecd7647135a3ab47f",
+        "observed_size": 32,
+        "observed_sha256": "c2556992d011ee4d55ca090d47204abc018d6906e267877ecd7647135a3ab47f",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.9",
+      "round": "20261103T082037Z",
+      "round_sha256": "b40e0f186a4c2936e1f260984a9764328bd5dfb8137b9aeef41526e94d2a0c3a",
+      "package": "0.1.18-cli-series",
+      "orchestrator_sha256": "25300adb3b1d9d6177bbf07ccb7884e516e37e0405ea31a0652fd00fd7ab8f04",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "0ff346ae903f15d863bd6a3e401638b612848210d28b174461acdb8780ac8c22",
+      "recorded_at": "2026-11-03T08:21:13.384572Z",
+      "duration_ms": 36240,
+      "cleanup": "exited; state_removed",
+      "requested_model": "gemini-3.8-flash-low",
+      "route": "existing native login",
+      "status": "passed",
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "5593f1a0c454dd19f1d413c800efdf7a8a7887836a7745ea2abb79fad9f145d6",
+        "observed_size": 32,
+        "observed_sha256": "5593f1a0c454dd19f1d413c800efdf7a8a7887836a7745ea2abb79fad9f145d6",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.10",
+      "round": "20261103T090933Z",
+      "round_sha256": "674338c7372c93f14a777857e7b3af2bb4c3e95fcb00d4381490730939aab66e",
+      "package": "0.1.18-cli-series",
+      "orchestrator_sha256": "25300adb3b1d9d6177bbf07ccb7884e516e37e0405ea31a0652fd00fd7ab8f04",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "35605054a9dc4591dd7e6ea83a9392238153d4c55d265512ed9b5b7f97cc0423",
+      "recorded_at": "2026-11-03T09:09:59.275911Z",
+      "duration_ms": 25504,
+      "cleanup": "exited; state_removed",
+      "requested_model": "gemini-3.8-flash-low",
+      "route": "existing native login",
+      "status": "passed",
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "b3542c9727d2d63d44e25127b139f9a6f2e2db296a863410affb0610e62750a1",
+        "observed_size": 32,
+        "observed_sha256": "b3542c9727d2d63d44e25127b139f9a6f2e2db296a863410affb0610e62750a1",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.11",
+      "round": "20261103T090959Z",
+      "round_sha256": "5bb3e449f184e267e66341af7ced44477e2bf884d8040dfbfd05297fa8afca3e",
+      "package": "0.1.18-cli-series",
+      "orchestrator_sha256": "25300adb3b1d9d6177bbf07ccb7884e516e37e0405ea31a0652fd00fd7ab8f04",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "09cefed6a1d217e14ba1751dce4442b97c2797e88c297c77fda3690f92ceddcd",
+      "recorded_at": "2026-11-03T09:10:27.44733Z",
+      "duration_ms": 27709,
+      "cleanup": "exited; state_removed",
+      "requested_model": "gemini-3.8-flash-low",
+      "route": "existing native login",
+      "status": "passed",
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "ff200a0ad06c46eec83859836fc56aaddad180e43d25c79cd255f2ef5a52ae8b",
+        "observed_size": 32,
+        "observed_sha256": "ff200a0ad06c46eec83859836fc56aaddad180e43d25c79cd255f2ef5a52ae8b",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.12",
+      "round": "20261103T091027Z",
+      "round_sha256": "f12582a820960b27d5c89631be226af7127ca3606fb4ba42df17d54436709412",
+      "package": "0.1.18-cli-series",
+      "orchestrator_sha256": "25300adb3b1d9d6177bbf07ccb7884e516e37e0405ea31a0652fd00fd7ab8f04",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "34423fc9b0af3841e7646aa72a2d40ffeab8218b22d1cb99eac7355f9eba31e3",
+      "recorded_at": "2026-11-03T09:10:58.186192Z",
+      "duration_ms": 30275,
+      "cleanup": "exited; state_removed",
+      "requested_model": "gemini-3.8-flash-low",
+      "route": "existing native login",
+      "status": "passed",
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "f21aa3deefc57c9fc00a36fad7f16037aa121189c532a1eb23246647cbe49740",
+        "observed_size": 32,
+        "observed_sha256": "f21aa3deefc57c9fc00a36fad7f16037aa121189c532a1eb23246647cbe49740",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.154.0",
+      "round": "20261103T095128Z",
+      "round_sha256": "2420b076a0c6e12695da8542ba9ac8917bd157f0841fec1eea1701690dc6ad23",
+      "package": "0.1.19-cli-series",
+      "orchestrator_sha256": "facfcbb367a113cdf95b3e2c7e409edd2f3a3c3b3bff1255613e86864d1ed4d7",
+      "installed_package": true,
+      "pin_bypass": false,
+      "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "recorded_at": "2026-11-03T09:51:46.6081Z",
+      "duration_ms": 17274,
+      "cleanup": "exited; state_removed",
+      "requested_model": "gpt-5.6-luna",
+      "route": "existing native login",
+      "status": "passed",
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "7a401740f471d01c55ba8b30edd55f92390899a681ef0f61b4d5e1dc7753e54f",
+        "observed_size": 31,
+        "observed_sha256": "7a401740f471d01c55ba8b30edd55f92390899a681ef0f61b4d5e1dc7753e54f",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    }
+  ],
+  "source_manifests": [
+    {
+      "provider": "codex",
+      "sha256": "67a9562b4d03593a3f2aee428852fb0973782e7b2eed7f9579134985819f8ccd"
+    },
+    {
+      "provider": "agy",
+      "sha256": "2805d843cdeb591a2ffd86a46af4793e8f7ad282d7e37d27c42f0bed9dd35fed"
+    }
+  ],
+  "historical_pkg17": "../../cli-series-coverage/docs/real-series-evidence.json",
+  "limitations": [
+    "Native Codex complete tool registry is not separately persisted/allowlist audited.",
+    "AGY representative inference does not claim all 35 versions have direct model closure.",
+    "Native TUI/write/candidate/resume and other platforms remain outside this readonly series acceptance.",
+    "Absolute AGY remaining quota is unknown; successful bounded trials do not establish unlimited budget."
+  ],
+  "current_gateway_evidence": "current-gateway-evidence.json"
+}

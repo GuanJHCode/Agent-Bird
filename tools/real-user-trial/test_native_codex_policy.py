@@ -11,13 +11,24 @@ import pytest
 
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'plugins/codex-orchestrator/lib'))
-from trial.codex_exec import render_native_config,verify_binary,NATIVE_ADMISSIONS
+from trial.codex_exec import (
+    NATIVE_ADMISSIONS,
+    NATIVE_COMPANIONS,
+    render_native_config,
+    verify_binary,
+)
+import test_native_auth_tripwire as fixture
 
 
 @pytest.mark.skipif(os.environ.get('CODEX_RUN_NATIVE_TOOL_POLICY')!='1',reason='requires exact-bundle native tool policy opt-in')
-def test_fixed_native_named_profile_preserves_host_and_auth_boundaries(tmp_path):
+def test_fixed_native_named_profile_preserves_host_and_auth_boundaries(tmp_path,monkeypatch):
     binary=os.environ['CODEX_TRIAL_BUNDLE_BINARY']
-    verify_binary(binary,'0.154.0',NATIVE_ADMISSIONS['0.154.0'])
+    version=os.environ.get('CODEX_TRIAL_NATIVE_VERSION','0.154.0')
+    pin=fixture._load_candidate_pin(binary,version)
+    if pin.companion_sha256 is not None:
+        monkeypatch.setitem(NATIVE_ADMISSIONS,version,pin.sha256)
+        monkeypatch.setitem(NATIVE_COMPANIONS,version,pin.companion_sha256)
+    verify_binary(binary,version,pin.sha256)
     root=tmp_path.resolve();state=root/'state';work=root/'work';work.mkdir(mode=0o700)
     scratch=state/'host-spool/launch/attempt/segment/scratch';scratch.mkdir(mode=0o700,parents=True)
     home=scratch/'codex-home';home.mkdir(mode=0o700)

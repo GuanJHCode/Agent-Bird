@@ -1,0 +1,34 @@
+{
+  "recorded_at": "2026-11-03T14:11:16.190283+00:00",
+  "anthropic": {
+    "http_status": 403,
+    "category": "RBAC_access_denied",
+    "cli_versions": [
+      "1.0.61",
+      "2.1.317"
+    ]
+  },
+  "openai": {
+    "purpose": "diagnose_public_grok_gateway_rejection_not_owner_loop",
+    "status": 403,
+    "elapsed_seconds": 0.211,
+    "rbac_denied": true,
+    "max_tokens": 1,
+    "json": false
+  },
+  "grok": {
+    "failed_cli_versions": [
+      "1.0.34",
+      "1.0.70"
+    ],
+    "raw_cli_reason_not_preserved": true
+  },
+  "model_retry_stopped": false,
+  "credentials_included": false,
+  "scope": "Historical IP-bound external authorization failure retained. After recovery current main and public installed packages each accepted Claude2/Grok2, not first-party model acceptance.",
+  "user_confirmed_condition": "Key is bound to IP; user deferred gateway handling until tomorrow.",
+  "execution_status": "validation_complete",
+  "historical_403": true,
+  "current_status": "recovered_and_both_packages_gateway4_accepted",
+  "resumed_at": "2026-11-04T01:08:44.001285+00:00"
+}

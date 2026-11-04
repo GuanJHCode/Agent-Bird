@@ -1,469 +1,309 @@
 {
-  "status": "continuous_readonly_series_verified_with_explicit_untested_scope",
-  "recorded_at": "2026-11-03T06:42:31.514661+00:00",
-  "source_vcs_base": "2e089338c071c24e3544f6ffbd1a03139a7e2ae8",
+  "status": "readonly_cli_series_verified_with_explicit_untested_scope",
+  "recorded_at": "2026-11-04T01:08:44.001285+00:00",
+  "source_vcs_base": "7824e05e5b09ec04ad49c43e3417fa6c3d544c46",
   "source_binding": {
-    "manifest": "cli-version-source-manifest.json",
-    "sha256": "78f1a2dfcd4d2ca86f5c3ed5124493a6fe40a7b4cb5760c2e950f20e596d7244",
-    "files": 261,
-    "note": "Source snapshot and acceptance committed together; Go embedded VCS base predates this commit; verify every source digest."
+    "manifest": "docs/cli-version-source-manifest.json",
+    "sha256": "d19112993aaec05278d653c974cfe7ff55ec82cd124df0920942a44bcaa7bb08",
+    "files": 269,
+    "note": "Runtime and tests unchanged after final Go build; provider-runtime.md prose updated after build, no compiled input changed."
   },
-  "go_toolchain": "go1.26.10 darwin/arm64",
-  "go_checks": [
-    {
-      "name": "full",
-      "command": [
-        "go",
-        "test",
-        "-p=4",
-        "-json",
-        "-count=1",
-        "-timeout=25m",
-        "./..."
-      ],
-      "exit_code": 0,
-      "seconds": 126.112,
-      "log": "go-final-full.jsonl",
-      "sha256": "31a0a0d93e50f8699fdd44f9693cb64ff76f7ed4dff1ae039f109773b534c7cd",
-      "all_cases": {
-        "pass": 889,
-        "skip": 7
+  "current_main_package": {
+    "version": "0.1.22-cli-series",
+    "binary_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+    "installed_manifest_sha256": "94f32c3945ae52d122216b7789ef4a5a15086cd7eeb4f6e552ec0b69353a0141",
+    "outer_package_manifest_sha256": "cff7cd53b5d6803d8363d265c3f15651de8cdae87fba6728e49a6ed6cb499784"
+  },
+  "main_automation": {
+    "record": "../tasks/codex-agy-series/docs/automation-verification.json",
+    "go_checks": [
+      {
+        "name": "full",
+        "command": [
+          "/tmp/go1.26.10-sdk/bin/go",
+          "test",
+          "-p=4",
+          "-json",
+          "-count=1",
+          "-timeout=25m",
+          "./..."
+        ],
+        "exit": 0,
+        "seconds": 127.659,
+        "log": "final22-full.log",
+        "sha256": "f3dd53e69394e41c21052cb97ef1bdac601ebc5fe196c6edfdbbb1989ab27e91",
+        "top_level": {
+          "pass": 465,
+          "skip": 7
+        },
+        "all_cases": {
+          "pass": 992,
+          "skip": 7
+        },
+        "skipped_tests": [
+          "codex-cli-orchestration-design/tools/orchestrator/internal/adapter/TestProbeCauseDecompositionObservation",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestNativeClaudeGatewayReadOnlyTransport",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestS4StageTimingObservation",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeManagedCandidate",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeReviewerProfile",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixRead",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixInvocationStages"
+        ],
+        "failed_tests": []
       },
-      "top_level": {
-        "pass": 454,
-        "skip": 7
+      {
+        "name": "race",
+        "command": [
+          "/tmp/go1.26.10-sdk/bin/go",
+          "test",
+          "-p=4",
+          "-race",
+          "-json",
+          "-count=1",
+          "-timeout=25m",
+          "./..."
+        ],
+        "exit": 0,
+        "seconds": 157.233,
+        "log": "final22-race.log",
+        "sha256": "44797d2d3dbd2c859cbefd9a303d45d4b1653e896c80b2c030810aafec8ac91f",
+        "top_level": {
+          "pass": 465,
+          "skip": 7
+        },
+        "all_cases": {
+          "pass": 992,
+          "skip": 7
+        },
+        "skipped_tests": [
+          "codex-cli-orchestration-design/tools/orchestrator/internal/adapter/TestProbeCauseDecompositionObservation",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestNativeClaudeGatewayReadOnlyTransport",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeManagedCandidate",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeReviewerProfile",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixRead",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixInvocationStages",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestS4StageTimingObservation"
+        ],
+        "failed_tests": []
       },
-      "packages": {
-        "skip": 1,
-        "pass": 14
+      {
+        "name": "vet",
+        "command": [
+          "/tmp/go1.26.10-sdk/bin/go",
+          "vet",
+          "./..."
+        ],
+        "exit": 0,
+        "seconds": 0.621,
+        "log": "final22-vet.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       },
-      "failed_tests": []
-    },
-    {
-      "name": "race",
-      "command": [
-        "go",
-        "test",
-        "-p=4",
-        "-race",
-        "-json",
-        "-count=1",
-        "-timeout=25m",
-        "./..."
-      ],
-      "exit_code": 0,
-      "seconds": 155.763,
-      "log": "go-final-race.jsonl",
-      "sha256": "58be2a6c07ebad8c079e9f495b4cdaa14a21a3bdf4354d7b8e25e264fc7ea99f",
-      "all_cases": {
-        "pass": 889,
-        "skip": 7
+      {
+        "name": "build",
+        "command": [
+          "/tmp/go1.26.10-sdk/bin/go",
+          "build",
+          "./..."
+        ],
+        "exit": 0,
+        "seconds": 0.636,
+        "log": "final22-build.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       },
-      "top_level": {
-        "pass": 454,
-        "skip": 7
+      {
+        "name": "binary",
+        "command": [
+          "/tmp/go1.26.10-sdk/bin/go",
+          "build",
+          "-o",
+          "<private-native-series>/tmp/orchestrator-22",
+          "./cmd/orchestrator"
+        ],
+        "exit": 0,
+        "seconds": 0.273,
+        "log": "final22-binary.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       },
-      "packages": {
-        "skip": 1,
-        "pass": 14
+      {
+        "name": "matrix-binary",
+        "command": [
+          "/tmp/go1.26.10-sdk/bin/go",
+          "test",
+          "-c",
+          "-o",
+          "<private-native-series>/tmp/matrix-22.test",
+          "./cmd/orchestrator"
+        ],
+        "exit": 0,
+        "seconds": 0.418,
+        "log": "final22-matrix-binary.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       },
-      "failed_tests": []
+      {
+        "name": "python",
+        "command": [
+          "<private-validation>/tmp/venv/bin/python",
+          "-m",
+          "pytest",
+          "tools/real-user-trial",
+          "tools/native-product-bridge",
+          "-q"
+        ],
+        "exit": 0,
+        "seconds": 5.385,
+        "log": "final22-python.log",
+        "sha256": "be173c335c825fae5e8070f90f940c8a54a2eaa59794628d806a5be3c94cafdf"
+      },
+      {
+        "name": "codex-real",
+        "command": [
+          "/opt/homebrew/opt/python@3.14/bin/python3.14",
+          "<private-native-series>/scripts/run_live.py",
+          "codex",
+          "0.154.0,0.155.0,0.155.1,0.156.0,0.156.1,0.157.0,0.157.1,0.158.0,0.159.0,0.159.1,0.159.2,0.159.3,0.160.0,0.160.1,0.161.0,0.162.0,0.162.1,0.163.0,0.164.0,0.165.0,0.166.0",
+          "22"
+        ],
+        "exit": 0,
+        "seconds": 374.689,
+        "log": "final22-codex-real.log",
+        "sha256": "07fb5be35aa2a564ac30046cca39c4583f12f52aeca71d39b61dd48a29b955d2"
+      },
+      {
+        "name": "agy-real-recovered",
+        "exit": 0,
+        "log": "final22-agy-retry-1412.log",
+        "sha256": "8fd3290d01012d623e2e70f8e1a59a3950fa5ece278c17defe8b7295363662f0",
+        "scope": "Only timed-out1.4.12 retried with unchanged150s limit; full six accepted rounds verified below",
+        "prior_failure": {
+          "name": "agy-real",
+          "command": [
+            "/opt/homebrew/opt/python@3.14/bin/python3.14",
+            "<private-native-series>/scripts/run_live.py",
+            "agy",
+            "1.2.3,1.2.8,1.2.9,1.4.10,1.4.11,1.4.12",
+            "22"
+          ],
+          "exit": 1,
+          "seconds": 285.991,
+          "log": "final22-agy-real.log",
+          "sha256": "30413ce41651b3016574aad7f20a116c069ae2d677055f420d66f4af417538f2"
+        }
+      }
+    ],
+    "python": {
+      "passed": 172,
+      "skipped": 8,
+      "failed": 0
     },
-    {
-      "name": "vet",
-      "command": [
-        "go",
-        "vet",
-        "./..."
-      ],
-      "exit_code": 0,
-      "seconds": 0.89,
-      "log": "go-final-vet.log",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    },
-    {
-      "name": "build",
-      "command": [
-        "go",
-        "build",
-        "./..."
-      ],
-      "exit_code": 0,
-      "seconds": 0.76,
-      "log": "go-final-build.log",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    },
-    {
-      "name": "binary",
-      "command": [
-        "go",
-        "build",
-        "-o",
-        "<private-series-task>/tmp/orchestrator-17-final",
-        "./cmd/orchestrator"
-      ],
-      "exit_code": 0,
-      "seconds": 0.273,
-      "log": "go-final-binary.log",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    },
-    {
-      "name": "matrix-binary",
-      "command": [
-        "go",
-        "test",
-        "-c",
-        "-o",
-        "<private-series-task>/tmp/matrix-17-final.test",
-        "./cmd/orchestrator"
-      ],
-      "exit_code": 0,
-      "seconds": 0.385,
-      "log": "go-final-matrix-binary.log",
-      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    }
-  ],
-  "go_skipped_tests": [
-    "codex-cli-orchestration-design/tools/orchestrator/internal/adapter/TestProbeCauseDecompositionObservation",
-    "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestNativeClaudeGatewayReadOnlyTransport",
-    "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestS4StageTimingObservation",
-    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeManagedCandidate",
-    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeReviewerProfile",
-    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixRead",
-    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixInvocationStages"
-  ],
-  "python_checks": [
-    {
-      "command": "python -m pytest tools/native-product-bridge tools/real-user-trial -q",
-      "passed": 159,
-      "failed": 0,
-      "skipped": 4,
-      "log": "python-final.log",
-      "sha256": "7e20a26b9a92f1d1f19483133692cdc5b33708bb7b861d6e3e9d684f86152cd3",
-      "reused": true,
-      "reuse_reason": "Python source and tested guard/native policy bytes unchanged; no changed catalog input is consumed by these suites. Current installed guard bytes verified against pkg11 source hashes."
-    },
-    {
-      "command": "CODEX_RUN_NATIVE_AUTH_TRUSTED_MAIN=1 CODEX_TRIAL_NATIVE_VERSION=0.166.0 <private fixed binary/root> python -m pytest tools/real-user-trial/test_native_auth_trusted166.py -q",
-      "passed": 1,
-      "failed": 0,
-      "skipped": 0,
-      "log": "trusted166-final-2.log",
-      "sha256": "c06d3a6048af643441115d3cd28cb4c5e523569ec8de10a5f9af7dc418aee733",
-      "reused": true,
-      "reuse_reason": "Python source and tested guard/native policy bytes unchanged; no changed catalog input is consumed by these suites. Current installed guard bytes verified against pkg11 source hashes."
-    },
-    {
-      "command": "fixed 0.154 native auth-tripwire opt-in suite",
-      "passed": 13,
-      "failed": 0,
-      "log": "native-baseline.log",
-      "sha256": "71797afb08cd62dfbefc56ad7a9745c9ca34640204b111cf263942e54f73d48a",
-      "reuse_reason": "Python source and tested guard/native policy bytes unchanged; no changed catalog input is consumed by these suites. Current installed guard bytes verified against pkg11 source hashes.",
-      "reused": true
-    },
-    {
-      "command": "fixed 0.154 native named tool-policy opt-in",
-      "passed": 1,
-      "failed": 0,
-      "log": "native-tool-policy.log",
-      "sha256": "3b4ad3097d7020cd8b172384869bd1db1102ffc4c9316bde31fef1b3bcacf9c6",
-      "reuse_reason": "Python source and tested guard/native policy bytes unchanged; no changed catalog input is consumed by these suites. Current installed guard bytes verified against pkg11 source hashes.",
-      "reused": true
-    }
-  ],
-  "native_checks": [
-    {
-      "log": "native-os-boundaries.log",
-      "sha256": "56edc9d9d290c8edc1e8c6257c3c6ca14e5570567affef49ea97ec23b395853f",
-      "result": "passed",
-      "scope": "Mach positive/deny and immutable policy/source/workspace"
-    },
-    {
-      "log": "final-fixture-focused-2.log",
-      "sha256": "b78445bfc7970b511973f2b2edd9b6d0691c6edb0a9f0c887ba0d05b07475fa8",
-      "result": "passed",
-      "scope": "four affected fixture tests under race -count=3; no production process changes"
-    }
-  ],
-  "package": {
-    "version": "0.1.17-cli-series",
-    "kind": "installed_isolated_package",
+    "native_versions": 21,
+    "native_cases_per_version": 6,
+    "native_cases_passed": 126,
+    "current_gateway_record": "../tasks/codex-agy-series/docs/current-gateway-evidence.json"
+  },
+  "current_main_real": {
+    "record": "../tasks/codex-agy-series/docs/verification.json",
+    "codex_versions": 21,
+    "agy_versions": 6,
+    "formal_installed_package": true,
     "pin_bypass": false,
-    "binary_sha256": "cc3a56c97358f8b3d9e7569f65a7ca82d39cfe4946c5ad5cd149e457bfb459ce",
-    "manifest_sha256": "b705ca7c6d6495099a877ca7bd1c75d38a51cd5f7aef39b512a26e6f286eb899",
-    "manifest_file_count": 24,
-    "installed_files_and_modes_match": true,
-    "execution_bytes_equal_final_go_build": true,
-    "guard_source_files": [
-      {
-        "path": "lib/trial/codex_exec.py",
-        "sha256": "af10b45965a5b67b9a2e78b200d1896af03ddf97c9a5fcc982891176ce5fd556"
-      },
-      {
-        "path": "lib/trial/auth_guard.py",
-        "sha256": "d61d1d250474d9af88ef59aaa3a200ae8b0bd0cdcce7c27c86bdcdc9931155cf"
-      }
-    ],
-    "package_manifest_sha256": "705ea20410570837f638d4fa07a970065120d70e682e1951647bc57c5d24404b",
-    "installed_manifest_sha256": "b705ca7c6d6495099a877ca7bd1c75d38a51cd5f7aef39b512a26e6f286eb899",
-    "runtime_manifest_sha256": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0",
-    "pinned_interpreter_sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
-    "manifest_scope": "manifest_sha256 identifies installed manifest.json; package_manifest_sha256 separately identifies the outer package-manifest.json envelope."
+    "claude_versions": 2,
+    "grok_versions": 2,
+    "total_owner_loops": 31,
+    "gateway_record": "../tasks/codex-agy-series/docs/current-gateway-evidence.json"
   },
-  "official_tags_final_recheck": {
-    "recorded_at": "2026-11-03T06:35:12.191606+00:00",
-    "observations": [
-      {
-        "source": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
-        "tag": "latest",
-        "version": "2.1.317",
-        "metadata_sha256": "a0deb8d4d702bd8998587eeeab6d917e5a1d694fbde0ee0c033546dff7de814b"
-      },
-      {
-        "source": "https://registry.npmjs.org/@anthropic-ai/claude-code/stable",
-        "tag": "stable",
-        "version": "2.1.311",
-        "metadata_sha256": "14e6f2c967e7f452a8a5efa3ae6b5f26aad3bc895e333c2ba7007cfe1726f131"
-      },
-      {
-        "source": "https://registry.npmjs.org/@xai-official/grok/latest",
-        "tag": "latest",
-        "version": "1.0.70",
-        "metadata_sha256": "2593e3586516fbb766b8eee31abf042b7e7b9981fa6e3e1d777d2b9eb15f4c8d"
-      }
-    ]
-  },
-  "matrix_configuration": {
-    "private_env": "matrix-final17.env (0600; pins rehashed; no credentials)",
-    "all_eight_endpoint_paths_configured": true,
-    "explicit_models_per_provider": true,
-    "no_runtime_latest": true
-  },
-  "version_inventory": {
-    "path": "../tasks/cli-series-coverage/docs/version-series-verification.json",
-    "sha256": "4342b69d3e3bb9bfdff152c687984358abeb048570202867dc23c1fe7a826222",
-    "catalog_versions": 498,
-    "no_model_passed": 79,
-    "no_model_not_tested": 419,
-    "claude_contract_cohorts": 20,
-    "scope": "Published series catalog is distinct from binary, protocol and model verification."
-  },
-  "real_endpoints": {
-    "path": "../tasks/cli-series-coverage/docs/real-series-evidence.json",
-    "sha256": "aa85bd74089dee99532ee57368e351fb80965102c8055439aae24764f1cc4e76",
-    "accepted_versions": 68,
-    "package": "0.1.17-cli-series",
-    "pin_bypass": false
-  },
-  "real_model_summary": {
-    "claude": 27,
-    "grok": 37,
-    "codex": 2,
-    "agy": 2,
-    "total_versions_passed": 68,
-    "catalog_versions": 498,
-    "real_model_versions_not_tested": 430,
-    "claude_versions_inferred_not_direct_model_tested": 378
-  },
-  "codex_contracts": [
-    {
-      "missing_key": "verified_auth_metadata_source_missing",
-      "implemented_by": [
-        "plugins/codex-orchestrator/lib/trial/codex_exec.py:FileLoginSource",
-        "check_config_sources",
-        "prepare_launch"
-      ],
-      "evidence": [
-        "test_source_projects_real_file_readonly_and_binds_proof",
-        "test_source_rejects_unusable_auth",
-        "test_source_observation_expires",
-        "test_prepare_rejects_change_between_status_and_exec",
-        "final installed-package native rounds"
-      ]
-    },
-    {
-      "missing_key": "exec_refresh_tripwire_not_applied",
-      "implemented_by": [
-        "plugins/codex-orchestrator/lib/trial/auth_guard.py:prepare_guarded_environment",
-        "plugins/codex-orchestrator/lib/trial/codex_exec.py:prepare_launch",
-        "tools/orchestrator/internal/host/codex.go"
-      ],
-      "evidence": [
-        "test_duplicate_override_rejected_before_binary_or_auth_reads (missing/value/empty existing override rejected)",
-        "test_prepare_success_binds_snapshot_and_guard_is_only_injector",
-        "0.154 synthetic native refresh positive/guarded",
-        "0.166 trusted-main positive2 exact four-field OAuth requests; guarded OAuth count unchanged and auth bytes/identity unchanged"
-      ]
-    },
-    {
-      "missing_key": "native_auth_admission_exact_pin",
-      "implemented_by": [
-        "tools/orchestrator/internal/adapter/admit.go:CodexNativePins",
-        "plugins/codex-orchestrator/lib/trial/auth_guard.py:NATIVE_ADMISSIONS",
-        "plugins/codex-orchestrator/lib/trial/codex_exec.py:verify_bundle/render_native_config",
-        "tools/orchestrator/internal/install/codex_runtime.go"
-      ],
-      "evidence": [
-        "0.154 and0.166 exact double binary pins",
-        "receipt/helper/interpreter/bundle tamper rejection",
-        "same generated named tool policy: control/owners/bootstrap/DB/sibling spool/auth/config read denied; workspace writes denied; own scratch/artifacts allowed; tool network connections0",
-        "user explicitly authorized pinned native main trust; tools sandboxed by native named profile"
-      ]
-    },
-    {
-      "missing_key": "codex_exec_collect_loop_not_evidenced",
-      "implemented_by": [
-        "tools/orchestrator/internal/host/host.go:ExecuteLaunch",
-        "tools/orchestrator/internal/host/report.go",
-        "tools/orchestrator/cmd/orchestrator/real_version_matrix_test.go"
-      ],
-      "evidence": [
-        "20261103T031646Z:codex-cli 0.154.0",
-        "20261103T031646Z:codex-cli 0.166.0"
-      ],
-      "result": "final package, no bypass, real tool read, exact marker/artifact, collect/ACK/accept/final completed"
-    }
-  ],
-  "native_pins": [
-    {
-      "version": "0.154.0",
-      "main_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
-      "companion_sha256": "426d73aaeb2aeef45e98b5add99e8ef9594a31673d281489bb2cb06b38c27423"
-    },
-    {
-      "version": "0.166.0",
-      "main_sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
-      "companion_sha256": "fd37051bfdce0b65cf22a7077e265720a7bd6709d5e400dcbc26197f3041400a",
-      "companion_archive_sha256": "7abd50fe5f033495a7b693c45fb82dc57093a18f1c4ba3e8043577de46c5c7c5",
-      "official_fixed_source": "https://github.com/openai/codex/releases/tag/rust-v0.166.0",
-      "synthetic_log_sha256": "c06d3a6048af643441115d3cd28cb4c5e523569ec8de10a5f9af7dc418aee733",
-      "policy_log_sha256": "8d09f64c8af0fc5d3c763c5dfef0acea1d60dea0626120b5123424b0d8a82fe0"
-    }
-  ],
-  "independent_reviews": [
-    {
-      "scope": "Claude gateway, metadata environment/sandbox, fixed Node, privacy, native contract evidence",
-      "verdict": "PASS"
-    },
-    {
-      "scope": "Go catalog/argv/ACP/diagnostics and gateway branch wiring",
-      "verdict": "PASS"
-    },
-    {
-      "scope": "final test readiness/metadata fixtures retain all original production assertions",
-      "verdict": "PASS"
-    },
-    {
-      "scope": "public selective candidate, original product preservation and diagnostic-only evidence delta",
-      "verdict": "PASS"
-    }
-  ],
-  "accounts": {
-    "claude": "Gateway Bearer route works; first-party login was absent in pkg11 check, not retried here.",
-    "grok": "Original account zero balance confirmed by user; no original-route model retries; supplied gateway route succeeds.",
-    "agy": "Current package both endpoint model loops passed; absolute remaining quota unknown."
-  },
-  "public_product": {
-    "status": "implemented_automatically_verified_candidate_not_published",
+  "public": {
+    "record": "../tasks/codex-agy-series/docs/public-native-verification.json",
+    "manifest": "../tasks/codex-agy-series/docs/public-native-manifest.json",
+    "status": "readonly_native_and_gateway_accepted_not_published",
     "base": "2e78f24c5e9694f287d19065f2ce9c80b16a59af",
-    "patch": "../tasks/cli-series-coverage/docs/public-series.patch",
-    "patch_sha256": "9bea938f0fb6ddbb152f7b178bfbc7b0d79f4124349ded419a3da3bef05a34bf",
-    "files": 38,
-    "verification": "../tasks/cli-series-coverage/docs/public-series-verification.json",
-    "verification_sha256": "890218f31d1d91a1f9f003b44182d0af2b9fbefa02ceb0144a4b545711ec64bd",
-    "normal_and_race": {
-      "top_level_pass": 419,
-      "all_pass": 804,
-      "failed": 0,
-      "skipped": 5
+    "changed_files": 64,
+    "go_top_pass": 444,
+    "go_all_pass": 879,
+    "go_skip": 5,
+    "python_pass": 151,
+    "python_skip": 1,
+    "native_real_codex": 21,
+    "native_real_agy": 6,
+    "gateway_status": "passed",
+    "published": false,
+    "claude_versions": 2,
+    "grok_versions": 2,
+    "total_owner_loops": 31
+  },
+  "frozen_catalog": {
+    "count": 498,
+    "sha256": "67a34b8716782c36fa3dcda432fa4778aedc6f5785946e5908ce0bd2dbe88d50",
+    "runtime_tracks_latest": false,
+    "claude_snapshot": {
+      "latest": "2.1.317",
+      "next": "2.1.317",
+      "stable": "2.1.311",
+      "recorded_at": "2026-11-03T03:52:00Z"
     },
-    "scope": "Selective public product port preserves original entrypoints and Codex four-item guard. No merge/push to main/master or public native installation/model acceptance.",
-    "diagnostic_delta": "Only final test failure log string differs from full/race snapshot; independently reviewed, no successful or production path change, targeted regression passed."
+    "by_provider": {
+      "claude-code": 405,
+      "grok-build": 37,
+      "antigravity-cli": 35,
+      "codex-cli": 21
+    }
   },
-  "remaining_internal_scope": [
-    "Codex complete registered tool inventory is not separately persisted/allowlist audited.",
-    "Typed resume, Codex write/candidate, native TUI remain unsupported/unverified.",
-    "Legacy JS requires the one fixed Node runtime/platform; other runtimes not verified.",
-    "Gateway candidate/write/untyped Claude explicitly unsupported; first-party models not established by gateway tests."
-  ],
-  "unverified_scope": [
-    "Claude369 versions no binary check;378 no direct model trial;20 evidence cohorts provide scoped inference.",
-    "AGY33 versions not directly checked;1.3.4 fixed official artifact unresolved.",
-    "Codex17 versions no binary check;19 without native contracts/model closure;0.159.2/0.165.0 metadata only."
-  ],
-  "failed_attempts_preserved": {
-    "go": [
-      {
-        "log": "go-final-full-first.jsonl",
-        "sha256": "60591f3f5291225be08237a752cdd5bedc41013458c3c2170b7f9950b302dc6b"
-      },
-      {
-        "log": "go-before-fixture-exit-full.jsonl",
-        "sha256": "da287e48046b68320f1f0555f078dfc022594b5f0639cac0e3752cc68742b08f"
-      },
-      {
-        "log": "go-first-race.jsonl",
-        "sha256": "92bd64b80c1591f9cca42757bfe57f07f0cae733befc7c40d3057fad5fb024d8"
-      },
-      {
-        "log": "go-second-race.jsonl",
-        "sha256": "685b7a9218a1e01ab654a3f42cca65898ab1c721fe06a0d9dc7e7dbfdffd54d8"
-      },
-      {
-        "log": "final-fixture-focused.log",
-        "sha256": "a7d04baf9999836f03cc2a18397e423850bd4902a28faac276a2b1be519ee2b6"
-      }
-    ],
-    "agy_current_package": [
-      {
-        "provider": "antigravity-cli",
-        "version": "1.2.3",
-        "case": "agy-baseline",
-        "round": "20261103T055452Z",
-        "round_sha256": "6ea47781818a33833a1bdd0c5c5d2daf31570fe42846e2297e664723dd62fe10",
-        "package": "0.1.17-cli-series",
-        "orchestrator_sha256": "cc3a56c97358f8b3d9e7569f65a7ca82d39cfe4946c5ad5cd149e457bfb459ce",
-        "binary_sha256": "e0c2743e3fd062e11c13d2eb5fabaa244936094bbe39c30fdfbac619bb78e554",
-        "raw_version": "1.2.3",
-        "recorded_at": "2026-11-03T05:55:25.457449Z",
-        "duration_ms": 33179,
-        "cleanup": "exited; failure_scene_preserved",
-        "requested_model": "gemini-3.8-flash-low",
-        "route": "existing native login",
-        "status": "failed",
-        "failure_stage": "artifact",
-        "failure": "final answer wraps this round's marker in other content (33 bytes, marker plus one newline is 32)"
-      }
-    ],
-    "early_packages": "pkg12–16 development failures/private scenes retained; earlier pkg13 real Grok passes not used instead of final pkg17 acceptance."
-  },
-  "historical_baseline_only": {
-    "pkg11": "../tasks/cli-production-rollout/docs/verification-pkg11.json",
-    "baseline_55741": "430/834; not current results"
-  },
-  "publication_scan": {
-    "tool": {
-      "version": "8.30.1",
-      "source": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_arm64.tar.gz",
-      "archive_sha256": "b40ab0ae55c505963e365f271a8d3846efbc170aa17f2607f13df610a9aeb6a5",
-      "binary_sha256": "ba52fb1bfabbcde42f032afad3d6e0b19dff8ed105229a16e7caa338bbc0e84f"
+  "cross_batch_coverage": {
+    "actual_binary_metadata": 129,
+    "not_binary_tested": 369,
+    "distinct_direct_model_versions": 91,
+    "not_direct_model_tested": 407,
+    "untested_breakdown": {
+      "claude_binary": 369,
+      "claude_direct_model": 378,
+      "agy_direct_model": 29
     },
-    "scope": "41 changed/new delivery files including selective public patch; original sessions/ignored data excluded",
-    "findings": 0,
-    "report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
-    "log_sha256": "9aace1e0c611d706454edc2a1753aa468c5f9864dcfa18e54d91ceb3fa345183",
-    "exact_user_key_private_endpoints_personal_path_scan": "PASS",
-    "temporary_credential_file_removed": true,
-    "temporary_publication_snapshot_removed": true,
-    "installed_manifest_binding_correction_rescanned": true,
-    "exact_scan_reuse_note": "After exact credential scan and cleanup, only public SHA-256 fields and fixed nonsecret manifest labels changed; full gitleaks/path scan repeated."
+    "note": "Counts union exact version identities across applicable packages; not current-package all-provider acceptance."
   },
-  "artifact_checks": {
-    "public_patch_hash": "PASS",
-    "installed_package_all_files": "PASS",
-    "evidence_consistency": "PASS (498 rows,68 strict model acceptances,20 cohorts; negative false-pass rejected)",
-    "source_manifest": "PASS;261 file digests"
+  "historical_pkg17": {
+    "record": "../tasks/cli-series-coverage/docs/version-series-verification.json",
+    "real_record": "../tasks/cli-series-coverage/docs/real-series-evidence.json",
+    "package": "0.1.17-cli-series",
+    "claude_metadata": 36,
+    "claude_direct_model": 27,
+    "grok_metadata": 37,
+    "grok_direct_model": 37,
+    "go_top_pass": 454,
+    "go_all_pass": 889,
+    "skip": 7,
+    "current_package": false
   },
-  "authorization_scope": "Existing commits and non-force handoff branch push authorized; no main/master or global install/auth/lock changes."
+  "matrix_ceiling_configuration": {
+    "record": "../tasks/codex-agy-series/docs/matrix-ceiling-verification.json",
+    "private_task_env_file": true,
+    "grok": "1.0.70",
+    "codex": "0.166.0",
+    "fresh_digest_check": true
+  },
+  "accounts": {
+    "grok_original": "zero_balance_user_confirmed_no_retry",
+    "claude_first_party": "last_checked_not_logged_in_unchanged",
+    "gateway": "Recovered on2026-11-04; current main/public each accepted Claude2/Grok2 using user supplied gateway model.",
+    "agy": "user_relogged_in_current27_native_acceptance_includes6_AGY_absolute_quota_unknown"
+  },
+  "remaining_internal": [
+    "Native Codex complete tool registry is not separately persisted/allowlist audited.",
+    "AGY representative inference does not claim all 35 versions have direct model closure.",
+    "Native TUI/write/candidate/resume and other platforms remain outside this readonly series acceptance.",
+    "Absolute AGY remaining quota is unknown; successful bounded trials do not establish unlimited budget.",
+    "cleanupCodexAuth same-UID path-race hardening under current0700 host-owned boundary."
+  ],
+  "authorization_boundary": {
+    "handoff_commit_nonforce_push": "previously_authorized",
+    "main_master": "unchanged_no_publish",
+    "global_install_auth_locks_frozen_dirs": "unchanged"
+  },
+  "evidence_note": "Raw credentials/sessions/owners/private scenes are excluded; actual final commit and remote readback are reported at delivery. Source snapshot, package manifests and observed round evidence are distinct.",
+  "execution_status": "validation_complete",
+  "scope": "Readonly frozen CLI series and selective public product integration. Untested versions, native TUI/write/resume and unpublished product scope remain explicit.",
+  "privacy_scan": {
+    "status": "passed",
+    "record": "../tasks/codex-agy-series/docs/privacy-verification.json",
+    "temporary_credentials_removed": true
+  },
+  "independent_evidence_review": "passed_main_native27_public_native27_gateway8"
 }

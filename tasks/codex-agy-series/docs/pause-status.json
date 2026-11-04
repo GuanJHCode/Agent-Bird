@@ -1,0 +1,23 @@
+{
+  "recorded_at": "2026-11-03T14:12:25.102610+00:00",
+  "status": "paused_by_user",
+  "reason": "Historical user pause due to IP-bound gateway key; resumed by user on2026-11-04.",
+  "models_stopped": true,
+  "head_at_pause": "7824e05e5b09ec04ad49c43e3417fa6c3d544c46",
+  "main_native_real_pass": 27,
+  "public_native_real_pass": 27,
+  "temporary_gateway_credentials_removed": true,
+  "exact_key_scan": {
+    "files": 36,
+    "hits": 0
+  },
+  "historical": true,
+  "resumed_at": "2026-11-04T01:08:44.001285+00:00",
+  "current_status": "resumed_validation_complete",
+  "remaining_at_pause": [
+    "Final independent public evidence review",
+    "Complete privacy scan",
+    "Commit/nonforce handoff push/remote readback",
+    "Resume Claude/Grok gateway acceptance only after user confirms IP authorization is restored"
+  ]
+}

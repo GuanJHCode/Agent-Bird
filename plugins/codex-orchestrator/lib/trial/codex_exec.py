@@ -2,7 +2,8 @@
 
 The native CLI reads a fresh immutable owner-only auth snapshot in a private
 CODEX_HOME. Host removes that snapshot when the launch returns. User/project config and alternate auth routes are not carried into
-this restricted reviewer profile. The outer Host sandbox remains in force.
+this restricted reviewer profile. The pinned native main process is trusted;
+model tools run inside the native named read-only permission profile.
 """
 from __future__ import annotations
 
@@ -133,7 +134,29 @@ class FileLoginSource:
             source_kind='fixed_native_login_status_and_internal_config', proof_sha256=self.proof)
 
 
-NATIVE_COMPANIONS = {'0.154.0':'426d73aaeb2aeef45e98b5add99e8ef9594a31673d281489bb2cb06b38c27423','0.166.0':'fd37051bfdce0b65cf22a7077e265720a7bd6709d5e400dcbc26197f3041400a'}
+NATIVE_COMPANIONS = {
+    '0.154.0': '426d73aaeb2aeef45e98b5add99e8ef9594a31673d281489bb2cb06b38c27423',
+    '0.155.0': 'c9a1c8ffa0c709ed96cb41073d24ce5a354c37a22e11cf1e4f150b9de07ce0d9',
+    '0.155.1': '59a702a68f1ef79fceaca644db46b8385ceefbb66035e78b8ade7cdcc21fda55',
+    '0.156.0': '5be43a1e34665382fa2526803bece18e8d6c42c299d9b4b025b43304203e7b2f',
+    '0.156.1': '588df0df1dab35f99f272f9f499a9fada658c613d09ef34562fe274dd54287d6',
+    '0.157.0': '92672414d06556905c775c8ee8a8840f259055f66708adbf819b57dd613dd388',
+    '0.157.1': '80fdf166c3da068282d5692f67a852715a327ae7dc1913abb93b8c3d3030103f',
+    '0.158.0': 'd47e28a83f8b5c38f3dbf59f9590c580b3d95ae66102e3e180f0e0d6f050fc4c',
+    '0.159.0': 'c83b50d881ea5153fa9855cad6763fd7f847b24e60931b26513311fed3f71fbd',
+    '0.159.1': 'b4b3a741c08ae62495ba8d0326c821ddf7001068518c7cf98fd8bc791d1d18e8',
+    '0.159.2': 'ed79fbc9e1683feb29d73fb421f3e16932d178a459f63741754014c6c7ea6107',
+    '0.159.3': '9a4f2a846c9f509ca2a9f68ace6f0df2f73c7ed21835e8b186ee52bfccdfa8f3',
+    '0.160.0': '679eedaea70529aa1cffc9bc0a0788c186412663544fa76c09d63b57f383a65a',
+    '0.160.1': '6ac432b170e2c30f90de5af0da584def5201497a0d3d988d37dc58b951236b2f',
+    '0.161.0': '35f1c633130f7b214fc568b6f643f6831aac0c6f25e3cf78287ebadb7820ddf9',
+    '0.162.0': '0b74f513cd960f32e60836f39c574761e6fd1500e608135f3f34347acc3e0e6a',
+    '0.162.1': '0960435a104cf926e18bb938b8f6f8fcdf7e27be0c8d88e1911bc22a1de7d3e6',
+    '0.163.0': '79f123a85dbc61e8f5d0f0c050dfc3f4b81a8305d33a32b41e008b7f6e035698',
+    '0.164.0': '416721e33af8822041dc650793512b3e58d43e0be4f3a5c6187eb4dfaad3148a',
+    '0.165.0': 'e723d01c65aba4b81451d486d57318232b2738889de67c35051734be917d96ba',
+    '0.166.0': 'fd37051bfdce0b65cf22a7077e265720a7bd6709d5e400dcbc26197f3041400a',
+}
 
 def verify_binary(binary: str, version: str, digest: str):
     if version not in NATIVE_ADMISSIONS: blocked('native_version_mismatch')
@@ -381,8 +404,8 @@ def prepare_launch(binary, version, digest, scratch, args, source_env, cwd, host
     source.assert_current()
     metadata = extract_safe_auth_metadata(source)
     guarded = prepare_guarded_environment(env, metadata)
-    # Keep the original store and every non-task path read-only even if native
-    # tries a proactive refresh. The Host's stricter workspace sandbox is outer.
+    # Native main is trusted. Its model tools use the named read-only profile;
+    # only this guard injects the refresh tripwire before exec.
     check_config_sources(cwd)
     assert_projection(projected, projection_identity, source)
     source.assert_current()

@@ -1,0 +1,304 @@
+{
+  "recorded_at": "2026-11-03T12:46:01.193520+00:00",
+  "source_vcs_base": "7824e05e5b09ec04ad49c43e3417fa6c3d544c46",
+  "source_binding": {
+    "manifest": "docs/cli-version-source-manifest.json",
+    "sha256": "d19112993aaec05278d653c974cfe7ff55ec82cd124df0920942a44bcaa7bb08",
+    "files": 269,
+    "note": "Runtime and tests unchanged after final Go build; provider-runtime.md prose updated after build, no compiled input changed."
+  },
+  "go_toolchain": "go1.26.10 darwin/arm64",
+  "go_environment": {
+    "GOMAXPROCS": "4",
+    "parallelism": "-p=4",
+    "test_umask": "022"
+  },
+  "checks": [
+    {
+      "name": "full",
+      "command": [
+        "/tmp/go1.26.10-sdk/bin/go",
+        "test",
+        "-p=4",
+        "-json",
+        "-count=1",
+        "-timeout=25m",
+        "./..."
+      ],
+      "exit": 0,
+      "seconds": 127.659,
+      "log": "final22-full.log",
+      "sha256": "f3dd53e69394e41c21052cb97ef1bdac601ebc5fe196c6edfdbbb1989ab27e91",
+      "top_level": {
+        "pass": 465,
+        "skip": 7
+      },
+      "all_cases": {
+        "pass": 992,
+        "skip": 7
+      },
+      "skipped_tests": [
+        "codex-cli-orchestration-design/tools/orchestrator/internal/adapter/TestProbeCauseDecompositionObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestNativeClaudeGatewayReadOnlyTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestS4StageTimingObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeManagedCandidate",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeReviewerProfile",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixRead",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixInvocationStages"
+      ],
+      "failed_tests": []
+    },
+    {
+      "name": "race",
+      "command": [
+        "/tmp/go1.26.10-sdk/bin/go",
+        "test",
+        "-p=4",
+        "-race",
+        "-json",
+        "-count=1",
+        "-timeout=25m",
+        "./..."
+      ],
+      "exit": 0,
+      "seconds": 157.233,
+      "log": "final22-race.log",
+      "sha256": "44797d2d3dbd2c859cbefd9a303d45d4b1653e896c80b2c030810aafec8ac91f",
+      "top_level": {
+        "pass": 465,
+        "skip": 7
+      },
+      "all_cases": {
+        "pass": 992,
+        "skip": 7
+      },
+      "skipped_tests": [
+        "codex-cli-orchestration-design/tools/orchestrator/internal/adapter/TestProbeCauseDecompositionObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestNativeClaudeGatewayReadOnlyTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeManagedCandidate",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealClaudeReviewerProfile",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixRead",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator/TestRealVersionMatrixInvocationStages",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host/TestS4StageTimingObservation"
+      ],
+      "failed_tests": []
+    },
+    {
+      "name": "vet",
+      "command": [
+        "/tmp/go1.26.10-sdk/bin/go",
+        "vet",
+        "./..."
+      ],
+      "exit": 0,
+      "seconds": 0.621,
+      "log": "final22-vet.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build",
+      "command": [
+        "/tmp/go1.26.10-sdk/bin/go",
+        "build",
+        "./..."
+      ],
+      "exit": 0,
+      "seconds": 0.636,
+      "log": "final22-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "binary",
+      "command": [
+        "/tmp/go1.26.10-sdk/bin/go",
+        "build",
+        "-o",
+        "<private-native-series>/tmp/orchestrator-22",
+        "./cmd/orchestrator"
+      ],
+      "exit": 0,
+      "seconds": 0.273,
+      "log": "final22-binary.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "matrix-binary",
+      "command": [
+        "/tmp/go1.26.10-sdk/bin/go",
+        "test",
+        "-c",
+        "-o",
+        "<private-native-series>/tmp/matrix-22.test",
+        "./cmd/orchestrator"
+      ],
+      "exit": 0,
+      "seconds": 0.418,
+      "log": "final22-matrix-binary.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "python",
+      "command": [
+        "<private-validation>/tmp/venv/bin/python",
+        "-m",
+        "pytest",
+        "tools/real-user-trial",
+        "tools/native-product-bridge",
+        "-q"
+      ],
+      "exit": 0,
+      "seconds": 5.385,
+      "log": "final22-python.log",
+      "sha256": "be173c335c825fae5e8070f90f940c8a54a2eaa59794628d806a5be3c94cafdf"
+    },
+    {
+      "name": "codex-real",
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "<private-native-series>/scripts/run_live.py",
+        "codex",
+        "0.154.0,0.155.0,0.155.1,0.156.0,0.156.1,0.157.0,0.157.1,0.158.0,0.159.0,0.159.1,0.159.2,0.159.3,0.160.0,0.160.1,0.161.0,0.162.0,0.162.1,0.163.0,0.164.0,0.165.0,0.166.0",
+        "22"
+      ],
+      "exit": 0,
+      "seconds": 374.689,
+      "log": "final22-codex-real.log",
+      "sha256": "07fb5be35aa2a564ac30046cca39c4583f12f52aeca71d39b61dd48a29b955d2"
+    },
+    {
+      "name": "agy-real-recovered",
+      "exit": 0,
+      "log": "final22-agy-retry-1412.log",
+      "sha256": "8fd3290d01012d623e2e70f8e1a59a3950fa5ece278c17defe8b7295363662f0",
+      "scope": "Only timed-out1.4.12 retried with unchanged150s limit; full six accepted rounds verified below",
+      "prior_failure": {
+        "name": "agy-real",
+        "command": [
+          "/opt/homebrew/opt/python@3.14/bin/python3.14",
+          "<private-native-series>/scripts/run_live.py",
+          "agy",
+          "1.2.3,1.2.8,1.2.9,1.4.10,1.4.11,1.4.12",
+          "22"
+        ],
+        "exit": 1,
+        "seconds": 285.991,
+        "log": "final22-agy-real.log",
+        "sha256": "30413ce41651b3016574aad7f20a116c069ae2d677055f420d66f4af417538f2"
+      }
+    }
+  ],
+  "failed_development_checks": [
+    {
+      "name": "agy-real",
+      "command": [
+        "/opt/homebrew/opt/python@3.14/bin/python3.14",
+        "<private-native-series>/scripts/run_live.py",
+        "agy",
+        "1.2.3,1.2.8,1.2.9,1.4.10,1.4.11,1.4.12",
+        "22"
+      ],
+      "exit": 1,
+      "seconds": 285.991,
+      "log": "final22-agy-real.log",
+      "sha256": "30413ce41651b3016574aad7f20a116c069ae2d677055f420d66f4af417538f2"
+    }
+  ],
+  "native_exact_versions": 21,
+  "native_cases_per_version": 6,
+  "native_source_binding": [
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/auth_guard.py",
+      "sha256": "4c3bfcb04a74c9f5b14585a582e4c5e3931304b42a4beead5bf401373e802973"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/codex_exec.py",
+      "sha256": "462986a698ce87617f678fd3a04d7e006a3afe45cc5c175ded541aa94fcab816"
+    },
+    {
+      "path": "tools/real-user-trial/test_native_auth_tripwire.py",
+      "sha256": "16a2bb63292119ce1ad09a07908fc30185fe1e41ae3147982b9809fe16fcaa20"
+    },
+    {
+      "path": "tools/real-user-trial/test_native_auth_trusted166.py",
+      "sha256": "266beddf85fb8de8035a88f97c8331cc4286f17f58b32e78019e7c2b87a78ac7"
+    },
+    {
+      "path": "tools/real-user-trial/test_native_codex_policy.py",
+      "sha256": "a8cb4327bf1f3aff3b16e725d445b3921a7157cbed9db6e7af46320d41a674ce"
+    },
+    {
+      "path": "tools/real-user-trial/test_native_codex_prepare.py",
+      "sha256": "6f8e8ff281a130efe012ea60c2611aab22035e197905b2a056ff3e6915513a8a"
+    }
+  ],
+  "python": {
+    "passed": 172,
+    "skipped": 8,
+    "failed": 0
+  },
+  "package": {
+    "version": "0.1.22-cli-series",
+    "binary_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+    "installed_manifest_sha256": "94f32c3945ae52d122216b7789ef4a5a15086cd7eeb4f6e552ec0b69353a0141",
+    "outer_package_manifest_sha256": "cff7cd53b5d6803d8363d265c3f15651de8cdae87fba6728e49a6ed6cb499784",
+    "runtime_manifest_sha256": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0",
+    "interpreter_sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
+    "file_count": 24,
+    "all_installed_bytes_modes_match": true,
+    "no_extra_files": true,
+    "helpers": [
+      {
+        "path": "lib/trial/auth_guard.py",
+        "sha256": "4c3bfcb04a74c9f5b14585a582e4c5e3931304b42a4beead5bf401373e802973",
+        "mode": "0o600"
+      },
+      {
+        "path": "lib/trial/codex_exec.py",
+        "sha256": "462986a698ce87617f678fd3a04d7e006a3afe45cc5c175ded541aa94fcab816",
+        "mode": "0o600"
+      }
+    ]
+  },
+  "real_evidence": {
+    "path": "tasks/codex-agy-series/docs/verification.json",
+    "sha256": "f53dc4ad2472adbc0ccb1ac318ef5ae44367e69cd4ec8e542017ee6a95717661",
+    "codex": 21,
+    "agy": 6
+  },
+  "independent_code_review": {
+    "status": "passed",
+    "scope": "Main exact21 admission, guard/prepare, AGY partial, diagnostic shape, empty intermediate/cursor; public selective port reviewed separately. Stable source bytes unchanged."
+  },
+  "privacy_scan": {
+    "status": "passed",
+    "record": "privacy-verification.json",
+    "gitleaks_findings": 0,
+    "exact_key_hits": 0,
+    "temporary_credentials_removed": true
+  },
+  "independent_evidence_review": {
+    "status": "passed",
+    "source_manifest_files": 269,
+    "package_files": 24,
+    "native_cases": 126,
+    "current_real_rounds": 27,
+    "go_top_level_passed": 465,
+    "go_all_cases_passed": 992,
+    "skip": 7,
+    "python_passed": 172,
+    "python_skip": 8,
+    "findings": "No blockers; final privacy scan independently passed."
+  },
+  "post_documentation_rebuild": {
+    "binary_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+    "matches_original": true,
+    "scope": "Go executable rebuilt after provider-runtime prose change; exact same binary bytes."
+  },
+  "current_gateway": {
+    "status": "passed",
+    "record": "current-gateway-evidence.json",
+    "versions": 4,
+    "current_all_provider_owner_loops": 31,
+    "independent_evidence_review": "passed"
+  }
+}

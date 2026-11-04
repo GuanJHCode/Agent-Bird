@@ -1,52 +1,59 @@
-# 当前接手提示词（2026-11-03）
+# 当前接手提示词（2026-11-04）
 
-当前连续系列、生产接线、自动化和真实闭环见[当前交接](cli-version-handoff.md)、[机器验收](cli-version-verification.json)和[逐版记录](../tasks/cli-series-coverage/docs/version-series-verification.json)。以实际 HEAD、源码摘要和本轮验收记录为准；历史批次仅供追溯。
+先读[当前交接](cli-version-handoff.md)、[机器验收](cli-version-verification.json)、[源码摘要](cli-version-source-manifest.json)及[本轮进度](../tasks/codex-agy-series/docs/progress.md)。以下是当前状态；旧批次仅追溯，不是待修任务。
+
+2026-11-04 用户恢复验证：当前研发包和公开候选各31项真实闭环均通过。昨日IP绑定/403暂停为历史状态；后续先核对实际HEAD、工作区与摘要，不重复已有效的模型验收。
 
 ```text
 接手 https://github.com/GuanJHCode/Agent-Bird.git
 分支 handoff/cli-version-compatibility-20261102。
-先核对实际HEAD、工作区和docs/cli-version-source-manifest.json每项摘要，保护已有改动。
-读取当前handoff/verification及tasks/cli-series-coverage/docs/progress.md和逐版证据。
+先核对实际HEAD、工作区和269项源码摘要，保护现有变更。
 
-当前包0.1.17-cli-series：Claude三个系列共405发布版（1.0.61–128、2.0.x、2.1≤317），
-按20合同组覆盖，36固定版无模型/真实CLI合成合同、27代表版真实闭环；其余378没有
-直接模型验证，不能标通过。Grok1.0.34–70的37个正式版均在当前包逐版完整闭环。
-Codex0.154/0.166和AGY1.2.3/1.4.12当前包闭环通过，总68真实版本。
-官方快照latest2.1.317/stable2.1.311；运行时不追latest。目录版本不等于实际二进制
-或模型通过。未发布的版本号、pre-release和超窗版本继续拒绝。
+当前研发包0.1.22-cli-series：Codex0.154.0–0.166.0全部21发布版精确native准入、
+每版6项native证明，以及当前安装包read/marker/size/SHA/collect/ACK/accept/completed
+均通过。AGY1.2.3–1.4.12全部35版真实version/help/SHA通过，六代表
+1.2.3/1.2.8/1.2.9/1.4.10/1.4.11/1.4.12当前同包真实闭环，29版仅只读合同组推断。
+AGY1.3.4固定官方artifact已取得并验证，不再列为缺失。
 
-Codex生产只读投影、唯一native guard tripwire、精确main+companion pin已实现。
-用户已批准固定摘要native主进程受信，模型工具走原生命名只读profile；不要恢复外层
-Host sandbox，不在Go重复注入，不删guard或缩短未知身份的四合同missing清单。
-当前19个Codex目录版本未获native准入；0.159.2/0.165.0只过metadata，不能写模型通过。
+Go full/race465顶层/992含子例通过、0失败、7skip，vet/build通过；Python172pass/8skip。
+Codex合法空中间消息已支持，最新cursor会被空消息清除，空终稿仍拒绝；五字段usage、
+session/terminal/oversize不放宽。AGY finished_reason先于response拒绝partial；event:null
+诊断修复已回归。pkg19失败和AGY1412首次超时保留，不替代最终接受。
 
-Claude自定义gateway仅plain typed reviewer/read-only；candidate/write/untyped拒绝。
-ExactEnv、新HOME/空strictMCP/不可写policy、原认证/Keychain/securityd隔离已落地；
-metadata也无密钥隔离并校验pin。旧JS CLI必须显式ORCHESTRATOR_CLAUDE_NODE_BINARY，
-仅接受官方Node24.13.0 darwin-arm64固定摘要，不能恢复PATH fallback或读原HOME修启动。
-原全局安装/认证不改。源码fixture的metadata常量入口不能依赖worker环境，也不能
-因race测试binary的人工退出sleep而放宽生产probe时限或环境。
+冻结catalog498：Claude405（1.0.61–128、2.0.x、2.1.0–317）按20只读合同组；
+Grok1.0.34–70全部37，AGY35、Codex21。Claude快照latest/next2.1.317、stable2.1.311，
+运行时不追latest。Claude36版无模型、27代表真实闭环及Grok37真实闭环适用历史pkg17，
+其中Claude两端点和Grok两端点也已在pkg22独立重测通过。跨批次129实际二进制、91直接模型版本；369个Claude无二进制检查，
+407版无直接模型验证（Claude378+AGY29），不得写通过。逐行状态见version证据。
 
-真实Claude/Grok使用用户网关和deepseek-v4.1-flash-1017，不代表第一方模型验收；
-密钥/原网关地址/个人路径/原始session不入Git。Grok原账户0余额由用户确认，不重试；
-AGY有当前成功但绝对剩余额度未知。首次AGY格式失败保留，不把它误报quota错误。
-已有授权足够的工作自主推进，仅问确实缺少的预算/权限/业务决策。
+Codex生产FileLoginSource/只读投影、唯一native guard refresh tripwire、精确main及
+CodeMode companion、receipt/helper/interpreter已接线。任何已有override含空/相同值
+都拒绝，Go不能提前注入。用户已批准固定摘要native主进程受信，工具由native named
+readonly profile约束；不能恢复外层Host sandbox。未知身份保留完整四项missing。
 
-剩余版本分层状态逐行查新证据，不沿用旧126/129待测数量；现419个无实际二进制
-检查、430个无直接模型验证（包含Claude按组推断）。AGY1.3.4尚无可核验官方artifact。
-完整Codex工具目录、native TUI和公开产品原生安装/模型验收仍未完成。
+Claude gateway只支持plain typed reviewer/read-only，write/candidate/untyped拒绝。
+ExactEnv、新HOME、空strictMCP、不可写policy和原认证/Keychain/securityd隔离保留。
+旧JS需显式固定官方Node24.13.0 darwin-arm64，不能恢复PATH fallback或读原HOME修启动。
+Claude/Grok网关deepseek-v4.1-flash-1017不代表第一方模型验收。Grok原账户无余额，
+不再重试；AGY用户已自行重新登录，六代表通过但绝对剩余额度未知。密钥、私人地址、
+个人路径、认证和原session不入Git；不改原全局安装或认证。
 
-公开产品只使用新public-series.patch及其manifest/verification，基于main2e78f24。
-38文件选择性移植保留controller/dispatch/reconcile/coding/portable；公开Codex原四项
-门禁保留，未移植研发native principal。未发布，不整体合并交接分支，不碰main/master。
+公开产品使用本轮public-native选择性补丁及独立源码/包/验收，基于公开main2e78f24；
+保留currentOwner/Controller/Dispatch/coding/Claude/Grok/AGY/portable collect-only。
+Codex只在full native runtime启用，portable仍collect-only。公开包0.1.21-public-native已独立full/race444/879pass、5skip，vet/build、Python151/1skip、
+安装doctor、Codex21+AGY6真实闭环通过。Claude最旧/最新及Grok两端点也在当前公开包独立真实闭环通过；两个包各31项。
+昨日IP绑定/403阻塞与暂停保留为历史；不重试原Grok余额，不用pkg17其他版本顶替。
+主包和公开候选各自模型结果分开，未测不沿用；未发布，不整体合并，不碰main/master。
 
-后续行为修改补必要回归；Go改后full/race/vet/build，Python guard变化跑对应测试；
-稳定快照独立审查，受影响证据重验，未受影响证据按组件摘要明确复用。更新隔离包与
-摘要链。沿用交接分支提交/非force推送授权，无需重复审批。不改已有锁/冻结目录。
-矩阵和process Stop/Wait合同已关闭，不重新列为待修。
+剩余：完整Codex工具目录未独立持久化逐项验收；typed resume、write/candidate、native
+TUI、其他Node/平台未支持或未验收；cleanupCodexAuth同UID路径竞态后续加固。
+仅这些适用缺口及新发现继续处理；已关闭矩阵/Stop-Wait/缺21pins不重新列待修。
 
-交付列清已实现、自动化、真实闭环、内部缺口、账户条件、未测版本、公开候选/发布
-边界、提交和远端回读，不能用fixture或旧包成功替代当前实际接受。
+后续行为变化补必要回归，Go改后full/race/vet/build，Python guard跑对应测试；稳定
+快照独立审查。受影响证据重验，未受影响证据按组件摘要明确复用，更新隔离包摘要链。
+沿用交接分支提交/非force推送授权，已授权工作自主推进，仅询问真实缺失预算、权限或
+业务决策。不改已有锁/冻结目录。交付分列实现、自动化、实际闭环、内部缺口、账户、
+未测版本、公开候选/发布范围、提交与远端回读。最终状态以实际HEAD及机器记录为准。
 ```
 
-旧pkg11提示词和批次数量仅保留在历史交接记录，不作为当前执行任务。
+pkg11/pkg17 提示词、旧数量和早期下载/登录阻塞仅见历史记录，不作为当前执行要求。

@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "recorded_at": "2026-11-04T01:12:18.636012+00:00",
+  "scope": "Changed tracked and nonignored untracked delivery files; historical raw sessions/auth/private logs excluded from Git.",
+  "gitleaks_version": "8.30.1",
+  "gitleaks_findings": 0,
+  "gitleaks_report_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+  "exact_gateway_key_hits": 0,
+  "private_gateway_address_hits": 0,
+  "owner_home_hits": 0,
+  "temporary_gateway_credentials_removed": true,
+  "initial_hash_metadata_findings": {
+    "count": 2,
+    "classification": "Fixed auth_guard.py file SHA256 metadata misidentified as generic API key",
+    "resolution": "Preserved same digests in structured helper path/sha256 records; no rule suppression."
+  },
+  "files_checked": 40
+}

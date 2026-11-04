@@ -1,56 +1,68 @@
 # CLI 多版本试用交接
 
-## 当前交付（2026-11-03）
+## 当前状态（2026-11-04）
 
-当前隔离安装包为 `0.1.17-cli-series`。用户要求的连续发布系列已配置，运行时不追踪 latest。Claude 官方 npm 快照为 **latest 2.1.317、stable 通道 2.1.311**；支持范围是 **1.0.61–1.0.128、2.0.x、2.1.0–2.1.317** 的 405 个已发布版本，按 20 个合同组记录依据。小版本归组只用于只读场景推断，未直接测试的版本不标为通过。
+用户恢复验证后，网关从昨日 HTTP403 恢复为 HTTP200。当前研发包与公开候选各自完成 **31 项真实闭环：Codex21、AGY6、Claude2、Grok2**；昨日暂停及失败仅保留为历史，不再是当前账户阻塞。
 
-| CLI | 冻结目录 | 实际二进制无模型验证 | 当前包真实闭环 |
+当前研发隔离安装包为 **`0.1.22-cli-series`**。Codex 0.154.0–0.166.0 的 **21 个已发布版本全部完成精确 native 准入与当前包真实闭环**；AGY 1.2.3–1.4.12 的 **35 个发布版全部完成实际二进制检查，六个合同代表版在同一当前包完成真实闭环**。29 个 AGY 非代表版只有合同组推断，未标为直接模型通过。
+
+冻结目录共 498 个版本，运行时不追踪 latest。Claude 官方快照（2026-11-03）为 latest/next 2.1.317、stable 2.1.311；覆盖 1.0.61–1.0.128、2.0.x、2.1.0–2.1.317 的 405 个发布版。小版本归组只支持受测只读场景。
+
+| CLI | 冻结范围 | 实际二进制无模型验证 | 直接模型证据及适用包 |
 | --- | --- | --- | --- |
-| Claude Code | 405 个已发布版本，三个系列 | 36；均另过本地 SSE/Read/Bearer 合同，3 个代表版另过 API-key 模式 | 27 个合同代表版，包括最旧 1.0.61、最新 2.1.317、2.1.275/304 已知网关回归点 |
-| Grok | 1.0.34–1.0.70，37 个正式版 | 全部 37 | **全部 37**，逐版在当前包通过 |
-| AGY | 1.2.3–1.4.12，35 个发布版 | 2 | 1.2.3、1.4.12 |
-| Codex | 0.154.0–0.166.0，21 个发布版 | 4 | 精确 native 0.154.0、0.166.0 |
+| Codex | 21 个发布版，0.154.0–0.166.0 | 全部 21；每版另有 6 项真实 native 合同证明 | 全部 21，当前 pkg22 |
+| AGY | 35 个发布版，1.2.3–1.4.12 | 全部 35，包含此前下载受阻的 1.3.4 | 1.2.3、1.2.8、1.2.9、1.4.10、1.4.11、1.4.12，当前 pkg22 |
+| Claude Code | 405 个发布版，三个系列、20 个合同组 | 36；另过本地 SSE/Read/Bearer，3 个代表版过 API-key 合同 | 当前 pkg22 两端点 1.0.61/2.1.317；另有历史 pkg17 的 27 代表版 |
+| Grok | 1.0.34–1.0.70，37 个正式版 | 全部 37 | 当前 pkg22 两端点 1.0.34/1.0.70；另有历史 pkg17 的全部 37 版 |
 
-共 498 个 catalog 版本；79 个实际二进制无模型验证，419 个未做实际二进制检查；**68 个版本在当前包完成真实读取、marker 精确匹配、产物 SHA/size、collect、ACK、accept、final completed，430 个未做直接模型验证**。Claude 其余 378 个版本是合同组覆盖推断，没有记为模型通过。AGY/Codex 未改变的 metadata 检查按固定字节和组件明确复用，当前包模型闭环已重做；历史包成功不代替本轮。
+跨批次共 **129 个版本完成实际二进制检查、91 个版本有直接真实闭环**。仍有 **369 个 Claude 版本未做实际二进制检查；407 个版本未做直接模型验证（Claude 378、AGY 29）**。不得把 catalog 准入、组内推断、无模型探针或旧包成功写成当前包通过。
 
-逐版来源、原始 `--version`、路径别名、SHA、参数、合同组和各层状态见[连续版本验收](../tasks/cli-series-coverage/docs/version-series-verification.json)，逐项严格接受证据见[当前包闭环](../tasks/cli-series-coverage/docs/real-series-evidence.json)。原始 session、个人路径、认证、网关地址保留在仓库外 owner-only 环境。可用 `python3 tasks/cli-series-coverage/scripts/verify_evidence.py` 离线核对公开证据，不请求模型。
+逐版来源、原始 `--version`、路径别名、main/companion/archive SHA、参数及各层结果见[本轮逐版验收](../tasks/codex-agy-series/docs/verification.json)；Claude/Grok 历史系列见[原逐版记录](../tasks/cli-series-coverage/docs/version-series-verification.json)。当前源码以[269 项摘要清单](cli-version-source-manifest.json)和实际 Git HEAD 为准。原始认证、session、个人路径与失败现场留在仓库外 owner-only 环境。
 
-Go 最终 full 与 race 均为 **454 顶层／889 含子例通过、0 失败、7 显式跳过**，14 个测试包通过，vet/build 通过；新日志和摘要见[机器记录](cli-version-verification.json)。新增 native Claude 合同默认显式跳过，36 个固定版本和 3 个认证模式补充检查已另行执行。Python guard 没有变化，159 通过／4 跳过及两个 native 版本专项按组件摘要复用。初次 full/race 暴露的旧测试夹具问题、最终修正与复验均保留，未减少生产断言或放宽权限。
+## 已实现与自动化
 
-## Claude 生产只读网关
+- Codex 三份生产表精确对齐 21 对 main/CodeMode companion 摘要；跨 provider/fake/raw alias、未知身份、错摘要继续拒绝。未知身份保留完整四项 `codex_trial_guard_not_ready`。
+- Codex 允许协议合法的空中间 `agent_message`，每条 message 都替换最新 cursor；空终稿仍拒绝，不能回用旧 draft。missing/null/non-string、五字段 usage、session/terminal 顺序、oversize 约束保持。
+- AGY 的 `finished_reason` 在读取 response 前检查，超时/中断/错误及未知、空、null、非 string 一律拒绝 partial 结果；诊断 `event:null` 不再误记为解析成功。
+- 当前 Go full/race 均 **465 顶层／992 含子例通过、0 失败、7 显式跳过**，vet/build 通过。Python **172 通过／8 跳过**。Codex 21 版各 6 项原生证明共 **126 项通过**，与真实模型结果分列。日志摘要、跳过列表和包/receipt/helper/interpreter 绑定见[自动化验收](../tasks/codex-agy-series/docs/automation-verification.json)。
+- 当前 pkg22 的 31 次接受均逐项核验 installed package/no bypass、严格匹配 marker 或唯一尾随换行、产物 size/SHA、collect、ACK、accept、最终 completed。AGY 1.4.12 首次等待超时后，同一 150 秒上限有界重试通过；首次失败保留。
 
-- 1.0.61 是必要合同下限；更早版本缺少本链需要的 settings 等能力，不能以小版本差异忽略。1.0.61–85 使用 `--disallowedTools`，86 起用 `--disallowed-tools`；不再强制本链不消费的 partial-message 参数。
-- 自定义 Anthropic gateway 仅支持 plain typed reviewer/read-only。无 profile、implementer、candidate action/workspace 在分支选择前拒绝。现有第一方/native 产品入口保留；本次网关验收不证明那些入口的认证或模型兼容。
-- 真实 worker 使用新 HOME/config、ExactEnv、空 strict MCP、不可写 policy；拒绝 OAuth/双 key/provider 冲突、项目或 managed 配置。OS 拒原 HOME/auth/Keychain、securityd、工作区写入；工具禁 shell、写入、delegation、网络工具及 MCP，提供 `--tools` 时限定 Read/Glob/Grep。实际 Read、认证 header、原认证拒读、policy 拒改及 Mach 正负对照已验证。
-- metadata 同样执行前后核验 CLI pin，使用无密钥私有 HOME、禁网/禁全局写的沙箱。JS metadata 单次有界 8 秒，version/help 总窗 20 秒；其他 provider 原 2 秒窗口不变。
-- 旧 JS CLI 还需要显式 `ORCHESTRATOR_CLAUDE_NODE_BINARY`，指向规范绝对路径的官方 **Node v24.13.0 darwin-arm64**。代码固定其摘要，拒绝 ambient PATH 或假 Node；probe/launch 复制同摘要字节到私有目录，原安装不改。官方 archive、SHASUMS 和本机字节对照见连续验收记录。没有该固定运行时的其他平台/Node 版本未验收。
+当前研发包新网关四端点证据见[当前包网关闭环](../tasks/codex-agy-series/docs/current-gateway-evidence.json)。可运行 `python3 tasks/codex-agy-series/scripts/verify_evidence.py` 离线核对 56 条报告记录的内部一致性（不重算仓库外原生日志或 round 文件）；不会读取认证或请求模型。伪造未测为通过、旧包、错产物或缺 native 证明的记录均已做拒绝检查。
 
-Claude/Grok 真实闭环请求用户提供的网关和 `deepseek-v4.1-flash-1017`，不等于第一方 Claude/xAI 模型验收，也不泛化为任意第三方网关的兼容承诺。API-key 401 的历史现场、2.1.275/304 官方已知问题与当前受测服务的直接通过分开记录。
+## Codex 四项生产合同
 
-## Codex 四项合同与当前包证据
-
-| 合同 | 生产实现 | 验收依据 |
+| 合同 | 生产实现 | 验收证据 |
 | --- | --- | --- |
-| 受信认证来源 | `codex_exec.py:FileLoginSource/prepare_launch`，固定 native login status 与稳定来源快照 | 缺失、不可信、链接、过期、来源变化、配置/preferences 异常拒绝；当前包真实登录投影 |
-| refresh tripwire 唯一注入 | installed helper 调 `auth_guard.py:prepare_guarded_environment`；Go 不注入 override | 任何已有 override（包括空值或相同值）拒绝；固定 native 合成 positive/guarded 对照，auth 字节/identity 不变 |
-| 精确 native 与工具权限 | `admit.go:CodexNativePins`、`verify_bundle`、receipt/helper/interpreter，命名只读策略 | main+CodeMode companion 固定摘要、篡改拒绝；实际工具 OS 权限探针，工具网络连接 0 |
-| exec/collect 闭环 | Host、report wrapper pin、installed native helper、JSONL observer、owner loop | 当前 pkg17 两端点精确读 TOKEN、产物 SHA/size、collect/ACK/accept/completed |
+| 真实登录态受信只读投影 | `codex_exec.py:FileLoginSource/prepare_launch`；固定 native login status、稳定来源快照 | 缺失、不可信、链接、过期、来源变化、配置/preferences 异常拒绝；21 版 prepare native 证明及当前包真实登录投影 |
+| refresh tripwire 唯一注入 | installed helper 调 `auth_guard.py:prepare_guarded_environment`；Go 不注入 | 任何已有 override，包括空值或相同值，在读取 binary/auth 前拒绝；native positive/guarded 对照、auth identity/字节不变 |
+| 精确主进程与模型工具权限 | `admit.go:CodexNativePins`、`verify_bundle`、固定 receipt/helper/interpreter、命名只读策略 | 21 对 main+companion 摘要、篡改拒绝；原生工具权限探针，工具网络连接 0 |
+| exec/collect 完整接受 | Host、report wrapper Pin、installed native helper、JSONL observer、owner loop | pkg22 全部 21 版 read/marker/size/SHA/collect/ACK/accept/completed |
 
-用户已批准：**固定摘要 native 主进程受信，由原生命名只读 profile 约束模型工具**。不恢复会让工具二次 sandbox 失败的外层 Host Seatbelt，不在 Go 重复注入。CodeModeOnly companion 禁止 in-process fallback。未知身份继续保留完整四项 `codex_trial_guard_not_ready`，没有缩短清单。
+沿用用户批准的边界：**固定摘要 native 主进程受信，模型工具由原生命名只读 profile 约束**。不恢复导致 native 文件工具二次 sandbox 失败的外层 Host Seatbelt，不在 Go 重复注入。CodeModeOnly companion 禁止 in-process fallback。
 
-## 账户、剩余缺口与公开产品
+## Claude/Grok 与账户条件
 
-- Grok 原账户无余额由用户确认，已停止该路线模型重试；新网关路线通过。Claude 第一方登录上轮检查未登录，本轮未重做登录；网关 Bearer 路线通过。AGY 当前包两端点通过，绝对剩余额度仍未知。
-- AGY 首次 1.2.3 回答多出空行，严格产物验证拒绝；失败保留，未做 marker 截取或容错放宽。随后 ceiling/baseline 有界重验均完成完整闭环，不能把这次格式失败写成额度错误。
-- Codex 19 个目录版本缺精确 native 合同与真实闭环，0.159.2/0.165.0 只有无模型检查；AGY 33 个版本未实测，其中 1.3.4 未取得可核验官方固定 artifact。Claude 369 个版本无实际二进制验证、378 个无直接模型验证。
-- 完整 Codex 注册工具目录尚未单独持久化逐项验收；typed resume、Codex write/candidate、native TUI、其他 Node/平台仍不支持或未验收。`cleanupCodexAuth` 的同 UID 路径竞态是现有 0700 Host-owned 边界下的后续加固项。
-- [公开产品候选](../tasks/cli-series-coverage/docs/public-series.patch)基于公开 main `2e78f24c5e9694f287d19065f2ce9c80b16a59af`，选择性移植 38 文件；保留 controller/dispatch/reconcile/coding/portable，公开 Codex 仍为原四项门禁。最终证据见[独立产品验收](../tasks/cli-series-coverage/docs/public-series-verification.json)。**未发布，未做公开产品原生安装/模型验收，main/master 未更新**；不能整体合并研发交接快照。
+Claude 自定义 Anthropic gateway 仅支持 plain typed reviewer/read-only；无 profile、implementer、candidate action/workspace 在分支选择前拒绝。ExactEnv、新 HOME/config、空 strict MCP、不可写 policy、原 HOME/auth/Keychain/securityd 隔离继续保留。旧 JS CLI 显式使用官方 Node v24.13.0 darwin-arm64 固定摘要，不回退 ambient PATH。metadata 同样无密钥隔离并核验 pin。
 
-## 历史批次（不再是待修清单）
+Claude/Grok 真实网关证据使用用户指定的 `deepseek-v4.1-flash-1017`，不证明第一方模型或任意其他网关兼容。Grok 原账户无余额由用户确认，停止原账户重试；Claude 第一方登录上次检查未登录，本轮不更改。AGY 由用户自行重新登录后当前六代表通过，绝对剩余额度仍未知。外部条件不阻止其他端点和内部实现推进。
 
-- `d7bc3d9`：420／816、6 跳过；后续矩阵诊断与 Stop/Wait 合同已关闭。
-- `55741e2`：430／834、6 跳过，225 项摘要；不是当前修改后的结果。
-- `2e089338`／pkg11：441／856、6 跳过；139 catalog、13 无模型、10 真实闭环。完整[历史机器记录](../tasks/cli-production-rollout/docs/verification-pkg11.json)与旧任务证据保留。
-- pkg12–16 为本轮开发/失败或局部验证包；早期 pkg13 Grok37成功和 pkg15 Claude latest 成功保留，当前接受统一使用 pkg17。
+## 公开产品与剩余范围
 
-沿用提交及交接分支非 force 推送授权，不操作 main/master，不改全局安装、认证、已有锁或冻结目录。实际提交和工作区以 Git HEAD、[源码清单](cli-version-source-manifest.json)及[当前任务记录](../tasks/cli-series-coverage/docs/progress.md)核对。
+公开产品在独立 public-main 快照上选择性移植，基线 `2e78f24c5e9694f287d19065f2ce9c80b16a59af`；保留 currentOwner、Controller、Dispatch、coding、Claude/Grok/AGY 和 portable collect-only 产品入口。完整 native runtime 才启用 Codex；portable collect-only 不具备该运行时。不得把研发交接分支整体覆盖公开 main/master。
+
+公开候选 **`0.1.21-public-native`** 已在干净 public-main 快照应用 64 文件补丁，243 项源码摘要匹配。Go full/race 均 **444 顶层／879 含子例通过、0 失败、5 跳过**，vet/build 通过；Python **151 通过／1 跳过**。独立安装、doctor、24 文件字节/权限核验，以及 Codex21＋AGY6＋Claude2＋Grok2 当前公开包真实闭环均通过。Codex0.162.1首次等待超时后保持原边界有界重试通过，失败保留。
+
+当前公开包 Claude1.0.61/2.1.317、Grok1.0.34/1.0.70 四端点均通过完整 read/marker/size/SHA/collect/ACK/accept/completed；当前研发包同四端点也已分别通过。两个包各31项，入口与包摘要分开核验。昨日IP绑定导致的403及Grok失败现场保留为历史，未覆盖失败或放宽验收。此前pkg17其他Claude/Grok版本仍只保留历史适用范围。
+
+见[公开补丁](../tasks/codex-agy-series/docs/public-native.patch)、[公开源码及包清单](../tasks/codex-agy-series/docs/public-native-manifest.json)、[公开产品验收](../tasks/codex-agy-series/docs/public-native-verification.json)。公开发布/合并未执行；研发包和公开候选分别绑定源码及包摘要，不能共用模型通过声明。
+
+内部仍有：完整 Codex 注册工具目录未单独持久化逐项验收；typed resume、Codex write/candidate、native TUI、其他 Node/平台未支持或未验收；`cleanupCodexAuth` 同 UID 路径竞态是在现有 0700 Host-owned 边界下的后续加固项。连续小版本推断限于记录的只读协议合同，不扩大成功范围。
+
+## 历史批次（仅追溯）
+
+- `d7bc3d9`、`55741e2`：420／816、430／834，均 6 跳过；矩阵诊断和 Stop/Wait 合同后续已关闭，不再列为待修。
+- pkg11：441／856、6 跳过；139 catalog、13 无模型、10 真实闭环，见[历史记录](../tasks/cli-production-rollout/docs/verification-pkg11.json)。
+- pkg17（`7824e05`）：454／889、7 跳过；68 个直接闭环，包含 Claude27/Grok37/AGY2/Codex2。它不是修改后的 pkg22 验收。
+- pkg18/19 为中间验证；pkg19 的 0.155.0 失败揭示合法空中间消息，已修复及回归。旧 AGY 1.3.4 无可核验 artifact、Codex19缺准入、公开产品完全无 native 接线等结论均已过时。
+
+沿用提交和交接分支非 force 推送授权；不操作 main/master，不改全局安装、认证、已有锁或冻结目录。当前任务完成状态见[进度记录](../tasks/codex-agy-series/docs/progress.md)，提交与远端回读以机器验收及实际 Git 为准。

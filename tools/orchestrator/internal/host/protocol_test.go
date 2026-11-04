@@ -171,7 +171,7 @@ func TestCodexProtocolRejectsSequenceAndTerminalViolations(t *testing.T) {
 		{"duplicate terminal", []string{`{"type":"thread.started","thread_id":"s"}`, `{"type":"item.completed","item":{"id":"item-1","type":"agent_message","text":"answer"}}`, completed, `{"type":"turn.failed","error":{"message":"late"}}`}, "provider_multiple_terminal_events"},
 		{"message after terminal", []string{`{"type":"thread.started","thread_id":"s"}`, `{"type":"item.completed","item":{"id":"item-1","type":"agent_message","text":"answer"}}`, completed, `{"type":"item.completed","item":{"id":"item-2","type":"agent_message","text":"late"}}`}, "provider_event_after_terminal"},
 		{"empty completed", []string{`{"type":"thread.started","thread_id":"s"}`, completed}, "provider_result_missing"},
-		{"empty final rejected", []string{`{"type":"thread.started","thread_id":"s"}`, `{"type":"item.completed","item":{"id":"draft","type":"agent_message","text":"old draft"}}`, `{"type":"item.completed","item":{"id":"final","type":"agent_message","text":""}}`, completed}, "event_text_invalid"},
+		{"empty final rejected", []string{`{"type":"thread.started","thread_id":"s"}`, `{"type":"item.completed","item":{"id":"draft","type":"agent_message","text":"old draft"}}`, `{"type":"item.completed","item":{"id":"final","type":"agent_message","text":""}}`, completed}, "provider_result_missing"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

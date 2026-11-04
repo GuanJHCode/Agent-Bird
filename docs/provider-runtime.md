@@ -15,7 +15,7 @@ task probe --provider <claude|grok|agy|codex>
 
 这些参数由 Skill 自动组织。Provider lock、handle、请求文件生成在 owner-only 任务目录内，不应提交 Git。第一次使用或二进制摘要变化需核对真实指纹；普通 probe 不登录、不执行模型。
 
-交接分支的 Codex 只接受已验收的 0.154.0／0.166.0 双二进制固定摘要、安装 receipt 和新鲜登录态的只读投影。native guard 独占注入 refresh tripwire；固定 native 主进程受信，模型工具受命名只读 profile 约束。写入、resume、已有 override 和其他 native 身份均拒绝。此研发能力尚未发布到公开 main/master，详见[当前交接](cli-version-handoff.md)。
+交接分支的 Codex 按冻结清单精确绑定 0.154.0–0.166.0 共 21 个 binary/companion 双摘要、full-native 安装 receipt 和新鲜登录态的只读投影；逐版真实模型结果单列验收。native guard 独占注入 refresh tripwire；固定 native 主进程受信，模型工具受命名只读 profile 约束。写入、resume、已有 override、未知 native 身份及 portable collect-only 入口均拒绝。公开产品能力在独立候选中选择性移植，尚未发布到 main/master，详见[当前交接](cli-version-handoff.md)。
 
 ## 隔离与配置
 

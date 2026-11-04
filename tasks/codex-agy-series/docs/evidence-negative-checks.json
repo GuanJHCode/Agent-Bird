@@ -1,0 +1,18 @@
+[
+  {
+    "case": "untested_as_passed",
+    "rejected": true
+  },
+  {
+    "case": "old_package",
+    "rejected": true
+  },
+  {
+    "case": "wrong_artifact",
+    "rejected": true
+  },
+  {
+    "case": "missing_native_contract",
+    "rejected": true
+  }
+]

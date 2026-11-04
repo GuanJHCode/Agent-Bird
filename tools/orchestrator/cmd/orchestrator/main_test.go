@@ -810,3 +810,35 @@ func runBinary(t *testing.T, ctx context.Context, bin string, args ...string) []
 	}
 	return output
 }
+
+func TestFakeInvocationCannotAliasAnyAdmittedCodexIdentity(t *testing.T) {
+	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
+	root := t.TempDir()
+	canary := filepath.Join(root, "must-not-be-read")
+	for raw, sha := range adapter.CodexNativePins() {
+		for _, byHash := range []bool{false, true} {
+			name := raw + "/raw"
+			version, digest := raw, strings.Repeat("a", 64)
+			if byHash {
+				name = raw + "/sha"
+				version, digest = "fixture-version", strings.ToUpper(sha)
+			}
+			t.Run(name, func(t *testing.T) {
+				payload, _ := json.Marshal(map[string]any{
+					"kind": "fake", "provider": string(adapter.ProviderClaude),
+					"binary_version": version, "binary_sha256": digest,
+					"binary_path": canary, "directory": root,
+					"args": []string{"/usr/bin/true"},
+				})
+				_, err := invocationForGrant(context.Background(), contract.LaunchCommand{AdapterPayload: payload})
+				var blocked *adapter.TrialBlockedError
+				if !errors.As(err, &blocked) || strings.Join(blocked.Missing, "\n") != strings.Join(adapter.CodexTrialMissing(), "\n") {
+					t.Fatalf("native fake alias returned %v; want full guard", err)
+				}
+			})
+		}
+	}
+	if _, err := os.Stat(canary); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("native fake alias accessed the binary")
+	}
+}

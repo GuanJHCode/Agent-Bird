@@ -1019,9 +1019,16 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		}
 		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
 	}
-	// Fake fixtures have no provider version. A fake that still presents the
-	// historical Codex identity keeps the trial guard.
-	if payload.Kind != "fake" || payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+	// Fake fixtures have no provider version. Every admitted native Codex
+	// identity still requires admission, including cross-provider aliases.
+	nativeCodexIdentity := false
+	for raw, digest := range adapter.CodexNativePins() {
+		if payload.BinaryVersion == raw || strings.EqualFold(payload.BinarySHA256, digest) {
+			nativeCodexIdentity = true
+			break
+		}
+	}
+	if payload.Kind != "fake" || payload.Provider == string(adapter.ProviderCodex) || nativeCodexIdentity {
 		if err := adapter.LaunchAdmission(adapter.Provider(payload.Provider), payload.BinaryVersion, payload.BinarySHA256); err != nil {
 			return nil, err
 		}

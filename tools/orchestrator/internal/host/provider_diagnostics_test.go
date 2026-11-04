@@ -253,7 +253,7 @@ func TestProviderDiagnosticsStreamDenialCategoriesAndResultCountsStaySeparate(t 
 }
 
 func TestProviderProtocolDiagnosticsExposeOnlyFixedErrorCategories(t *testing.T) {
-	for _, tc := range []struct{ raw, want string }{{"event_invalid_json", "event_invalid_json"}, {"provider_session_changed", "provider_session_changed"}, {"event_session_id_invalid", "event_session_id_invalid"}, {"event_invalid_json PRIVATE_SNAPSHOT_SENTINEL", "other"}, {"/private/credentials PRIVATE_SNAPSHOT_SENTINEL", "other"}, {"", "none"}} {
+	for _, tc := range []struct{ raw, want string }{{"event_finished_reason_incomplete", "event_finished_reason_incomplete"}, {"event_finished_reason_invalid", "event_finished_reason_invalid"}, {"event_invalid_json", "event_invalid_json"}, {"provider_session_changed", "provider_session_changed"}, {"event_session_id_invalid", "event_session_id_invalid"}, {"event_invalid_json PRIVATE_SNAPSHOT_SENTINEL", "other"}, {"/private/credentials PRIVATE_SNAPSHOT_SENTINEL", "other"}, {"", "none"}} {
 		collector, _ := newProtocolCollector("claude-code")
 		if tc.raw != "" {
 			collector.err = errors.New(tc.raw)
@@ -274,5 +274,26 @@ func TestCodexGuardDiagnosticsRetainOnlyAllowlistedCodes(t *testing.T) {
 	report := providerDiagnostics("{\"type\":\"codex_auth_guard\",\"code\":\"native_login_status_unverified\"}\n{\"type\":\"codex_auth_guard\",\"code\":\"PRIVATE_SENTINEL\"}\n")
 	if report.CodexAuthGuardCodes["native_login_status_unverified"] != 1 || report.CodexAuthGuardCodes["other"] != 1 || len(report.CodexAuthGuardCodes) != 2 {
 		t.Fatalf("codes=%v", report.CodexAuthGuardCodes)
+	}
+}
+
+func TestProviderDiagnosticsRequireObjectOrNamedStringEvent(t *testing.T) {
+	for _, tc := range []struct {
+		name, value string
+		unparsed    int
+	}{
+		{"null", `null`, 1},
+		{"boolean", `true`, 1},
+		{"number", `7`, 1},
+		{"array", `[]`, 1},
+		{"object", `{}`, 0},
+		{"named", `"step_update"`, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			report := providerDiagnostics(`{"type":"assistant","event":` + tc.value + `}`)
+			if report.Events["unparsed"] != tc.unparsed {
+				t.Fatalf("unparsed=%d want=%d", report.Events["unparsed"], tc.unparsed)
+			}
+		})
 	}
 }

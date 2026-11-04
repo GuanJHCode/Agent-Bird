@@ -1,0 +1,1074 @@
+{
+  "version": 1,
+  "package": "0.1.21-public-native",
+  "recorded_at": "2026-11-04T01:07:21.527049+00:00",
+  "status": "passed",
+  "required_native_status": "passed",
+  "source": {
+    "status": "passed",
+    "patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+    "snapshot_sha256": "d68b6b5fc9c1c671d33e9067805df8a15ee83cac158b7170e6e48bc1c586a84f"
+  },
+  "go": {
+    "status": "passed",
+    "report_sha256": "fd8fdfb6a4521dd66e1ca116bc1c09496854de92f6981b1470f08a14fe5c3e72",
+    "checks": [
+      {
+        "name": "full",
+        "status": "passed",
+        "log_sha256": "7bf8ea4407845cc8e3e28d0a3440dccc23277eb5d4416ac4d86df00b6abc170a",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {
+          "pass": 444,
+          "skip": 5
+        },
+        "all_cases": {
+          "pass": 879,
+          "skip": 5
+        }
+      },
+      {
+        "name": "race",
+        "status": "passed",
+        "log_sha256": "99f4a58fcb5c849d4caf7701b7b4c53603cef61ac42f8f5353b725867ecb5c8c",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {
+          "pass": 444,
+          "skip": 5
+        },
+        "all_cases": {
+          "pass": 879,
+          "skip": 5
+        }
+      },
+      {
+        "name": "vet",
+        "status": "passed",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {},
+        "all_cases": {}
+      },
+      {
+        "name": "build",
+        "status": "passed",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {},
+        "all_cases": {}
+      },
+      {
+        "name": "binary",
+        "status": "passed",
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+        "top_level": {},
+        "all_cases": {}
+      }
+    ]
+  },
+  "package_binding": {
+    "status": "passed",
+    "version": "0.1.21-public-native",
+    "binary_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+    "outer_manifest_sha256": "a3b8955a48f48fcef6c3285f01ee07d46cdb6aac6f57dc67515ef336435d9888",
+    "installed_manifest_sha256": "8610f411c926e53c56e8c81a4d5bcc524eb6ad13a196da93847172c4e8bbfd8c",
+    "receipt_sha256": "abb07dac192ed2733d1a62edfc7716e69af981dfff84c00c5cef8c87bde65154",
+    "runtime_manifest_sha256": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0",
+    "interpreter_sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
+    "helpers": [
+      {
+        "path": "lib/trial/auth_guard.py",
+        "sha256": "4c3bfcb04a74c9f5b14585a582e4c5e3931304b42a4beead5bf401373e802973"
+      },
+      {
+        "path": "lib/trial/codex_exec.py",
+        "sha256": "462986a698ce87617f678fd3a04d7e006a3afe45cc5c175ded541aa94fcab816"
+      }
+    ],
+    "source_patch_sha256": "887c6453083dfbcdf4647da2058a3ce73e251ab20ac6ef387e6121fab4a57460",
+    "source_snapshot_sha256": "d68b6b5fc9c1c671d33e9067805df8a15ee83cac158b7170e6e48bc1c586a84f",
+    "file_count": 24,
+    "all_installed_bytes_modes_match": true,
+    "no_extra_files": true
+  },
+  "required_native": [
+    {
+      "provider": "codex-cli",
+      "version": "0.154.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.1",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.156.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.156.1",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.157.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.157.1",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.158.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.1",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.2",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.3",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.160.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.160.1",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.161.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.162.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.162.1",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.163.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.164.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.165.0",
+      "status": "passed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.166.0",
+      "status": "passed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.3",
+      "status": "passed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.8",
+      "status": "passed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.9",
+      "status": "passed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.10",
+      "status": "passed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.11",
+      "status": "passed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.12",
+      "status": "passed"
+    }
+  ],
+  "accepted": [
+    {
+      "provider": "codex-cli",
+      "version": "0.154.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "2b8ed5aaed194230bdaa8e398f2197d891722dc6f403048c60ff83ec1c1a46a5",
+      "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "0d3696e2aeb0f086db6224af5a2f07d7651e8d2ee25e82a262cf8f46abf3cb73",
+        "observed_size": 31,
+        "observed_sha256": "0d3696e2aeb0f086db6224af5a2f07d7651e8d2ee25e82a262cf8f46abf3cb73"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "ac1ff8aa78992e5f138f614c9b344ebedbf97ee03e7848afa495d5256ba299dc",
+      "binary_sha256": "b0b14f9c1901c1ec44671094b2dc18b39e4bd8d36a6dc2302cc9d961a7e2a197",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "f63f2afaeb3add549787feabd335d49014b92cea816a6e926a2d33272cba9c0b",
+        "observed_size": 31,
+        "observed_sha256": "f63f2afaeb3add549787feabd335d49014b92cea816a6e926a2d33272cba9c0b"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.155.1",
+      "package": "0.1.21-public-native",
+      "round_sha256": "d9f16e99d2d26178ecb08eb03a97874651d77329751bf2942dbdf0019315947c",
+      "binary_sha256": "8eaf1ad12fe6bf89b1710330f58900014322c7c5af677e43be116d8ac5fc0a9e",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "88fa77b0880125457a902065b0df1d23fa4e024c866d2253d3448a1b21291b9b",
+        "observed_size": 31,
+        "observed_sha256": "88fa77b0880125457a902065b0df1d23fa4e024c866d2253d3448a1b21291b9b"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.156.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "78674673eb3c82536ac4f5bc4bfe8a16f055df29e7464c364c6e4cbec45ff30a",
+      "binary_sha256": "6b42db4d33fd53516162bd76a0e2d07e0567287c44e036d4e4c06cb555a432f9",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "1bb0a7c137289f96563ef2104bc9b81ed56a66fce5e5e7973703f750cc245155",
+        "observed_size": 31,
+        "observed_sha256": "1bb0a7c137289f96563ef2104bc9b81ed56a66fce5e5e7973703f750cc245155"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.156.1",
+      "package": "0.1.21-public-native",
+      "round_sha256": "40c73f58d20d4cae5009fe939d78c20aefb280e8e401ae70d931c8a5c079c914",
+      "binary_sha256": "0196e89fe5a7598f816ee54232c3d7c26d75e502ab5cfe2c9240e81d90f7255a",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "4ed14894cf380b6bfe38ac5472a15a2a268992371893d3a9faad975ae20f4e65",
+        "observed_size": 31,
+        "observed_sha256": "4ed14894cf380b6bfe38ac5472a15a2a268992371893d3a9faad975ae20f4e65"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.157.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "9ab4f37555b7c8512b1c0ba0c7f2fa38ce7f9963c2c65f0c8a3b3a7712684476",
+      "binary_sha256": "ad0be20d04e2ba6146ecdb51d7f8b7b0fe15420a15dc9b0057518d858f1f3714",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "28940d19c63cbcf9282865829ee904946299ddb04a339b74e1f83f425c8ff668",
+        "observed_size": 31,
+        "observed_sha256": "28940d19c63cbcf9282865829ee904946299ddb04a339b74e1f83f425c8ff668"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.157.1",
+      "package": "0.1.21-public-native",
+      "round_sha256": "5484694a9f5340550afb15385a354550689ca60513b600bf31df825784eb8cc2",
+      "binary_sha256": "27ceb5f9b957b43a519efe4eaa3816a0bffb0a531a2c89af18840c0a3c016a7d",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "46b9f59d484dea5378a7d727a7d6c70cf605ebbc7bf292faced965c3357fdf92",
+        "observed_size": 31,
+        "observed_sha256": "46b9f59d484dea5378a7d727a7d6c70cf605ebbc7bf292faced965c3357fdf92"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.158.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "2d596f4f1a9db7d55b7d1c12e144fd90540c1e3abb665420cab9e6d1d2318396",
+      "binary_sha256": "788a818fbb9596869c7a487554507cb8bdca17584b8671112b23f9e225ba35c8",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "3266be1cea43c29c96897e8ef4be9d3796570e56476a8037b7de13dd4ba6778e",
+        "observed_size": 31,
+        "observed_sha256": "3266be1cea43c29c96897e8ef4be9d3796570e56476a8037b7de13dd4ba6778e"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "a7d7b391f742c11fe2edf88edd8ed40750caa5ac39013f344d281b8ba2c2d594",
+      "binary_sha256": "e89718aa1969bfc4a471277bdc4679a3a3529293de0a309909822dfd67ddb77a",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "66c1a95a28b6d32209939cbae8a192223b36a5dbe4f641cdd8eb0d2c1bfd27c8",
+        "observed_size": 31,
+        "observed_sha256": "66c1a95a28b6d32209939cbae8a192223b36a5dbe4f641cdd8eb0d2c1bfd27c8"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.1",
+      "package": "0.1.21-public-native",
+      "round_sha256": "d8d759ac245bc888c37b927a2c7f884aedc441729387821ec9b28a6ebada27c3",
+      "binary_sha256": "ab2ed513b0ae735151799ab57045e05ca721c4730859b5aa2f2a9e9bed287eb8",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "3cacc9add7f5af1e6309c1eecfb63d84daea92a0fc387780cdbb518c6a277dc1",
+        "observed_size": 31,
+        "observed_sha256": "3cacc9add7f5af1e6309c1eecfb63d84daea92a0fc387780cdbb518c6a277dc1"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.2",
+      "package": "0.1.21-public-native",
+      "round_sha256": "4bf2dc00e5e25c7ea7e6c0fc2fe9596a59a980eeb4c9e89da62b3fd537735f0f",
+      "binary_sha256": "16593cc2f422d5f398a8e40f550ebbaf1245392528957be342c295920a300704",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "845e4a5f3c43f19229d6c76abd89d359c64b0331f66e18290b03a9b8f5f3db0b",
+        "observed_size": 31,
+        "observed_sha256": "845e4a5f3c43f19229d6c76abd89d359c64b0331f66e18290b03a9b8f5f3db0b"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.159.3",
+      "package": "0.1.21-public-native",
+      "round_sha256": "1543c87da15f203003ca909f991a66439ee1ef79083257e0c9e0a3e223d4fc31",
+      "binary_sha256": "4d210f7c5a18fd0386434df23b5bdbb8c0e7257d3e8a2b30b0769c8bbe99a878",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "ec00249b2c9d816b7de075ce38e112b85024cd94eeb87ec56cb351f4fa9d90a8",
+        "observed_size": 31,
+        "observed_sha256": "ec00249b2c9d816b7de075ce38e112b85024cd94eeb87ec56cb351f4fa9d90a8"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.160.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "a1882574228ac5b544debac428502d629827f20da9950c723a67b2afa88df011",
+      "binary_sha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "750d7561f28d414ccb49f6d8dc01086b233ec10ec719b7e0d8e04418e3e9fa71",
+        "observed_size": 31,
+        "observed_sha256": "750d7561f28d414ccb49f6d8dc01086b233ec10ec719b7e0d8e04418e3e9fa71"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.160.1",
+      "package": "0.1.21-public-native",
+      "round_sha256": "716946da68deb9956c9c5d6a3b0ffe94f5be130b4c0aa624e1e4b52443ec9f1f",
+      "binary_sha256": "09fa44fdc37a5fc70dc1ace31235f90468a2e193d0e85f7552eab068ea2582be",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "e893a1a7d5b31ccf4f23822518222670eb6e5663f3bf2397f902c7d18f73da4d",
+        "observed_size": 31,
+        "observed_sha256": "e893a1a7d5b31ccf4f23822518222670eb6e5663f3bf2397f902c7d18f73da4d"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.161.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "2b0142e73bd181c8aab10ce279b0682c2a47d71b3c4a2c21f5d5b6b1ca5c6256",
+      "binary_sha256": "12ac11d2c7eee27cfae34393986d7b7c9ed0dea537cb749831cdd7033893e6de",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "a66692027fab99dcee80760514736dc13d0cc78a7afe7ba7ce2749f2683e86a7",
+        "observed_size": 31,
+        "observed_sha256": "a66692027fab99dcee80760514736dc13d0cc78a7afe7ba7ce2749f2683e86a7"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.162.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "5953b74144fcacc75b90dc1e8f1c29946a5c840857981e1cfa9ff97f591eb232",
+      "binary_sha256": "8238273076041e55beded03ba1d51e034f997b7d100b0642d36daf036620fe57",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "33aedffa6191bc124aa3c53e7326fddb77a90671187885a697c4d831cc276045",
+        "observed_size": 31,
+        "observed_sha256": "33aedffa6191bc124aa3c53e7326fddb77a90671187885a697c4d831cc276045"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.3",
+      "package": "0.1.21-public-native",
+      "round_sha256": "581a645ad274d72259f1419aa810100e4e6d20a5610c3595c643ddee0e4000b6",
+      "binary_sha256": "e0c2743e3fd062e11c13d2eb5fabaa244936094bbe39c30fdfbac619bb78e554",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "d0f068676d526dcbc974468e9d6a79aaa81fa4af18a5fb3704825537356bead4",
+        "observed_size": 32,
+        "observed_sha256": "d0f068676d526dcbc974468e9d6a79aaa81fa4af18a5fb3704825537356bead4"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.8",
+      "package": "0.1.21-public-native",
+      "round_sha256": "63264e40c327ba865c4c13f684482715abf52587178de3600ea072b55947c0bd",
+      "binary_sha256": "62913fb38f14d376e67b62014e701063f4061aba60b0e049cb6af9cab62763ef",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "1d80696e9b483cbc5ef1b21082d3ef21dc3d353636363c8f917fd57577f57e43",
+        "observed_size": 32,
+        "observed_sha256": "1d80696e9b483cbc5ef1b21082d3ef21dc3d353636363c8f917fd57577f57e43"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.2.9",
+      "package": "0.1.21-public-native",
+      "round_sha256": "ab85c35cfa00526421f17c230a73646c40a578b35339732d1ce5c9a9f9faeef9",
+      "binary_sha256": "0ff346ae903f15d863bd6a3e401638b612848210d28b174461acdb8780ac8c22",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "e2426655f1f397055f80d9d0bc5e77c546dcb9266feb2f7ad2486b6c65168e12",
+        "observed_size": 32,
+        "observed_sha256": "e2426655f1f397055f80d9d0bc5e77c546dcb9266feb2f7ad2486b6c65168e12"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.10",
+      "package": "0.1.21-public-native",
+      "round_sha256": "86bbae0a91f3ee404f7806b6bc63dd9864c63aecfafa6e93a158d735a0b098c4",
+      "binary_sha256": "35605054a9dc4591dd7e6ea83a9392238153d4c55d265512ed9b5b7f97cc0423",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "54ad87d220fd4c2b91262d75a4afd52f6273d301fefa50a931f2cda928a8b048",
+        "observed_size": 32,
+        "observed_sha256": "54ad87d220fd4c2b91262d75a4afd52f6273d301fefa50a931f2cda928a8b048"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.11",
+      "package": "0.1.21-public-native",
+      "round_sha256": "5068ae1742422e2ab7b7e6636928f4b6cf2bc327dcd477652e0cb9b58628a2a3",
+      "binary_sha256": "09cefed6a1d217e14ba1751dce4442b97c2797e88c297c77fda3690f92ceddcd",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "b809b84f5b4e583b80b9a4bc1984905b7f4c0beb5ecb4107e39106519b77c124",
+        "observed_size": 32,
+        "observed_sha256": "b809b84f5b4e583b80b9a4bc1984905b7f4c0beb5ecb4107e39106519b77c124"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "antigravity-cli",
+      "version": "1.4.12",
+      "package": "0.1.21-public-native",
+      "round_sha256": "533ed4954f81e6a2569f1e3561c6cb8a9090e91b80813c2f5f886c9bf74f0d18",
+      "binary_sha256": "34423fc9b0af3841e7646aa72a2d40ffeab8218b22d1cb99eac7355f9eba31e3",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 32,
+        "declared_sha256": "bde44146faa25520775fad81f83661cad2b4275c78a8a7dda95065130e6dde9a",
+        "observed_size": 32,
+        "observed_sha256": "bde44146faa25520775fad81f83661cad2b4275c78a8a7dda95065130e6dde9a"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.162.1",
+      "package": "0.1.21-public-native",
+      "round_sha256": "079de7505dd224f7d639baeae46fd82fdff5fecdf6bb55aeb298b978680e7d21",
+      "binary_sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "f54d21adde8a9c66b8c140984352e544ba57c3d71f9bf8b238746b35e8a04608",
+        "observed_size": 31,
+        "observed_sha256": "f54d21adde8a9c66b8c140984352e544ba57c3d71f9bf8b238746b35e8a04608"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.163.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "1332f1d0c8be87c5878c8228f1b2d3d1be4b5aba513c9bdaf2f1b4b452dfa52a",
+      "binary_sha256": "8813367285524ac798dd96d1b071aea30d58708c7226fd236cd275cf1cfdee31",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "302effa26a65f32767972a42fd2d3ff2f1544322ca2d744500c1318133382f95",
+        "observed_size": 31,
+        "observed_sha256": "302effa26a65f32767972a42fd2d3ff2f1544322ca2d744500c1318133382f95"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.164.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "8e3776d6908709c933a8eb76e0e7fecccfb1e889d9b753953206f63943480dab",
+      "binary_sha256": "d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "adab21c44e1817439364d775151b8451d6bfebf56cc63f4e67e1e44dba9e0e4b",
+        "observed_size": 31,
+        "observed_sha256": "adab21c44e1817439364d775151b8451d6bfebf56cc63f4e67e1e44dba9e0e4b"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.165.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "a4b548973e907044acbdd78a7e6dafe911338a499eee3d573661e0ec3f2ebf8d",
+      "binary_sha256": "a45099154d7fb4a5ed8a56f40966a95deb938e508bab23e6985035c709e9a85a",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "6d2c28379921f6a87cd17e46ff02a9485be3cf2224c00ea82eb98e1da7a9bdc6",
+        "observed_size": 31,
+        "observed_sha256": "6d2c28379921f6a87cd17e46ff02a9485be3cf2224c00ea82eb98e1da7a9bdc6"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "codex-cli",
+      "version": "0.166.0",
+      "package": "0.1.21-public-native",
+      "round_sha256": "d483baffc21baa0a62123038806bfe117e0928c10be5c52bcb0514ee0c27cd4f",
+      "binary_sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "1dd18c500fc17cd306b5fc9182e856f7f64e581272ee6f68999f059ca22a5757",
+        "observed_size": 31,
+        "observed_sha256": "1dd18c500fc17cd306b5fc9182e856f7f64e581272ee6f68999f059ca22a5757"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "claude-code",
+      "version": "1.0.61",
+      "package": "0.1.21-public-native",
+      "round_sha256": "131790a5cd7b6108790cecd490f907d95d25d25a72e015060692296b06a4efad",
+      "binary_sha256": "098701693431fbaa5f682e5d11c4d1400b8403dd86cfdf06bacf6910d3b88be1",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "8cfe1af5d9f73cb6686fda85b64c94f1278249f6b9ec412242a6f4868a787cac",
+        "observed_size": 31,
+        "observed_sha256": "8cfe1af5d9f73cb6686fda85b64c94f1278249f6b9ec412242a6f4868a787cac"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.317",
+      "package": "0.1.21-public-native",
+      "round_sha256": "66b82372b12f1584bf9b43e6f44cba6da0e2c84abdad831358c759217a8e2648",
+      "binary_sha256": "09f153b46b5df9e8b3454716d682a91901de020cbca630f61dec1a015b32b5e9",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "c7508a6e06650cde3140f127117dc138ff1f7f1b8f913aee1203e9322914d1c7",
+        "observed_size": 31,
+        "observed_sha256": "c7508a6e06650cde3140f127117dc138ff1f7f1b8f913aee1203e9322914d1c7"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.34",
+      "package": "0.1.21-public-native",
+      "round_sha256": "42b31aebd4091c38afa0bc0cfce2ec487f1f6dadaf3c6cc7704245d5189046ce",
+      "binary_sha256": "9cd26b579840f0f5c9148a8059ad651904c08b41b7f2ef0b4ec04b9ba898844e",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "93805494eff93d32aef90523663020d60d6e449c6969502a9f3d03b3fc774419",
+        "observed_size": 31,
+        "observed_sha256": "93805494eff93d32aef90523663020d60d6e449c6969502a9f3d03b3fc774419"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.70",
+      "package": "0.1.21-public-native",
+      "round_sha256": "bb456cf5c4007814d2f47f8c6d78754087711f84a6b8aa960ae0bc304ff13fda",
+      "binary_sha256": "5c8a688251bf61e35370b828b6a353b0a20fcc3f64000de8a91d426039f29cec",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "passed",
+      "reasons": [],
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "b9887ff1c794b2dbb5bedaa4b028d132ce35d7abcfcdc734d08bc544d3a2fcd2",
+        "observed_size": 31,
+        "observed_sha256": "b9887ff1c794b2dbb5bedaa4b028d132ce35d7abcfcdc734d08bc544d3a2fcd2"
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    }
+  ],
+  "failed": [
+    {
+      "provider": "codex-cli",
+      "version": "0.162.1",
+      "package": "0.1.21-public-native",
+      "round_sha256": "5ceae105f1180123ee47a8e7c497023f5279137aa94ccb6472e61f50be98b25f",
+      "binary_sha256": "74c6a6d263f40d65f99c27a815275f5b4ed0bcc2baecc396b4cf3255498bdfc0",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "failed",
+      "reasons": [
+        "owner_loop_not_accepted",
+        "collect_result_not_verified",
+        "artifact_contract_invalid",
+        "ack_not_acknowledged",
+        "accept_not_accepted",
+        "final_status_not_completed"
+      ]
+    },
+    {
+      "provider": "claude-code",
+      "version": "1.0.61",
+      "package": "0.1.21-public-native",
+      "round_sha256": "5ec64c0d1a448ae351c0fc8de1e9521fff093000724c0563c23bb54a9e3bf15f",
+      "binary_sha256": "098701693431fbaa5f682e5d11c4d1400b8403dd86cfdf06bacf6910d3b88be1",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "failed",
+      "reasons": [
+        "owner_loop_not_accepted",
+        "collect_result_not_verified",
+        "artifact_contract_invalid",
+        "ack_not_acknowledged",
+        "accept_not_accepted",
+        "final_status_not_completed"
+      ]
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.34",
+      "package": "0.1.21-public-native",
+      "round_sha256": "3f246c03bbd6e58b5b6acc4345ab8c7f97d9ba8cf7cea98b69faf6413f8be5c2",
+      "binary_sha256": "9cd26b579840f0f5c9148a8059ad651904c08b41b7f2ef0b4ec04b9ba898844e",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "failed",
+      "reasons": [
+        "owner_loop_not_accepted",
+        "collect_result_not_verified",
+        "artifact_contract_invalid",
+        "ack_not_acknowledged",
+        "accept_not_accepted",
+        "final_status_not_completed"
+      ]
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.317",
+      "package": "0.1.21-public-native",
+      "round_sha256": "2b166072a2ebdc946f25ceede60032d8311ad35f4ec7c2d762b7334d8fcffc1d",
+      "binary_sha256": "09f153b46b5df9e8b3454716d682a91901de020cbca630f61dec1a015b32b5e9",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "failed",
+      "reasons": [
+        "owner_loop_not_accepted",
+        "collect_result_not_verified",
+        "artifact_contract_invalid",
+        "ack_not_acknowledged",
+        "accept_not_accepted",
+        "final_status_not_completed"
+      ]
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.70",
+      "package": "0.1.21-public-native",
+      "round_sha256": "597ca8c415debdf0787bdcba683216cefeb9d4630d1310e1321ff8087fee53ad",
+      "binary_sha256": "5c8a688251bf61e35370b828b6a353b0a20fcc3f64000de8a91d426039f29cec",
+      "orchestrator_sha256": "b30fb5cdc2eb9b20ebaa9ff09cba98419b6146ff0c50e461e1d93e16bdf9e07a",
+      "status": "failed",
+      "reasons": [
+        "owner_loop_not_accepted",
+        "collect_result_not_verified",
+        "artifact_contract_invalid",
+        "ack_not_acknowledged",
+        "accept_not_accepted",
+        "final_status_not_completed"
+      ]
+    }
+  ],
+  "gateway_status": "passed",
+  "required_gateway": [
+    {
+      "provider": "claude-code",
+      "version": "1.0.61",
+      "status": "passed"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.317",
+      "status": "passed"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.34",
+      "status": "passed"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.70",
+      "status": "passed"
+    }
+  ],
+  "historical_gateway_diagnostic": {
+    "anthropic_http": 403,
+    "anthropic_category": "RBAC_access_denied_observed_in_both_CLI_results",
+    "openai_http": 403,
+    "openai_category": "RBAC_access_denied_independent_minimal_POST",
+    "grok_cli_reason": "process_failed_without_preserved_raw_reason",
+    "gateway_cli_failed_versions": {
+      "claude-code": [
+        "1.0.61",
+        "2.1.317"
+      ],
+      "grok-build": [
+        "1.0.34",
+        "1.0.70"
+      ]
+    },
+    "max_tokens": 1,
+    "diagnostic_is_owner_loop": false,
+    "current_condition": "Recovered on2026-11-04: both Claude and Grok endpoints now accepted."
+  },
+  "optional_gateway": {
+    "claude-code": {
+      "status": "observed",
+      "passed_versions": [
+        "1.0.61",
+        "2.1.317"
+      ]
+    },
+    "grok-build": {
+      "status": "observed",
+      "passed_versions": [
+        "1.0.34",
+        "1.0.70"
+      ]
+    }
+  },
+  "scope": "Native and current gateway statuses are derived separately from exact installed-package rounds; scope is readonly CLI owner-loop acceptance, excluding native TUI/write/resume. Only exact public21 installed-package records; source, final21 Go reports, package/receipt/runtime/helper hashes and actual native pins are bound. Historical packages are excluded. No raw sessions, owner capabilities, tokens, prompts, private paths or provider failure text are emitted.",
+  "python": {
+    "status": "passed",
+    "checks": [
+      {
+        "command": [
+          "<private-validation>/tmp/venv/bin/python",
+          "-m",
+          "pytest",
+          "-p",
+          "no:cacheprovider",
+          "tools/real-user-trial",
+          "-q",
+          "--junitxml=<private-native-series>/data/public-native-codex/series-python.xml"
+        ],
+        "exit_code": 0,
+        "seconds": 0.546,
+        "counts": {
+          "pass": 151,
+          "failure": 0,
+          "error": 0,
+          "skipped": 1
+        },
+        "skips": [
+          {
+            "classname": "tools.real-user-trial.test_native_auth_tripwire",
+            "name": "test_fixed_native_refresh_tripwire_blocks_oauth_egress",
+            "time": "0.000"
+          }
+        ],
+        "log": "<private-native-series>/data/public-native-codex/series-python.log",
+        "sha256": "04ba950eebdac764800db0c373f7ed5b50fbc83d6e9d5a2ae30e3c126b0ab1d7"
+      },
+      {
+        "exit_code": 0,
+        "files": [
+          "plugins/codex-orchestrator/lib/trial/auth_guard.py",
+          "plugins/codex-orchestrator/lib/trial/codex_exec.py",
+          "tools/real-user-trial/test_auth_guard.py",
+          "tools/real-user-trial/test_codex_series_pins.py"
+        ],
+        "compiled_cache": "<private-native-series>/tmp/public-native-tmp/series-pycompile",
+        "count": 4
+      }
+    ],
+    "reuse_scope": "Python151 pass/1 native skip source/helper bytes unchanged; final Go-only parser/cursor and documentation changes do not affect this result."
+  },
+  "clean_apply": {
+    "status": "passed",
+    "base": "2e78f24c5e9694f287d19065f2ce9c80b16a59af",
+    "source_files_checked": 243,
+    "digest_mismatches": 0
+  },
+  "driver_binding": {
+    "source": "handoff source snapshot",
+    "manifest_sha256": "d19112993aaec05278d653c974cfe7ff55ec82cd124df0920942a44bcaa7bb08",
+    "driver_binary_sha256": "53201b8cf097686b6d42de5ee82bfcc46a7e78864858cdfefccbd536da299263",
+    "executor": "public21 installed package",
+    "note": "Driver is test-only main-tree matrix; all accepted executor binaries and package receipts are public21."
+  },
+  "published": false,
+  "independent_code_review": {
+    "status": "passed",
+    "scope": "Selective production wiring, exact21 guards, installed full-native receipt/helper, tool readonly policy, preserved product entries; empty-text/cursor and copyRegular mode fixes reviewed."
+  },
+  "independent_evidence_review": {
+    "status": "passed",
+    "native_rounds_reviewed": 27,
+    "gateway_rounds_reviewed": 4,
+    "source_files": 243,
+    "package_files": 24,
+    "scope": "Independent source/patch/package/receipt/helper/Go/Python/native27 audit and fresh gateway4 raw-round addendum; executor and driver bound separately."
+  },
+  "execution_status": "validation_complete"
+}

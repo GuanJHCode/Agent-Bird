@@ -84,6 +84,7 @@ func safeProtocolError(err error) string {
 	code := err.Error()
 	switch code {
 	case "event_invalid_json", "event_multiple_json", "event_status_invalid",
+		"event_finished_reason_incomplete", "event_finished_reason_invalid",
 		"event_session_id_invalid", "event_type_missing", "event_type_invalid", "event_subtype_invalid",
 		"provider_session_changed", "provider_multiple_terminal_events", "provider_critical_event_too_large",
 		"provider_session_duplicate", "provider_event_before_session", "provider_event_after_terminal":
@@ -251,11 +252,13 @@ func (p *protocolCollector) accept(event adapter.Event) {
 	if p.provider == adapter.ProviderClaude && event.Kind == adapter.EventMessage && event.Text != "" {
 		p.partialText, p.partialTruncated = boundedProgressText(event.Text)
 	}
-	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderCodex && event.Text != "" {
+	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderCodex {
 		if len(event.Text) > providerEventLimit {
 			p.err = errors.New("provider_critical_event_too_large")
 			return
 		}
+		// Even an empty latest message supersedes an earlier draft. Finish
+		// still rejects a completed turn whose final message is empty.
 		p.message = append(p.message[:0], event.Text...)
 		return
 	}

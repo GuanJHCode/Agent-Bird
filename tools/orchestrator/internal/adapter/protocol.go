@@ -135,11 +135,18 @@ func parseCodex(object map[string]json.RawMessage) (Event, error) {
 		if itemType != "agent_message" {
 			return Event{Kind: EventDiagnostic}, nil
 		}
-		text, err := stringField(item, "text")
-		if err != nil {
-			return Event{}, err
+		// Native can emit an empty intermediate agent message before tools.
+		// Presence and string type remain mandatory; the collector decides
+		// whether the latest message is a nonempty completed answer.
+		rawText, present := item["text"]
+		if !present {
+			return Event{}, errors.New("event_text_missing")
 		}
-		return Event{Kind: EventMessage, Text: text}, nil
+		var text *string
+		if json.Unmarshal(rawText, &text) != nil || text == nil {
+			return Event{}, errors.New("event_text_invalid")
+		}
+		return Event{Kind: EventMessage, Text: *text}, nil
 	case "turn.completed":
 		if err := validateCodexUsage(object["usage"]); err != nil {
 			return Event{}, err
@@ -274,6 +281,21 @@ func parseAGY(object map[string]json.RawMessage) (Event, error) {
 		}
 		if !validAGYStatus(status) {
 			return Event{}, errors.New("event_status_invalid")
+		}
+		// AGY 1.4.11+ omits this field on normal completion. Any present
+		// documented reason means the turn ended early, so reject it before
+		// reading response text or promoting WAITING to an owner question.
+		if _, present := value["finished_reason"]; present {
+			reason, err := stringField(value, "finished_reason")
+			if err != nil {
+				return Event{}, err
+			}
+			switch reason {
+			case "print_timeout", "interrupted", "error":
+				return Event{}, errors.New("event_finished_reason_incomplete")
+			default:
+				return Event{}, errors.New("event_finished_reason_invalid")
+			}
 		}
 		text, err := stringFieldOptional(value, "response")
 		if status == "SUCCESS" || status == "WAITING" {

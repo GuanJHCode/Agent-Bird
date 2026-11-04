@@ -80,9 +80,11 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 		var streamEvent struct {
 			ContentBlock *block `json:"content_block"`
 		}
-		if len(event.Event) != 0 && !isJSONString(event.Event) && json.Unmarshal(event.Event, &streamEvent) != nil {
-			result.Events["unparsed"]++
-			continue
+		if rawEvent := strings.TrimSpace(string(event.Event)); rawEvent != "" {
+			if rawEvent[0] != '"' && (rawEvent[0] != '{' || json.Unmarshal(event.Event, &streamEvent) != nil) {
+				result.Events["unparsed"]++
+				continue
+			}
 		}
 		var message struct {
 			Content []block `json:"content"`
@@ -157,9 +159,4 @@ func providerDiagnostics(output string) providerDiagnosticReport {
 		result.Truncated = true
 	}
 	return result
-}
-
-func isJSONString(raw json.RawMessage) bool {
-	trimmed := strings.TrimLeft(string(raw), " \t\r\n")
-	return len(trimmed) > 0 && trimmed[0] == '"'
 }

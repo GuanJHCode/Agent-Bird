@@ -1,0 +1,16 @@
+[
+  {
+    "environment": "ORCHESTRATOR_MATRIX_GROK_CEILING",
+    "version": "1.0.70",
+    "path": "<private-isolation>/fixed/grok-1.0.70",
+    "sha256": "5c8a688251bf61e35370b828b6a353b0a20fcc3f64000de8a91d426039f29cec",
+    "verified_actual": true
+  },
+  {
+    "environment": "ORCHESTRATOR_MATRIX_CODEX_CEILING",
+    "version": "0.166.0",
+    "path": "<private-isolation>/fixed/codex-0.166.0",
+    "sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+    "verified_actual": true
+  }
+]

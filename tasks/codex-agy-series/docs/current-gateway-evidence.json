@@ -1,0 +1,146 @@
+{
+  "status": "passed",
+  "recorded_at": "2026-11-04T01:08:44.001285+00:00",
+  "package": {
+    "version": "0.1.22-cli-series",
+    "binary_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+    "installed_manifest_sha256": "94f32c3945ae52d122216b7789ef4a5a15086cd7eeb4f6e552ec0b69353a0141",
+    "outer_package_manifest_sha256": "cff7cd53b5d6803d8363d265c3f15651de8cdae87fba6728e49a6ed6cb499784",
+    "runtime_manifest_sha256": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0",
+    "interpreter_sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
+    "file_count": 24,
+    "all_installed_bytes_modes_match": true,
+    "no_extra_files": true,
+    "helpers": [
+      {
+        "path": "lib/trial/auth_guard.py",
+        "sha256": "4c3bfcb04a74c9f5b14585a582e4c5e3931304b42a4beead5bf401373e802973",
+        "mode": "0o600"
+      },
+      {
+        "path": "lib/trial/codex_exec.py",
+        "sha256": "462986a698ce87617f678fd3a04d7e006a3afe45cc5c175ded541aa94fcab816",
+        "mode": "0o600"
+      }
+    ]
+  },
+  "source_binding": {
+    "manifest": "docs/cli-version-source-manifest.json",
+    "sha256": "d19112993aaec05278d653c974cfe7ff55ec82cd124df0920942a44bcaa7bb08",
+    "files": 269,
+    "note": "Runtime and tests unchanged after final Go build; provider-runtime.md prose updated after build, no compiled input changed."
+  },
+  "accepted": [
+    {
+      "provider": "claude-code",
+      "version": "1.0.61",
+      "package": "0.1.22-cli-series",
+      "round_sha256": "ea3b92b59fe3a4abf7884d571a00f9b09c92cf33365a46d919554cc7fda07b8f",
+      "binary_sha256": "098701693431fbaa5f682e5d11c4d1400b8403dd86cfdf06bacf6910d3b88be1",
+      "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+      "installed_package": true,
+      "pin_bypass": false,
+      "status": "passed",
+      "requested_model": "deepseek-v4.1-flash-1017",
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "61be923f7fd41945c492727ec0a1755ec00bf566e68699733027d6bb5ca71875",
+        "observed_size": 31,
+        "observed_sha256": "61be923f7fd41945c492727ec0a1755ec00bf566e68699733027d6bb5ca71875",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "claude-code",
+      "version": "2.1.317",
+      "package": "0.1.22-cli-series",
+      "round_sha256": "e82854702eb3dcc0d99e9047927ffcb9bb7cd4eb1c84b8b7332e961b2a797312",
+      "binary_sha256": "09f153b46b5df9e8b3454716d682a91901de020cbca630f61dec1a015b32b5e9",
+      "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+      "installed_package": true,
+      "pin_bypass": false,
+      "status": "passed",
+      "requested_model": "deepseek-v4.1-flash-1017",
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "2e1aa90d00e3bc445bf9e504564b08eca584437f89b40e744ac3cd8fb4717749",
+        "observed_size": 31,
+        "observed_sha256": "2e1aa90d00e3bc445bf9e504564b08eca584437f89b40e744ac3cd8fb4717749",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.34",
+      "package": "0.1.22-cli-series",
+      "round_sha256": "97c096f60fb507139def63dcd83e3d6b847537bf7a475eac96f917879fd552b1",
+      "binary_sha256": "9cd26b579840f0f5c9148a8059ad651904c08b41b7f2ef0b4ec04b9ba898844e",
+      "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+      "installed_package": true,
+      "pin_bypass": false,
+      "status": "passed",
+      "requested_model": "deepseek-v4.1-flash-1017",
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "d38619a1b516bf0be1c18d0c0cb0d7e547d0ed2e55334f2325e35bbe1c0c1626",
+        "observed_size": 31,
+        "observed_sha256": "d38619a1b516bf0be1c18d0c0cb0d7e547d0ed2e55334f2325e35bbe1c0c1626",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    },
+    {
+      "provider": "grok-build",
+      "version": "1.0.70",
+      "package": "0.1.22-cli-series",
+      "round_sha256": "575b8162c8b90f4ba322473a34c3ce5a0cff2efe71f3ee4b30a51e4c52974673",
+      "binary_sha256": "5c8a688251bf61e35370b828b6a353b0a20fcc3f64000de8a91d426039f29cec",
+      "orchestrator_sha256": "f4c4c913b060ca2e30364bfb5530ecfa8424fe3e8f6e4f63b1f4ba5686b25954",
+      "installed_package": true,
+      "pin_bypass": false,
+      "status": "passed",
+      "requested_model": "deepseek-v4.1-flash-1017",
+      "artifact": {
+        "declared_size": 31,
+        "declared_sha256": "56128a63919fd323d8f54718751841a346bff97e90b2dad62a845f81baaf918c",
+        "observed_size": 31,
+        "observed_sha256": "56128a63919fd323d8f54718751841a346bff97e90b2dad62a845f81baaf918c",
+        "size_matches": true,
+        "digest_matches": true,
+        "exact_match": true
+      },
+      "collect": "passed",
+      "ack": "acknowledged",
+      "accept": "accepted",
+      "final_status": "completed"
+    }
+  ],
+  "summary": {
+    "claude": 2,
+    "grok": 2,
+    "current_main_all_provider_direct_owner_loops": 31
+  },
+  "scope": "Exact current installed main package gateway endpoints; not first-party model acceptance or all Claude/Grok versions in this package. Other series versions retain applicable historical evidence.",
+  "independent_evidence_review": {
+    "status": "passed",
+    "fresh_rounds_reviewed": 4,
+    "scope": "Exact main22 installed-package binary/pin/doctor/marker/size/SHA/collect/ACK/accept/completed independently matched to raw rounds."
+  }
+}
