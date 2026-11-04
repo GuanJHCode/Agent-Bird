@@ -123,6 +123,40 @@ class _FixtureMetadataSource:
         )
 
 
+
+def _expected_refresh_request(version: str) -> dict[str, str]:
+    request = {
+        "client_id": "app_EMoamEEZ73f0CkXaXp7hrann",
+        "grant_type": "refresh_token",
+        "refresh_token": SYNTHETIC_REFRESH_TOKEN,
+    }
+    if version == "0.166.0":
+        request["refresh_reason"] = "proactive_expiry"
+    elif version != "0.154.0":
+        raise AssertionError("unsupported_refresh_request_version")
+    return request
+
+
+def _is_expected_refresh_request(request: object, version: str) -> bool:
+    return request == _expected_refresh_request(version)
+
+
+def test_refresh_request_oracle_is_exact_and_version_bound():
+    legacy = _expected_refresh_request("0.154.0")
+    current = _expected_refresh_request("0.166.0")
+    assert set(legacy) == {"client_id", "grant_type", "refresh_token"}
+    assert current == dict(legacy, refresh_reason="proactive_expiry")
+    assert _is_expected_refresh_request(legacy, "0.154.0")
+    assert _is_expected_refresh_request(current, "0.166.0")
+    assert not _is_expected_refresh_request(legacy, "0.166.0")
+    assert not _is_expected_refresh_request(current, "0.154.0")
+    assert not _is_expected_refresh_request(dict(current, refresh_reason="unknown"), "0.166.0")
+    assert not _is_expected_refresh_request(dict(current, unexpected="field"), "0.166.0")
+    assert not _is_expected_refresh_request(dict(current, refresh_token="different-token"), "0.166.0")
+    with pytest.raises(AssertionError, match="unsupported_refresh_request_version"):
+        _expected_refresh_request("0.167.0")
+
+
 def _selected_fixture_metadata_source() -> _FixtureMetadataSource:
     return _FixtureMetadataSource(
         NATIVE_VERSION_INPUT, NATIVE_TEST_PINS[NATIVE_VERSION_INPUT]
@@ -734,6 +768,8 @@ def _strict_sandbox_profile(home: _FixtureHome, binary: Path, port: int) -> str:
         "(allow process-fork)",
         "(allow signal (target self))",
         "(allow sysctl-read)",
+        # CoreFoundation resolves the current UID before using CFFIXED_USER_HOME.
+        '(allow mach-lookup (global-name "com.apple.system.opendirectoryd.libinfo"))',
         '(allow file-read* (subpath "/System"))',
         '(allow file-read* (subpath "/usr/lib"))',
         '(allow file-read* (subpath "/usr/share"))',
@@ -831,6 +867,53 @@ def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
     assert "SYS_shared_region" not in profile
     assert "(deny network*)" in profile
     assert '(deny mach-lookup (global-name "com.apple.securityd"))' in profile
+
+
+def test_fixture_home_and_mach_lookup_permissions_are_exact():
+    home = _new_fixture_home()
+    try:
+        env = _minimal_environment(home)
+        assert env["CFFIXED_USER_HOME"] == env["HOME"] == str(home.home)
+        profile = _strict_sandbox_profile(home, Path(sys.executable).resolve(), 43123)
+        allowed = re.findall(r'\(allow mach-lookup \(global-name "([^"]+)"\)\)', profile)
+        assert allowed == ["com.apple.system.opendirectoryd.libinfo"]
+        assert str(Path.home()) not in profile
+        assert "(deny default)" in profile
+        assert "(deny network*)" in profile
+    finally:
+        shutil.rmtree(home.root)
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="requires macOS Seatbelt")
+def test_fixture_mach_lookup_and_real_home_denials_run_under_seatbelt():
+    home = _new_fixture_home()
+    try:
+        profile = _strict_sandbox_profile(home, Path(sys.executable).resolve(), 43123)
+        code = r'''import ctypes,json,os
+lib=ctypes.CDLL('/usr/lib/libSystem.B.dylib')
+sandbox=ctypes.CDLL('/usr/lib/libsandbox.dylib')
+port=ctypes.c_uint.in_dll(lib,'bootstrap_port').value
+sandbox.sandbox_init.argtypes=[ctypes.c_char_p,ctypes.c_uint64,ctypes.POINTER(ctypes.c_char_p)]
+lib.bootstrap_look_up.argtypes=[ctypes.c_uint,ctypes.c_char_p,ctypes.POINTER(ctypes.c_uint)]
+err=ctypes.c_char_p()
+assert sandbox.sandbox_init(PROFILE.encode(),0,ctypes.byref(err))==0
+results={}
+for name in ['com.apple.system.opendirectoryd.libinfo','com.apple.system.opendirectoryd.membership','com.apple.system.opendirectoryd','com.apple.securityd','com.apple.cfprefsd.agent','com.apple.cfprefsd.daemon']:
+ out=ctypes.c_uint();results[name]=lib.bootstrap_look_up(port,name.encode(),ctypes.byref(out))
+try:
+ fd=os.open(REAL_HOME,os.O_RDONLY);os.close(fd);results['real_home_denied']=False
+except PermissionError:
+ results['real_home_denied']=True
+print(json.dumps(results))
+'''
+        result = subprocess.run([sys.executable, "-I", "-S", "-B", "-c", "PROFILE=" + repr(profile) + "\nREAL_HOME=" + repr(str(Path.home())) + "\n" + code], capture_output=True, text=True, timeout=10)
+        assert result.returncode == 0, result.stderr
+        observed = json.loads(result.stdout)
+        assert observed.pop("real_home_denied") is True
+        assert observed.pop("com.apple.system.opendirectoryd.libinfo") == 0
+        assert observed and all(value != 0 for value in observed.values())
+    finally:
+        shutil.rmtree(home.root)
 
 
 @pytest.mark.parametrize(
@@ -1065,11 +1148,7 @@ def test_rpc_error_preserves_real_http_and_auth_oracles(monkeypatch, scenario):
                 endpoint.hostname, endpoint.port, timeout=2
             )
             try:
-                connection.request("POST", endpoint.path, json.dumps({
-                    "client_id": "app_EMoamEEZ73f0CkXaXp7hrann",
-                    "grant_type": "refresh_token",
-                    "refresh_token": SYNTHETIC_REFRESH_TOKEN,
-                }), {"Content-Type": "application/json"})
+                connection.request("POST", endpoint.path, json.dumps(_expected_refresh_request(NATIVE_VERSION_INPUT)), {"Content-Type": "application/json"})
                 response = connection.getresponse()
                 assert response.status == 400
                 response.read()
@@ -1102,6 +1181,7 @@ def _minimal_environment(home: _FixtureHome) -> dict[str, str]:
     return {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
         "HOME": str(home.home),
+        "CFFIXED_USER_HOME": str(home.home),
         "CODEX_HOME": str(home.codex_home),
         "CODEX_SQLITE_HOME": str(home.sqlite_home),
         "PWD": str(home.workspace),
@@ -1699,11 +1779,7 @@ def test_fixed_native_refresh_tripwire_blocks_oauth_egress() -> None:
                     request = json.loads(body)
                 except (UnicodeDecodeError, json.JSONDecodeError):
                     request = None
-                valid = request == {
-                    "client_id": "app_EMoamEEZ73f0CkXaXp7hrann",
-                    "grant_type": "refresh_token",
-                    "refresh_token": SYNTHETIC_REFRESH_TOKEN,
-                }
+                valid = _is_expected_refresh_request(request, NATIVE_VERSION_INPUT)
             observation.record(valid=valid)
             response = b'{"error":"invalid_grant"}'
             self.send_response(400)

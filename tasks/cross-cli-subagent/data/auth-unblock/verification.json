@@ -1,0 +1,57 @@
+{
+  "status": "pass",
+  "source_fix": "7cb11e4c2ac7b6b07b2713f41865921342ba6a7e",
+  "base": "9d39f127af8d3d52c0ae46bc79254a699b3b541b",
+  "modified_source": "tools/real-user-trial/test_native_auth_tripwire.py",
+  "source_sha256": "99c10ec6d743c241abfc9625ad673b8fb36712df017b5b74e739ba6e366a30cd",
+  "production_files_changed": false,
+  "tests": 240,
+  "passed": 240,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "exit_code": 0,
+  "native_tripwire_passed": true,
+  "independent_review": "PASS",
+  "independent_native_tests": 37,
+  "independent_native_skipped": 0,
+  "native_version": "0.166.0",
+  "native_sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+  "reused_evidence": [
+    "Go race 540 top-level pass, 8 explicit skips",
+    "actual Codex-to-Claude and Claude-to-Codex reviewed two-revision flows"
+  ],
+  "historical_root_test_setup_failure_retained": "final.xml",
+  "reports": [
+    {
+      "path": "final-r2.log",
+      "size": 840,
+      "sha256": "0811e671067270e90a72539c94e8a871aaed8eea088ae487aff9b833e45c9b39"
+    },
+    {
+      "path": "final-r2.xml",
+      "size": 38503,
+      "sha256": "3c4c557cb8d0ab3e361ed0de1f1471a4ec8913dbc8f1602edbae6522aedde877"
+    },
+    {
+      "path": "final.log",
+      "size": 2051,
+      "sha256": "b6df2d742f46938dea9ea7c913647d6dd74b2bbc86d69776900a74f7a5854660"
+    },
+    {
+      "path": "final.xml",
+      "size": 39449,
+      "sha256": "4a5d4a55948d50a3fec955d7e128ab312db70eec35e9a1a46e665fd21785ffe5"
+    },
+    {
+      "path": "worker-native-final.log",
+      "size": 99,
+      "sha256": "e761c71d96e96c950bb323ac8b50eaab6f9a2028bafd6837dea512103d291253"
+    },
+    {
+      "path": "worker-native-final.xml",
+      "size": 6490,
+      "sha256": "6521b41eabcb3ee1d4ab6866f4cf1ea09331fdb3faba17e4ddee1179e1068373"
+    }
+  ]
+}

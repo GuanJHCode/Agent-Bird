@@ -1,5 +1,11 @@
 # 独立最终审核记录
 
+## 后续复核：PASS
+
+`review_native_coding` 已独立审核冻结修复 `7cb11e4c`。仅改变原生认证测试 fixture：exact libinfo 查询许可、CFFIXED_USER_HOME 合成目录、按版本精确匹配 refresh 请求。实际 Seatbelt 负面测试证明真实 HOME、其它 OpenDirectory、securityd、cfprefsd 仍不可访问。独审重新运行 exact 0.166 全文件：37 passed、0 skipped；原 baseline 请求存在、guarded 请求不增加、auth 字节/inode 不变断言全部执行，未发现 blocker。
+
+主会话另在集成工作区运行完整相关套件：240 passed、0 failed/errors/skipped。生产代码未改，先前 Go 和真实双向闭环证据继续有效。后续证据见 [auth-unblock.md](auth-unblock.md)。下方为原始失败阶段审核记录。
+
 审核者：`/root/review_native_coding`。主会话汇入其返回结论；审核过程中未修改源码或运行真实模型。
 
 **VERDICT=BLOCKED（核心功能 PASS；整体验收 BLOCKED）**

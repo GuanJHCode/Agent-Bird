@@ -1,0 +1,33 @@
+........................................................................ [ 30%]
+........................................................................ [ 60%]
+................................F....................................... [ 90%]
+........................                                                 [100%]
+=================================== FAILURES ===================================
+_____________ test_prepare_launch_real_native_candidate_full_path ______________
+
+tmp_path = PosixPath('/private/tmp/agent-bird-auth-unblock-final-tests/test_prepare_launch_real_nativ0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x107bb51d0>
+
+    def test_prepare_launch_real_native_candidate_full_path(tmp_path, monkeypatch):
+>       pin = _candidate_from_explicit_manifest()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools/real-user-trial/test_native_codex_prepare.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _candidate_from_explicit_manifest() -> fixture._CandidatePin:
+        raw = os.environ.get("CODEX_TRIAL_PIN_MANIFEST")
+        if not raw:
+>           raise AssertionError("candidate_pin_manifest_required")
+E           AssertionError: candidate_pin_manifest_required
+
+tools/real-user-trial/test_native_codex_prepare.py:98: AssertionError
+=============================== warnings summary ===============================
+tools/native-product-bridge/test_private_product_plan.py::test_native_product_run_module_compiles_without_starting_native
+  /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/scripts/native_product_case.py:1348: SyntaxWarning: 'return' in a 'finally' block
+    return {"summary": summary, "result": result}
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tools/real-user-trial/test_native_codex_prepare.py::test_prepare_launch_real_native_candidate_full_path
+1 failed, 239 passed, 1 warning in 14.66s

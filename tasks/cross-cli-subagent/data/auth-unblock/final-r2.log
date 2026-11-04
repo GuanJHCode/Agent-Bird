@@ -1,0 +1,11 @@
+........................................................................ [ 30%]
+........................................................................ [ 60%]
+........................................................................ [ 90%]
+........................                                                 [100%]
+=============================== warnings summary ===============================
+tools/native-product-bridge/test_private_product_plan.py::test_native_product_run_module_compiles_without_starting_native
+  /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/scripts/native_product_case.py:1348: SyntaxWarning: 'return' in a 'finally' block
+    return {"summary": summary, "result": result}
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+240 passed, 1 warning in 19.96s

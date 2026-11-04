@@ -1,8 +1,12 @@
 # 跨 CLI subagent 实施与复核
 
+## 最新状态：阻塞已解除
+
+2026-11-04 后续修复仅涉及 `test_native_auth_tripwire.py`：精确 libinfo 目录查询依赖、合成 CFFIXED_USER_HOME、0.166 四字段 refresh 协议。冻结修复 `7cb11e4c` 独审 PASS；主会话原工作区全套相关 Python 回归 240 passed、0 failed/errors/skipped，原 native baseline + guarded 均实际执行。生产代码不变，既有 Go 与双向真实模型证据有效。本轮约定范围验收 PASS。见 [auth-unblock.md](auth-unblock.md)。以下 BLOCKED 状态、HEAD/index 与原失败计数均作为历史保留。
+
 后续操作：用户已授权推送远仓，目标为独立分支 `feat/cross-cli-subagent-20261104`。原 `main` 与远端 `main/master` 无共同祖先，不覆盖远端分支；以下验收状态及 HEAD/index 记录是推送前的历史证据，整体验收仍为 BLOCKED。
 
-## 当前状态（2026-11-04，覆盖下方历史中间状态）
+## 初次验收状态（历史）
 
 **核心功能 PASS，整体验收 BLOCKED。** 两个方向均完成真实编码、主会话直接返工、第二轮代码/测试复核、独立 accept 和 ACK。唯一整体验收阻断是 native refresh-tripwire 的 `baseline_count=0`，guarded 分支尚未执行，不能宣告整体完成。
 

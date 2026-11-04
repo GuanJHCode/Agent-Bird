@@ -1,8 +1,8 @@
 # 跨 CLI subagent 最终复核
 
-**2026-11-04：核心功能 PASS，整体验收 BLOCKED。** 实现已保护性集成到原工作区；两个方向的真实编码、直接返工和业务验收均有证据。认证 refresh-tripwire 仍有 1 项失败，不能宣告整体交付完成。
+**2026-11-04 更新：本轮约定的跨 CLI subagent 范围验收 PASS。** 唯一的认证 refresh-tripwire 阻塞已解除：精确 Codex 0.166.0 的 baseline 与 guarded 两阶段实际通过，主会话完整回归 240 项通过、0 失败/错误/跳过，独立审核 PASS。见 [阻塞解除记录](auth-unblock.md) 和 [最新 JUnit](../data/auth-unblock/final-r2.xml)。生产代码未改变，既有双向真实编码及 Go 验证证据继续适用；更多平台、版本和主动唤醒能力仍按下文范围单独验证。
 
-后续用户已明确授权推送远仓。本地 `main` 与远端 `main/master` 无共同祖先，因此使用独立分支 `feat/cross-cli-subagent-20261104` 保存当前已验证代码及必要报告，保留远端既有分支。下文“HEAD 未变、0 staged、未推送”等内容均描述实施验收时的历史状态；推送授权不改变上述验收结论。此次提交同时保留已验证代码所依赖的原有兼容性基底，未审核的本机目录和缓存继续留在本地。
+用户已明确授权推送远仓。本地 `main` 与远端 `main/master` 无共同祖先，因此使用独立分支 `feat/cross-cli-subagent-20261104` 保存已验证代码及必要报告，保留远端既有分支。下文“HEAD 未变、0 staged、未推送”及原失败计数均描述初次实施验收时的历史状态；当前结论以上方修复后复核为准。提交保留已验证代码依赖的兼容性基底，未审核的本机目录和缓存继续留在本地。
 
 ## 范围与版本
 
@@ -69,19 +69,22 @@
 
 | 实际检查 | 新报告结果 | 适用范围 |
 | --- | --- | --- |
+| 阻塞修复后完整相关 Python 回归（native 双 opt-in） | 240 通过、0 失败/错误/跳过；独审 PASS | 冻结修复 `7cb11e4c`，原工作区实际执行；见 `auth-unblock/final-r2.xml` |
 | `go test -race -count=1 -json ./...` | 540 顶层通过、8 跳过、0 失败；含子例 1175 通过 | 最终源码 `68e8758`；14 包通过，contract 包无测试 |
 | `go vet ./...`；原工作区 `go build ./...` | 均退出 0 | 最终源码/已集成原工作区 |
 | 最终安装 wrapper smoke | 7 通过、0 失败/跳过 | 私有包 `.7`，包含真实安装收据绑定 |
 | `pytest tasks/cross-cli-subagent/tests/test_delivery_scripts.py tools/native-product-bridge/test_local_product_driver.py` | 26 通过、0 失败/错误/跳过 | 最终包 `.7`；显式提供 BIRD_TEST_INSTALLED_ROOT 与 ORCHESTRATOR_PRODUCT_BINARY |
-| `pytest tools/native-product-bridge tools/real-user-trial`，显式 native opt-in | 212 项：211 通过、1 失败、0 错误/跳过 | Python/native 认证代码最终版本；其后只有 Go 工作区分配和安全诊断增量，G1/包入口已另用 `.7` 补验 |
+| 修复前 `pytest tools/native-product-bridge tools/real-user-trial`，显式 native opt-in | 历史：212 项，211 通过、1 失败、0 错误/跳过 | 原失败原样保留；当前以上方修复后 240 项回归为准 |
 | Claude 2.1.267 / 2.1.316 本地 SSE native 运输 | 每版本 2 项 race 通过 | 工具运输和写入范围；不是额外真实模型编码声明 |
-| 独立最终审核 `review_native_coding` | 核心 PASS；整体 BLOCKED | 冻结源码、原工作区字节/执行位、原始计数、两方向真实记录 |
+| 独立审核 `review_native_coding` | 初审核心 PASS、整体 BLOCKED；后续修复独审 PASS | 最初双向真实记录及冻结代码，后续 exact 0.166 认证测试、OS 拒绝测试与原始计数 |
 
 Go 全量的 8 个 skip 是显式诊断/真实 provider opt-in：cause observation、stage timing、两个 Claude native transport、real candidate、real reviewer、两个多版本矩阵。Claude native transport 另有固定版本专项通过记录，真实核心编码由本报告两个流程证明；没有把 skip 算成通过。
 
 计数见 [counts.json](../data/final/tests/counts.json)、[race 原始计数](../data/final/tests/go-race-v7-counts.json)、[失败 JUnit](../data/final/tests/python-native-final.xml)、[最终包 JUnit](../data/final/tests/python-package-v7.xml)。完整 Go JSONL 与模型转录保留在私有任务根，导出证据只含必要数据。
 
-## 唯一整体验收阻断
+## 原整体验收阻断（已解除，保留历史失败）
+
+修复已查明两项根因：沙箱遗漏 CoreFoundation 查询 UID/home 所需的精确 `com.apple.system.opendirectoryd.libinfo` 服务，导致配置失败及 network policy 未初始化；0.166 请求新增 `refresh_reason=proactive_expiry`，旧三字段判定也不适用。修复仅增加该精确只读查询服务、把 `CFFIXED_USER_HOME` 固定到合成 HOME，并按固定版本精确匹配 HTTP 请求。真实 HOME、其它目录服务、securityd/cfprefsd 仍通过实际 Seatbelt 负面测试拒绝。下面描述的是修复前失败，当前两阶段断言已全部执行通过。
 
 `tools/real-user-trial/test_native_auth_tripwire.py:1743` 的 `test_fixed_native_refresh_tripwire_blocks_oauth_egress` 失败：预期 baseline 至少一次受控 OAuth refresh，实际 `baseline_count=0`。因该断言失败，随后 guarded 分支及其“无额外 OAuth egress、认证字节/inode 不变”的真实 oracle **未执行**。
 
