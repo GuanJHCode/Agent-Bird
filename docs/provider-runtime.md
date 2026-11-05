@@ -122,14 +122,16 @@ feedback/acceptance 各最多 16 KiB；编码后的单任务 adapter 另限 16 K
 
 ### 探测与升级
 
-每个 Provider 有一份冻结的稳定版窗口，而不是单版本常量。窗口记录在 `tools/orchestrator/internal/adapter/compatibility_catalog.json`，本次上限的查询时间是 2026-11-02T01:53:00Z。运行时不联网解析 `latest`。规范化版本只用来判断是否落在基线和上限之间，并且必须出现在该次冻结的已发布清单里；锁和启动身份仍使用原始 `--version` 文本、绝对路径和 SHA-256。`ValidatePin` 与最终启动前的摘要复核保留。区间外、无法解析、预发布或未发布版本返回明确错误码和窗口两端，不降级执行。
+每个 Provider 有一份冻结的稳定版窗口，而不是单版本常量。窗口记录在 `tools/orchestrator/internal/adapter/compatibility_catalog.json`，Claude 清单复用已冻结的 2026-11-03T03:52:16.898784+00:00 快照，其余 Provider 清单保持 2026-11-02T01:53:00Z 的原内容。运行时不联网解析 `latest`。规范化版本只用来判断是否落在基线和上限之间，并且必须出现在该次冻结的已发布清单里；锁和启动身份仍使用原始 `--version` 文本、绝对路径和 SHA-256。`ValidatePin` 与最终启动前的摘要复核保留。区间外、无法解析、预发布或未发布版本返回明确错误码和窗口两端，不降级执行。
 
 | Provider | 基线 | 冻结上限 | 协议 |
 | --- | --- | --- | --- |
-| Claude Code | 2.1.267 | 2.1.316 | `claude-stream-json-v1` |
+| Claude Code | 1.0.61 | 2.1.317 | `claude-stream-json-v1` |
 | AGY | 1.2.3 | 1.4.12 | `agy-stream-json-v1` |
 | Grok | 1.0.34 | 1.0.70 | `grok-streaming-json-v1` |
 | Codex | 0.154.0 | 0.166.0 | `codex-jsonl-0.154.0` |
+
+Claude 共收录 405 个已发布版本（1.0 系列 62、2.0 系列 70、2.1 系列 273），仅表示冻结版本策略。低于 2.1.267 的版本仅允许 typed reviewer/read-only，不能使用 legacy profile、候选 action 或 workspace。1.0.86 之前使用 `--disallowedTools`，之后使用 `--disallowed-tools`；所有 typed Claude 仍须宣告 `--tools`，缺失即 `provider_capability_unsupported`，不会降级为宽权限。写入仍仅 exact 2.1.267/2.1.316 + 已核验 SHA。未逐版运行本轮 native/live；[合流依据与边界](../tasks/cross-cli-hardening-20261105/docs/T10-compatibility.md)。
 
 Codex 协议名仍然表示 0.154.0 起的 JSONL 合同，不表示只允许 0.154.0。历史 SHA `4f859826…afcc` 只用于识别那一枚基线二进制，防止它被标成其他 Provider。Codex 生产 profile 还要求 exact native pin 与已安装完整 native runtime；原生认证 guard（`plugins/codex-orchestrator/lib/trial/auth_guard.py`）按受控 bundle 与精确 pin 验证。Codex write 仅 exact 0.166.0；只读目录窗口不能扩大 coding 门禁。
 

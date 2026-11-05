@@ -186,9 +186,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T02-review.md",
-        "accepted_commit": null
+        "accepted_commit": "428a5877d63247d0dd0b345b0765aa3c912507c2"
       },
-      "commits": [],
+      "commits": [
+        "428a5877d63247d0dd0b345b0765aa3c912507c2"
+      ],
       "blockers": [],
       "limitations": [],
       "updated_at": null
@@ -280,12 +282,12 @@
       "depends_on": [
         "T02"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
+      "baseline_commit": "428a5877d63247d0dd0b345b0765aa3c912507c2",
+      "implementation_agent": "/root/implement_t05",
       "review_agent": null,
-      "worktree": null,
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05",
       "write_scope": [],
       "changed_files": [],
       "acceptance_ids": [
@@ -523,30 +525,59 @@
       "depends_on": [
         "T00"
       ],
-      "status": "in_progress",
-      "completion_basis": null,
+      "status": "done",
+      "completion_basis": "implemented",
       "baseline_commit": "29691e9f08468b1de56cb0c42977084b58c91975",
       "implementation_agent": "/root",
-      "review_agent": null,
+      "review_agent": "/root/review_t02",
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t10",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "tools/orchestrator/internal/adapter/compatibility_catalog.json",
+        "tools/orchestrator/internal/adapter/compatibility_test.go",
+        "tools/orchestrator/internal/adapter/compatibility_hardening_test.go",
+        "docs/provider-runtime.md",
+        "docs/support-matrix.md"
+      ],
       "acceptance_ids": [
         "COMP-01",
         "COMP-02",
         "COMP-03"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T10-compatibility.md",
+      "tests": [
+        {
+          "status": "PASS",
+          "evidence": "data/public-evidence/T10-green-r4.json",
+          "counts": {
+            "passed": 103,
+            "failed": 0,
+            "skipped": 1
+          }
+        },
+        {
+          "status": "PASS",
+          "evidence": "data/public-evidence/T10-host.json",
+          "counts": {
+            "passed": 7,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "evidence": "data/public-evidence/T10-integrated.json"
+        }
+      ],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
+        "status": "PASS",
+        "report": "reviews/T10-review.md",
         "target_commit": null,
         "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "PASS",
+        "evidence": "reviews/T10-review.md",
         "accepted_commit": null
       },
       "commits": [],

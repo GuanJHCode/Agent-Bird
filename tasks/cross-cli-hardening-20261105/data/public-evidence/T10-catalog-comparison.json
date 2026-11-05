@@ -1,0 +1,35 @@
+{
+  "baseline": "29691e9f08468b1de56cb0c42977084b58c91975",
+  "comparison": "4b2b4916232c9d7526f51cf0a73204748c62faf8",
+  "providers": {
+    "claude-code": {
+      "count": 405,
+      "canonical_json_sha256": "fa55bd374bee860006b36aeb851e1f93b4cf1611106d8910320cfa51bd347228",
+      "equals_comparison": true,
+      "equals_baseline": false
+    },
+    "antigravity-cli": {
+      "count": 35,
+      "canonical_json_sha256": "7e27dd2d9ff2b75e985eca9c97b04d9dce5fd6beecbc669b8c7d59c3bd0d1df7",
+      "equals_comparison": true,
+      "equals_baseline": true
+    },
+    "grok-build": {
+      "count": 37,
+      "canonical_json_sha256": "f04156a221a26ae9ffbb1484ee3ac60041ddbf5869f5b1953566d3850f2aeda7",
+      "equals_comparison": true,
+      "equals_baseline": true
+    },
+    "codex-cli": {
+      "count": 21,
+      "canonical_json_sha256": "fd05ffda7cb30bcb99103009ad8b396cc0a982cf6a22c029f415d73d54bd308d",
+      "equals_comparison": true,
+      "equals_baseline": true
+    }
+  },
+  "source_files_sha256": {
+    "tools/orchestrator/internal/adapter/compatibility_catalog.json": "67a34b8716782c36fa3dcda432fa4778aedc6f5785946e5908ce0bd2dbe88d50",
+    "tools/orchestrator/internal/adapter/admit.go": "acad4d290903d8755b5f7dcd625fca52032891d9fff6deac70fc8d954e54da36",
+    "tools/orchestrator/internal/adapter/compatibility_hardening_test.go": "11f4562c3c5f8a4af97e79872ae55cb9213115c8e3f2dff52a673e825d137d6d"
+  }
+}

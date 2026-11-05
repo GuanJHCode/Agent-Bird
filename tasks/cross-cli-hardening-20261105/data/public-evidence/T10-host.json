@@ -1,0 +1,34 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/host",
+    "-run",
+    "TestClaudeGatewayRejectsEveryUnsupportedBranchBeforeSpawn|TestClaudeManagedGatewayRequiresPositiveToolsCapability|TestCodexInvocationWithoutPinCannotBypassNativeGuard"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t10/tools/orchestrator",
+  "start": "2026-11-05T03:41:45.860180+00:00",
+  "elapsed_seconds": 11.891,
+  "exit_code": 0,
+  "source_commit": "08aa0184a8ea4348dce4b4ab3e6f44780f9795e3",
+  "tracked_diff_sha256": "272a7afe5a7c664ec982a736e8b80f6daa9e25dbf1d29c44a388915ee7b953e8",
+  "counts": {
+    "passed": 7,
+    "failed": 0,
+    "errors": null,
+    "skipped": 0
+  },
+  "package_failures": 0,
+  "environment": {
+    "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/opt/homebrew/bin",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t10",
+    "TMPDIR": "/private/tmp"
+  },
+  "production_files_sha256": "57c02f43c9387c9e55eabc189087bd0c59430b2a6c09429ee277fbd371d18a88",
+  "log_sha256": "76bf1cd2e69bf07472c690427597f2a67afe9b9c4497abee75bbb604d2006fb6"
+}

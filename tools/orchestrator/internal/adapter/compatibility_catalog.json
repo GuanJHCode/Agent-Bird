@@ -1,19 +1,1451 @@
 {
-  "frozen_at": "2026-11-02T01:53:00Z",
+  "frozen_at": "2026-11-03T03:52:16.898784+00:00",
   "note": "Ceiling is the newest non-prerelease release observed at frozen_at. Runtime does not refetch latest.",
   "providers": {
     "claude-code": {
-      "baseline": "2.1.267",
-      "ceiling": "2.1.316",
+      "baseline": "1.0.61",
+      "ceiling": "2.1.317",
       "protocol": "claude-stream-json-v1",
       "source": "https://registry.npmjs.org/@anthropic-ai/claude-code",
       "dist_tags_at_freeze": {
-        "stable": "2.1.309",
-        "next": "2.1.316",
-        "latest": "2.1.316"
+        "stable": "2.1.311",
+        "next": "2.1.317",
+        "latest": "2.1.317"
       },
-      "baseline_evidence": "No source constant. Earliest version tied to the current stream-json contract and support-matrix acceptance is 2.1.267; 2.1.272 and 2.1.274 are later historical acceptances inside the window.",
+      "baseline_evidence": "1.0.61 is the fixed-binary boundary for required input-format, plan permissions, settings and strict MCP support. Earlier1.0 releases have materially different contracts and remain below the supported floor. Continuous published versions are tracked by compatibility cohorts; admission is not a direct-test claim.",
       "versions": [
+        {
+          "version": "1.0.61",
+          "published_at": "2025-07-25T20:52:31.027Z"
+        },
+        {
+          "version": "1.0.62",
+          "published_at": "2025-07-28T22:04:35.525Z"
+        },
+        {
+          "version": "1.0.63",
+          "published_at": "2025-07-29T21:27:31.493Z"
+        },
+        {
+          "version": "1.0.64",
+          "published_at": "2025-07-30T21:26:57.879Z"
+        },
+        {
+          "version": "1.0.65",
+          "published_at": "2025-07-31T21:44:51.996Z"
+        },
+        {
+          "version": "1.0.66",
+          "published_at": "2025-08-01T21:36:21.666Z"
+        },
+        {
+          "version": "1.0.67",
+          "published_at": "2025-08-01T22:35:04.073Z"
+        },
+        {
+          "version": "1.0.68",
+          "published_at": "2025-08-04T21:14:18.850Z"
+        },
+        {
+          "version": "1.0.69",
+          "published_at": "2025-08-05T16:27:31.792Z"
+        },
+        {
+          "version": "1.0.70",
+          "published_at": "2025-08-06T19:15:54.940Z"
+        },
+        {
+          "version": "1.0.71",
+          "published_at": "2025-08-07T21:33:10.140Z"
+        },
+        {
+          "version": "1.0.72",
+          "published_at": "2025-08-08T17:55:21.349Z"
+        },
+        {
+          "version": "1.0.73",
+          "published_at": "2025-08-11T21:30:29.164Z"
+        },
+        {
+          "version": "1.0.74",
+          "published_at": "2025-08-12T15:58:41.439Z"
+        },
+        {
+          "version": "1.0.76",
+          "published_at": "2025-08-12T18:01:01.410Z"
+        },
+        {
+          "version": "1.0.77",
+          "published_at": "2025-08-12T19:12:14.663Z"
+        },
+        {
+          "version": "1.0.78",
+          "published_at": "2025-08-13T18:08:07.253Z"
+        },
+        {
+          "version": "1.0.79",
+          "published_at": "2025-08-13T20:02:55.751Z"
+        },
+        {
+          "version": "1.0.80",
+          "published_at": "2025-08-13T20:59:17.592Z"
+        },
+        {
+          "version": "1.0.81",
+          "published_at": "2025-08-14T16:41:20.746Z"
+        },
+        {
+          "version": "1.0.82",
+          "published_at": "2025-08-15T21:08:19.137Z"
+        },
+        {
+          "version": "1.0.83",
+          "published_at": "2025-08-15T23:06:09.923Z"
+        },
+        {
+          "version": "1.0.84",
+          "published_at": "2025-08-18T22:36:19.901Z"
+        },
+        {
+          "version": "1.0.85",
+          "published_at": "2025-08-19T21:11:17.988Z"
+        },
+        {
+          "version": "1.0.86",
+          "published_at": "2025-08-20T22:10:29.765Z"
+        },
+        {
+          "version": "1.0.87",
+          "published_at": "2025-08-21T22:21:54.587Z"
+        },
+        {
+          "version": "1.0.88",
+          "published_at": "2025-08-22T00:43:54.508Z"
+        },
+        {
+          "version": "1.0.89",
+          "published_at": "2025-08-22T22:24:06.066Z"
+        },
+        {
+          "version": "1.0.90",
+          "published_at": "2025-08-24T22:41:06.467Z"
+        },
+        {
+          "version": "1.0.91",
+          "published_at": "2025-08-25T21:18:17.581Z"
+        },
+        {
+          "version": "1.0.92",
+          "published_at": "2025-08-25T22:50:24.852Z"
+        },
+        {
+          "version": "1.0.93",
+          "published_at": "2025-08-26T22:22:24.524Z"
+        },
+        {
+          "version": "1.0.94",
+          "published_at": "2025-08-27T20:13:08.204Z"
+        },
+        {
+          "version": "1.0.95",
+          "published_at": "2025-08-28T01:10:50.366Z"
+        },
+        {
+          "version": "1.0.96",
+          "published_at": "2025-08-28T15:04:37.121Z"
+        },
+        {
+          "version": "1.0.98",
+          "published_at": "2025-08-29T20:56:53.497Z"
+        },
+        {
+          "version": "1.0.100",
+          "published_at": "2025-09-01T22:34:48.950Z"
+        },
+        {
+          "version": "1.0.102",
+          "published_at": "2025-09-02T23:17:41.973Z"
+        },
+        {
+          "version": "1.0.103",
+          "published_at": "2025-09-03T23:10:53.687Z"
+        },
+        {
+          "version": "1.0.105",
+          "published_at": "2025-09-04T15:58:07.057Z"
+        },
+        {
+          "version": "1.0.106",
+          "published_at": "2025-09-04T23:22:21.845Z"
+        },
+        {
+          "version": "1.0.107",
+          "published_at": "2025-09-05T02:29:07.427Z"
+        },
+        {
+          "version": "1.0.108",
+          "published_at": "2025-09-05T22:36:49.343Z"
+        },
+        {
+          "version": "1.0.109",
+          "published_at": "2025-09-08T23:01:00.279Z"
+        },
+        {
+          "version": "1.0.110",
+          "published_at": "2025-09-09T22:06:44.373Z"
+        },
+        {
+          "version": "1.0.111",
+          "published_at": "2025-09-10T22:16:23.609Z"
+        },
+        {
+          "version": "1.0.112",
+          "published_at": "2025-09-12T00:07:45.734Z"
+        },
+        {
+          "version": "1.0.113",
+          "published_at": "2025-09-13T02:24:02.502Z"
+        },
+        {
+          "version": "1.0.114",
+          "published_at": "2025-09-15T21:08:05.119Z"
+        },
+        {
+          "version": "1.0.115",
+          "published_at": "2025-09-16T00:07:57.334Z"
+        },
+        {
+          "version": "1.0.116",
+          "published_at": "2025-09-16T22:02:38.918Z"
+        },
+        {
+          "version": "1.0.117",
+          "published_at": "2025-09-16T23:17:18.784Z"
+        },
+        {
+          "version": "1.0.118",
+          "published_at": "2025-09-17T23:41:24.667Z"
+        },
+        {
+          "version": "1.0.119",
+          "published_at": "2025-09-18T21:03:38.113Z"
+        },
+        {
+          "version": "1.0.120",
+          "published_at": "2025-09-19T21:08:21.676Z"
+        },
+        {
+          "version": "1.0.122",
+          "published_at": "2025-09-23T17:35:45.676Z"
+        },
+        {
+          "version": "1.0.123",
+          "published_at": "2025-09-23T20:49:33.199Z"
+        },
+        {
+          "version": "1.0.124",
+          "published_at": "2025-09-25T01:37:53.959Z"
+        },
+        {
+          "version": "1.0.125",
+          "published_at": "2025-09-25T22:46:03.480Z"
+        },
+        {
+          "version": "1.0.126",
+          "published_at": "2025-09-26T00:59:58.155Z"
+        },
+        {
+          "version": "1.0.127",
+          "published_at": "2025-09-26T17:04:43.234Z"
+        },
+        {
+          "version": "1.0.128",
+          "published_at": "2025-09-27T16:06:56.405Z"
+        },
+        {
+          "version": "2.0.0",
+          "published_at": "2025-09-29T14:41:14.895Z"
+        },
+        {
+          "version": "2.0.1",
+          "published_at": "2025-09-30T01:53:50.434Z"
+        },
+        {
+          "version": "2.0.2",
+          "published_at": "2025-09-30T23:24:33.425Z"
+        },
+        {
+          "version": "2.0.3",
+          "published_at": "2025-10-02T01:33:56.691Z"
+        },
+        {
+          "version": "2.0.5",
+          "published_at": "2025-10-02T16:20:59.106Z"
+        },
+        {
+          "version": "2.0.8",
+          "published_at": "2025-10-04T20:44:29.930Z"
+        },
+        {
+          "version": "2.0.9",
+          "published_at": "2025-10-06T21:15:21.832Z"
+        },
+        {
+          "version": "2.0.10",
+          "published_at": "2025-10-07T19:53:56.866Z"
+        },
+        {
+          "version": "2.0.11",
+          "published_at": "2025-10-08T20:13:03.929Z"
+        },
+        {
+          "version": "2.0.12",
+          "published_at": "2025-10-09T15:43:28.593Z"
+        },
+        {
+          "version": "2.0.13",
+          "published_at": "2025-10-09T17:20:50.066Z"
+        },
+        {
+          "version": "2.0.14",
+          "published_at": "2025-10-10T20:46:20.011Z"
+        },
+        {
+          "version": "2.0.15",
+          "published_at": "2025-10-14T17:18:10.785Z"
+        },
+        {
+          "version": "2.0.17",
+          "published_at": "2025-10-15T15:46:20.184Z"
+        },
+        {
+          "version": "2.0.18",
+          "published_at": "2025-10-15T19:45:18.737Z"
+        },
+        {
+          "version": "2.0.19",
+          "published_at": "2025-10-15T21:35:23.345Z"
+        },
+        {
+          "version": "2.0.20",
+          "published_at": "2025-10-16T16:01:05.689Z"
+        },
+        {
+          "version": "2.0.21",
+          "published_at": "2025-10-16T23:44:33.813Z"
+        },
+        {
+          "version": "2.0.22",
+          "published_at": "2025-10-17T21:40:29.277Z"
+        },
+        {
+          "version": "2.0.23",
+          "published_at": "2025-10-20T04:53:47.143Z"
+        },
+        {
+          "version": "2.0.24",
+          "published_at": "2025-10-20T18:36:49.330Z"
+        },
+        {
+          "version": "2.0.25",
+          "published_at": "2025-10-21T21:03:51.747Z"
+        },
+        {
+          "version": "2.0.26",
+          "published_at": "2025-10-23T22:43:25.280Z"
+        },
+        {
+          "version": "2.0.27",
+          "published_at": "2025-10-24T19:50:51.616Z"
+        },
+        {
+          "version": "2.0.28",
+          "published_at": "2025-10-27T20:45:04.126Z"
+        },
+        {
+          "version": "2.0.29",
+          "published_at": "2025-10-29T23:13:19.522Z"
+        },
+        {
+          "version": "2.0.30",
+          "published_at": "2025-10-30T22:23:48.671Z"
+        },
+        {
+          "version": "2.0.31",
+          "published_at": "2025-10-31T21:19:12.609Z"
+        },
+        {
+          "version": "2.0.32",
+          "published_at": "2025-11-03T23:09:10.512Z"
+        },
+        {
+          "version": "2.0.33",
+          "published_at": "2025-11-04T22:27:11.403Z"
+        },
+        {
+          "version": "2.0.34",
+          "published_at": "2025-11-05T20:44:58.296Z"
+        },
+        {
+          "version": "2.0.35",
+          "published_at": "2025-11-06T20:25:20.114Z"
+        },
+        {
+          "version": "2.0.36",
+          "published_at": "2025-11-07T21:54:57.368Z"
+        },
+        {
+          "version": "2.0.37",
+          "published_at": "2025-11-10T22:05:27.713Z"
+        },
+        {
+          "version": "2.0.41",
+          "published_at": "2025-11-14T01:55:35.892Z"
+        },
+        {
+          "version": "2.0.42",
+          "published_at": "2025-11-14T23:00:23.267Z"
+        },
+        {
+          "version": "2.0.43",
+          "published_at": "2025-11-17T22:19:17.451Z"
+        },
+        {
+          "version": "2.0.44",
+          "published_at": "2025-11-18T04:31:13.133Z"
+        },
+        {
+          "version": "2.0.45",
+          "published_at": "2025-11-18T16:31:06.710Z"
+        },
+        {
+          "version": "2.0.46",
+          "published_at": "2025-11-19T04:19:08.870Z"
+        },
+        {
+          "version": "2.0.47",
+          "published_at": "2025-11-19T22:38:50.075Z"
+        },
+        {
+          "version": "2.0.49",
+          "published_at": "2025-11-21T00:00:19.160Z"
+        },
+        {
+          "version": "2.0.50",
+          "published_at": "2025-11-21T17:13:30.845Z"
+        },
+        {
+          "version": "2.0.51",
+          "published_at": "2025-11-24T18:27:18.026Z"
+        },
+        {
+          "version": "2.0.52",
+          "published_at": "2025-11-24T23:01:06.778Z"
+        },
+        {
+          "version": "2.0.53",
+          "published_at": "2025-11-25T01:12:33.504Z"
+        },
+        {
+          "version": "2.0.54",
+          "published_at": "2025-11-25T23:52:47.226Z"
+        },
+        {
+          "version": "2.0.55",
+          "published_at": "2025-11-26T22:54:58.963Z"
+        },
+        {
+          "version": "2.0.56",
+          "published_at": "2025-12-01T23:38:38.455Z"
+        },
+        {
+          "version": "2.0.57",
+          "published_at": "2025-12-03T04:52:56.549Z"
+        },
+        {
+          "version": "2.0.58",
+          "published_at": "2025-12-03T18:34:25.537Z"
+        },
+        {
+          "version": "2.0.59",
+          "published_at": "2025-12-04T21:59:34.519Z"
+        },
+        {
+          "version": "2.0.60",
+          "published_at": "2025-12-05T21:53:25.502Z"
+        },
+        {
+          "version": "2.0.61",
+          "published_at": "2025-12-07T09:21:37.086Z"
+        },
+        {
+          "version": "2.0.62",
+          "published_at": "2025-12-09T00:21:11.631Z"
+        },
+        {
+          "version": "2.0.63",
+          "published_at": "2025-12-09T19:44:13.876Z"
+        },
+        {
+          "version": "2.0.64",
+          "published_at": "2025-12-10T01:15:46.128Z"
+        },
+        {
+          "version": "2.0.65",
+          "published_at": "2025-12-11T02:41:29.924Z"
+        },
+        {
+          "version": "2.0.66",
+          "published_at": "2025-12-11T19:03:40.985Z"
+        },
+        {
+          "version": "2.0.67",
+          "published_at": "2025-12-11T23:56:31.532Z"
+        },
+        {
+          "version": "2.0.68",
+          "published_at": "2025-12-12T22:56:02.877Z"
+        },
+        {
+          "version": "2.0.69",
+          "published_at": "2025-12-13T00:32:30.208Z"
+        },
+        {
+          "version": "2.0.70",
+          "published_at": "2025-12-15T22:38:58.864Z"
+        },
+        {
+          "version": "2.0.71",
+          "published_at": "2025-12-16T21:30:39.801Z"
+        },
+        {
+          "version": "2.0.72",
+          "published_at": "2025-12-17T21:21:00.969Z"
+        },
+        {
+          "version": "2.0.73",
+          "published_at": "2025-12-18T23:25:55.278Z"
+        },
+        {
+          "version": "2.0.74",
+          "published_at": "2025-12-19T21:08:38.116Z"
+        },
+        {
+          "version": "2.0.75",
+          "published_at": "2025-12-20T17:19:09.800Z"
+        },
+        {
+          "version": "2.0.76",
+          "published_at": "2025-12-22T23:56:39.366Z"
+        },
+        {
+          "version": "2.0.77",
+          "published_at": "2026-01-06T00:26:25.533Z"
+        },
+        {
+          "version": "2.1.0",
+          "published_at": "2026-01-07T02:43:04.533Z"
+        },
+        {
+          "version": "2.1.1",
+          "published_at": "2026-01-07T21:10:49.347Z"
+        },
+        {
+          "version": "2.1.2",
+          "published_at": "2026-01-08T21:19:38.381Z"
+        },
+        {
+          "version": "2.1.3",
+          "published_at": "2026-01-09T21:05:42.894Z"
+        },
+        {
+          "version": "2.1.4",
+          "published_at": "2026-01-10T22:23:31.653Z"
+        },
+        {
+          "version": "2.1.5",
+          "published_at": "2026-01-11T21:30:08.609Z"
+        },
+        {
+          "version": "2.1.6",
+          "published_at": "2026-01-13T01:42:47.331Z"
+        },
+        {
+          "version": "2.1.7",
+          "published_at": "2026-01-13T22:55:49.806Z"
+        },
+        {
+          "version": "2.1.8",
+          "published_at": "2026-01-15T00:41:01.272Z"
+        },
+        {
+          "version": "2.1.9",
+          "published_at": "2026-01-15T23:59:29.275Z"
+        },
+        {
+          "version": "2.1.10",
+          "published_at": "2026-01-17T00:11:29.352Z"
+        },
+        {
+          "version": "2.1.11",
+          "published_at": "2026-01-17T01:19:37.165Z"
+        },
+        {
+          "version": "2.1.12",
+          "published_at": "2026-01-17T15:40:35.547Z"
+        },
+        {
+          "version": "2.1.14",
+          "published_at": "2026-01-20T22:37:25.754Z"
+        },
+        {
+          "version": "2.1.15",
+          "published_at": "2026-01-21T21:25:20.551Z"
+        },
+        {
+          "version": "2.1.16",
+          "published_at": "2026-01-22T19:03:08.904Z"
+        },
+        {
+          "version": "2.1.17",
+          "published_at": "2026-01-22T21:01:58.555Z"
+        },
+        {
+          "version": "2.1.18",
+          "published_at": "2026-01-22T22:44:46.204Z"
+        },
+        {
+          "version": "2.1.19",
+          "published_at": "2026-01-23T21:14:31.264Z"
+        },
+        {
+          "version": "2.1.20",
+          "published_at": "2026-01-27T00:39:43.153Z"
+        },
+        {
+          "version": "2.1.21",
+          "published_at": "2026-01-28T01:37:44.595Z"
+        },
+        {
+          "version": "2.1.22",
+          "published_at": "2026-01-28T06:34:26.808Z"
+        },
+        {
+          "version": "2.1.23",
+          "published_at": "2026-01-29T00:19:09.656Z"
+        },
+        {
+          "version": "2.1.25",
+          "published_at": "2026-01-29T20:33:53.330Z"
+        },
+        {
+          "version": "2.1.26",
+          "published_at": "2026-01-30T02:13:52.624Z"
+        },
+        {
+          "version": "2.1.27",
+          "published_at": "2026-01-30T19:51:58.456Z"
+        },
+        {
+          "version": "2.1.28",
+          "published_at": "2026-01-31T18:42:19.367Z"
+        },
+        {
+          "version": "2.1.29",
+          "published_at": "2026-01-31T20:13:22.486Z"
+        },
+        {
+          "version": "2.1.30",
+          "published_at": "2026-02-03T16:34:38.489Z"
+        },
+        {
+          "version": "2.1.31",
+          "published_at": "2026-02-04T00:02:11.559Z"
+        },
+        {
+          "version": "2.1.32",
+          "published_at": "2026-02-05T17:03:20.616Z"
+        },
+        {
+          "version": "2.1.33",
+          "published_at": "2026-02-06T00:16:13.218Z"
+        },
+        {
+          "version": "2.1.34",
+          "published_at": "2026-02-06T06:38:12.412Z"
+        },
+        {
+          "version": "2.1.36",
+          "published_at": "2026-02-07T17:25:00.190Z"
+        },
+        {
+          "version": "2.1.37",
+          "published_at": "2026-02-07T18:39:35.597Z"
+        },
+        {
+          "version": "2.1.38",
+          "published_at": "2026-02-10T00:06:12.496Z"
+        },
+        {
+          "version": "2.1.39",
+          "published_at": "2026-02-10T21:12:16.378Z"
+        },
+        {
+          "version": "2.1.40",
+          "published_at": "2026-02-12T00:55:05.431Z"
+        },
+        {
+          "version": "2.1.41",
+          "published_at": "2026-02-13T01:12:41.057Z"
+        },
+        {
+          "version": "2.1.42",
+          "published_at": "2026-02-13T18:56:56.084Z"
+        },
+        {
+          "version": "2.1.44",
+          "published_at": "2026-02-16T20:51:18.785Z"
+        },
+        {
+          "version": "2.1.45",
+          "published_at": "2026-02-17T17:33:48.506Z"
+        },
+        {
+          "version": "2.1.47",
+          "published_at": "2026-02-18T20:15:11.998Z"
+        },
+        {
+          "version": "2.1.48",
+          "published_at": "2026-02-19T20:50:30.541Z"
+        },
+        {
+          "version": "2.1.49",
+          "published_at": "2026-02-19T22:39:45.313Z"
+        },
+        {
+          "version": "2.1.50",
+          "published_at": "2026-02-20T23:09:38.385Z"
+        },
+        {
+          "version": "2.1.51",
+          "published_at": "2026-02-23T23:44:09.342Z"
+        },
+        {
+          "version": "2.1.52",
+          "published_at": "2026-02-24T06:00:40.801Z"
+        },
+        {
+          "version": "2.1.53",
+          "published_at": "2026-02-24T22:44:13.059Z"
+        },
+        {
+          "version": "2.1.54",
+          "published_at": "2026-02-25T02:06:31.244Z"
+        },
+        {
+          "version": "2.1.55",
+          "published_at": "2026-02-25T02:42:12.579Z"
+        },
+        {
+          "version": "2.1.56",
+          "published_at": "2026-02-25T05:55:32.621Z"
+        },
+        {
+          "version": "2.1.58",
+          "published_at": "2026-02-25T19:22:07.859Z"
+        },
+        {
+          "version": "2.1.59",
+          "published_at": "2026-02-25T23:38:34.475Z"
+        },
+        {
+          "version": "2.1.61",
+          "published_at": "2026-02-26T21:40:54.613Z"
+        },
+        {
+          "version": "2.1.62",
+          "published_at": "2026-02-27T01:24:31.775Z"
+        },
+        {
+          "version": "2.1.63",
+          "published_at": "2026-02-28T02:43:42.865Z"
+        },
+        {
+          "version": "2.1.64",
+          "published_at": "2026-03-03T03:19:58.867Z"
+        },
+        {
+          "version": "2.1.66",
+          "published_at": "2026-03-04T00:19:58.178Z"
+        },
+        {
+          "version": "2.1.67",
+          "published_at": "2026-03-04T05:31:10.915Z"
+        },
+        {
+          "version": "2.1.68",
+          "published_at": "2026-03-04T09:20:53.882Z"
+        },
+        {
+          "version": "2.1.69",
+          "published_at": "2026-03-04T21:46:46.306Z"
+        },
+        {
+          "version": "2.1.70",
+          "published_at": "2026-03-06T00:09:06.874Z"
+        },
+        {
+          "version": "2.1.71",
+          "published_at": "2026-03-06T22:47:03.532Z"
+        },
+        {
+          "version": "2.1.72",
+          "published_at": "2026-03-09T23:29:16.565Z"
+        },
+        {
+          "version": "2.1.73",
+          "published_at": "2026-03-11T17:39:34.332Z"
+        },
+        {
+          "version": "2.1.74",
+          "published_at": "2026-03-11T23:31:27.307Z"
+        },
+        {
+          "version": "2.1.75",
+          "published_at": "2026-03-13T15:51:07.443Z"
+        },
+        {
+          "version": "2.1.76",
+          "published_at": "2026-03-14T00:14:17.770Z"
+        },
+        {
+          "version": "2.1.77",
+          "published_at": "2026-03-16T22:16:52.510Z"
+        },
+        {
+          "version": "2.1.78",
+          "published_at": "2026-03-17T21:04:05.836Z"
+        },
+        {
+          "version": "2.1.79",
+          "published_at": "2026-03-18T21:34:08.611Z"
+        },
+        {
+          "version": "2.1.80",
+          "published_at": "2026-03-19T21:01:31.134Z"
+        },
+        {
+          "version": "2.1.81",
+          "published_at": "2026-03-20T21:27:19.603Z"
+        },
+        {
+          "version": "2.1.83",
+          "published_at": "2026-03-24T22:16:47.275Z"
+        },
+        {
+          "version": "2.1.84",
+          "published_at": "2026-03-25T23:50:13.505Z"
+        },
+        {
+          "version": "2.1.85",
+          "published_at": "2026-03-26T20:55:47.623Z"
+        },
+        {
+          "version": "2.1.86",
+          "published_at": "2026-03-27T20:30:19.481Z"
+        },
+        {
+          "version": "2.1.87",
+          "published_at": "2026-03-29T01:40:52.719Z"
+        },
+        {
+          "version": "2.1.89",
+          "published_at": "2026-03-31T23:32:40.530Z"
+        },
+        {
+          "version": "2.1.90",
+          "published_at": "2026-04-01T23:31:39.018Z"
+        },
+        {
+          "version": "2.1.91",
+          "published_at": "2026-04-02T22:37:15.575Z"
+        },
+        {
+          "version": "2.1.92",
+          "published_at": "2026-04-04T00:05:59.607Z"
+        },
+        {
+          "version": "2.1.94",
+          "published_at": "2026-04-07T21:04:05.380Z"
+        },
+        {
+          "version": "2.1.96",
+          "published_at": "2026-04-08T04:32:44.614Z"
+        },
+        {
+          "version": "2.1.97",
+          "published_at": "2026-04-08T21:27:55.556Z"
+        },
+        {
+          "version": "2.1.98",
+          "published_at": "2026-04-09T18:08:49.739Z"
+        },
+        {
+          "version": "2.1.100",
+          "published_at": "2026-04-10T05:00:41.623Z"
+        },
+        {
+          "version": "2.1.101",
+          "published_at": "2026-04-10T18:41:55.480Z"
+        },
+        {
+          "version": "2.1.104",
+          "published_at": "2026-04-12T02:26:22.100Z"
+        },
+        {
+          "version": "2.1.105",
+          "published_at": "2026-04-13T19:51:19.552Z"
+        },
+        {
+          "version": "2.1.107",
+          "published_at": "2026-04-14T05:18:14.905Z"
+        },
+        {
+          "version": "2.1.108",
+          "published_at": "2026-04-14T18:35:26.902Z"
+        },
+        {
+          "version": "2.1.109",
+          "published_at": "2026-04-15T03:45:21.462Z"
+        },
+        {
+          "version": "2.1.110",
+          "published_at": "2026-04-15T20:40:53.190Z"
+        },
+        {
+          "version": "2.1.111",
+          "published_at": "2026-04-16T15:16:09.415Z"
+        },
+        {
+          "version": "2.1.112",
+          "published_at": "2026-04-16T19:23:46.419Z"
+        },
+        {
+          "version": "2.1.113",
+          "published_at": "2026-04-17T19:09:22.930Z"
+        },
+        {
+          "version": "2.1.114",
+          "published_at": "2026-04-17T23:26:20.555Z"
+        },
+        {
+          "version": "2.1.116",
+          "published_at": "2026-04-20T19:24:52.313Z"
+        },
+        {
+          "version": "2.1.117",
+          "published_at": "2026-04-21T21:54:08.640Z"
+        },
+        {
+          "version": "2.1.118",
+          "published_at": "2026-04-22T23:48:56.690Z"
+        },
+        {
+          "version": "2.1.119",
+          "published_at": "2026-04-23T21:36:46.450Z"
+        },
+        {
+          "version": "2.1.120",
+          "published_at": "2026-04-24T23:02:49.608Z"
+        },
+        {
+          "version": "2.1.121",
+          "published_at": "2026-04-27T19:39:46.659Z"
+        },
+        {
+          "version": "2.1.122",
+          "published_at": "2026-04-28T17:35:53.730Z"
+        },
+        {
+          "version": "2.1.123",
+          "published_at": "2026-04-29T01:52:47.690Z"
+        },
+        {
+          "version": "2.1.124",
+          "published_at": "2026-04-30T01:39:41.460Z"
+        },
+        {
+          "version": "2.1.126",
+          "published_at": "2026-04-30T20:30:34.530Z"
+        },
+        {
+          "version": "2.1.128",
+          "published_at": "2026-05-04T19:29:23.662Z"
+        },
+        {
+          "version": "2.1.129",
+          "published_at": "2026-05-05T18:22:55.515Z"
+        },
+        {
+          "version": "2.1.131",
+          "published_at": "2026-05-06T07:41:53.401Z"
+        },
+        {
+          "version": "2.1.132",
+          "published_at": "2026-05-06T19:10:04.541Z"
+        },
+        {
+          "version": "2.1.133",
+          "published_at": "2026-05-07T20:19:32.227Z"
+        },
+        {
+          "version": "2.1.136",
+          "published_at": "2026-05-08T16:30:41.957Z"
+        },
+        {
+          "version": "2.1.137",
+          "published_at": "2026-05-09T00:04:08.277Z"
+        },
+        {
+          "version": "2.1.138",
+          "published_at": "2026-05-09T05:57:28.355Z"
+        },
+        {
+          "version": "2.1.139",
+          "published_at": "2026-05-11T18:09:28.537Z"
+        },
+        {
+          "version": "2.1.140",
+          "published_at": "2026-05-12T19:50:28.781Z"
+        },
+        {
+          "version": "2.1.141",
+          "published_at": "2026-05-13T22:42:55.615Z"
+        },
+        {
+          "version": "2.1.142",
+          "published_at": "2026-05-14T20:17:28.262Z"
+        },
+        {
+          "version": "2.1.143",
+          "published_at": "2026-05-15T18:45:53.727Z"
+        },
+        {
+          "version": "2.1.144",
+          "published_at": "2026-05-18T19:57:54.760Z"
+        },
+        {
+          "version": "2.1.145",
+          "published_at": "2026-05-19T17:40:52.477Z"
+        },
+        {
+          "version": "2.1.146",
+          "published_at": "2026-05-20T20:14:13.615Z"
+        },
+        {
+          "version": "2.1.147",
+          "published_at": "2026-05-21T17:16:38.999Z"
+        },
+        {
+          "version": "2.1.148",
+          "published_at": "2026-05-22T00:10:02.193Z"
+        },
+        {
+          "version": "2.1.149",
+          "published_at": "2026-05-22T18:27:11.623Z"
+        },
+        {
+          "version": "2.1.150",
+          "published_at": "2026-05-23T02:27:17.096Z"
+        },
+        {
+          "version": "2.1.152",
+          "published_at": "2026-05-26T21:38:29.002Z"
+        },
+        {
+          "version": "2.1.153",
+          "published_at": "2026-05-27T21:46:58.252Z"
+        },
+        {
+          "version": "2.1.154",
+          "published_at": "2026-05-28T15:40:50.400Z"
+        },
+        {
+          "version": "2.1.156",
+          "published_at": "2026-05-28T20:12:52.621Z"
+        },
+        {
+          "version": "2.1.157",
+          "published_at": "2026-05-29T17:30:02.357Z"
+        },
+        {
+          "version": "2.1.158",
+          "published_at": "2026-05-30T01:12:23.617Z"
+        },
+        {
+          "version": "2.1.159",
+          "published_at": "2026-05-31T17:50:06.818Z"
+        },
+        {
+          "version": "2.1.160",
+          "published_at": "2026-06-01T20:03:23.202Z"
+        },
+        {
+          "version": "2.1.161",
+          "published_at": "2026-06-02T17:38:46.406Z"
+        },
+        {
+          "version": "2.1.162",
+          "published_at": "2026-06-03T18:09:44.344Z"
+        },
+        {
+          "version": "2.1.163",
+          "published_at": "2026-06-04T17:56:01.880Z"
+        },
+        {
+          "version": "2.1.165",
+          "published_at": "2026-06-05T05:22:42.188Z"
+        },
+        {
+          "version": "2.1.166",
+          "published_at": "2026-06-05T19:01:59.944Z"
+        },
+        {
+          "version": "2.1.167",
+          "published_at": "2026-06-06T01:18:42.588Z"
+        },
+        {
+          "version": "2.1.168",
+          "published_at": "2026-06-06T23:32:52.332Z"
+        },
+        {
+          "version": "2.1.169",
+          "published_at": "2026-06-08T18:11:20.859Z"
+        },
+        {
+          "version": "2.1.170",
+          "published_at": "2026-06-09T16:15:44.470Z"
+        },
+        {
+          "version": "2.1.172",
+          "published_at": "2026-06-10T17:55:48.479Z"
+        },
+        {
+          "version": "2.1.173",
+          "published_at": "2026-06-11T02:09:50.066Z"
+        },
+        {
+          "version": "2.1.174",
+          "published_at": "2026-06-11T22:27:52.061Z"
+        },
+        {
+          "version": "2.1.175",
+          "published_at": "2026-06-12T02:10:22.132Z"
+        },
+        {
+          "version": "2.1.176",
+          "published_at": "2026-06-12T19:45:41.757Z"
+        },
+        {
+          "version": "2.1.177",
+          "published_at": "2026-06-13T01:04:21.745Z"
+        },
+        {
+          "version": "2.1.178",
+          "published_at": "2026-06-15T19:03:37.553Z"
+        },
+        {
+          "version": "2.1.179",
+          "published_at": "2026-06-16T17:51:27.805Z"
+        },
+        {
+          "version": "2.1.181",
+          "published_at": "2026-06-17T18:28:59.962Z"
+        },
+        {
+          "version": "2.1.182",
+          "published_at": "2026-06-18T22:06:42.222Z"
+        },
+        {
+          "version": "2.1.183",
+          "published_at": "2026-06-19T00:02:37.935Z"
+        },
+        {
+          "version": "2.1.185",
+          "published_at": "2026-06-20T16:54:36.327Z"
+        },
+        {
+          "version": "2.1.186",
+          "published_at": "2026-06-22T18:03:48.955Z"
+        },
+        {
+          "version": "2.1.187",
+          "published_at": "2026-06-23T17:55:41.991Z"
+        },
+        {
+          "version": "2.1.190",
+          "published_at": "2026-06-24T14:39:56.222Z"
+        },
+        {
+          "version": "2.1.191",
+          "published_at": "2026-06-24T18:54:40.112Z"
+        },
+        {
+          "version": "2.1.193",
+          "published_at": "2026-06-25T19:05:08.367Z"
+        },
+        {
+          "version": "2.1.195",
+          "published_at": "2026-06-26T18:16:23.150Z"
+        },
+        {
+          "version": "2.1.196",
+          "published_at": "2026-06-29T20:08:58.871Z"
+        },
+        {
+          "version": "2.1.197",
+          "published_at": "2026-06-30T13:31:18.806Z"
+        },
+        {
+          "version": "2.1.198",
+          "published_at": "2026-07-01T16:50:16.245Z"
+        },
+        {
+          "version": "2.1.199",
+          "published_at": "2026-07-02T17:33:48.451Z"
+        },
+        {
+          "version": "2.1.200",
+          "published_at": "2026-07-03T04:33:49.616Z"
+        },
+        {
+          "version": "2.1.201",
+          "published_at": "2026-07-03T20:52:33.551Z"
+        },
+        {
+          "version": "2.1.202",
+          "published_at": "2026-07-06T20:41:23.105Z"
+        },
+        {
+          "version": "2.1.203",
+          "published_at": "2026-07-07T17:40:17.341Z"
+        },
+        {
+          "version": "2.1.204",
+          "published_at": "2026-07-08T00:04:57.555Z"
+        },
+        {
+          "version": "2.1.205",
+          "published_at": "2026-07-08T19:34:57.777Z"
+        },
+        {
+          "version": "2.1.206",
+          "published_at": "2026-07-09T17:54:03.009Z"
+        },
+        {
+          "version": "2.1.207",
+          "published_at": "2026-07-10T22:25:09.430Z"
+        },
+        {
+          "version": "2.1.208",
+          "published_at": "2026-07-13T21:31:27.921Z"
+        },
+        {
+          "version": "2.1.209",
+          "published_at": "2026-07-14T04:45:37.792Z"
+        },
+        {
+          "version": "2.1.210",
+          "published_at": "2026-07-14T19:39:21.730Z"
+        },
+        {
+          "version": "2.1.211",
+          "published_at": "2026-07-15T19:24:07.013Z"
+        },
+        {
+          "version": "2.1.212",
+          "published_at": "2026-07-16T19:20:24.324Z"
+        },
+        {
+          "version": "2.1.213",
+          "published_at": "2026-07-17T22:26:26.753Z"
+        },
+        {
+          "version": "2.1.214",
+          "published_at": "2026-07-18T00:13:41.661Z"
+        },
+        {
+          "version": "2.1.215",
+          "published_at": "2026-07-19T00:53:37.170Z"
+        },
+        {
+          "version": "2.1.216",
+          "published_at": "2026-07-20T20:19:37.447Z"
+        },
+        {
+          "version": "2.1.217",
+          "published_at": "2026-07-21T19:55:38.926Z"
+        },
+        {
+          "version": "2.1.218",
+          "published_at": "2026-07-22T19:55:32.144Z"
+        },
+        {
+          "version": "2.1.219",
+          "published_at": "2026-07-24T16:11:49.832Z"
+        },
+        {
+          "version": "2.1.220",
+          "published_at": "2026-07-24T23:11:21.821Z"
+        },
+        {
+          "version": "2.1.221",
+          "published_at": "2026-08-03T22:16:25.561Z"
+        },
+        {
+          "version": "2.1.222",
+          "published_at": "2026-08-04T20:37:17.953Z"
+        },
+        {
+          "version": "2.1.223",
+          "published_at": "2026-08-05T22:51:13.206Z"
+        },
+        {
+          "version": "2.1.224",
+          "published_at": "2026-08-07T01:36:32.682Z"
+        },
+        {
+          "version": "2.1.225",
+          "published_at": "2026-08-07T23:08:56.171Z"
+        },
+        {
+          "version": "2.1.226",
+          "published_at": "2026-08-08T01:53:22.182Z"
+        },
+        {
+          "version": "2.1.227",
+          "published_at": "2026-08-10T20:56:57.591Z"
+        },
+        {
+          "version": "2.1.228",
+          "published_at": "2026-08-11T17:45:45.882Z"
+        },
+        {
+          "version": "2.1.229",
+          "published_at": "2026-08-12T19:28:48.616Z"
+        },
+        {
+          "version": "2.1.231",
+          "published_at": "2026-08-13T08:27:21.757Z"
+        },
+        {
+          "version": "2.1.232",
+          "published_at": "2026-08-13T21:30:53.194Z"
+        },
+        {
+          "version": "2.1.233",
+          "published_at": "2026-08-14T18:50:44.102Z"
+        },
+        {
+          "version": "2.1.234",
+          "published_at": "2026-08-17T18:19:13.187Z"
+        },
+        {
+          "version": "2.1.235",
+          "published_at": "2026-08-18T18:24:10.210Z"
+        },
+        {
+          "version": "2.1.236",
+          "published_at": "2026-08-19T18:45:14.539Z"
+        },
+        {
+          "version": "2.1.237",
+          "published_at": "2026-08-19T23:57:54.833Z"
+        },
+        {
+          "version": "2.1.238",
+          "published_at": "2026-08-20T18:01:54.712Z"
+        },
+        {
+          "version": "2.1.239",
+          "published_at": "2026-08-21T17:18:54.506Z"
+        },
+        {
+          "version": "2.1.240",
+          "published_at": "2026-08-22T13:03:23.566Z"
+        },
+        {
+          "version": "2.1.241",
+          "published_at": "2026-08-22T23:58:33.046Z"
+        },
+        {
+          "version": "2.1.242",
+          "published_at": "2026-08-24T19:16:14.767Z"
+        },
+        {
+          "version": "2.1.243",
+          "published_at": "2026-08-24T23:10:45.498Z"
+        },
+        {
+          "version": "2.1.245",
+          "published_at": "2026-08-25T04:45:52.102Z"
+        },
+        {
+          "version": "2.1.246",
+          "published_at": "2026-08-25T19:17:34.421Z"
+        },
+        {
+          "version": "2.1.247",
+          "published_at": "2026-08-26T18:02:01.046Z"
+        },
+        {
+          "version": "2.1.248",
+          "published_at": "2026-08-27T20:35:36.671Z"
+        },
+        {
+          "version": "2.1.250",
+          "published_at": "2026-08-27T22:27:48.314Z"
+        },
+        {
+          "version": "2.1.251",
+          "published_at": "2026-08-28T15:34:26.421Z"
+        },
+        {
+          "version": "2.1.252",
+          "published_at": "2026-08-31T17:07:28.168Z"
+        },
+        {
+          "version": "2.1.257",
+          "published_at": "2026-09-01T17:15:33.223Z"
+        },
+        {
+          "version": "2.1.258",
+          "published_at": "2026-09-01T22:25:07.449Z"
+        },
+        {
+          "version": "2.1.259",
+          "published_at": "2026-09-02T21:21:42.115Z"
+        },
+        {
+          "version": "2.1.260",
+          "published_at": "2026-09-03T22:32:02.087Z"
+        },
+        {
+          "version": "2.1.261",
+          "published_at": "2026-09-04T17:49:34.927Z"
+        },
+        {
+          "version": "2.1.263",
+          "published_at": "2026-09-06T02:07:58.391Z"
+        },
+        {
+          "version": "2.1.265",
+          "published_at": "2026-09-08T19:05:16.492Z"
+        },
+        {
+          "version": "2.1.266",
+          "published_at": "2026-09-08T23:32:32.880Z"
+        },
         {
           "version": "2.1.267",
           "published_at": "2026-09-09T18:25:42.820Z"
@@ -197,6 +1629,10 @@
         {
           "version": "2.1.316",
           "published_at": "2026-10-31T00:42:05.743Z"
+        },
+        {
+          "version": "2.1.317",
+          "published_at": "2026-11-02T23:57:53.069Z"
         }
       ]
     },
