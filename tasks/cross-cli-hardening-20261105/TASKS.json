@@ -1057,6 +1057,12 @@
           "status": "PASS",
           "type": "frozen documentation materials only",
           "evidence": "reviews/T11-docs-review.md"
+        },
+        {
+          "status": "PASS",
+          "type": "actual unique .3 private package PKG-01..04",
+          "evidence": "data/public-evidence/T11-package-root.json",
+          "independent_report": "reviews/T11-package-review.md"
         }
       ],
       "review": {
@@ -1073,7 +1079,7 @@
       "commits": [],
       "blockers": [],
       "limitations": [
-        "Historical .1 failed relocation; reviewed location fix pushed ce4a9c78. Historical .2 PKG checks pass but real Claude stdio adds session/project context and source proof differs; .2 BLOCKED_FOR_LIVE. Narrow context fix independently reviewed PASS; new clean-source .3 build/PKG review pending."
+        "Unique .3 package/source d700 independently reviewed and root accepted for PKG-01..04; no release/global install replacement. Final DOC correction/record and T12 live acceptance remain pending."
       ],
       "updated_at": "2026-11-05T08:44:46.119375+00:00"
     },
@@ -1201,11 +1207,11 @@
     }
   ],
   "final_delivery": {
-    "source_commit": null,
-    "package_version": null,
-    "package_sha256": null,
-    "binary_sha256": null,
-    "manifest_sha256": null,
+    "source_commit": "d700356c9ee497952b22ec9220d1fde111f71848",
+    "package_version": "0.1.24-hardening.20261105.3",
+    "package_sha256": "dfbbf79b29471a9ec81b92598b74b03ba02af96ad4eac7f4b0e4ca53ee6529f8",
+    "binary_sha256": "f5c54bde90a72e2e95e130989a53cfc595b33dcb0a86b607832dd3f926ba5c4c",
+    "manifest_sha256": "26f2a2b22eeaa74d4246b797ff251a58667b5b041ab3165a4f63f6fa10979bcc",
     "core_status": "NOT_RUN",
     "native_push_status": "NOT_RUN",
     "live_original_failure_rework_status": "NOT_RUN",

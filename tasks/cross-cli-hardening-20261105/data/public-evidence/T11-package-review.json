@@ -1,0 +1,132 @@
+{
+  "verdict": "PASS",
+  "candidate": "0.1.24-hardening.20261105.3",
+  "source": {
+    "commit": "d700356c9ee497952b22ec9220d1fde111f71848",
+    "tree": "5b04a4d7fb49c47a5f16ebe26a04ddc3a1ee509a",
+    "clean_before_and_after": true,
+    "production_source_binding_files": 148,
+    "production_source_binding_equal": true
+  },
+  "identity": {
+    "archive_sha256": "dfbbf79b29471a9ec81b92598b74b03ba02af96ad4eac7f4b0e4ca53ee6529f8",
+    "binary_sha256": "f5c54bde90a72e2e95e130989a53cfc595b33dcb0a86b607832dd3f926ba5c4c",
+    "package_manifest_sha256": "26f2a2b22eeaa74d4246b797ff251a58667b5b041ab3165a4f63f6fa10979bcc",
+    "python_sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
+    "evidence_pins": 158,
+    "evidence_pin_mismatches": 0,
+    "archive_members": 37,
+    "archive_files": 25,
+    "archive_directories": 12,
+    "unsafe_archive_members": 0,
+    "package_manifest_rows": 24,
+    "package_manifest_identity_mismatches": 0,
+    "archive_control_or_authority_members": 0
+  },
+  "independent_install": {
+    "destination_before_move": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r3-review/tmp/i",
+    "destination_after_move": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r3-review/tmp/j",
+    "installed_manifest_schema": 2,
+    "installed_root_matched_before_move": true,
+    "installed_manifest_sha256": "1929b8c7c508cf76b4c4820cbe1e8f44b4f30bb6453cff58c33e017eb9a5b429",
+    "receipt_keys": ["manifest_sha256", "version"],
+    "receipt_hash_matched": true,
+    "installed_files_checked": 24,
+    "installed_file_identity_mismatches": 0,
+    "binary_sha256_matched": true,
+    "python_sha256_matched": true,
+    "normal_doctor_healthy": true,
+    "provider_entry_directories": ["agy", "claude", "codex", "grok"],
+    "mcp": {
+      "configure_providers": {},
+      "command_matched_installed_binary": true,
+      "initialize_exit_code": 0,
+      "tool_count": 8,
+      "tools": ["accept", "ack", "collect", "dispatch", "inspect", "request_changes", "stop", "wait"],
+      "tasks_capability": null,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "independent_tests": [
+    {
+      "name": "installed-wrapper-business",
+      "top_level_passed": 3,
+      "subtests_passed": 4,
+      "total_nodes_passed": 7,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "name": "pinned-interpreter-install-guard",
+      "top_level_passed": 2,
+      "subtests_passed": 6,
+      "total_nodes_passed": 8,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "independent_negatives": {
+    "whole_destination_same_filesystem_rename": {
+      "before": {
+        "destination": {"device": 16777232, "inode": 244062500},
+        "version_root": {"device": 16777232, "inode": 244062506},
+        "executable": {"device": 16777232, "inode": 244062510}
+      },
+      "after": {
+        "destination": {"device": 16777232, "inode": 244062500},
+        "version_root": {"device": 16777232, "inode": 244062506},
+        "executable": {"device": 16777232, "inode": 244062510}
+      },
+      "all_identity_preserved": true,
+      "doctor_healthy": false,
+      "doctor_issue": "0.1.24-hardening.20261105.3:install_location_changed_reinstall_required",
+      "entry_exit_code": 1,
+      "entry_error": "installed_doctor_unhealthy"
+    },
+    "missing_file": {
+      "fresh_baseline_healthy": true,
+      "mutated_doctor_healthy": false,
+      "doctor_issue": "0.1.24-hardening.20261105.3:files",
+      "entry_exit_code": 1,
+      "entry_error": "FileNotFoundError"
+    },
+    "changed_digest": {
+      "fresh_baseline_healthy": true,
+      "mutated_doctor_healthy": false,
+      "doctor_issue": "0.1.24-hardening.20261105.3:files",
+      "entry_exit_code": 1,
+      "entry_error": "installed_file_changed"
+    }
+  },
+  "root_evidence_checked": {
+    "normal_and_space_installs_schema2_receipt_and_hashes": true,
+    "normal_and_space_mcp_eight_tools_no_tasks": true,
+    "five_negative_cases_rejected": true,
+    "runtime_status_active_unknown_queued_zero": true,
+    "owned_coordinators_terminated": true,
+    "codex_and_claude_metadata_status": "PASS",
+    "codex_and_claude_source_projection_equal": true,
+    "codex_and_claude_tool_count": 8,
+    "codex_and_claude_exit_code": 0,
+    "codex_and_claude_remaining_process_group_members": 0,
+    "post_change_go_normal_passed": 1628,
+    "post_change_go_race_passed": 1628,
+    "post_change_go_top_level_passed": 649,
+    "post_change_go_subtests_passed": 979,
+    "post_change_go_opt_in_skipped": 8,
+    "python_actual_installed_go_passed": 301,
+    "python_native_opt_in_skipped": 7
+  },
+  "temporary_cleanup": {
+    "private_tmp": "/private/tmp/abr3rv.b3EA3V",
+    "removed_without_reading_token_authority": true,
+    "recoverable": false
+  },
+  "blockers": [],
+  "non_blocking": [
+    "docs/acceptance-plan.md retains stale candidate .2, .2-directory and preparation-only text despite the .3 execution evidence",
+    "extracting the archive under umask 077 without preserve-permissions narrows packaged 0644 runtime files to 0600; preserve-permissions extraction succeeds and matches all manifest modes"
+  ]
+}
