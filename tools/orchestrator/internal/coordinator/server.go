@@ -476,7 +476,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "owner_request_changes_v2", "budget_group_policy_v2"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "owner_request_changes_v2", "budget_group_policy_v2", "managed_owner_projection_v1"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
@@ -493,6 +493,15 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			}
 			if g.ControllerThread != request.ControllerThread || g.OriginContextID != request.OriginContextID || g.OriginPID != request.OriginPID || g.OriginBirth != request.OriginBirth || g.HostGeneration != request.HostGeneration {
 				return nil, store.CodeError("owner_capability_mismatch")
+			}
+			// Local ownership verifies a process, not the native conversation
+			// that would receive a push. Keep the separately authenticated
+			// native bridge path independent from this projection.
+			if request.DeliveryMode == "" {
+				request.DeliveryMode = "collect"
+			}
+			if request.DeliveryMode != "collect" {
+				return nil, store.CodeError("managed_owner_native_delivery_unavailable")
 			}
 		} else if request.OwnerMode != "" && request.OwnerMode != "native" {
 			return nil, store.CodeError("owner_mode_invalid")
@@ -606,10 +615,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+		actionCtx, err := s.authorizeOwnerAction(ctx, request.TaskID, request.ControllerThread, request.ControlToken)
+		if err != nil {
 			return nil, err
 		}
-		if err := s.db.QueueResume(ctx, request.TaskID, request.WorkRevision); err != nil {
+		if err := s.db.QueueResume(actionCtx, request.TaskID, request.WorkRevision); err != nil {
 			return nil, err
 		}
 		s.dispatchAll()
@@ -619,10 +629,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+		actionCtx, err := s.authorizeOwnerAction(ctx, request.TaskID, request.ControllerThread, request.ControlToken)
+		if err != nil {
 			return nil, err
 		}
-		receipt, err := s.db.QueueRetry(ctx, store.RetrySpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, EventID: request.EventID, EventRevision: request.EventRevision, EventHash: request.EventHash, ActionSlot: request.ActionSlot, SegmentID: request.SegmentID, NextAttemptNo: request.NextAttemptNo, UseNextFallback: request.UseNextFallback, CommandID: request.CommandID})
+		receipt, err := s.db.QueueRetry(actionCtx, store.RetrySpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, EventID: request.EventID, EventRevision: request.EventRevision, EventHash: request.EventHash, ActionSlot: request.ActionSlot, SegmentID: request.SegmentID, NextAttemptNo: request.NextAttemptNo, UseNextFallback: request.UseNextFallback, CommandID: request.CommandID})
 		if err != nil {
 			return nil, err
 		}
@@ -633,10 +644,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+		actionCtx, err := s.authorizeOwnerAction(ctx, request.TaskID, request.ControllerThread, request.ControlToken)
+		if err != nil {
 			return nil, err
 		}
-		receipt, err := s.db.QueueRequestChanges(ctx, request.OwnerReworkSpec)
+		receipt, err := s.db.QueueRequestChanges(actionCtx, request.OwnerReworkSpec)
 		if err != nil {
 			return nil, err
 		}
@@ -647,10 +659,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+		actionCtx, err := s.authorizeOwnerAction(ctx, request.TaskID, request.ControllerThread, request.ControlToken)
+		if err != nil {
 			return nil, err
 		}
-		receipt, err := s.db.QueueRework(ctx, request.ReworkSpec)
+		receipt, err := s.db.QueueRework(actionCtx, request.ReworkSpec)
 		if err != nil {
 			return nil, err
 		}
@@ -661,10 +674,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+		actionCtx, err := s.authorizeOwnerAction(ctx, request.TaskID, request.ControllerThread, request.ControlToken)
+		if err != nil {
 			return nil, err
 		}
-		status, err := s.db.ReviewResult(ctx, store.ReviewSpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, EventID: request.EventID, EventRevision: request.EventRevision, EventHash: request.EventHash, ActionSlot: request.ActionSlot, Decision: request.Decision, CommandID: request.CommandID})
+		status, err := s.db.ReviewResult(actionCtx, store.ReviewSpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, EventID: request.EventID, EventRevision: request.EventRevision, EventHash: request.EventHash, ActionSlot: request.ActionSlot, Decision: request.Decision, CommandID: request.CommandID})
 		if err != nil {
 			return nil, err
 		}
@@ -677,10 +691,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+		actionCtx, err := s.authorizeOwnerAction(ctx, request.TaskID, request.ControllerThread, request.ControlToken)
+		if err != nil {
 			return nil, err
 		}
-		status, err := s.db.AnswerQuestion(ctx, store.AnswerSpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, QuestionID: request.QuestionID, QuestionRevision: request.QuestionRevision, Answer: request.Answer})
+		status, err := s.db.AnswerQuestion(actionCtx, store.AnswerSpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, QuestionID: request.QuestionID, QuestionRevision: request.QuestionRevision, Answer: request.Answer})
 		if err != nil {
 			return nil, err
 		}

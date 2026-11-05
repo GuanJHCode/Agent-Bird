@@ -68,6 +68,8 @@ func TestCLIRecoverHostPreservesPausedRun(t *testing.T) {
 	}
 	ownerPath := owner["owner_capability"]
 	delete(owner, "version")
+	delete(owner, "owner_scope")
+	delete(owner, "owner_capabilities")
 	owner["run_id"], owner["plan_revision"], owner["delivery_mode"] = "run", 1, "collect"
 	marker := filepath.Join(root, "must-not-run")
 	owner["tasks"] = []any{

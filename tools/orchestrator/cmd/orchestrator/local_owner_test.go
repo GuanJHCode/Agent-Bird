@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,10 +53,23 @@ func TestCLILocalOwnerCollectWithoutNativeBridge(t *testing.T) {
 		t.Fatal("token leaked to stdout")
 	}
 	delete(owner, "version")
+	delete(owner, "owner_scope")
+	delete(owner, "owner_capabilities")
 	owner["run_id"] = "local"
 	owner["plan_revision"] = 1
 	owner["delivery_mode"] = "collect"
 	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "printf result"}, "directory": root}}}
+	owner["delivery_mode"] = "native"
+	write(owner)
+	deniedCommand := exec.CommandContext(ctx, bin, "submit", "--state-dir", state, "--request", path)
+	deniedCommand.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
+	denied, err := deniedCommand.CombinedOutput()
+	if err == nil || !strings.Contains(string(denied), "managed_owner_native_delivery_unavailable") {
+		t.Fatalf("public local native push was not refused: %s %v", denied, err)
+	}
+	// Omitted local delivery must remain collect; the rest of this public flow
+	// proves result collection, exact ACK and explicit business acceptance.
+	delete(owner, "delivery_mode")
 	write(owner)
 	var submitted struct {
 		ControlFile string `json:"control_file"`

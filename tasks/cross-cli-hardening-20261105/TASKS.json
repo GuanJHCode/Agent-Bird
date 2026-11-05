@@ -309,9 +309,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T03-review-r2.md",
-        "accepted_commit": null
+        "accepted_commit": "2347d34ce1e5ca4e40751f53064f3d99001f4832"
       },
-      "commits": [],
+      "commits": [
+        "2347d34ce1e5ca4e40751f53064f3d99001f4832"
+      ],
       "blockers": [],
       "limitations": [],
       "updated_at": null
@@ -323,12 +325,12 @@
       "depends_on": [
         "T03"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
+      "baseline_commit": "2347d34ce1e5ca4e40751f53064f3d99001f4832",
+      "implementation_agent": "/root/implement_t04",
       "review_agent": null,
-      "worktree": null,
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t04",
       "write_scope": [],
       "changed_files": [],
       "acceptance_ids": [
@@ -366,7 +368,7 @@
       "status": "changes_requested",
       "completion_basis": null,
       "baseline_commit": "428a5877d63247d0dd0b345b0765aa3c912507c2",
-      "implementation_agent": "/root/implement_t05",
+      "implementation_agent": "/root",
       "review_agent": "/root/review_t05",
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05",
       "write_scope": [],
@@ -381,12 +383,11 @@
       "implementation_report": null,
       "tests": [],
       "review": {
-        "status": "CHANGES_REQUESTED",
-        "report": "reviews/T05-review-r1.md",
+        "status": "BLOCKED",
+        "report": "reviews/T05-review-r3.md",
         "target_commit": null,
         "unresolved_findings": [
-          "P1 partial websocket frame read timeout leaves connection desynchronized; must discard and history-only recover",
-          "DEL05 production driver/helper crash recovery evidence incomplete"
+          "r3 owner-ready failure traced to fixture socket permission mutation after runtime identity snapshot; deterministic pre-return socket-mode red/green and EOF regression now pass; r4 full run and independent re-review pending"
         ]
       },
       "owner_acceptance": {
@@ -397,7 +398,11 @@
       "commits": [],
       "blockers": [],
       "limitations": [],
-      "updated_at": null
+      "updated_at": null,
+      "implementation_agents": [
+        "/root/implement_t05",
+        "/root"
+      ]
     },
     {
       "id": "T06A",
@@ -485,36 +490,86 @@
         "T02",
         "T03"
       ],
-      "status": "pending",
-      "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
-      "review_agent": null,
-      "worktree": null,
+      "status": "done",
+      "completion_basis": "implemented",
+      "baseline_commit": "2347d34ce1e5ca4e40751f53064f3d99001f4832",
+      "implementation_agent": "/root/implement_t07",
+      "review_agent": "/root/review_t07",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "tools/orchestrator/cmd/orchestrator/accept_request_test.go",
+        "tools/orchestrator/cmd/orchestrator/candidate_cli_test.go",
+        "tools/orchestrator/cmd/orchestrator/controller_test.go",
+        "tools/orchestrator/cmd/orchestrator/cross_host_dispatch_batch_test.go",
+        "tools/orchestrator/cmd/orchestrator/current_owner.go",
+        "tools/orchestrator/cmd/orchestrator/host_recovery_test.go",
+        "tools/orchestrator/cmd/orchestrator/interruption_cli_test.go",
+        "tools/orchestrator/cmd/orchestrator/local_owner.go",
+        "tools/orchestrator/cmd/orchestrator/local_owner_test.go",
+        "tools/orchestrator/cmd/orchestrator/managed_trial_collection_test.go",
+        "tools/orchestrator/cmd/orchestrator/owner_rework_integration_test.go",
+        "tools/orchestrator/cmd/orchestrator/provider_stop_integration_test.go",
+        "tools/orchestrator/cmd/orchestrator/real_version_matrix_test.go",
+        "tools/orchestrator/cmd/orchestrator/task_entry.go",
+        "tools/orchestrator/cmd/orchestrator/task_entry_integration_test.go",
+        "tools/orchestrator/internal/coordinator/local_owner.go",
+        "tools/orchestrator/internal/coordinator/server.go",
+        "tools/orchestrator/internal/store/decisions.go",
+        "tools/orchestrator/internal/store/owner_rework.go",
+        "tools/orchestrator/internal/store/rework.go",
+        "tools/orchestrator/cmd/orchestrator/owner_projection_test.go",
+        "tools/orchestrator/internal/coordinator/owner_action_guard.go",
+        "tools/orchestrator/internal/coordinator/owner_action_guard_test.go",
+        "tools/orchestrator/internal/coordinator/owner_projection_test.go",
+        "tools/orchestrator/internal/store/owner_action_guard.go",
+        "tools/orchestrator/internal/store/owner_action_guard_test.go"
+      ],
       "acceptance_ids": [
         "OWN-01",
         "OWN-02",
         "OWN-03",
         "OWN-04"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T07-implementation.md",
+      "tests": [
+        {
+          "status": "PASS",
+          "type": "independent race protocol-fixture/OS-native-local",
+          "evidence": "reviews/T07-review.md",
+          "counts_including_subtests": {
+            "passed": 73,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "type": "integrated race",
+          "evidence": "data/public-evidence/T07-integrated.json",
+          "counts_including_subtests": {
+            "passed": 55,
+            "failed": 0,
+            "skipped": 0
+          }
+        }
+      ],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
+        "status": "PASS",
+        "report": "reviews/T07-review.md",
         "target_commit": null,
         "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "PASS",
+        "evidence": "reviews/T07-review.md",
         "accepted_commit": null
       },
       "commits": [],
       "blockers": [],
-      "limitations": [],
+      "limitations": [
+        "managed_process only; native chat-switch/original-thread delivery not verified or enabled"
+      ],
       "updated_at": null
     },
     {

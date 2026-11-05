@@ -1,0 +1,25 @@
+{
+  "command": [
+    "/private/tmp/go1.26.10-sdk/bin/go",
+    "test",
+    "-race",
+    "-json",
+    "-count=1",
+    "./internal/coordinator",
+    "./internal/store",
+    "./cmd/orchestrator",
+    "-run",
+    "Test(ProtectedOwner|OwnerActionBinding|ManagedOwner|OwnerProjection|OwnerBindLegacy|LocalOwner|WorkerPeer|UnidentifiedLaunch|BudgetPolicyRetryAndExplicitHostRebind|LateHostEvents|CLI(OwnerRequestChangesSingleTaskAndReplay|AutoWorkspaceOwnerReworkRemainsOutsideState)|ManagedDispatchReusesRequestAndRejectsChangedContent|ControllerStartBindsManagedProcessScope)"
+  ],
+  "exit_code": 0,
+  "test_actions": {
+    "pass": 63
+  },
+  "package_actions": {
+    "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+    "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+    "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+  },
+  "manifest_mismatch": [],
+  "completed": true
+}

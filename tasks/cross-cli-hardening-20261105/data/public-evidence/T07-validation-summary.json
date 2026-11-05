@@ -1,0 +1,636 @@
+{
+  "guard-final-build.json": {
+    "command": [
+      "go",
+      "build",
+      "./..."
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 1.62,
+    "test_actions": {},
+    "package_actions": {},
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "focused-v2.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "./cmd/orchestrator",
+      "-run",
+      "Test(ManagedOwnerProjection|OwnerProjection|OwnerBindLegacy|LocalOwnerDelivery|LocalOwnerProjection|ControllerStartBindsManagedProcessScope|TaskHandleCollectAndDecisionKeepOriginalRun|TaskDispatch|Dispatch|CLILocalOwnerCollectWithoutNativeBridge)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 9.95,
+    "test_actions": {
+      "pass": 47
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "owner-resume-counterexample.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "-overlay=/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07-evidence/resume-overlay.json",
+      "./internal/coordinator",
+      "-run",
+      "TestT07CounterexampleResumeOldOwnerWithoutRebind"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 1,
+    "elapsed_seconds": 1.56,
+    "test_actions": {
+      "fail": 1
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "fail"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "projection-final.json": {
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "./cmd/orchestrator",
+      "-run",
+      "Test(ManagedOwner|OwnerProjection|OwnerBindLegacy|LocalOwnerDelivery|LocalOwnerProjection|LocalOwnerOriginalControl|ControllerStartBindsManagedProcessScope|CLILocalOwnerCollectWithoutNativeBridge)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 7.18,
+    "test_actions": {
+      "pass": 22
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "regression.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./..."
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 1,
+    "elapsed_seconds": 185.85,
+    "test_actions": {
+      "pass": 1261,
+      "skip": 8,
+      "fail": 2
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/contract": "skip",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/admincli": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/adapter": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/events": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/instance": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/ipc": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/install": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/nativebridgecli": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/process": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/gitops": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host": "fail",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "owner-control-counterexample.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "-run",
+      "TestT07CounterexampleOldOwnerControlWithoutRebind"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 1,
+    "elapsed_seconds": 1.62,
+    "test_actions": {
+      "fail": 1
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "fail"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "guard-final-vet.json": {
+    "command": [
+      "go",
+      "vet",
+      "./..."
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 1.37,
+    "test_actions": {},
+    "package_actions": {},
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "guard-final-race.json": {
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-json",
+      "-count=1",
+      "./internal/store",
+      "./internal/coordinator",
+      "-run",
+      "Test(OwnerActionBinding|ProtectedOwner|LocalOwner|WorkerPeer|UnidentifiedLaunch|OwnerRequestChanges|BudgetPolicyRetryAndExplicitHostRebind|LateHostEvents)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 114.74,
+    "test_actions": {
+      "pass": 116
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "race-focused.json": {
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-json",
+      "-count=1",
+      "./cmd/orchestrator",
+      "./internal/coordinator",
+      "./internal/store",
+      "./internal/host",
+      "-run",
+      "Test(ManagedOwnerProjection|OwnerProjection|OwnerBindLegacy|LocalOwnerDelivery|LocalOwnerProjection|LocalOwnerOriginalControl|CurrentOwner|CurrentCodexOwner|Controller(StartBinds|Termination|Escalates)|LocalOwnerExplicit|WorkerPeer|UnidentifiedLaunch|HostIdentityExitProof|LateHostEvents|BudgetPolicyRetryAndExplicitHostRebind|OwnerRegistration|RunSourceStopsWhenOriginOwnerExits|DispatchFacade)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 32.64,
+    "test_actions": {
+      "pass": 46
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "focused.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "./cmd/orchestrator",
+      "-run",
+      "Test(ManagedOwnerProjection|LocalOwnerDelivery|LocalOwnerProjection|ControllerStartBindsManagedProcessScope|TaskHandleCollectAndDecisionKeepOriginalRun|TaskDispatch|Dispatch)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 1,
+    "elapsed_seconds": 8.75,
+    "test_actions": {
+      "pass": 28
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "fail",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "sandbox-recheck.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/host",
+      "-run",
+      "TestManagedNewDirectoriesNativeSandboxes"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 3.45,
+    "test_actions": {
+      "pass": 3
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/guanjunhui/.local/bin",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "action-guard-protocol.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "-run",
+      "TestProtectedOwner"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 1,
+    "elapsed_seconds": 2.16,
+    "test_actions": {
+      "pass": 19,
+      "fail": 1
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "fail"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "action-guard-red.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "-run",
+      "TestProtectedOwnerActionRejectsDeadOwnerWithoutRebind"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 1,
+    "elapsed_seconds": 2.17,
+    "test_actions": {
+      "fail": 1
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "fail"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "baseline.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "./internal/store",
+      "-run",
+      "Test(LocalOwner|WorkerPeer|UnidentifiedLaunch|LateHostEvents|BudgetPolicyRetryAndExplicitHostRebind|OwnerRegistration)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 12.75,
+    "test_actions": {
+      "pass": 14
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "action-guard-green-initial.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "./internal/store",
+      "-run",
+      "Test(ProtectedOwnerActionRejectsDeadOwnerWithoutRebind|OwnerProjection|ManagedOwner|LocalOwner|BudgetPolicyRetryAndExplicitHostRebind)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 3.2,
+    "test_actions": {
+      "pass": 23
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "guard-final-cli.json": {
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-json",
+      "-count=1",
+      "./cmd/orchestrator",
+      "-run",
+      "Test(CLI(OwnerRequestChangesSingleTaskAndReplay|AutoWorkspaceOwnerReworkRemainsOutsideState)|ManagedDispatchReusesRequestAndRejectsChangedContent)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 44.51,
+    "test_actions": {
+      "pass": 7
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "action-guard-focused.json": {
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "./internal/store",
+      "-run",
+      "Test(ProtectedOwner|OwnerActionBinding)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 6.46,
+    "test_actions": {
+      "pass": 26
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "focused-green.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./internal/coordinator",
+      "./cmd/orchestrator",
+      "-run",
+      "Test(ManagedOwnerProjection|LocalOwnerDelivery|LocalOwnerProjection|ControllerStartBindsManagedProcessScope|TaskHandleCollectAndDecisionKeepOriginalRun|TaskDispatch|Dispatch|CLILocalOwnerCollectWithoutNativeBridge)"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 1,
+    "elapsed_seconds": 10.36,
+    "test_actions": {
+      "pass": 44,
+      "fail": 1
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "fail"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "guard-regression.json": {
+    "command": [
+      "go",
+      "test",
+      "-json",
+      "-count=1",
+      "./..."
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 205.77,
+    "test_actions": {
+      "pass": 1291,
+      "skip": 8
+    },
+    "package_actions": {
+      "codex-cli-orchestration-design/tools/orchestrator/internal/contract": "skip",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/admincli": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/events": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/adapter": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/instance": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/ipc": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/install": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/nativebridgecli": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/process": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/gitops": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host": "pass",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+    },
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/guanjunhui/.local/bin",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "vet.json": {
+    "command": [
+      "go",
+      "vet",
+      "./..."
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 2.84,
+    "test_actions": {},
+    "package_actions": {},
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "build.json": {
+    "command": [
+      "go",
+      "build",
+      "./..."
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07/tools/orchestrator",
+    "exit_code": 0,
+    "elapsed_seconds": 0.51,
+    "test_actions": {},
+    "package_actions": {},
+    "toolchain": "go1.26.10 darwin/arm64",
+    "env": {
+      "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/usr/sbin:/sbin:",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "TMPDIR": "/private/tmp",
+      "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t07"
+    }
+  },
+  "final-source-checks": {
+    "gofmt_list_exit": 0,
+    "gofmt_list_output": "",
+    "git_diff_check_exit": 0,
+    "source_manifest_matches": true,
+    "all_test_sessions_completed": true
+  }
+}

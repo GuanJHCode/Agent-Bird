@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/private/tmp/go1.26.10-sdk/bin/go",
+    "test",
+    "-race",
+    "-json",
+    "-count=1",
+    "./cmd/orchestrator",
+    "-run",
+    "Test(CurrentOwnerRejectsUntrustedManagedContextWithoutCodexFallback|ControllerTerminationStopsManagedCLI|CLILocalOwnerCollectWithoutNativeBridge)"
+  ],
+  "exit_code": 0,
+  "test_actions": {
+    "pass": 10
+  },
+  "completed": true
+}

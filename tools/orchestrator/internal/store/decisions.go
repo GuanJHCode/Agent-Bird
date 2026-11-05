@@ -19,6 +19,9 @@ func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) e
 		return err
 	}
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	if err := validateOwnerActionBinding(ctx, tx, taskID); err != nil {
+		return rollback(err)
+	}
 	var status, adapterPayload string
 	var revision int
 	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,r.adapter_payload FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision, &adapterPayload); err != nil {
@@ -72,6 +75,9 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 		return "", err
 	}
 	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
+	if err := validateOwnerActionBinding(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
+	}
 	var taskStatus, questionStatus, answerHash, segmentID string
 	var workRevision, questionRevision int
 	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,q.question_revision,q.status,q.answer_hash,q.segment_id FROM runtime_questions q JOIN tasks t ON t.id=q.task_id JOIN task_runtime r ON r.task_id=t.id WHERE q.question_id=? AND q.task_id=?`, spec.QuestionID, spec.TaskID).Scan(&taskStatus, &workRevision, &questionRevision, &questionStatus, &answerHash, &segmentID); err != nil {
@@ -146,6 +152,9 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 		return "", err
 	}
 	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
+	if err := validateOwnerActionBinding(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
+	}
 	// Owner revision decisions share source/action/command identity with review.
 	var revisionOccupied int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions WHERE action_slot=? OR source_event_id=? OR command_id=?`, spec.ActionSlot, spec.EventID, spec.CommandID).Scan(&revisionOccupied); err != nil {
@@ -261,6 +270,9 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 		return empty, err
 	}
 	rollback := func(e error) (RetryReceipt, error) { _ = tx.Rollback(); return empty, e }
+	if err := validateOwnerActionBinding(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
+	}
 	var revisionPayload string
 	if err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&revisionPayload); err == nil && revisionPayload != "" {
 		if _, parseErr := parseReviewRetry(revisionPayload); parseErr != nil {

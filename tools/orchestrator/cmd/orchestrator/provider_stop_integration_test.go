@@ -58,6 +58,8 @@ func TestProviderDisableStopsOnlyItsOwnersRealProcess(t *testing.T) {
 			t.Fatal(err)
 		}
 		delete(owner, "version")
+		delete(owner, "owner_scope")
+		delete(owner, "owner_capabilities")
 		owners[id] = owner
 	}
 	snapshot := func(id string) store.TaskSnapshot {

@@ -241,16 +241,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	if err = ownerBind(ctx, []string{"--current", "--state-dir", state}, &ownerOut); err != nil {
 		return err
 	}
-	var owner struct {
-		Version          int    `json:"version"`
-		OwnerMode        string `json:"owner_mode"`
-		OwnerCapability  string `json:"owner_capability"`
-		ControllerThread string `json:"controller_thread"`
-		OriginContextID  string `json:"origin_context_id"`
-		OriginPID        int    `json:"origin_pid"`
-		OriginBirth      string `json:"origin_birth"`
-		HostGeneration   string `json:"host_generation"`
-	}
+	var owner coordinator.OwnerBindResponse
 	if err = decode(ownerOut.Bytes(), &owner); err != nil {
 		return err
 	}

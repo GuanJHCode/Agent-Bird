@@ -25,8 +25,9 @@ type managedOwnerRequest struct {
 	LauncherDigest   string `json:"launcher_digest"`
 }
 
-// currentOwner resolves a native Codex session when present, or the explicitly
-// managed process scope created by controller start. A supplied managed context
+// currentOwner observes a Codex ancestor or the managed launcher process.
+// Both bind local process authority; neither proves native conversation routing.
+// A supplied managed context
 // must validate; it never falls through to an unrelated Codex environment.
 func currentOwner(ctx context.Context) (coordinator.OwnerBindRequest, error) {
 	if os.Getenv(managedOwnerRequestEnv) != "" {

@@ -1,0 +1,37 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-json",
+    "-count=1",
+    "./internal/coordinator",
+    "./internal/store",
+    "./cmd/orchestrator",
+    "-run",
+    "Test(ProtectedOwner|OwnerActionBinding|ManagedOwnerProjection|LocalOwnerProjection|LocalOwnerDelivery|CurrentOwner|ControllerStartBindsManagedProcessScope|CLILocalOwnerCollectWithoutNativeBridge|CLIOwnerRequestChangesSingleTaskAndReplay)"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tools/orchestrator",
+  "start": "2026-11-05T05:03:52.086677+00:00",
+  "elapsed_seconds": 64.912,
+  "exit_code": 0,
+  "source_commit": "2347d34ce1e5ca4e40751f53064f3d99001f4832",
+  "tracked_diff_sha256": "b705e3cf1cdfb4c440ff6e05d95fc3b2eb9d0bc230a0fc828b129ac9e0d0b4a7",
+  "counts": {
+    "passed": 55,
+    "failed": 0,
+    "errors": null,
+    "skipped": 0
+  },
+  "package_failures": 0,
+  "environment": {
+    "PATH": "/private/tmp/go1.26.10-sdk/bin:/Users/guanjunhui/.codex/packages/standalone/releases/0.166.0-aarch64-apple-darwin/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-integration",
+    "TMPDIR": "/private/tmp"
+  },
+  "production_files_sha256": "c2616039f523074c293f30a6bedec9b9cafa3ed8a747fce15b444e041981cf57",
+  "log_sha256": "d167dc960173057b7080556dd19d45eb6a2991e77e87fc5374f3cc687c90fbaa"
+}

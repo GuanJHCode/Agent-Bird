@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"io"
+	"slices"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
@@ -36,8 +37,16 @@ func ownerBind(ctx context.Context, args []string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if _, err = ensureServer(ctx, state); err != nil {
+	ready, err := ensureServer(ctx, state)
+	if err != nil {
 		return err
+	}
+	capabilities, _ := ready["capabilities"].([]string)
+	// Never send an extension to a coordinator that has not advertised it.
+	// A legacy response has no native routing proof or available projection.
+	req.OwnerProjectionVersion = 0
+	if slices.Contains(capabilities, "managed_owner_projection_v1") {
+		req.OwnerProjectionVersion = 1
 	}
 	response, err := call(ctx, state, ipc.KindOwnerBind, req)
 	if err != nil {

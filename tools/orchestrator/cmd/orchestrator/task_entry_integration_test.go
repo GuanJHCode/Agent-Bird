@@ -55,6 +55,8 @@ func TestTaskHandleCollectAndDecisionKeepOriginalRun(t *testing.T) {
 		t.Fatal("token leaked to stdout")
 	}
 	delete(owner, "version")
+	delete(owner, "owner_scope")
+	delete(owner, "owner_capabilities")
 	owner["run_id"] = "local"
 	owner["plan_revision"] = 1
 	owner["delivery_mode"] = "collect"

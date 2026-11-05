@@ -278,6 +278,9 @@ func (d *DB) QueueRequestChanges(ctx context.Context, spec OwnerReworkSpec) (Rew
 		return empty, err
 	}
 	defer tx.Rollback()
+	if err := validateOwnerActionBinding(ctx, tx, spec.TaskID); err != nil {
+		return empty, err
+	}
 	var previous string
 	err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE command_id=? OR action_slot=? OR source_event_id=?`, spec.CommandID, spec.ActionSlot, spec.EventID).Scan(&previous)
 	if err == nil {

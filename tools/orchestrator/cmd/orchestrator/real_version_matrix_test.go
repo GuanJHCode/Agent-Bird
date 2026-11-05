@@ -844,6 +844,8 @@ func submitMatrix(ctx context.Context, runner matrixRunner, root, state, work, p
 	// owner-bind projects owner_mode=local plus a real owner_capability path, so
 	// submit verifies the local projection instead of needing a bypass.
 	delete(owner, "version")
+	delete(owner, "owner_scope")
+	delete(owner, "owner_capabilities")
 	owner["run_id"] = matrixRunID
 	owner["plan_revision"] = matrixWorkRev
 	owner["delivery_mode"] = "collect"

@@ -1,0 +1,136 @@
+{
+  "baseline": "2347d34ce1e5ca4e40751f53064f3d99001f4832",
+  "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t07",
+  "files": [
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/accept_request_test.go",
+      "status": "modified",
+      "sha256": "0ec30772276edab49b5ab38ca349022f23bdb3bf0bdccbd67ffd102ab0fe839e"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/candidate_cli_test.go",
+      "status": "modified",
+      "sha256": "e61e244ca9189b26ef5001c0ca787290bebdc7128edf5e9f177f21ad82b22417"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/controller_test.go",
+      "status": "modified",
+      "sha256": "a3cd89d166750df82a01ff6eea1cbdce13fb6df0a7081bf63edfa41377fa0e48"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/cross_host_dispatch_batch_test.go",
+      "status": "modified",
+      "sha256": "e5b4bd61835dd11b74af11264fa993c19760c327c600c729953e2a2ef53fc95c"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/current_owner.go",
+      "status": "modified",
+      "sha256": "b2aa2ecdc5ef32e682426b2ed5c2418bc323c1d2ed060211a178e2eced4e290b"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/host_recovery_test.go",
+      "status": "modified",
+      "sha256": "f5c4d80649ad9161ecd8a45f5fcb6d5ab6cdbadfcbdbe3acac4ad906f2ee3155"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/interruption_cli_test.go",
+      "status": "modified",
+      "sha256": "e5d5130147282843c98e16254d354003cc39adcd3cc110df507ab22cb61c1d69"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/local_owner.go",
+      "status": "modified",
+      "sha256": "e0bdcd748698b8206007dd0d86fbde2098668942116966c9bad3808e794701e5"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/local_owner_test.go",
+      "status": "modified",
+      "sha256": "8f1680bce39a20cf355a06e32db152436d5483d926d716d4829ea08f2ea56091"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/managed_trial_collection_test.go",
+      "status": "modified",
+      "sha256": "9fbaa4ca025c59366eab1fe645d8e00a7d13839cae6886106626b8dacb6e2abd"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/owner_rework_integration_test.go",
+      "status": "modified",
+      "sha256": "c9a4e053e96d1740fd3f7f412229088bc371361531bd11954e4b9982198a33cc"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider_stop_integration_test.go",
+      "status": "modified",
+      "sha256": "c50146dab2fbe6799a695213c498ae07efadfc275583fe6f2ef25c3c1c8a8b3b"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/real_version_matrix_test.go",
+      "status": "modified",
+      "sha256": "c70731856a474a7252536c647acb46e9ceffad5112f144550fccd189de89baaa"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry.go",
+      "status": "modified",
+      "sha256": "8b6440a70698da203f2ff5311a265f7f0d8e8580dcb4abd0de1e982f36064367"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry_integration_test.go",
+      "status": "modified",
+      "sha256": "551355b78e72457b4e66c1c9db0a423edec883bf166f1e7fe6d3886fee9abacc"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/local_owner.go",
+      "status": "modified",
+      "sha256": "0fb1666004a48609c152d67d41b55b39959e209e5aa21f2a6a329d07d3dc70ea"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/server.go",
+      "status": "modified",
+      "sha256": "442b90fbd086d8c7b7fa3f1a3ff7ac5f85104f9295e227025bc6aedf74ccd955"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/decisions.go",
+      "status": "modified",
+      "sha256": "80d4f2e45626f16b315cd95b27b61dbb77fadb4fa84c3f01fc6e31fa61a453d1"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_rework.go",
+      "status": "modified",
+      "sha256": "ac89f59e96b330ee49202b3944707bfe2890494047d08584af869e40dfcec5a5"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework.go",
+      "status": "modified",
+      "sha256": "5ab4dff69edc06e92696c0f7d0330914173abdaaac2d06bb0e94dbd6d454c826"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/owner_projection_test.go",
+      "status": "new",
+      "sha256": "538863107516af720abc0b08d0d528de29c1715b339dd7f8bce5479d445db3bc"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/owner_action_guard.go",
+      "status": "new",
+      "sha256": "a766d175afa08830c69a492e861466124316e00cc9ca09f31df7d98729472f87"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/owner_action_guard_test.go",
+      "status": "new",
+      "sha256": "4162fbb45fd97b19a439dd0388f84cab530cdf69c9741c1e92ef4e3a4c721b88"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/owner_projection_test.go",
+      "status": "new",
+      "sha256": "ce6ad71c3f05345a198ec50d37cd26903692261da190af8ef8fed7e37d8734fb"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_action_guard.go",
+      "status": "new",
+      "sha256": "d3704ec2d0d1ace2b2575af7ab53238b9868240ecd593afb27733d12f9649150"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_action_guard_test.go",
+      "status": "new",
+      "sha256": "52471610c6e8308158de31f4de581a6f5dcd2c64cb425ed954f4a0f689e65b3a"
+    }
+  ]
+}

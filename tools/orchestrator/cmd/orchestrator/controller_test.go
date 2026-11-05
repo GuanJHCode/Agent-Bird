@@ -1,7 +1,9 @@
 package main
 
 import (
+	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -100,6 +102,24 @@ func TestControllerStartBindsManagedProcessScope(t *testing.T) {
 	}
 	if !strings.Contains(string(out), `"owner_mode":"local"`) || !strings.Contains(string(out), `"controller_thread":"managed-claude-`) {
 		t.Fatalf("managed owner output: %s", out)
+	}
+	var owner coordinator.OwnerBindResponse
+	if err := decode(out, &owner); err != nil {
+		t.Fatalf("strict owner response: %v", err)
+	}
+	if owner.OwnerScope != "managed_process" || owner.OwnerCapabilities == nil || owner.OwnerCapabilities.Version != 1 || owner.OwnerCapabilities.Delivery.NativePush || owner.OwnerCapabilities.Continuation.TypedResume || owner.OwnerCapabilities.ObservesChatSwitch || owner.OwnerCapabilities.Continuation.AutomaticRebind || !owner.OwnerCapabilities.Delivery.Collect || !owner.OwnerCapabilities.Delivery.Wait || !owner.OwnerCapabilities.Continuation.FreshInvocation || !owner.OwnerCapabilities.Continuation.ExplicitRebind || owner.OwnerCapabilities.ParentExitPolicy != "stop_and_retain" {
+		t.Fatalf("managed owner overclaims: %+v", owner)
+	}
+	var capability map[string]any
+	raw, err := os.ReadFile(owner.OwnerCapability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal(raw, &capability); err != nil {
+		t.Fatal(err)
+	}
+	if capability["owner_scope"] != nil || capability["owner_capabilities"] != nil {
+		t.Fatal("projection changed authority")
 	}
 	if _, err := os.Stat(filepath.Join(state, "coordinator.pid")); err != nil {
 		t.Fatalf("expected owner bind runtime: %v", err)

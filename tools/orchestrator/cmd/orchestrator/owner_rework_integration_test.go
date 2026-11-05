@@ -94,6 +94,8 @@ func exerciseCLIOwnerRequestChanges(t *testing.T, automatic bool) {
 		t.Fatal(err)
 	}
 	delete(owner, "version")
+	delete(owner, "owner_scope")
+	delete(owner, "owner_capabilities")
 	owner["run_id"] = "owner-development"
 	owner["plan_revision"] = 7
 	owner["delivery_mode"] = "collect"

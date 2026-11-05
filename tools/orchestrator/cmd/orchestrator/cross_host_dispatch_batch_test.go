@@ -62,6 +62,8 @@ func TestBatchReleasedGlobalSlotWakesAnotherOwnerHost(t *testing.T) {
 			t.Fatal(err)
 		}
 		delete(owner, "version")
+		delete(owner, "owner_scope")
+		delete(owner, "owner_capabilities")
 		owner["run_id"], owner["plan_revision"], owner["delivery_mode"] = name, 1, "collect"
 		command := "echo second-result"
 		if index == 0 {

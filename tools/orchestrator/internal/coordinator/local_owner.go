@@ -35,15 +35,65 @@ func (s *Server) authorizePeer(ctx context.Context, conn net.Conn) (context.Cont
 }
 
 type OwnerBindRequest struct {
-	ControllerThread string `json:"controller_thread"`
-	OriginPID        int    `json:"origin_pid"`
-	OriginBirth      string `json:"origin_birth"`
+	OwnerProjectionVersion int    `json:"owner_projection_version,omitempty"`
+	ControllerThread       string `json:"controller_thread"`
+	OriginPID              int    `json:"origin_pid"`
+	OriginBirth            string `json:"origin_birth"`
+}
+
+// OwnerBindResponse describes the local process authority. OwnerScope and
+// OwnerCapabilities are informational projections, never capability material.
+// A native-looking controller thread label does not prove native chat routing.
+type OwnerBindResponse struct {
+	Version           int                `json:"version"`
+	OwnerMode         string             `json:"owner_mode"`
+	OwnerCapability   string             `json:"owner_capability"`
+	ControllerThread  string             `json:"controller_thread"`
+	OriginPID         int                `json:"origin_pid"`
+	OriginBirth       string             `json:"origin_birth"`
+	OriginContextID   string             `json:"origin_context_id"`
+	HostGeneration    string             `json:"host_generation"`
+	OwnerScope        string             `json:"owner_scope,omitempty"`
+	OwnerCapabilities *OwnerCapabilities `json:"owner_capabilities,omitempty"`
+}
+
+type OwnerCapabilities struct {
+	Version            int                           `json:"version"`
+	Delivery           OwnerDeliveryCapabilities     `json:"delivery"`
+	Continuation       OwnerContinuationCapabilities `json:"continuation"`
+	ObservesChatSwitch bool                          `json:"observes_chat_switch"`
+	ParentExitPolicy   string                        `json:"parent_exit_policy"`
+}
+
+type OwnerDeliveryCapabilities struct {
+	Collect    bool `json:"collect"`
+	Wait       bool `json:"wait"`
+	NativePush bool `json:"native_push"`
+}
+
+type OwnerContinuationCapabilities struct {
+	FreshInvocation bool `json:"fresh_invocation"`
+	TypedResume     bool `json:"typed_resume"`
+	ExplicitRebind  bool `json:"explicit_rebind"`
+	AutomaticRebind bool `json:"automatic_rebind"`
+}
+
+func managedOwnerCapabilities() OwnerCapabilities {
+	return OwnerCapabilities{
+		Version:          1,
+		Delivery:         OwnerDeliveryCapabilities{Collect: true, Wait: true},
+		Continuation:     OwnerContinuationCapabilities{FreshInvocation: true, ExplicitRebind: true},
+		ParentExitPolicy: "stop_and_retain",
+	}
 }
 
 func (s *Server) bindLocalOwner(ctx context.Context, raw json.RawMessage) (json.RawMessage, error) {
 	var req OwnerBindRequest
 	if err := strictJSON(raw, &req); err != nil {
 		return nil, err
+	}
+	if req.OwnerProjectionVersion != 0 && req.OwnerProjectionVersion != 1 {
+		return nil, store.CodeError("owner_projection_version_unsupported")
 	}
 	ancestry, _ := ctx.Value(peerAncestryKey{}).(map[int]string)
 	if req.OriginBirth == "" || ancestry[req.OriginPID] != req.OriginBirth {
@@ -90,7 +140,17 @@ func (s *Server) bindLocalOwner(ctx context.Context, raw json.RawMessage) (json.
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(map[string]any{"version": 1, "owner_mode": "local", "owner_capability": path, "controller_thread": g.ControllerThread, "origin_pid": g.OriginPID, "origin_birth": g.OriginBirth, "origin_context_id": g.OriginContextID, "host_generation": g.HostGeneration})
+	response := OwnerBindResponse{
+		Version: 1, OwnerMode: "local", OwnerCapability: path,
+		ControllerThread: g.ControllerThread, OriginPID: g.OriginPID, OriginBirth: g.OriginBirth,
+		OriginContextID: g.OriginContextID, HostGeneration: g.HostGeneration,
+	}
+	if req.OwnerProjectionVersion == 1 {
+		response.OwnerScope = "managed_process"
+		capabilities := managedOwnerCapabilities()
+		response.OwnerCapabilities = &capabilities
+	}
+	return json.Marshal(response)
 }
 func (s *Server) localOwner(ctx context.Context, path string) (store.OwnerGrant, error) {
 	var g store.OwnerGrant

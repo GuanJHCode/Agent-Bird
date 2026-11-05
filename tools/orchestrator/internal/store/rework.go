@@ -73,6 +73,9 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 		return empty, err
 	}
 	defer tx.Rollback()
+	if err := validateOwnerActionBinding(ctx, tx, spec.TaskID); err != nil {
+		return empty, err
+	}
 	var previous string
 	err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previous)
 	if err == nil {
