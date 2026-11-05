@@ -800,7 +800,7 @@
         "T05",
         "T07"
       ],
-      "status": "done",
+      "status": "in_progress",
       "completion_basis": "implemented",
       "baseline_commit": "c7d5f8a0",
       "implementation_agent": "/root + /root/implement_t08_auth",
@@ -893,7 +893,8 @@
       "limitations": [
         "Final installed package/receipt and real parent/worker model cycles remain T11/T12 gates.",
         "Additional managed-native admission under external Seatbelt blocked before owner bind by setuid ps; no sourceproof conclusion.",
-        "Independent r3/r4 subset raw outputs were not retained as files; source review report states this; root fresh full-module reports retained."
+        "Independent r3/r4 subset raw outputs were not retained as files; source review report states this; root fresh full-module reports retained.",
+        "New offline follow-up: real lowest-model parent changed847-char route refs; compact refs implementation pending, original security checks correctly rejected mutations."
       ],
       "updated_at": "2026-11-05T08:36:51.029285+00:00"
     },
@@ -1079,7 +1080,7 @@
       "commits": [],
       "blockers": [],
       "limitations": [
-        "Unique .3 package/source d700 independently reviewed and root accepted for PKG-01..04; no release/global install replacement. Final DOC correction/record and T12 live acceptance remain pending."
+        "Historical .3 source d700 unique package independently/root PKG-01..04 PASS; final documentation state synchronization and new offline compact-reference candidate remain pending. No release/global replacement."
       ],
       "updated_at": "2026-11-05T08:44:46.119375+00:00"
     },
@@ -1090,7 +1091,7 @@
       "depends_on": [
         "T11"
       ],
-      "status": "in_progress",
+      "status": "blocked",
       "completion_basis": null,
       "baseline_commit": null,
       "implementation_agent": "/root + /root/implement_t12_harness",
@@ -1109,22 +1110,33 @@
         "REG-03"
       ],
       "implementation_report": null,
-      "tests": [],
+      "tests": [
+        {
+          "status": "BLOCKED",
+          "type": "bounded actual bidirectional ordinary-MCP trials on same.3",
+          "evidence": "data/public-evidence/T12-live-root.json",
+          "review": "reviews/T12-live-review.md"
+        }
+      ],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
-        "target_commit": null,
-        "unresolved_findings": []
+        "status": "PASS",
+        "report": "reviews/T12-live-review.md",
+        "target_commit": "d700356c9ee497952b22ec9220d1fde111f71848",
+        "unresolved_findings": [],
+        "scope": "truthful failure/cleanup only; not product acceptance"
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "BLOCKED",
+        "evidence": "data/public-evidence/T12-live-root.json",
         "accepted_commit": null
       },
       "commits": [],
-      "blockers": [],
+      "blockers": [
+        "LIVE01: lowest-model parent changed opaque847char refs; no accept/ACK/FF.",
+        "LIVE02: supplied API-key header route returned10 HTTP401 retries, no dispatch before174s cleanup reserve."
+      ],
       "limitations": [
-        "New harness r2 independently reviewed PASS:149 fresh fixture passed0failed/error/skip; generated product codex-args env_vars and installed Go binary now byte-bound. Final .3/live dual-direction still NOT_RUN; no model inference yet."
+        "Both original bounded trials ended; no budget/ID reset or added paid trial. Compact-reference offline fix and exact working third-party auth mode pending; preserve all original failure evidence."
       ],
       "updated_at": null,
       "acceptance_policy": {
@@ -1152,7 +1164,7 @@
       "depends_on": [
         "T00"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "completion_basis": null,
       "baseline_commit": null,
       "implementation_agent": null,
@@ -1201,8 +1213,8 @@
       "completion_policy": "handoff_status 可为 PREPARED，但上游核心阻塞时 T13 task 与产品签收保持 BLOCKED；最终集成审查和主会话产品签收 PASS 后才 done。",
       "start_policy": "可基于 T00 建立交接；正式审查汇总全部任务的已完成或准确受阻状态。T12 blocked 不阻止整理受阻交接。",
       "product_signoff": {
-        "status": "NOT_RUN",
-        "evidence": null
+        "status": "BLOCKED",
+        "evidence": "data/public-evidence/T12-live-root.json"
       }
     }
   ],
@@ -1212,9 +1224,9 @@
     "package_sha256": "dfbbf79b29471a9ec81b92598b74b03ba02af96ad4eac7f4b0e4ca53ee6529f8",
     "binary_sha256": "f5c54bde90a72e2e95e130989a53cfc595b33dcb0a86b607832dd3f926ba5c4c",
     "manifest_sha256": "26f2a2b22eeaa74d4246b797ff251a58667b5b041ab3165a4f63f6fa10979bcc",
-    "core_status": "NOT_RUN",
-    "native_push_status": "NOT_RUN",
-    "live_original_failure_rework_status": "NOT_RUN",
+    "core_status": "BLOCKED",
+    "native_push_status": "BLOCKED",
+    "live_original_failure_rework_status": "NOT_EXERCISED",
     "final_review": null,
     "root_acceptance": null,
     "delivery_report": null,

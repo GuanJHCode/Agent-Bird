@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "scope": "read-only live failure, cleanup and budget evidence; no secrets or opaque references",
+  "git": {
+    "review_head": "48b3a9b25f7428c50c6305abbb1fb8eee14c48f0",
+    "package_source_commit": "d700356c9ee497952b22ec9220d1fde111f71848",
+    "package_source_tree": "5b04a4d7fb49c47a5f16ebe26a04ddc3a1ee509a"
+  },
+  "pins": {
+    "identity.json": "542828d484fc1875df6e2bf740ea2d0f01699000bf2a1228f28962e8175d87a3",
+    "final_trial.py": "e5f4d534f8c8a37a370b68713c8c79dc78c2cfbeea6dfdc03d9c10626fb170e3",
+    "scenario.py": "0793486c05885a0420f299fb2842861e3a0a476389c2e1d803b4a5978952edd3",
+    "t12_harness.py": "daceb63d793f41e64fcd9bedc3ebec06b5cc8237223c6a661db9f4d27f322274",
+    "provider-lock-r4-narrow-review.md": "850c21ec3f9d31b061d474f97f922d660904ef2be3e631face59a55819d64565"
+  },
+  "codex_to_claude": {
+    "contract.json": "fc419a422b5fb96eb4db24194c944b37852e65c00ba8dfcaa4aca363ca8fa0ab",
+    "bound-contract.json": "fc419a422b5fb96eb4db24194c944b37852e65c00ba8dfcaa4aca363ca8fa0ab",
+    "launch.json": "1391a2ab55958229df8c98156f33e7c307ffa4a7a5db15da51d5beb0f1153b73",
+    "parent.stdout": "34222c904ddcc48afa9282437b1963c582460c25c1dd4667f691682bcfc09823",
+    "parent.stderr": "1aa26269eb1cc57f86b235a03cda53c004edb5b1e9fc99d4da4f00843293d721",
+    "scenario-result.json": "ae4ba1b93a2fb31275636450de34523fe634815a94166bdf833b3a1a286acc6e",
+    "state.db": "e7bd22e736a6c9391835df6ec6da72cdce136bae906b066807f2b7d60e45deaa",
+    "observed-dispatch.json": "72b81e2f4fad155902c48b46ce9a0ae5504e91c2436ff2a2624a527123d3915a",
+    "first-reference-diagnosis.json": "0c2b4766b8a3e5067c788200065ec997aae3ff112c4d58d44d42039d96abc83f",
+    "first-reference-origin-comparison.json": "606d79d334a76e48898641de7028c0f7c17af6ba7f62fcbfb4ca64af9c5f69db",
+    "first-original-cli-inspect.json": "e4ae87843568c17b7e26c350584bdc83cf6a76b589426ba65b8deb5c9897c723"
+  },
+  "claude_to_codex": {
+    "contract.json": "4ae3a92b33b27547501eebf7aecec33cc9edf941aa82599df1181e6c4064eed7",
+    "bound-contract.json": "4ae3a92b33b27547501eebf7aecec33cc9edf941aa82599df1181e6c4064eed7",
+    "launch.json": "a7d740c1e4356f0f13c80d3666744294ffee10ce66c65bea8c503504fc180ae4",
+    "parent.stdout": "e556420b8566fe4bb05b9b0dbf87ab510078fbcbfe89150f01ceb0fd3a87e40c",
+    "parent.stderr": "f4cf8605830181c1126861c97210f3442205c2485072cc8de9b247eefa34e873",
+    "scenario-result.json": "6325f9cf4cf5035819f08181a36ed9cbdbe58eb86bb6e0b89143b3d48fd466af",
+    "state.db": "0c56aaf49348d1e9f29ebb135fce0d101c898bbac1114534a076da251aaaa96d"
+  },
+  "existing_test_evidence": {
+    "harness-r3-fresh.xml": "c1ae75ad2051ca9538b1684e566d70b43cac9f1a8ac37ea6415e5c342415a330",
+    "bootstrap-r4-fresh.xml": "40d77e2b4876d0ca0d0dd0c641e5ce0d2517d8072b68ba185ff94a141f191e01"
+  }
+}
