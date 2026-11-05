@@ -1,0 +1,708 @@
+{
+  "schema_version": 1,
+  "document_type": "implementation_task_template",
+  "created_date": "2026-11-05",
+  "timezone": "Asia/Shanghai",
+  "repository": "https://github.com/GuanJHCode/Agent-Bird",
+  "target_branch": "feat/cross-cli-subagent-20261104",
+  "reviewed_commit": "29691e9f08468b1de56cb0c42977084b58c91975",
+  "comparison_commit": "4b2b4916232c9d7526f51cf0a73204748c62faf8",
+  "actual_repository_path": null,
+  "actual_baseline_commit": null,
+  "working_branch": null,
+  "source_tree_sha256": null,
+  "note": "所有任务是待实施模板，不表示已有实现或通过验收。按当前代码核验已修复项，保留 verified_existing 证据。",
+  "states": [
+    "pending",
+    "in_progress",
+    "awaiting_review",
+    "changes_requested",
+    "awaiting_owner_acceptance",
+    "done",
+    "blocked"
+  ],
+  "evidence_statuses": [
+    "PASS",
+    "FAIL",
+    "BLOCKED",
+    "NOT_RUN",
+    "NOT_EXERCISED",
+    "OUT_OF_SCOPE"
+  ],
+  "rules": {
+    "independent_review_required": true,
+    "root_acceptance_required": true,
+    "old_runtime_routes_preserved": true,
+    "typed_worker_resume_enabled": false,
+    "automatic_remote_push_authorized": false,
+    "automatic_public_release_authorized": false,
+    "automatic_global_install_replacement_authorized": false
+  },
+  "conditional_dependency_policy": "T09 的宿主 live gate 不阻塞核心范围的冻结与交付。若 T09 代码纳入最终包，T11 前必须完成其代码冻结及相关非 live 审查；原生未验收能力保持关闭。T13 报告所有 T09 状态，不将 blocked 标 done。",
+  "tasks": [
+    {
+      "id": "T00",
+      "title": "基线、现场保护与合同",
+      "required_for_core": true,
+      "depends_on": [],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "BASE-01",
+        "BASE-02"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T01",
+      "title": "授权文件缺失父目录准备",
+      "required_for_core": true,
+      "depends_on": [
+        "T00"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "WS-01",
+        "WS-02",
+        "WS-03",
+        "WS-04"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T02",
+      "title": "dispatch 拒绝重放",
+      "required_for_core": true,
+      "depends_on": [
+        "T00"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "DIS-01",
+        "DIS-02",
+        "DIS-03",
+        "DIS-04"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T03",
+      "title": "参数与版本化预算合同",
+      "required_for_core": true,
+      "depends_on": [
+        "T02"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "BUD-01",
+        "BUD-02",
+        "BUD-03",
+        "BUD-04",
+        "LIM-01"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T04",
+      "title": "不可变返工正文与引用",
+      "required_for_core": true,
+      "depends_on": [
+        "T03"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "REW-01",
+        "REW-02",
+        "REW-03",
+        "REW-04",
+        "LIM-01"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T05",
+      "title": "回执桥截止时间与恢复",
+      "required_for_core": true,
+      "depends_on": [
+        "T02"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "DEL-01",
+        "DEL-02",
+        "DEL-03",
+        "DEL-04",
+        "DEL-05"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T06A",
+      "title": "等待与能力探测优化",
+      "required_for_core": true,
+      "depends_on": [
+        "T05",
+        "T07"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "PERF-01",
+        "PERF-02",
+        "PERF-03"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T06B",
+      "title": "inspect 快照与锁粒度",
+      "required_for_core": true,
+      "depends_on": [
+        "T03",
+        "T04"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "READ-01",
+        "READ-02",
+        "READ-03"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T07",
+      "title": "逻辑 owner 与身份分层",
+      "required_for_core": true,
+      "depends_on": [
+        "T02",
+        "T03"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "OWN-01",
+        "OWN-02",
+        "OWN-03",
+        "OWN-04"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T08",
+      "title": "本地 MCP 普通工具 façade",
+      "required_for_core": true,
+      "depends_on": [
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "T07"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "MCP-01",
+        "MCP-02",
+        "MCP-03",
+        "MCP-04",
+        "MCP-05"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T09",
+      "title": "按宿主准入的主动回调",
+      "required_for_core": false,
+      "depends_on": [
+        "T05",
+        "T07",
+        "T08"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "PUSH-01",
+        "PUSH-02",
+        "PUSH-03",
+        "PUSH-04"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T10",
+      "title": "兼容性基底合流",
+      "required_for_core": true,
+      "depends_on": [
+        "T00"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "COMP-01",
+        "COMP-02",
+        "COMP-03"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T11",
+      "title": "当前文档与冻结安装包",
+      "required_for_core": true,
+      "depends_on": [
+        "T01",
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "T06A",
+        "T06B",
+        "T07",
+        "T08",
+        "T10"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "PKG-01",
+        "PKG-02",
+        "PKG-03",
+        "PKG-04",
+        "DOC-01"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null
+    },
+    {
+      "id": "T12",
+      "title": "同包分层与双向真实验收",
+      "required_for_core": true,
+      "depends_on": [
+        "T11"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "LIVE-01",
+        "LIVE-02",
+        "LIVE-03",
+        "LIVE-04",
+        "LIVE-05",
+        "REG-01",
+        "REG-02",
+        "REG-03"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null,
+      "acceptance_policy": {
+        "required_pass_for_core": [
+          "REG-01",
+          "REG-02",
+          "REG-03",
+          "LIVE-01",
+          "LIVE-02",
+          "LIVE-04",
+          "LIVE-05"
+        ],
+        "separate_scenario": {
+          "id": "LIVE-03",
+          "allowed_unexercised_for_scoped_core": true,
+          "required_prerequisite": "确定性返工测试及其余必需核心门槛通过",
+          "claim": "只有真实证据 PASS 才能宣称原始缺陷由真实主会话发现后的返工已验收"
+        }
+      }
+    },
+    {
+      "id": "T13",
+      "title": "最终独审、主会话签收与交接",
+      "required_for_core": true,
+      "depends_on": [
+        "T00"
+      ],
+      "status": "pending",
+      "completion_basis": null,
+      "baseline_commit": null,
+      "implementation_agent": null,
+      "review_agent": null,
+      "worktree": null,
+      "write_scope": [],
+      "changed_files": [],
+      "acceptance_ids": [
+        "FIN-01",
+        "FIN-02",
+        "FIN-03"
+      ],
+      "implementation_report": null,
+      "tests": [],
+      "review": {
+        "status": "NOT_RUN",
+        "report": null,
+        "target_commit": null,
+        "unresolved_findings": []
+      },
+      "owner_acceptance": {
+        "status": "NOT_RUN",
+        "evidence": null,
+        "accepted_commit": null
+      },
+      "commits": [],
+      "blockers": [],
+      "limitations": [],
+      "updated_at": null,
+      "reporting_inputs": [
+        "T00",
+        "T01",
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "T06A",
+        "T06B",
+        "T07",
+        "T08",
+        "T09",
+        "T10",
+        "T11",
+        "T12"
+      ],
+      "completion_policy": "handoff_status 可为 PREPARED，但上游核心阻塞时 T13 task 与产品签收保持 BLOCKED；最终集成审查和主会话产品签收 PASS 后才 done。",
+      "start_policy": "可基于 T00 建立交接；正式审查汇总全部任务的已完成或准确受阻状态。T12 blocked 不阻止整理受阻交接。",
+      "product_signoff": {
+        "status": "NOT_RUN",
+        "evidence": null
+      }
+    }
+  ],
+  "final_delivery": {
+    "source_commit": null,
+    "package_version": null,
+    "package_sha256": null,
+    "binary_sha256": null,
+    "manifest_sha256": null,
+    "core_status": "NOT_RUN",
+    "native_push_status": "NOT_RUN",
+    "live_original_failure_rework_status": "NOT_RUN",
+    "final_review": null,
+    "root_acceptance": null,
+    "delivery_report": null,
+    "resume_document": null,
+    "handoff_status": "NOT_RUN",
+    "aggregation_rule": "core PASS 要求核心必做实现/独审/主会话签收、REG-01/02/03、LIVE-01/02/04/05及最终集成审查通过。任何必需核心项 FAIL/BLOCKED/NOT_RUN 不得 PASS。LIVE-03 未触发可 NOT_EXERCISED 且不得宣称其已覆盖。T09 与 native_push_status 独立；交接 PREPARED 不豁免产品 gate。"
+  },
+  "handoff_statuses": [
+    "NOT_RUN",
+    "DRAFT",
+    "PREPARED"
+  ]
+}
