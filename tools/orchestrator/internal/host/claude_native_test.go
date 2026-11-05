@@ -206,7 +206,12 @@ func nativeClaudeGatewayTransport(t *testing.T, managed bool) {
 		if managed {
 			t.Setenv("ANTHROPIC_BASE_URL", source.env["ANTHROPIC_BASE_URL"])
 			t.Setenv("ANTHROPIC_API_KEY", "")
-			t.Setenv("ANTHROPIC_AUTH_TOKEN", credential)
+			t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
+			if apiKey {
+				t.Setenv("ANTHROPIC_API_KEY", credential)
+			} else {
+				t.Setenv("ANTHROPIC_AUTH_TOKEN", credential)
+			}
 			for _, name := range []string{"CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN_FD", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"} {
 				t.Setenv(name, "")
 			}

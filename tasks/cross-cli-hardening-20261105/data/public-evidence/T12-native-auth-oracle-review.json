@@ -1,0 +1,98 @@
+{
+  "verdict": "PASS",
+  "snapshot": {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-native-oracle-review",
+    "git_root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-native-oracle-review",
+    "head": "d700356c9ee497952b22ec9220d1fde111f71848",
+    "tree": "5b04a4d7fb49c47a5f16ebe26a04ddc3a1ee509a",
+    "branch": "detached HEAD with four review changes",
+    "changed_paths": [
+      "docs/installation.md",
+      "docs/testing.md",
+      "tasks/cross-cli-hardening-20261105/plans/T12-native-auth-oracle.md",
+      "tools/orchestrator/internal/host/claude_native_test.go"
+    ],
+    "production_go_or_plugin_changes": 0,
+    "diff_check": "PASS",
+    "gofmt_diff": "empty"
+  },
+  "source_manifest": {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-regression-r3/data/native-oracle-source-manifest-r2.json",
+    "sha256": "ef538e0b9e0c162597c7cea31756badbf4174f7db0bcd9394bba8b5a8863f4a3",
+    "files": 4,
+    "matched": 4,
+    "mismatched": 0
+  },
+  "claude": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/cli-version-compatibility/tmp/npm/extract/claude-2.1.316/package/claude",
+    "version": "2.1.316 (Claude Code)",
+    "sha256": "64c327e92b2c5e0f78c0a980c5a518121e1f0d140ca771ca5dd4488d1a2dcb3f"
+  },
+  "tests": {
+    "command_pattern": "env -i ... GOENV=off GOTOOLCHAIN=local GOPROXY=off TMPDIR=/private/tmp GOMAXPROCS=2 ORCHESTRATOR_CLAUDE_NATIVE_BINARY=<fixed-claude> [ORCHESTRATOR_CLAUDE_NATIVE_AUTH=api-key] /private/tmp/go1.26.10-sdk/bin/go test -count=1 -v -run '^(TestNativeClaudeGatewayReadOnlyTransport|TestNativeClaudeGatewayManagedWriteTransport)$' ./internal/host",
+    "token": {
+      "top_level_passed": 2,
+      "subtests_passed": 0,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "package_exit": 0
+    },
+    "api_key": {
+      "top_level_passed": 2,
+      "subtests_passed": 0,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "package_exit": 0
+    },
+    "aggregate": {
+      "top_level_passed": 4,
+      "subtests_passed": 0,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "race": "not run; normal mode selected as permitted",
+    "isolation": "env -i, synthetic credential, owned httptest loopback only, no remote provider/model"
+  },
+  "old_failure_evidence": {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-regression-r3/data/native-claude-transport.jsonl",
+    "sha256": "6ce0fa44cf43e7f376f139b983760d174f677cd1bbc80abb9990bc1471c6815a",
+    "readonly": "pass",
+    "managed_write": "fail",
+    "package": "fail"
+  },
+  "guards": {
+    "selected_auth_only": "tools/orchestrator/internal/host/claude_native_test.go:206-214",
+    "header_exactness": "tools/orchestrator/internal/host/claude_native_test.go:85-90",
+    "model_exactness": "tools/orchestrator/internal/host/claude_native_test.go:93-106",
+    "tool_restrictions": "tools/orchestrator/internal/host/claude_native_test.go:108-113",
+    "candidate_freeze": "tools/orchestrator/internal/host/claude_native_test.go:227-229",
+    "write_result": "tools/orchestrator/internal/host/claude_native_test.go:231-238",
+    "oauth_and_cloud_clears": "tools/orchestrator/internal/host/claude_native_test.go:215-217"
+  },
+  "documentation": {
+    "current_python_directories_exist": true,
+    "removed_python_test_paths_absent": true,
+    "removed_verify_install_path_absent": true,
+    "package_mode_script_exists": true,
+    "preserve_permissions_instruction": "docs/installation.md:5",
+    "global_umask_unchanged": true,
+    "product_validation_not_relaxed": true
+  },
+  "blockers": [],
+  "non_blocking": [
+    {
+      "severity": "LOW",
+      "locations": ["docs/installation.md:3", "docs/testing.md:3"],
+      "finding": "Pre-existing delivery-status prose still says PKG-01..04/final package acceptance is pending although the .3 package has since passed independent review.",
+      "recommendation": "Refresh these status sentences during final documentation synchronization while retaining the still-unfinished live-provider caveat."
+    }
+  ],
+  "uncovered": [
+    "race mode was not run",
+    "full Go/Python suites were not independently rerun for this test-only/docs delta",
+    "no real credential, remote provider, model, or native TUI acceptance was exercised"
+  ]
+}

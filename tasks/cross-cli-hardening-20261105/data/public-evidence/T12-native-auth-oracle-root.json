@@ -1,0 +1,49 @@
+{
+  "scope": "test-only native auth fixture and non-packaged docs, no product bytes change",
+  "root_acceptance": "PASS",
+  "independent_review": "PASS",
+  "source_files": [
+    {
+      "path": "tools/orchestrator/internal/host/claude_native_test.go",
+      "sha256": "d1cb2cfa6bd532e2ebfab40ae2318273d8b86938193af262c0e8c863a13bb7f2"
+    },
+    {
+      "path": "docs/testing.md",
+      "sha256": "60af24c026cff4d9867e18bb7da4b5eae37896a2e291d1a8d4bab18146e96844"
+    },
+    {
+      "path": "docs/installation.md",
+      "sha256": "52c210037e699e81cb01ded0e6498d2a72338fc86b1a7f97fabf285c46ca6eac"
+    },
+    {
+      "path": "tasks/cross-cli-hardening-20261105/plans/T12-native-auth-oracle.md",
+      "sha256": "16f1b77446df1916f42188851bb22cd7e65fa8469024b6af60d764862350a885"
+    }
+  ],
+  "tests": {
+    "root_token": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    "root_apikey": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    "independent_token": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    "independent_apikey": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "real_provider_model_http": "none; owned loopback synthetic HTTP only",
+  "original_failed_header_oracle": "retained in external t12-regression-r3/data/native-claude-transport.jsonl",
+  "final_package_unchanged": "0.1.24-hardening.20261105.3, source d700356c",
+  "remaining": "T13 final status paragraphs will state completed PKG facts separately from still-pending live/native gates"
+}

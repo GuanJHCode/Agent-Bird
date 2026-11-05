@@ -22,9 +22,7 @@ Go 的 CLI 测试会构建并运行真实 orchestrator/Host/Worker 进程；其�
 从仓库根目录：
 
 ```sh
-python3 -m pytest -p no:cacheprovider tools/native-product-bridge tools/real-user-trial \
-  tasks/brain-control-hardening/scripts/test_package_skills.py \
-  tasks/provider-runtime-completion/scripts/test_runtime_layout.py -q -rs
+python3 -m pytest -p no:cacheprovider tools/native-product-bridge tools/real-user-trial -q -rs
 ```
 
 需要 pytest 和 PyYAML。打包测试：
@@ -34,7 +32,7 @@ export G4_TEST_PYTHON="$(python3 -c 'import pathlib,sys; print(pathlib.Path(sys.
 sh tasks/g1-g4-delivery/scripts/test-package-executable-modes.sh
 ```
 
-实际 install/doctor 演示可运行 `tasks/provider-runtime-completion/scripts/verify_install.py <built-binary> <new-empty-task-dir>`。它不注册登录服务、不更改 Provider 账号。
+实际 install/doctor 使用[安装说明](installation.md)中对应包的入口。集成 bridge 测试需显式设置 `ORCHESTRATOR_PRODUCT_BINARY` 为同一候选包实际安装的 Go 二进制；缺失时相关测试会 skip，不能当作安装验收。macOS 的 AF_UNIX 路径有长度限制，测试使用独立的短 `TMPDIR`/pytest `--basetemp`，保留原安装安全模式。测试不注册登录服务、不更改 Provider 账号。
 
 历史 `tasks/g0-*` 套件按各自合同分别运行；一些依赖固定解释器、websockets 16.0、指定的实验材料与验收目录，不等于默认核心套件。`run_runtime_tests.py` 是扩大检查的复现入口，失败会原样返回非零，不删除或弱化旧安全门槛。
 

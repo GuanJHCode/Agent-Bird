@@ -2,6 +2,8 @@
 
 本文首次安装步骤面向公开 `v0.1.0-preview.1`，不包含 2026-11-05 私有候选的新能力。私有候选尚待唯一版本冻结、任务内安装/doctor/入口及同包验收；不替换全局安装。最终 source/binary/package/receipt 身份由最终报告补齐。任务内 MCP 配置与绝对 wrapper 模板见[本轮交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#任务内-mcp-配置)。本轮新安装的 installed `manifest.json` 使用 schema2，`installed_root` 绑定规范绝对版本目录，并由原两字段 receipt 的完整 manifest SHA256 覆盖。移动整个安装目录（即使 inode 未变）后 doctor 报 `install_location_changed_reinstall_required`，执行 pin、受管入口和卸载恢复拒绝自动采用新位置，应重新安装。历史 schema1 无位置绑定，保留原合同，不自动迁移或声称已有同等移动拒绝。改变解释器/文件摘要后也需按 receipt 合同重装，不能从源码或 latest 静默替代。
 
+私有候选使用 tar.gz 归档。在新的 owner-only `0700` 目录内用 `tar -xzpf <候选归档> -C <新目录>` 保留归档中的文件模式；限制性 `umask` 下普通解包可能把 `0644` 收窄为 `0600`，导致 runtime/receipt 校验失败。不要修改全局 `umask` 或放宽安装目录权限来绕过校验。
+
 ## 首次安装：三步
 
 前提：macOS Apple Silicon（M 系列芯片），终端中 `codex` 和 `claude` 已能正常使用。原生 Codex 插件命令已在 Codex CLI 0.154.0 上验证。
