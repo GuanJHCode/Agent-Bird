@@ -228,7 +228,7 @@ func StartDriver(ctx context.Context, requestPath string) (json.RawMessage, erro
 				return nil, codeError("driver_status_invalid")
 			}
 			name, _ := status["status"].(string)
-			if name == "watching" || name == "awaiting_owner_decision" {
+			if name == "watching" || name == "awaiting_history" || name == "awaiting_owner_decision" {
 				if current, birthErr := process.Birth(existing.PID); birthErr != nil || current != existing.Birth {
 					return json.Marshal(map[string]any{"version": 1, "status": "driver_dead",
 						"recoverable": true, "driver_root": request.DriverRoot, "task_id": request.TaskID,

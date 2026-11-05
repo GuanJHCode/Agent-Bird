@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import signal
+import socket
 import struct
 import sys
 import time
@@ -67,11 +68,12 @@ async def main():
     clients = set()
     records = []
     history_output = None
+    delivery_started = None
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, stop.set)
 
     async def connection(reader, writer):
-        nonlocal history_output
+        nonlocal history_output, delivery_started
         clients.add(writer)
         try:
             header = await reader.readuntil(b"\r\n\r\n")
@@ -103,6 +105,7 @@ async def main():
                         continue
                     record["accepted"] = True
                     history_output = output
+                    delivery_started = time.monotonic()
                     records.append(record); write_receipt(records)
                     writer.write(server_frame({"id": message["id"], "result": {"turn": turn_body("inProgress")}}))
                     if MODE != "receipt-only":
@@ -133,8 +136,9 @@ async def main():
                 elif method == "thread/read":
                     records.append(record); write_receipt(records)
                     item = {"id": ITEM, "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": history_output or ""}
-                    turn = {"id": TURN, "status": "completed", "items": [item], "itemsView": "full"}
-                    writer.write(server_frame({"id": message["id"], "result": {"thread": {"id": THREAD, "turns": [turn]}}}))
+                    status = "inProgress" if MODE == "delayed-history" and delivery_started is not None and time.monotonic() - delivery_started < 11 else "completed"
+                    turn = {"id": TURN, "status": status, "items": [item], "itemsView": "full"}
+                    writer.write(server_frame({"id": message["id"], "result": {"thread": {"id": THREAD, "turns": [] if history_output is None else [turn]}}}))
                 elif method in ("server/diagnostics", "remoteControl/status/read"):
                     records.append(record); write_receipt(records)
                     writer.write(server_frame({"id": message["id"], "result": {}}))
@@ -152,8 +156,17 @@ async def main():
             except OSError:
                 pass
 
-    server = await asyncio.start_unix_server(connection, path=SOCKET)
-    os.chmod(SOCKET, 0o600)
+    # The activation service freezes the socket identity before returning the
+    # owner receipt. Bind with final permissions so no later chmod races that
+    # snapshot, regardless of the caller's inherited umask.
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    previous_umask = os.umask(0o177)
+    try:
+        listener.bind(SOCKET)
+    finally:
+        os.umask(previous_umask)
+    listener.setblocking(False)
+    server = await asyncio.start_unix_server(connection, sock=listener)
     await stop.wait()
     server.close()
     for writer in list(clients):

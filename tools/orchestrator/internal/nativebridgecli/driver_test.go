@@ -68,24 +68,28 @@ func TestDriverRequestSeparatesBootstrapTimeoutFromWatchLifetime(t *testing.T) {
 	}
 }
 
-func TestStartDriverDoesNotReportStaleWatchingDriverAsLive(t *testing.T) {
-	requestPath, request := driverRequestFixture(t)
-	privateJSON(t, filepath.Join(request.DriverRoot, "launcher.json"), driverLauncherReceipt{
-		Version: 1, PID: os.Getpid(), Birth: "stale-birth", RequestSHA256: fileSHA(t, requestPath),
-	})
-	privateJSON(t, filepath.Join(request.DriverRoot, "status.json"), map[string]any{
-		"version": 1, "status": "watching", "driver_root": request.DriverRoot,
-	})
-	response, err := StartDriver(context.Background(), requestPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var status map[string]any
-	if err = json.Unmarshal(response, &status); err != nil {
-		t.Fatal(err)
-	}
-	if status["status"] != "driver_dead" || status["recoverable"] != true || status["previous_status"] != "watching" {
-		t.Fatalf("status=%s", response)
+func TestStartDriverDoesNotReportStaleActiveDriverAsLive(t *testing.T) {
+	for _, phase := range []string{"watching", "awaiting_history", "awaiting_owner_decision"} {
+		t.Run(phase, func(t *testing.T) {
+			requestPath, request := driverRequestFixture(t)
+			privateJSON(t, filepath.Join(request.DriverRoot, "launcher.json"), driverLauncherReceipt{
+				Version: 1, PID: os.Getpid(), Birth: "stale-birth", RequestSHA256: fileSHA(t, requestPath),
+			})
+			privateJSON(t, filepath.Join(request.DriverRoot, "status.json"), map[string]any{
+				"version": 1, "status": phase, "driver_root": request.DriverRoot,
+			})
+			response, err := StartDriver(context.Background(), requestPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var status map[string]any
+			if err = json.Unmarshal(response, &status); err != nil {
+				t.Fatal(err)
+			}
+			if status["status"] != "driver_dead" || status["recoverable"] != true || status["previous_status"] != phase {
+				t.Fatalf("status=%s", response)
+			}
+		})
 	}
 }
 

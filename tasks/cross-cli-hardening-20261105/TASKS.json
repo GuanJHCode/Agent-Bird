@@ -325,11 +325,11 @@
       "depends_on": [
         "T03"
       ],
-      "status": "in_progress",
+      "status": "changes_requested",
       "completion_basis": null,
       "baseline_commit": "2347d34ce1e5ca4e40751f53064f3d99001f4832",
       "implementation_agent": "/root/implement_t04",
-      "review_agent": null,
+      "review_agent": "/root/review_t04",
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t04",
       "write_scope": [],
       "changed_files": [],
@@ -343,10 +343,12 @@
       "implementation_report": null,
       "tests": [],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
+        "status": "FAIL",
+        "report": "reviews/T04-review-r3.md",
         "target_commit": null,
-        "unresolved_findings": []
+        "unresolved_findings": [
+          "independently reproduced extra hardlink GC quota release while bytes still retained; r4 fix pending stable review sessions completion"
+        ]
       },
       "owner_acceptance": {
         "status": "NOT_RUN",
@@ -365,14 +367,27 @@
       "depends_on": [
         "T02"
       ],
-      "status": "changes_requested",
-      "completion_basis": null,
+      "status": "done",
+      "completion_basis": "implemented",
       "baseline_commit": "428a5877d63247d0dd0b345b0765aa3c912507c2",
       "implementation_agent": "/root",
       "review_agent": "/root/review_t05",
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "plugins/codex-orchestrator/scripts/native-product-bridge.py",
+        "runtime/native/delivery_adapter.py",
+        "runtime/native/owner_helper.py",
+        "tasks/g0-completion/tests/fixtures/owner_helper_tool_backend.py",
+        "tasks/g0-completion/tests/test_owner_helper_production_pipeline.py",
+        "tasks/g1-g4-delivery/scripts/native_product_case.py",
+        "tools/native-product-bridge/crash_fixtures.py",
+        "tools/native-product-bridge/test_delivery_deadlines.py",
+        "tools/native-product-bridge/test_local_product_driver.py",
+        "tools/native-product-bridge/test_local_service_chain.py",
+        "tools/orchestrator/internal/nativebridgecli/driver.go",
+        "tools/orchestrator/internal/nativebridgecli/driver_test.go"
+      ],
       "acceptance_ids": [
         "DEL-01",
         "DEL-02",
@@ -380,24 +395,55 @@
         "DEL-04",
         "DEL-05"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T05-implementation.md",
+      "tests": [
+        {
+          "status": "PASS",
+          "type": "protocol-fixture/OS-native-local",
+          "evidence": "data/public-evidence/T05-validation-r5.json",
+          "counts": {
+            "passed": 147,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "type": "independent protocol-fixture/OS-native-local",
+          "evidence": "data/public-evidence/T05-review-r5.json",
+          "counts": {
+            "passed": 39,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "type": "integrated OS-native-local",
+          "evidence": "data/public-evidence/T05-integrated.json",
+          "counts": {
+            "passed": 19,
+            "failed": 0,
+            "skipped": 0
+          }
+        }
+      ],
       "review": {
-        "status": "BLOCKED",
-        "report": "reviews/T05-review-r3.md",
+        "status": "PASS",
+        "report": "reviews/T05-review-r5.md",
         "target_commit": null,
-        "unresolved_findings": [
-          "r3 owner-ready failure traced to fixture socket permission mutation after runtime identity snapshot; deterministic pre-return socket-mode red/green and EOF regression now pass; r4 full run and independent re-review pending"
-        ]
+        "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "PASS",
+        "evidence": "reviews/T05-review-r5.md",
         "accepted_commit": null
       },
       "commits": [],
       "blockers": [],
-      "limitations": [],
+      "limitations": [
+        "synthetic local process/UDS recovery only; final package/live-provider/TUI not yet verified"
+      ],
       "updated_at": null,
       "implementation_agents": [
         "/root/implement_t05",
@@ -563,9 +609,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T07-review.md",
-        "accepted_commit": null
+        "accepted_commit": "3fe267b9"
       },
-      "commits": [],
+      "commits": [
+        "3fe267b9"
+      ],
       "blockers": [],
       "limitations": [
         "managed_process only; native chat-switch/original-thread delivery not verified or enabled"

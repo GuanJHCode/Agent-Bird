@@ -1,0 +1,17 @@
+{
+  "head": "428a5877d63247d0dd0b345b0765aa3c912507c2",
+  "files": {
+    "plugins/codex-orchestrator/scripts/native-product-bridge.py": "fc748b8336389a75b7ddbb4512cf1e7dfbff32f7d5eeb293e453156d5321d89c",
+    "runtime/native/delivery_adapter.py": "cb5743ea60fe0e6308c6d95d8bad5f3dce36fa96e149314b51ddaa9b1ac60d91",
+    "runtime/native/owner_helper.py": "51fc17cb9cb6ba32815c48b8abfc37954915c8447598baaf10492ff34ed40eca",
+    "tasks/g0-completion/tests/fixtures/owner_helper_tool_backend.py": "5da8f2beec6cfe540980598dc77da1079eef360ab69f13479fe562b89ebdf6aa",
+    "tasks/g0-completion/tests/test_owner_helper_production_pipeline.py": "dac0ed282764142c1b4358f14611137271353463c77b2783ae428cc25331f86c",
+    "tasks/g1-g4-delivery/scripts/native_product_case.py": "c942c57c65aa9a015f03c9e323de30df90c0f580150778722c03cc516018239c",
+    "tools/native-product-bridge/crash_fixtures.py": "887c8ea86cc44933aee94db7b13e57f0466eaa02d4146e281dddc84be5a52dc2",
+    "tools/native-product-bridge/test_delivery_deadlines.py": "229e897ada5d893952fed55c8f4ec095ce1179a51ec52d5fa7f958015062d130",
+    "tools/native-product-bridge/test_local_product_driver.py": "ec814cb07cdaf4d73c8df2a4f8b2fd34d9aa2e9e24a3d9bd88fe8b720521cc7d",
+    "tools/native-product-bridge/test_local_service_chain.py": "6bbd8faa21ae3fff447c48aa90e426985d69de04f7e5cc5a7aae860e098ab9f5",
+    "tools/orchestrator/internal/nativebridgecli/driver.go": "9eb3a2c825e9ac183e92666261a93ca4aa8284773dcbf0cee016d04082991efb",
+    "tools/orchestrator/internal/nativebridgecli/driver_test.go": "77c8d6a4d386db784414fbd66bda46d53f2ae9913e5bce4a3871094c3c331c01"
+  }
+}

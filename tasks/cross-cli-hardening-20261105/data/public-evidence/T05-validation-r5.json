@@ -1,0 +1,35 @@
+{
+  "command": [
+    "/private/tmp/agent-bird-cross-cli-5c9jyn8o/python-venv/bin/python",
+    "-m",
+    "pytest",
+    "tools/native-product-bridge",
+    "tasks/g0-completion/tests/test_delivery_adapter.py",
+    "tasks/g0-completion/tests/test_owner_helper.py",
+    "tasks/g0-completion/tests/test_owner_helper_service.py",
+    "tasks/g0-completion/tests/test_owner_helper_production_pipeline.py",
+    "-p",
+    "no:cacheprovider",
+    "-q",
+    "-rs",
+    "--junitxml=/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05-evidence/r5-final-python.xml"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05",
+  "exit_code": 0,
+  "elapsed_seconds": 66.433,
+  "junit": [
+    {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0",
+      "tests": "147",
+      "time": "66.069",
+      "timestamp": "2026-11-05T13:04:48.348064+08:00",
+      "hostname": "guanjunhuideMacBook-Pro.local"
+    }
+  ],
+  "log_sha256": "f2bbe6b1145c796edc6dd92aa9f1bbb8f5c50acdf3be2b955931920096f6ae8d",
+  "source_manifest_sha256": "ac10bb1dadeec8da9cb7a60a18b6acab60d6a2bf43d1afc520a01f593ac0b7d2",
+  "source_unchanged": true
+}

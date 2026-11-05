@@ -27,6 +27,7 @@ import activation_service  # noqa: E402
 import proxy_transport  # noqa: E402
 from test_activation_service import digest, policy, private_json  # noqa: E402
 from test_owner_helper_production_pipeline import _line, _wait_process, _write_client  # noqa: E402
+from crash_fixtures import inject_crash
 from test_local_service_chain import package_copy, runtime_copy  # noqa: E402
 
 
@@ -86,7 +87,11 @@ def send_owner(process, value):
     process.stdin.write(value)
 
 
-def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
+@pytest.mark.parametrize("backend_mode,crash_stage", [
+    ("complete", ""), ("delayed-history", ""),
+    *(("complete", stage) for stage in ["pending", "sending_before_io", "sending_before_io_detach", "sending_after_io", "response", "proof_unrecorded", "proof_recorded", "ack_success", "controller_acked"]),
+])
+def test_owner_bound_driver_waits_then_delivers_without_manual_collect(backend_mode, crash_stage):
     async def scenario():
         with (
             tempfile.TemporaryDirectory(
@@ -102,6 +107,8 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
             runtime_root, runtime_manifest, modules, runtime_paths = runtime_copy(
                 package, interpreter
             )
+            marker = inject_crash(root, package, package_manifest, runtime_paths, runtime_manifest,
+                crash_stage, digest, private_json)
             manifest, profiles, grants = policy(root, public, interpreter, roots)
             value = json.loads(manifest.read_text())
             backend_receipt = Path(profiles["a"]["workspace"]) / "backend-receipt.json"
@@ -111,6 +118,7 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
                 str(BACKEND),
                 "{socket_path}",
                 str(backend_receipt),
+                backend_mode,
             ]
             value["file_pins"] = {
                 str(path): digest(path)
@@ -237,12 +245,43 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
                 started = await cli(
                     str(product), "native-bridge", "start", "--request", request
                 )
-                assert started["status"] in {"watching", "awaiting_owner_decision"}
+                assert started["status"] in {"watching", "awaiting_history", "awaiting_owner_decision"}
                 status_request = root / "driver-status.json"
                 private_json(
                     status_request, {"version": 1, "driver_root": str(root / "driver")}
                 )
-                for _ in range(200):
+                import sqlite3
+                def business_snapshot():
+                    with sqlite3.connect(root / "g1/state.db") as db:
+                        return {table: db.execute("SELECT * FROM " + table + " ORDER BY 1").fetchall()
+                            for table in ("runs", "attempts", "budget_reservations", "budget_runtime")}
+                before_recovery = None
+                async def restart_if_crashed():
+                    nonlocal request, status_request, before_recovery
+                    if marker is None or not marker.exists():
+                        return False
+                    before_recovery = business_snapshot()
+                    old_request = json.loads(request.read_text())
+                    old_status = json.loads((Path(old_request["driver_root"]) / "status.json").read_text())
+                    new_root = root / "driver-restart"
+                    if new_root.exists():
+                        return False
+                    new_root.mkdir(mode=0o700)
+                    # The task control and old delivery identity survive. Only
+                    # the helper attachment/generation is explicitly rebound.
+                    old_request.update(driver_root=str(new_root), mode="rebind", submit_request="",
+                        control_file=old_status["control_file"])
+                    request = new_root / "request.json"
+                    private_json(request, old_request)
+                    recovered_start = await cli(str(product), "native-bridge", "start", "--request", request)
+                    assert recovered_start["control_action_status"] == "delivery_recovered"
+                    status_request = new_root / "status-request.json"
+                    private_json(status_request, {"version": 1, "driver_root": str(new_root)})
+                    return True
+
+                saw_awaiting_history = False
+                for _ in range(500):
+                    await restart_if_crashed()
                     status = await cli(
                         str(product),
                         "native-bridge",
@@ -250,10 +289,36 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
                         "--request",
                         status_request,
                     )
+                    if crash_stage.startswith("sending_before_io") and marker.exists() and status["status"] == "awaiting_history":
+                        assert before_recovery == business_snapshot()
+                        ledger_states = list((root / "bridge").glob("d_*/batch-status.json"))
+                        assert len(ledger_states) == 1
+                        assert json.loads(ledger_states[0].read_text())["state"] == "delivery_uncertain"
+                        assert json.loads(backend_receipt.read_text())["methods"].count("turn/start") == 0
+                        assert not list((root / "bridge").glob("d_*/controller-ack-request.json"))
+                        send_owner(owner, b"quit\n"); await owner.stdin.drain()
+                        assert await _wait_process(owner) == 0
+                        for _ in range(100):
+                            stopped = await cli(str(product), "native-bridge", "status", "--request", status_request)
+                            if stopped["status"] == "owner_detached": break
+                            await asyncio.sleep(.02)
+                        assert stopped["status"] == "owner_detached"
+                        assert json.loads(backend_receipt.read_text())["methods"].count("turn/start") == 0
+                        assert not list((root / "bridge").glob("d_*/controller-ack-request.json"))
+                        assert json.loads(ledger_states[0].read_text())["state"] == "delivery_uncertain"
+                        return
+                    if status["status"] == "awaiting_history":
+                        saw_awaiting_history = True
+                        assert status["recoverable"] is True
                     if status["status"] == "awaiting_owner_decision":
                         break
                     await asyncio.sleep(0.02)
                 assert status["status"] == "awaiting_owner_decision"
+                if backend_mode == "delayed-history":
+                    assert saw_awaiting_history
+                    records = json.loads(backend_receipt.read_text())["records"]
+                    assert sum(item["method"] == "thread/read" for item in records) > 20
+                assert json.loads(backend_receipt.read_text())["methods"].count("turn/start") == 1
                 history = Path(status["history_receipt"])
                 history_value = json.loads(history.read_text())
                 decision = root / "decision.json"
@@ -261,7 +326,7 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
                     decision,
                     {
                         "version": 1,
-                        "driver_root": str(root / "driver"),
+                        "driver_root": history_value["driver_root"],
                         "delivery_id": history_value["delivery_id"],
                         "history_receipt": str(history),
                         "history_receipt_sha256": digest(history),
@@ -280,6 +345,7 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
                     )
                 )["status"] == "decision_recorded"
                 for _ in range(200):
+                    await restart_if_crashed()
                     status = await cli(
                         str(product),
                         "native-bridge",
@@ -291,6 +357,21 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
                         break
                     await asyncio.sleep(0.02)
                 assert status["status"] == "completed"
+                assert status["delivery_id"] == history_value["delivery_id"]
+                assert (Path(status["driver_root"]) / ("ack-" + history_value["delivery_id"] + ".json")).exists()
+                if crash_stage:
+                    assert marker.read_text() == crash_stage
+                    assert (root / "driver-restart").exists()
+                    assert before_recovery == business_snapshot()
+                    calls = [json.loads(line) for line in (root / "control-calls.jsonl").read_text().splitlines()]
+                    assert sum(call["command"] == "submit" for call in calls) == 1
+                    assert not any(call["command"] == "rebind-owner" for call in calls)
+                    acks = [call["ack"] for call in calls if call["command"] == "ack"]
+                    assert len(acks) == (2 if crash_stage == "ack_success" else 1)
+                    assert all(ack == acks[0] for ack in acks)
+                    assert acks[0]["decisions"][0]["command_id"] == "local-driver-handled"
+                    assert len(list((root / "bridge").glob("d_*"))) == 1
+                assert json.loads(backend_receipt.read_text())["methods"].count("turn/start") == 1
                 ledger = (
                     root / "bridge" / history_value["delivery_id"] / "batch-status.json"
                 )
@@ -312,4 +393,4 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
                 await asyncio.sleep(0.1)
                 listener.close()
 
-    asyncio.run(asyncio.wait_for(scenario(), 35))
+    asyncio.run(asyncio.wait_for(scenario(), 45))

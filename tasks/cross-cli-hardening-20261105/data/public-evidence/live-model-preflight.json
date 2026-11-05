@@ -1,0 +1,19 @@
+{
+  "checked_at": "2026-11-05",
+  "codex_version": "0.166.0",
+  "authentication_route": "chatgpt",
+  "provider": "openai",
+  "global_config_unchanged": true,
+  "local_cache_fetched_at": "2026-11-05T05:15:40.028623Z",
+  "local_cache_sha256": "c9ba3d00dfb75ea96069027fe0b995f522fde1cfbbb12c255522f427af66a5f1",
+  "planned_live_model": "gpt-6-luna",
+  "planned_reasoning": "low",
+  "service_tier": "default",
+  "model_call_executed": false,
+  "live_availability_status": "NOT_RUN",
+  "sources": [
+    "https://learn.chatgpt.com/docs/pricing",
+    "https://learn.chatgpt.com/docs/models"
+  ],
+  "note": "Local cache contains selected model and low reasoning; official Standard credit rates show GPT-6 Luna lower than other visible cached models including GPT-5.6 Luna. This is not a guarantee of live availability or a usage/cost quote. Third-party Claude remains CLI default."
+}

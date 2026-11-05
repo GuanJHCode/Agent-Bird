@@ -6,6 +6,8 @@ observation separate from business ACK publication.
 """
 from __future__ import annotations
 
+import asyncio
+import time
 from dataclasses import dataclass
 import hashlib
 import json
@@ -22,6 +24,11 @@ _RUNTIME = Path(__file__).resolve().parent
 if str(_RUNTIME) not in sys.path:
     sys.path.insert(0, str(_RUNTIME))
 from delivery_audit import audit as audit_history  # type: ignore  # noqa: E402
+
+SEND_TIMEOUT_SECONDS = 10.0
+RESPONSE_TIMEOUT_SECONDS = 10.0
+MAX_WAIT_PACKETS = 256
+MAX_WAIT_BYTES = 1024 * 1024
 
 _SAFE = re.compile(r"^[A-Za-z0-9_-]{1,64}$\Z")
 _HASH = re.compile(r"^[0-9a-f]{64}\Z")
@@ -449,12 +456,23 @@ class DeliveryAdapter:
         # Mark before I/O: an ambiguous transport must not be retried by this
         # adapter; the caller can classify it uncertain and inspect history.
         sent.add(delivery_id)
-        await connection.send_rpc({"id": request_id, "method": "turn/start", "params": {"threadId": envelope["controller_thread_id"], "input": [], "toolOutput": {"name": "g0_delivery", "namespace": "orchestration", "output": _canonical(envelope)}}})
+        send_deadline = time.monotonic() + SEND_TIMEOUT_SECONDS
+        try:
+            await asyncio.wait_for(connection.send_rpc({"id": request_id, "method": "turn/start", "params": {"threadId": envelope["controller_thread_id"], "input": [], "toolOutput": {"name": "g0_delivery", "namespace": "orchestration", "output": _canonical(envelope)}}}), max(0, send_deadline - time.monotonic()))
+        except asyncio.TimeoutError as exc:
+            raise DeliveryError("send_timeout") from exc
+        response_deadline = time.monotonic() + RESPONSE_TIMEOUT_SECONDS
+        packet_bytes = 0
         packets = []
         lifecycle = {"turn/started", "item/started", "item/completed", "turn/completed"}
         got_response = False
         while not got_response or (wait_for_completion and {packet.get("method") for packet in packets} & lifecycle != lifecycle):
-            packet = await connection.read_rpc()
+            try:
+                packet = await asyncio.wait_for(connection.read_rpc(), max(0, response_deadline - time.monotonic()))
+            except asyncio.TimeoutError as exc:
+                raise DeliveryError("response_timeout") from exc
+            packet_bytes += len(_canonical(packet).encode())
+            _require(len(packets) < MAX_WAIT_PACKETS and packet_bytes <= MAX_WAIT_BYTES, "response_packet_limit")
             packets.append(packet)
             if "id" in packet and (type(packet.get("id")) is not int or packet.get("id") != request_id):
                 raise DeliveryError("turn_start_response_id")

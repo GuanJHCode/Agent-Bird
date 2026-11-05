@@ -24,6 +24,7 @@ for directory in (
 ):
     sys.path.insert(0, str(directory))
 
+from crash_fixtures import inject_crash
 import activation_service  # noqa: E402
 import proxy_transport  # noqa: E402
 from test_activation_service import digest, policy, private_json  # noqa: E402
@@ -106,7 +107,8 @@ async def read_json(process):
     return json.loads(raw)
 
 
-def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
+@pytest.mark.parametrize("crash_stage", ["", "pending", "sending_after_io", "response", "proof_unrecorded", "proof_recorded", "ack_success", "controller_acked"])
+def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path, crash_stage):
     async def scenario():
         loop = asyncio.get_running_loop()
         origin = loop.time()
@@ -115,6 +117,9 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
             public = root / "public.sock"
             binary = str(Path(proxy_transport._process_metadata(os.getpid())[1]))
             runtime_root, runtime_manifest, modules, runtime_paths = runtime_copy(root, binary)
+            package, entry, package_manifest = package_copy(root)
+            marker = inject_crash(root, package, package_manifest, runtime_paths, runtime_manifest,
+                crash_stage, digest, private_json)
             manifest, profiles, grants = policy(root, public, binary, roots)
             value = json.loads(manifest.read_text())
             backend_receipt = Path(profiles["a"]["workspace"]) / "backend-receipt.json"
@@ -162,7 +167,6 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                 ready_path = service.receipt_dir / ready_name
                 assert ready_path.exists()
 
-                package, entry, package_manifest = package_copy(root)
                 (root / "g1-state" / "control").mkdir(parents=True, mode=0o700)
                 (root / "g1-state").chmod(0o700)
                 control = root / "g1-state" / "control" / "control.json"
@@ -174,9 +178,10 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                     "event_revision": 1, "work_revision": 1, "kind": "result",
                     "payload_hash": "e" * 64, "action_slot": "result-task-a-1"}
                 fake_control.write_text(
-                    "#!" + binary + "\nimport json,sys\n"
+                    "#!" + binary + "\nimport json,sys,os\n"
                     f"event={event!r}\n"
-                    "if sys.argv[1]=='collect': print(json.dumps({'version':1,'status':'pending','events':[event]}))\n"
+                    f"done=os.path.exists({str(captured_ack)!r})\n"
+                    "if sys.argv[1]=='collect': print(json.dumps({'version':1,'status':'pending','events':[] if done else [event]}))\n"
                     "elif sys.argv[1]=='ack':\n"
                     " p=sys.argv[sys.argv.index('--request')+1]; v=json.load(open(p));\n"
                     f" open({str(captured_ack)!r},'w').write(json.dumps(v,sort_keys=True));\n"
@@ -245,11 +250,20 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
 
                 bridge, attached = await attach_bridge()
                 assert attached["host_generation"] == "generation-00000002"
-                send(bridge, {"action": "deliver", "control_binary": str(fake_control),
-                    "control_binary_sha256": digest(fake_control), "control_file": str(control),
-                    "task_id": "task-a"})
-                await bridge.stdin.drain()
-                proof = await read_json(bridge)
+                deliver = {"action": "deliver", "control_binary": str(fake_control),
+                    "control_binary_sha256": digest(fake_control), "control_file": str(control), "task_id": "task-a"}
+                async def deliver_and_recover():
+                    nonlocal bridge
+                    send(bridge, deliver); await bridge.stdin.drain()
+                    try:
+                        return await read_json(bridge)
+                    except AssertionError:
+                        assert marker is not None and marker.exists()
+                        assert await asyncio.wait_for(bridge.wait(), 3) == -9
+                        bridge, _ = await attach_bridge()
+                        send(bridge, deliver); await bridge.stdin.drain()
+                        return await read_json(bridge)
+                proof = await deliver_and_recover()
                 assert proof["event"] == "history_proof"
                 assert proof["source_event_ids"] == ["host:7"]
                 alias = proof["native_event_ids"][0]
@@ -257,11 +271,25 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                     "history_proof_sha256": proof["history_proof_sha256"],
                     "decisions": {alias: {"decision": "handled", "command_id": "cmd-bridge-1"}}})
                 await bridge.stdin.drain()
-                ack = await read_json(bridge)
+                try:
+                    ack = await read_json(bridge)
+                except AssertionError:
+                    assert marker is not None and marker.exists()
+                    assert await asyncio.wait_for(bridge.wait(), 3) == -9
+                    bridge, _ = await attach_bridge()
+                    ack = await deliver_and_recover()
                 assert ack["event"] == "ack" and ack["status"] == "controller_acked"
                 sent_ack = json.loads(captured_ack.read_text())
                 assert sent_ack["decisions"][0]["event_id"] == "host:7"
                 assert sent_ack["history_proof_sha256"] == proof["history_proof_sha256"]
+                assert ack["delivery_id"] == proof["delivery_id"]
+                if crash_stage:
+                    calls = [json.loads(line) for line in (root / "control-calls.jsonl").read_text().splitlines()]
+                    acks = [call["ack"] for call in calls if call["command"] == "ack"]
+                    assert len(acks) == (2 if crash_stage == "ack_success" else 1)
+                    assert all(item == acks[0] for item in acks)
+                    assert acks[0]["decisions"][0]["command_id"] == "cmd-bridge-1"
+                    assert len(list((root / "bridge-ledger").glob("d_*"))) == 1
                 owner.stdin.write(b"quit\n"); await owner.stdin.drain()
                 assert await _wait_process(owner) == 0
                 eof = await read_json(bridge)
@@ -269,6 +297,18 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                 assert await asyncio.wait_for(bridge.wait(), 5) == 0
                 status = json.loads((root / "bridge-ledger" / proof["delivery_id"] / "batch-status.json").read_text())
                 assert status["state"] == "controller_acked"
+                assert json.loads(backend_receipt.read_text())["methods"].count("turn/start") == 1
+                if crash_stage:
+                    assert marker.read_text() == crash_stage
+            except BaseException:
+                # Capture only synthetic fixture readiness facts before its
+                # temporary directory and processes are cleaned up.
+                methods = json.loads(backend_receipt.read_text())["methods"] if backend_receipt.exists() else []
+                print("fixture_readiness", json.dumps({"elapsed": loop.time() - origin,
+                    "owner_returncode": owner.returncode, "owner_leases": len(service._owner_leases),
+                    "ready_receipts": len(list(service.receipt_dir.glob("ready-*.json"))),
+                    "backend_methods": methods, "open_fds": len(os.listdir("/dev/fd"))}), flush=True)
+                raise
             finally:
                 if owner.returncode is None:
                     owner.kill(); await owner.wait()

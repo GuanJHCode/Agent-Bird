@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import ctypes
+import fcntl
 from dataclasses import asdict
 import hashlib
 import importlib
@@ -250,33 +251,52 @@ def socket_identity(path):
     return [info.st_dev, info.st_ino, info.st_uid, info.st_mode]
 
 
-async def wait_for_id(connection, request_id, seconds=10):
+RPC_TIMEOUT_SECONDS = 10.0
+HISTORY_TIMEOUT_SECONDS = 10.0
+HISTORY_POLL_SECONDS = 0.1
+MAX_WAIT_PACKETS = 256
+MAX_WAIT_BYTES = 1024 * 1024
+
+
+async def wait_for_id(connection, request_id, seconds=RPC_TIMEOUT_SECONDS):
     end = time.monotonic() + seconds
     packets = []
+    packet_bytes = 0
     while time.monotonic() < end:
-        packet = await asyncio.wait_for(connection.read_rpc(), end - time.monotonic())
+        try:
+            packet = await asyncio.wait_for(connection.read_rpc(), max(0, end - time.monotonic()))
+        except asyncio.TimeoutError as exc:
+            raise EntryError("rpc_timeout") from exc
+        packet_bytes += len(json.dumps(packet, separators=(",", ":")).encode())
+        require(len(packets) < MAX_WAIT_PACKETS and packet_bytes <= MAX_WAIT_BYTES, "rpc_packet_limit")
         packets.append(packet)
-        if packet.get("id") == request_id:
+        if type(packet.get("id")) is int and packet["id"] == request_id:
             return packet, packets
     raise EntryError("rpc_timeout")
 
 
 async def exact_history(connection, adapter, capability, thread_id):
-    end = time.monotonic() + 10
-    for attempt in range(20):
-        request_id = 20 + attempt
+    end = time.monotonic() + HISTORY_TIMEOUT_SECONDS
+    while time.monotonic() < end:
+        request_id = getattr(connection, "_bridge_history_id", 20)
+        connection._bridge_history_id = request_id + 1
         request = {"id": request_id, "method": "thread/read",
                    "params": {"threadId": thread_id, "includeTurns": True}}
-        await connection.send_rpc(request)
-        response, _ = await wait_for_id(connection, request_id, max(0.01, end - time.monotonic()))
+        try:
+            await asyncio.wait_for(connection.send_rpc(request), max(0, end - time.monotonic()))
+            response, _ = await wait_for_id(connection, request_id, max(0, end - time.monotonic()))
+        except (asyncio.TimeoutError, EntryError) as exc:
+            if isinstance(exc, EntryError) and str(exc) != "rpc_timeout":
+                raise
+            raise EntryError("history_transport_timeout") from exc
         require("error" not in response, "history_read_rejected")
         read = {"request": request, "response": response}
         try:
             proof = adapter.audit_history(capability, [read])
         except Exception as exc:
-            if str(exc) != "history_uncertain" or attempt == 19:
+            if str(exc) != "history_uncertain":
                 raise
-            await asyncio.sleep(min(0.1, max(0, end - time.monotonic())))
+            await asyncio.sleep(min(HISTORY_POLL_SECONDS, max(0, end - time.monotonic())))
             continue
         expected = capability.native_envelope
         matches = []
@@ -291,12 +311,69 @@ async def exact_history(connection, adapter, capability, thread_id):
                         continue
                     if output == expected and turn.get("status") == "completed":
                         matches.append((turn.get("id"), item.get("id")))
-        if not matches and attempt < 19:
-            await asyncio.sleep(min(0.1, max(0, end - time.monotonic())))
+        if not matches:
+            # The marker may be durable while its turn is still busy. Do not
+            # accumulate unused proof capabilities across polling windows.
+            if hasattr(proof, "proof_id"):
+                adapter._proofs.pop(proof.proof_id, None)
+            await asyncio.sleep(min(HISTORY_POLL_SECONDS, max(0, end - time.monotonic())))
             continue
         require(len(matches) == 1, "history_marker_ambiguous")
         return proof, matches[0]
     raise EntryError("history_uncertain")
+
+
+def verify_batch_owner(batch, attachment, bridge_core):
+    persisted = bridge_core._stable_json(batch.path / "owner-attachment.json")
+    current = attachment.persisted()
+    # A replacement helper has a new grant; the native owner/lease and every
+    # other attachment fact must remain identical for history-only recovery.
+    persisted.pop("helper_grant_sha256", None)
+    current.pop("helper_grant_sha256", None)
+    require(batch.controller_thread_id == attachment.controller_thread_id
+            and batch.controller_epoch == attachment.controller_epoch
+            and persisted == current, "delivery_owner_changed")
+
+
+def driver_checkpoint_path(bridge_root, thread_id, task_id):
+    key = hashlib.sha256(json.dumps([thread_id, task_id], separators=(",", ":")).encode()).hexdigest()
+    return Path(bridge_root) / (".driver-checkpoint-" + key + ".json")
+
+
+def claim_delivery_driver(bridge_root, thread_id, task_id):
+    path = driver_checkpoint_path(bridge_root, thread_id, task_id).with_suffix(".lock")
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        info = os.fstat(fd)
+        require(stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid()
+                and stat.S_IMODE(info.st_mode) == 0o600 and info.st_nlink == 1, "delivery_driver_lock")
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise EntryError("delivery_driver_busy") from exc
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+async def observe_delivery(connection, adapter, binding, ledger, batch):
+    if batch.status == "pending":
+        batch = ledger.mark_sending(batch.delivery_id)
+        capability = adapter.attach_external_claim(binding, batch.path)
+        try:
+            packets = await adapter.send_tool_output_once(connection, capability, request_id=2, wait_for_completion=False)
+            receipts = [packet for packet in packets if packet.get("id") == 2]
+            require(len(receipts) == 1 and "error" not in receipts[0], "transport_receipt")
+            batch = ledger.mark_transport_accepted(batch.delivery_id, receipts[0]["result"]["turn"]["id"])
+        except Exception:
+            # Once sending is durable, all transport failures are ambiguous.
+            batch = ledger.mark_uncertain(batch.delivery_id, "transport_unconfirmed")
+    else:
+        if batch.status == "sending":
+            batch = ledger.mark_uncertain(batch.delivery_id, "recovered_sending")
+        capability = adapter.reconcile_external_claim(binding, batch.path)
+    return batch, capability
 
 
 async def run_helper():
@@ -351,6 +428,7 @@ async def run_helper():
     connection = None
     ledger = None
     batch = None
+    driver_lock = None
     try:
         helper_captured = store.read(admitted["receipt_name"])
         owner_captured = store.read(config["owner_ready_receipt"])
@@ -388,11 +466,25 @@ async def run_helper():
                 and deliver["action"] == "deliver", "deliver_command")
         client = bridge_core.ControlPlaneClient(deliver["control_binary"], deliver["control_binary_sha256"])
         ledger = bridge_core.DeliveryLedger(config["bridge_root"])
+        driver_lock = claim_delivery_driver(ledger.root, attachment.controller_thread_id, deliver["task_id"])
+        checkpoint_path = driver_checkpoint_path(ledger.root, attachment.controller_thread_id, deliver["task_id"])
         open_batches = ledger.open_batches(attachment.controller_thread_id, deliver["task_id"])
+        if not open_batches and checkpoint_path.exists():
+            checkpoint = bridge_core._stable_json(checkpoint_path)
+            if checkpoint.get("delivery_id"):
+                recovered = ledger.load(checkpoint["delivery_id"])
+                verify_batch_owner(recovered, attachment, bridge_core)
+                if recovered.status == "controller_acked" and not client.collect(deliver["task_id"], control_file=Path(deliver["control_file"])):
+                    ack_sha = bridge_core._stable_json(recovered.path / "batch-status.json")["controller_ack_sha256"]
+                    emit({"version": 1, "event": "ack", "delivery_id": recovered.delivery_id,
+                          "status": recovered.status, "controller_ack_sha256": ack_sha})
+                    await wait_helper_eof(connection, attachment)
+                    return
         confirmed = [item for item in open_batches if item.status == "history_confirmed"]
         require(len(confirmed) <= 1, "open_delivery_ambiguous")
         if confirmed:
             batch = confirmed[0]
+            verify_batch_owner(batch, attachment, bridge_core)
             if (batch.path / "controller-ack-request.json").exists():
                 ack_sha = client.replay_ack(batch)
                 batch = ledger.mark_controller_acked(batch.delivery_id, ack_sha)
@@ -403,26 +495,20 @@ async def run_helper():
             proof_sha = batch.history_proof_sha256
             native_turn_id, native_item_id = batch.native_turn_id, batch.native_item_id
         else:
-            events = client.collect(deliver["task_id"], control_file=Path(deliver["control_file"]))
-            require(events, "no_pending_events")
-            batch = ledger.prepare_and_claim(attachment, deliver["task_id"], events[:8])
+            require(len(open_batches) <= 1, "open_delivery_ambiguous")
+            if open_batches:
+                batch = open_batches[0]
+            else:
+                events = client.collect(deliver["task_id"], control_file=Path(deliver["control_file"]))
+                require(events, "no_pending_events")
+                batch = ledger.prepare_and_claim(attachment, deliver["task_id"], events[:8])
             binding = delivery_adapter.DeliveryBinding(attachment.profile_id,
                 attachment.controller_thread_id, attachment.controller_epoch, batch.delivery_id, 1)
             adapter = delivery_adapter.DeliveryAdapter.for_external(
                 owner_context_sha256=attachment.owner_context_sha256)
-            if batch.status == "pending":
-                batch = ledger.mark_sending(batch.delivery_id)
-                capability = adapter.attach_external_claim(binding, batch.path)
-                packets = await adapter.send_tool_output_once(connection, capability,
-                    request_id=2, wait_for_completion=False)
-                receipts = [packet for packet in packets if packet.get("id") == 2]
-                require(len(receipts) == 1 and "error" not in receipts[0], "transport_receipt")
-                native_turn_id = receipts[0]["result"]["turn"]["id"]
-                batch = ledger.mark_transport_accepted(batch.delivery_id, native_turn_id)
-            else:
-                if batch.status == "sending":
-                    batch = ledger.mark_uncertain(batch.delivery_id, "recovered_sending")
-                capability = adapter.reconcile_external_claim(binding, batch.path)
+            verify_batch_owner(batch, attachment, bridge_core)
+            replace_private(checkpoint_path, {"version": 1, "delivery_id": batch.delivery_id})
+            batch, capability = await observe_delivery(connection, adapter, binding, ledger, batch)
             proof, (native_turn_id, native_item_id) = await exact_history(
                 connection, adapter, capability, attachment.controller_thread_id)
             proof_sha = hashlib.sha256(json.dumps({"reads_sha256": proof.reads_sha256,
@@ -442,7 +528,7 @@ async def run_helper():
         emit({"version": 1, "event": "ack", "delivery_id": batch.delivery_id,
               "status": batch.status, "controller_ack_sha256": ack_sha})
         await wait_helper_eof(connection, attachment)
-    except BaseException:
+    except BaseException as exc:
         if ledger is not None and batch is not None:
             try:
                 current = ledger.load(batch.delivery_id)
@@ -450,20 +536,30 @@ async def run_helper():
                     ledger.mark_uncertain(batch.delivery_id, "helper_failure")
             except Exception:
                 pass
+        if isinstance(exc, Exception) and batch is not None and (isinstance(exc, (asyncio.TimeoutError, ConnectionError, OSError)) or str(exc) in {
+                "history_uncertain", "history_transport_timeout", "websocket_eof", "server_close", "helper_closed", "rpc_pending_limit"}):
+            emit({"version": 1, "event": "awaiting_history", "delivery_id": batch.delivery_id})
+            return
         raise
     finally:
         store.close()
-        if connection is not None:
-            await connection.close()
-        else:
-            ws_writer.close()
-            await ws_writer.wait_closed()
+        try:
+            if connection is not None:
+                await connection.close()
+            else:
+                await owner_helper.close_writer(ws_writer)
+        finally:
+            if driver_lock is not None:
+                os.close(driver_lock)
 
 
 async def wait_helper_eof(connection, attachment):
-    while True:
+    close_deadline = time.monotonic() + RPC_TIMEOUT_SECONDS
+    while time.monotonic() < close_deadline:
         try:
-            await connection.read_rpc()
+            await asyncio.wait_for(connection.read_rpc(), max(0, close_deadline - time.monotonic()))
+        except asyncio.TimeoutError:
+            return
         except Exception as exc:
             require(str(exc) == "websocket_eof", "helper_transport_failed")
             emit({"version": 1, "event": "helper_eof", "lease_id": attachment.lease_id})
@@ -680,6 +776,9 @@ async def run_driver(request_path_value):
     connection = None
     ws_writer = None
     base_status = None
+    batch = None
+    ledger = None
+    driver_lock = None
     try:
         owner_captured = store.read(request["owner_ready_receipt"])
         require(
@@ -777,6 +876,7 @@ async def run_driver(request_path_value):
             launcher_peer["executable_sha256"],
             enable_test_fake=request["enable_test_fake"],
         )
+        driver_lock = claim_delivery_driver(bridge_root, attachment.controller_thread_id, request["task_id"])
         if request["mode"] == "submit":
             template = stable_json(request["submit_request"], private=True)
             require(
@@ -812,7 +912,22 @@ async def run_driver(request_path_value):
                 "rebind_request",
             )
             control_file = Path(request["control_file"])
-            response = client.rebind(owner_capability, control_file=control_file)
+            recovery_path = driver_checkpoint_path(bridge_root, attachment.controller_thread_id, request["task_id"])
+            recovery = bridge_core._stable_json(recovery_path) if recovery_path.exists() else {}
+            old_owner = dict(recovery.get("owner_attachment", {}))
+            new_owner = attachment.persisted()
+            old_owner.pop("helper_grant_sha256", None)
+            new_owner.pop("helper_grant_sha256", None)
+            if old_owner == new_owner:
+                require(recovery.get("task_id") == request["task_id"]
+                        and recovery.get("control_file") == str(control_file)
+                        and recovery.get("control_file_sha256") == digest(control_file), "delivery_control_changed")
+                # Recovering a helper transport for the same native owner does
+                # not rebind the business worker or mutate its generation.
+                client.status(request["task_id"], control_file=control_file)
+                response = {"status": "delivery_recovered", "run_id": recovery["run_id"]}
+            else:
+                response = client.rebind(owner_capability, control_file=control_file)
             run_id = response["run_id"]
         bootstrap_remaining(bootstrap_deadline)
         base_status = {
@@ -839,17 +954,57 @@ async def run_driver(request_path_value):
         }
         replace_private(driver_root / "status.json", base_status)
         ledger = bridge_core.DeliveryLedger(bridge_root)
+        checkpoint_path = driver_checkpoint_path(bridge_root, attachment.controller_thread_id, request["task_id"])
+        checkpoint_binding = {"version": 1, "task_id": request["task_id"], "owner_attachment": attachment.persisted(),
+            "control_file": str(control_file), "control_file_sha256": digest(control_file), "run_id": run_id}
+        if not checkpoint_path.exists():
+            replace_private(checkpoint_path, dict(checkpoint_binding, delivery_id="", cursor=""))
         cursor = ""
         while True:
-            status, events, next_cursor = wait_actionable_events(
-                client,
-                request["task_id"],
-                control_file,
-                cursor,
-                attachment,
-                proxy_transport,
-            )
-            batch = ledger.prepare_and_claim(attachment, request["task_id"], events)
+            checkpoint = bridge_core._stable_json(checkpoint_path) if checkpoint_path.exists() else {}
+            cursor = checkpoint.get("cursor", cursor)
+            open_batches = ledger.open_batches(attachment.controller_thread_id, request["task_id"])
+            require(len(open_batches) <= 1, "open_delivery_ambiguous")
+            if checkpoint.get("delivery_id"):
+                batch = ledger.load(checkpoint["delivery_id"])
+                require(batch.task_id == request["task_id"], "delivery_task_changed")
+                verify_batch_owner(batch, attachment, bridge_core)
+                next_cursor = checkpoint["next_cursor"]
+            elif open_batches:
+                batch = open_batches[0]
+                verify_batch_owner(batch, attachment, bridge_core)
+                context_path = batch.path / "driver-context.json"
+                # Older ledgers have no driver cursor. Reading pending events
+                # from the beginning after ACK is safe and never skips events.
+                context = bridge_core._stable_json(context_path) if context_path.exists() else {"next_cursor": ""}
+                next_cursor = context["next_cursor"]
+            else:
+                status, events, next_cursor = wait_actionable_events(
+                    client, request["task_id"], control_file, cursor, attachment, proxy_transport)
+                batch = ledger.prepare_and_claim(attachment, request["task_id"], events)
+                context_path = batch.path / "driver-context.json"
+                if not context_path.exists():
+                    bridge_core._write_exclusive(context_path, {"version": 1, "next_cursor": next_cursor})
+            verify_batch_owner(batch, attachment, bridge_core)
+            replace_private(checkpoint_path, dict(checkpoint_binding, delivery_id=batch.delivery_id,
+                next_cursor=next_cursor, cursor=cursor))
+            if batch.status == "controller_acked":
+                # ACK may be durable even when the driver died before writing
+                # its own receipt/status. Rebuild those projections only.
+                ack_sha = bridge_core._stable_json(batch.path / "batch-status.json")["controller_ack_sha256"]
+                replace_private(driver_root / ("ack-" + batch.delivery_id + ".json"), {
+                    "version": 1, "event": "ack", "delivery_id": batch.delivery_id,
+                    "status": batch.status, "controller_ack_sha256": ack_sha})
+                current = client.status(request["task_id"], control_file=control_file)
+                cursor = next_cursor
+                if not cursor and current.get("status") in {
+                    "completed", "failed", "cancelled", "budget_exhausted", "blocked_dependency"}:
+                    replace_private(driver_root / "status.json", dict(
+                        base_status, status="completed", delivery_id=batch.delivery_id))
+                    return
+                replace_private(checkpoint_path, dict(checkpoint_binding, delivery_id="", cursor=cursor))
+                replace_private(driver_root / "status.json", dict(base_status, status="watching", cursor=cursor))
+                continue
             binding = delivery_adapter.DeliveryBinding(
                 attachment.profile_id,
                 attachment.controller_thread_id,
@@ -860,30 +1015,30 @@ async def run_driver(request_path_value):
             adapter = delivery_adapter.DeliveryAdapter.for_external(
                 owner_context_sha256=attachment.owner_context_sha256
             )
-            batch = ledger.mark_sending(batch.delivery_id)
-            capability = adapter.attach_external_claim(binding, batch.path)
-            packets = await adapter.send_tool_output_once(
-                connection, capability, request_id=2, wait_for_completion=False
-            )
-            receipts = [packet for packet in packets if packet.get("id") == 2]
-            require(
-                len(receipts) == 1 and "error" not in receipts[0], "transport_receipt"
-            )
-            native_turn_id = receipts[0]["result"]["turn"]["id"]
-            batch = ledger.mark_transport_accepted(batch.delivery_id, native_turn_id)
-            proof, (native_turn_id, native_item_id) = await exact_history(
-                connection, adapter, capability, attachment.controller_thread_id
-            )
-            proof_sha = hashlib.sha256(
-                json.dumps(
+            def awaiting_history(current):
+                replace_private(driver_root / "status.json", dict(
+                    base_status, status="awaiting_history", delivery_id=current.delivery_id,
+                    recoverable=True))
+
+            if batch.status != "history_confirmed":
+                batch, capability = await observe_delivery(connection, adapter, binding, ledger, batch)
+                awaiting_history(batch)
+                while True:
+                    require(attachment_live(attachment, proxy_transport), "owner_detached")
+                    try:
+                        proof, (native_turn_id, native_item_id) = await exact_history(
+                            connection, adapter, capability, attachment.controller_thread_id)
+                        break
+                    except Exception as exc:
+                        if str(exc) != "history_uncertain":
+                            raise
+                        awaiting_history(batch)
+                        await asyncio.sleep(HISTORY_POLL_SECONDS)
+                proof_sha = hashlib.sha256(json.dumps(
                     {"reads_sha256": proof.reads_sha256, "summary": proof.summary},
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ).encode()
-            ).hexdigest()
-            batch = ledger.confirm_history(
-                batch.delivery_id, proof_sha, native_turn_id, native_item_id
-            )
+                    sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+                batch = ledger.confirm_history(batch.delivery_id, proof_sha, native_turn_id, native_item_id)
+            proof_sha = batch.history_proof_sha256
             history = {
                 "version": 1,
                 "event": "history_ready",
@@ -898,7 +1053,10 @@ async def run_driver(request_path_value):
                 "next_cursor": next_cursor,
             }
             history_path = driver_root / ("history-" + batch.delivery_id + ".json")
-            bridge_core._write_exclusive(history_path, history)
+            if history_path.exists():
+                require(bridge_core._stable_json(history_path) == history, "history_receipt_changed")
+            else:
+                bridge_core._write_exclusive(history_path, history)
             replace_private(
                 driver_root / "status.json",
                 dict(
@@ -910,25 +1068,28 @@ async def run_driver(request_path_value):
                 ),
             )
             decision_path = driver_root / "decisions" / (batch.delivery_id + ".json")
-            decision = await wait_decision(decision_path, attachment, proxy_transport)
-            require(
-                set(decision)
-                == {
-                    "version",
-                    "action",
-                    "delivery_id",
-                    "history_proof_sha256",
-                    "decisions",
-                }
-                and decision["version"] == 1
-                and decision["action"] == "decide"
-                and decision["delivery_id"] == batch.delivery_id
-                and decision["history_proof_sha256"] == proof_sha,
-                "driver_decision",
-            )
-            ack_sha = client.ack(
-                batch, decision["decisions"], control_file=control_file
-            )
+            if (batch.path / "controller-ack-request.json").exists():
+                ack_sha = client.replay_ack(batch)
+            else:
+                decision = await wait_decision(decision_path, attachment, proxy_transport)
+                require(
+                    set(decision)
+                    == {
+                        "version",
+                        "action",
+                        "delivery_id",
+                        "history_proof_sha256",
+                        "decisions",
+                    }
+                    and decision["version"] == 1
+                    and decision["action"] == "decide"
+                    and decision["delivery_id"] == batch.delivery_id
+                    and decision["history_proof_sha256"] == proof_sha,
+                    "driver_decision",
+                )
+                ack_sha = client.ack(
+                    batch, decision["decisions"], control_file=control_file
+                )
             batch = ledger.mark_controller_acked(batch.delivery_id, ack_sha)
             replace_private(
                 driver_root / ("ack-" + batch.delivery_id + ".json"),
@@ -956,18 +1117,30 @@ async def run_driver(request_path_value):
                     ),
                 )
                 return
+            replace_private(checkpoint_path, dict(checkpoint_binding, delivery_id="", cursor=cursor))
             replace_private(
                 driver_root / "status.json",
                 dict(base_status, status="watching", cursor=cursor),
             )
     except Exception as exc:
         if base_status is not None:
-            if str(exc) == "owner_detached":
+            # EOF can win the race with the next loop's owner check. Recheck
+            # the attachment before projecting a recoverable transport error.
+            if str(exc) == "owner_detached" or not attachment_live(attachment, proxy_transport):
                 replace_private(
                     driver_root / "status.json",
                     dict(base_status, status="owner_detached"),
                 )
                 return
+            if batch is not None and ledger is not None:
+                current = ledger.load(batch.delivery_id)
+                if current.status in {"sending", "transport_accepted", "delivery_uncertain"}:
+                    ledger.mark_uncertain(batch.delivery_id, "driver_transport_unconfirmed")
+                    if isinstance(exc, (asyncio.TimeoutError, ConnectionError, OSError)) or str(exc) in {
+                        "history_uncertain", "history_transport_timeout", "websocket_eof", "server_close", "helper_closed", "rpc_pending_limit"}:
+                        replace_private(driver_root / "status.json", dict(
+                            base_status, status="awaiting_history", delivery_id=batch.delivery_id, recoverable=True))
+                        return
             code = (
                 str(exc)
                 if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", str(exc))
@@ -980,11 +1153,14 @@ async def run_driver(request_path_value):
         raise
     finally:
         store.close()
-        if connection is not None:
-            await connection.close()
-        elif ws_writer is not None:
-            ws_writer.close()
-            await ws_writer.wait_closed()
+        try:
+            if connection is not None:
+                await connection.close()
+            elif ws_writer is not None:
+                await owner_helper.close_writer(ws_writer)
+        finally:
+            if driver_lock is not None:
+                os.close(driver_lock)
 
 
 def request_path(args):

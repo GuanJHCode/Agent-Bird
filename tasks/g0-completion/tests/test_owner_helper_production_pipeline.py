@@ -59,7 +59,10 @@ def connect(path):
     key=b'dGhlIHNhbXBsZSBub25jZQ=='
     sock.sendall(b'GET / HTTP/1.1\r\nHost: helper\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: '+key+b'\r\n\r\n')
     response=b''
-    while b'\r\n\r\n' not in response: response+=sock.recv(4096)
+    while b'\r\n\r\n' not in response:
+        chunk=sock.recv(4096)
+        if not chunk: raise EOFError('websocket upgrade peer closed')
+        response+=chunk
     if not response.startswith(b'HTTP/1.1 101'): raise RuntimeError('upgrade')
     return sock
 

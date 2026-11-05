@@ -470,14 +470,14 @@ async def start_product_driver(
         request_path,
     )
     g.require(
-        started.get("status") in {"watching", "awaiting_owner_decision"}
+        started.get("status") in {"watching", "awaiting_history", "awaiting_owner_decision"}
         and started.get("controller_thread") == lease["owner_thread_id"]
         and started.get("driver_root") == str(driver_root)
         and started.get("task_id") == task_id,
         "product driver start",
     )
     g.require(started.get("control_action_status")
-              == ("queued" if mode == "submit" else "owner_rebound"),
+              in ({"queued"} if mode == "submit" else {"owner_rebound", "delivery_recovered"}),
               "product driver control action")
     launcher_peer = g.base.peer_for_process(started["launcher_pid"])
     driver_peer = g.base.peer_for_process(started["driver_pid"])

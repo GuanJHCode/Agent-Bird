@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05",
+  "command": [
+    "/private/tmp/agent-bird-cross-cli-5c9jyn8o/python-venv/bin/python",
+    "-m",
+    "pytest",
+    "tools/native-product-bridge/test_delivery_deadlines.py",
+    "tools/native-product-bridge/test_local_product_driver.py::test_owner_bound_driver_waits_then_delivers_without_manual_collect[complete-sending_before_io_detach]",
+    "tools/native-product-bridge/test_local_product_driver.py::test_owner_bound_driver_waits_then_delivers_without_manual_collect[complete-ack_success]",
+    "tools/native-product-bridge/test_local_product_driver.py::test_owner_bound_driver_waits_then_delivers_without_manual_collect[complete-controller_acked]",
+    "tools/native-product-bridge/test_local_service_chain.py::test_real_local_service_admission_bridges_g1_event_and_ack[ack_success]",
+    "tools/native-product-bridge/test_local_service_chain.py::test_real_local_service_admission_bridges_g1_event_and_ack[controller_acked]",
+    "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05-evidence/review-t05-r3/scripts/test_negative_entry.py",
+    "-p",
+    "no:cacheprovider",
+    "-q",
+    "-rs",
+    "--junitxml=/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05-evidence/review-t05-r5/data/focused.xml"
+  ],
+  "exit_code": 0,
+  "environment": {
+    "PATH_prefix": "/private/tmp/go1.26.10-sdk/bin",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "TMPDIR": "/private/tmp",
+    "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-review-t05",
+    "G0_GO_EXECUTABLE": "/private/tmp/go1.26.10-sdk/bin/go",
+    "ORCHESTRATOR_PRODUCT_BINARY": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05-evidence/orchestrator",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "source_files_verified_before_and_after": 12,
+  "tests": 39,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_junit_seconds": 38.664
+}

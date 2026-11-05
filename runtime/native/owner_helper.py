@@ -452,45 +452,62 @@ async def _read_server_text(reader: asyncio.StreamReader) -> bytes:
         if opcode != 0:
             _reject("websocket_fragment_opcode")
         chunks.append(payload)
-        if sum(map(len, chunks)) > 65535:
+        if len(chunks) > 256 or sum(map(len, chunks)) > 65535:
             _reject("websocket_message_too_large")
     return b"".join(chunks)
 
 
-async def _open_websocket(path: str) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
-    reader, writer = await asyncio.open_unix_connection(path)
-    key = base64.b64encode(secrets.token_bytes(16))
-    writer.write(
-        b"GET / HTTP/1.1\r\nHost: owner-helper\r\nUpgrade: websocket\r\n"
-        b"Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: " + key + b"\r\n\r\n"
-    )
-    await writer.drain()
+CONNECT_TIMEOUT_SECONDS = 10.0
+DRAIN_TIMEOUT_SECONDS = 10.0
+READ_TIMEOUT_SECONDS = 10.0
+CLOSE_TIMEOUT_SECONDS = 2.0
+MAX_PENDING_RPCS = 256
+
+
+async def close_writer(writer) -> None:
+    writer.close()
     try:
-        response = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=10)
+        await asyncio.wait_for(writer.wait_closed(), CLOSE_TIMEOUT_SECONDS)
+    except (asyncio.TimeoutError, ConnectionError, OSError):
+        writer.transport.abort()
     except BaseException:
-        writer.close()
-        await writer.wait_closed()
+        writer.transport.abort()
         raise
-    lines = response.split(b"\r\n")
-    if not lines or lines[0] != b"HTTP/1.1 101 Switching Protocols":
-        writer.close()
-        await writer.wait_closed()
-        _reject("websocket_upgrade")
-    headers = {
-        line.split(b":", 1)[0].lower(): line.split(b":", 1)[1].strip()
-        for line in lines[1:] if b":" in line
-    }
-    if headers.get(b"upgrade", b"").lower() != b"websocket" or headers.get(b"connection", b"").lower() != b"upgrade":
-        writer.close()
-        await writer.wait_closed()
-        _reject("websocket_headers")
-    accept = headers.get(b"sec-websocket-accept")
-    expected = base64.b64encode(hashlib.sha1(key + b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest())
-    if accept != expected:
-        writer.close()
-        await writer.wait_closed()
-        _reject("websocket_accept")
-    return reader, writer
+
+
+async def _open_websocket(path: str) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+    writer = None
+    async def connect():
+        nonlocal writer
+        reader, writer = await asyncio.open_unix_connection(path)
+        key = base64.b64encode(secrets.token_bytes(16))
+        writer.write(
+            b"GET / HTTP/1.1\r\nHost: owner-helper\r\nUpgrade: websocket\r\n"
+            b"Connection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: " + key + b"\r\n\r\n"
+        )
+        await writer.drain()
+        response = await reader.readuntil(b"\r\n\r\n")
+        lines = response.split(b"\r\n")
+        if not lines or lines[0] != b"HTTP/1.1 101 Switching Protocols":
+            _reject("websocket_upgrade")
+        headers = {
+            line.split(b":", 1)[0].lower(): line.split(b":", 1)[1].strip()
+            for line in lines[1:] if b":" in line
+        }
+        if headers.get(b"upgrade", b"").lower() != b"websocket" or headers.get(b"connection", b"").lower() != b"upgrade":
+            _reject("websocket_headers")
+        accept = headers.get(b"sec-websocket-accept")
+        expected = base64.b64encode(hashlib.sha1(key + b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest())
+        if accept != expected:
+            _reject("websocket_accept")
+
+        return reader, writer
+    try:
+        return await asyncio.wait_for(connect(), CONNECT_TIMEOUT_SECONDS)
+    except BaseException:
+        if writer is not None:
+            await close_writer(writer)
+        raise
 
 
 class NativeWebSocketGate:
@@ -552,6 +569,7 @@ class NativeWebSocketGate:
             validate_helper_rpc(message,self.owner_thread_id)
             if 'id' in message:
                 if message['id'] in self.pending_ids: _reject('rpc_id_reused')
+                if len(self.pending_ids) >= MAX_PENDING_RPCS: _reject('rpc_pending_limit')
                 self.pending_ids.add(message['id'])
         frames=self._fragment_frames; self._fragment_frames=[]; self._fragment_payload.clear()
         return b''.join(frames)
@@ -598,7 +616,7 @@ class NativeWebSocketGate:
             elif opcode==0:
                 if not self._fragment_frames: _reject('websocket_fragment_continuation')
                 self._fragment_payload.extend(payload); self._fragment_frames.append(raw)
-                if len(self._fragment_payload)>65535: _reject('websocket_message_too_large')
+                if len(self._fragment_frames)>256 or len(self._fragment_payload)>65535: _reject('websocket_message_too_large')
                 if fin: output.append(self._complete_message(bytes(self._fragment_payload)))
             else:
                 _reject('websocket_frame_opcode')
@@ -625,19 +643,24 @@ class OwnerHelperConnection:
         payload = json.dumps(message, separators=(",", ":"), sort_keys=True).encode()
         frame = _websocket_frame(payload)
         if request_id is not None:
+            if len(self._pending_ids) >= MAX_PENDING_RPCS:
+                _reject("rpc_pending_limit")
             self._pending_ids.add(request_id)
-        try:
-            self.writer.write(frame)
-            await self.writer.drain()
-        except BaseException:
-            if request_id is not None:
-                self._pending_ids.discard(request_id)
-            raise
+        # A drain exception cannot prove that bytes were not delivered. Keep
+        # the ID reserved so late responses remain recognizable in history reads.
+        self.writer.write(frame)
+        await asyncio.wait_for(self.writer.drain(), DRAIN_TIMEOUT_SECONDS)
 
     async def read_rpc(self) -> dict:
         if self._closed:
             _reject("helper_closed")
-        payload = await _read_server_text(self.reader)
+        try:
+            payload = await asyncio.wait_for(_read_server_text(self.reader), READ_TIMEOUT_SECONDS)
+        except BaseException:
+            # Frame parsing consumes stream bytes incrementally. After any
+            # interrupted read there is no safe boundary at which to resume.
+            await self.close()
+            raise
         message = _json_unique(payload)
         validate_helper_server_message(message, self.owner_thread_id)
         if "id" in message:
@@ -650,8 +673,7 @@ class OwnerHelperConnection:
         if self._closed:
             return
         self._closed = True
-        self.writer.close()
-        await self.writer.wait_closed()
+        await close_writer(self.writer)
 
 
 @dataclass
@@ -724,7 +746,7 @@ class OwnerLease:
         stream.  This method deliberately does not consume a backend 101.
         """
         self.validate_grant(grant, identity)
-        reader, writer = await asyncio.open_unix_connection(self.private_socket)
+        reader, writer = await asyncio.wait_for(asyncio.open_unix_connection(self.private_socket), CONNECT_TIMEOUT_SECONDS)
         connection = OwnerHelperConnection(reader=reader, writer=writer, lease_id=self.lease_id, owner_thread_id=self.owner_thread_id)
         self._helpers.append(connection)
         return connection
