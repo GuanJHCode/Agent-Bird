@@ -27,6 +27,11 @@ func sourceAuthEnvironmentName(name string) bool {
 	switch name {
 	case "CODEX_SQLITE_HOME", "CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "CODEX_CI", "CODEX_VERSION", "CODEX_SESSION_ID", "CODEX_THREAD_ID", "CODEX_TOOL_CALL_ID", "CODEX_APPLY_PATCH_PRESERVE_LINE_ENDINGS":
 		return false
+	case "CLAUDE_CODE_SESSION_ID", "CLAUDE_PROJECT_DIR":
+		// Claude injects these correlation/project context fields into stdio
+		// MCP subprocesses after the controller captures its source environment.
+		// Owner authority and workspace routing use their existing separate guards.
+		return false
 	case "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "HOME", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS":
 		return true
 	}

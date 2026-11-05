@@ -1,0 +1,66 @@
+{
+  "verdict": "PASS",
+  "base": "ce4a9c78570240bfa71771e15d8e26fb49c226ba",
+  "review_worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-context-review",
+  "task_branch": "work/t08-claude-source-context-20261105",
+  "task_worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-context",
+  "source_manifest": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-context-evidence/data/source-manifest.json",
+  "source_hashes": {
+    "files": 4,
+    "matched_before_tests": 4,
+    "matched_after_tests": 4,
+    "mismatches": 0
+  },
+  "diff": {
+    "tracked_files": 3,
+    "untracked_source_files": 1,
+    "total_reviewed_files": 4,
+    "diff_check": "PASS",
+    "gofmt_diff": "empty"
+  },
+  "tests": [
+    {
+      "name": "go-focused-normal",
+      "package": "./cmd/orchestrator",
+      "top_level_passed": 4,
+      "subtests_passed": 132,
+      "total_nodes_passed": 136,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    {
+      "name": "go-focused-race",
+      "package": "./cmd/orchestrator",
+      "top_level_passed": 4,
+      "subtests_passed": 132,
+      "total_nodes_passed": 136,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "race_reports": 0,
+      "exit_code": 0
+    }
+  ],
+  "coverage_breakdown": {
+    "projection_subtests": 10,
+    "additional_route_subtests": 37,
+    "multi_process_admission_subtests": 85,
+    "exact_context_exclusions": [
+      "CLAUDE_CODE_SESSION_ID",
+      "CLAUDE_PROJECT_DIR"
+    ],
+    "future_same_prefix_fail_closed": [
+      "CLAUDE_CODE_SESSION_ID_FUTURE_AUTH",
+      "CLAUDE_PROJECT_DIR_FUTURE_AUTH"
+    ]
+  },
+  "blockers": [],
+  "non_blocking": [],
+  "not_covered": [
+    "post-change repository-wide normal/race, vet and build",
+    "real Claude 2.1.316 invocation, HTTP, credentials, worker or model",
+    "clean-source .3 package build/install and final artifact/receipt acceptance"
+  ]
+}

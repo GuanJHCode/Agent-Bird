@@ -78,7 +78,7 @@ configure 生成 `config.json`、`mcp.json` 和 `codex-args.json`。生成的 `m
 }
 ```
 
-使用实际生成的文件，不照抄示例安装布局，也不改写 command 为源码或 latest。MCP 宿主通过其本次启动支持的配置入口显式加载生成的 `mcp.json`；Codex 的本次启动参数在生成的 `codex-args.json` 中。Codex stdio 默认过滤环境，生成参数额外列出本次 configure 环境中相关认证/路由变量的精确名字及 `AGENT_BIRD_OWNER_REQUEST`，不写变量值。投影覆盖现有四 Provider 的 OpenAI/Codex、Anthropic/Claude、Grok/XAI、AGY/Antigravity、Google/Gemini/Vertex、AWS、Azure/Foundry 家族及 HOME、XDG 配置位置、proxy/CA，保留明确列出的八项 Codex 非认证上下文排除。新父新增相关变量而配置未转发时，摘要不匹配会拒绝，不能静默使用默认账户；应重新 configure 并重启 managed controller。该合同保留四 Provider 既有 Host 认证准入，不表示新增云路由或保证任意未来 Provider。旧版仅能列出 8 工具的 metadata 证据不能替代完整环境证明、dispatch 授权或父模型续审。生成文件不等于已加载，最终包验收会核对 source/binary/receipt 和入口身份。直接调试 stdio 服务时也可使用已安装 wrapper：
+使用实际生成的文件，不照抄示例安装布局，也不改写 command 为源码或 latest。MCP 宿主通过其本次启动支持的配置入口显式加载生成的 `mcp.json`；Codex 的本次启动参数在生成的 `codex-args.json` 中。Codex stdio 默认过滤环境，生成参数额外列出本次 configure 环境中相关认证/路由变量的精确名字及 `AGENT_BIRD_OWNER_REQUEST`，不写变量值。投影覆盖现有四 Provider 的 OpenAI/Codex、Anthropic/Claude、Grok/XAI、AGY/Antigravity、Google/Gemini/Vertex、AWS、Azure/Foundry 家族及 HOME、XDG 配置位置、proxy/CA，排除明确列出的八项 Codex 非认证上下文，以及 Claude 自动注入 stdio MCP 的 `CLAUDE_CODE_SESSION_ID`、`CLAUDE_PROJECT_DIR` 两个会话/项目上下文字段；这些字段不能授予 owner、聊天路由或目录权限，仍由原 guard 核验。仅精确排除上述名字，其他未知同族变量仍受摘要保护。新父新增相关变量而配置未转发时，摘要不匹配会拒绝，不能静默使用默认账户；应重新 configure 并重启 managed controller。该合同保留四 Provider 既有 Host 认证准入，不表示新增云路由或保证任意未来 Provider。旧版仅能列出 8 工具的 metadata 证据不能替代完整环境证明、dispatch 授权或父模型续审。生成文件不等于已加载，最终包验收会核对 source/binary/receipt 和入口身份。直接调试 stdio 服务时也可使用已安装 wrapper：
 
 ```sh
 "/absolute/installed/plugin/scripts/invoke.sh" mcp serve --config /private/task/mcp-root/config.json

@@ -1,0 +1,61 @@
+{
+  "scope": "Exact two Claude stdio context names only; not a native-session authority or route grant",
+  "base": "ce4a9c78570240bfa71771e15d8e26fb49c226ba",
+  "source_files": [
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/source_auth_environment.go",
+      "sha256": "612c287ac9e909cbfc9dfb2ce715b9dce8319d9a4bae270ad2c31b0c8e874ee8"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/source_auth_environment_test.go",
+      "sha256": "4b9202250a4f0f2bb3cf67a60747ad4ae9a5bcead94ae38a4aaa611592b7ef9e"
+    },
+    {
+      "path": "tasks/cross-cli-hardening-20261105/docs/delivery-scope.md",
+      "sha256": "efd12c8584a021c0a59041a1553991ee1725f64fbd236349d9bf6ab2a0c09ad1"
+    },
+    {
+      "path": "tasks/cross-cli-hardening-20261105/plans/T08-Claude-stdio-context.md",
+      "sha256": "7b5018643de6e9160c16abf174e3b2c451092d40c0ff3163179d6b0eaef887dd"
+    }
+  ],
+  "root_acceptance": "PASS for narrow change",
+  "independent_verdict": "PASS",
+  "root_focused": {
+    "normal": {
+      "passed": 137,
+      "failed": 0,
+      "skipped": 0
+    },
+    "race": {
+      "passed": 137,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "independent_focused": {
+    "normal": {
+      "passed": 136,
+      "top": 4,
+      "sub": 132,
+      "failed": 0,
+      "skipped": 0
+    },
+    "race": {
+      "passed": 136,
+      "top": 4,
+      "sub": 132,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "historical_package2_native_observation": {
+    "codex_source_projection": "PASS",
+    "claude_tools": 8,
+    "claude_source_projection": "BLOCKED: CLI adds exact session/project context keys",
+    "real_provider_or_model_called": false
+  },
+  "full_new_tree_regression": "IN_PROGRESS; .2 historical full normal/race each1624 pass8optin skip/vet/build PASS does not cover this change",
+  "final_package": "new unique .3 required; .1/.2 retained unchanged",
+  "evidence_root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-context-evidence"
+}

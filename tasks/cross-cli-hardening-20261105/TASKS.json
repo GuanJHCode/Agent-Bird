@@ -1073,7 +1073,7 @@
       "commits": [],
       "blockers": [],
       "limitations": [
-        "Documentation materials reviewed PASS at ba662986. Historical private .1 failed same-filesystem relocation rejection; retained unchanged. Installed manifest schema2 location-binding fix awaits independent review/root acceptance, then new clean source .2 build and PKG-01..04."
+        "Historical .1 failed relocation; reviewed location fix pushed ce4a9c78. Historical .2 PKG checks pass but real Claude stdio adds session/project context and source proof differs; .2 BLOCKED_FOR_LIVE. Narrow context fix independently reviewed PASS; new clean-source .3 build/PKG review pending."
       ],
       "updated_at": "2026-11-05T08:44:46.119375+00:00"
     },
@@ -1118,7 +1118,7 @@
       "commits": [],
       "blockers": [],
       "limitations": [
-        "Harness independent fresh fixture suite PASS: 144 passed, 0 failure/error/skip. Canonical signed receipt and provenance repair reviewed PASS; this does not establish final .2 package or actual dual-direction live acceptance. No model inference run yet."
+        "New harness r2 independently reviewed PASS:149 fresh fixture passed0failed/error/skip; generated product codex-args env_vars and installed Go binary now byte-bound. Final .3/live dual-direction still NOT_RUN; no model inference yet."
       ],
       "updated_at": null,
       "acceptance_policy": {
