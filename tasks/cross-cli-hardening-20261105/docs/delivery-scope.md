@@ -6,6 +6,8 @@
 
 最终包须在全部纳包材料冻结后生成唯一版本，并在最终报告逐项绑定 source commit/tree、binary、manifest、package SHA256、安装 receipt、绝对 wrapper 与解释器。当前这些最终身份尚未产生；不填写占位 SHA 或把旧包当新包。生产材料变化后需重新冻结、构建并复验受影响项。
 
+本轮新安装写 installed `manifest.json` schema2，以 `installed_root` 和原 receipt 的完整 manifest SHA256 绑定规范绝对版本目录。整个 destination 同文件系统 rename 也需重装，doctor、pin、Go/Python native bridge 与入口计划均拒绝位置不匹配。历史 schema1 保留无位置绑定的原合同；portable `package-manifest.json`、`runtime-manifest.json` 和 SQLite schema 不因此升级。卸载 quarantine 恢复仍绑定原逻辑 `versions/<version>`，并在删除前核验原 receipt 和 manifest 快照；不会把任意移动后的目录当作合法恢复。
+
 T01/T02/T03/T04/T05/T06A/T06B/T07/T10 的功能证据见本任务 `reviews/` 和 `data/public-evidence/`，各自只证明记录的源码快照及证据层次。MCP T08 r4 冻结源码已通过独立审查；集成 normal/race 各 1,598 pass、0 fail、8 个既有 skip，vet/build 均通过。最终包复验另行记录，不能从源码回归外推。PKG-01～04、T12 同包双向真实闭环、最终集成签收尚未完成；不能将单项 PASS 聚合为产品 PASS。T09 native 总体 BLOCKED，本轮沿用保守关闭及 wait/collect，不新增 native 实现。
 
 | parent → provider | version / artifact | scope、read/write | fresh/resume、delivery | 平台与证据、未覆盖 |

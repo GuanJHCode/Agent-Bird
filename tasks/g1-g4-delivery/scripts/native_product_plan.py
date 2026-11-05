@@ -207,8 +207,11 @@ def validate_package(
     package_root = private_dir(package_root)
     manifest_path = package_root / "manifest.json"
     manifest = private_json(manifest_path)
+    schema = manifest.get("schema_version")
+    location_bound = ((schema == 1 and not manifest.get("installed_root"))
+                      or (schema == 2 and manifest.get("installed_root") == str(package_root)))
     require(
-        manifest.get("schema_version") == 1
+        type(schema) is int and location_bound
         and manifest.get("package_name") == "codex-orchestrator"
         and isinstance(manifest.get("files"), list),
         "package_manifest",

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -17,9 +18,10 @@ import (
 )
 
 var (
-	ErrVersionPinned = errors.New("version_pinned")
-	ErrChangedFiles  = errors.New("changed_files_retained")
-	ErrVersionExists = errors.New("version_exists")
+	ErrVersionPinned          = errors.New("version_pinned")
+	ErrChangedFiles           = errors.New("changed_files_retained")
+	ErrVersionExists          = errors.New("version_exists")
+	ErrInstallLocationChanged = errors.New("install_location_changed_reinstall_required")
 )
 
 type InstallOptions struct {
@@ -55,6 +57,7 @@ type DoctorReport struct {
 
 type manifest struct {
 	SchemaVersion int            `json:"schema_version"`
+	InstalledRoot string         `json:"installed_root,omitempty"`
 	PackageName   string         `json:"package_name"`
 	Version       string         `json:"version"`
 	BinaryPath    string         `json:"binary_path"`
@@ -82,6 +85,7 @@ type uninstallIntent struct {
 	Version        string   `json:"version"`
 	ManifestSHA256 string   `json:"manifest_sha256"`
 	Manifest       manifest `json:"manifest"`
+	ManifestBody   []byte   `json:"manifest_body,omitempty"`
 	CreatedAt      string   `json:"created_at"`
 }
 
@@ -181,7 +185,7 @@ func InstallPackage(options InstallOptions) (InstallResult, error) {
 	if err != nil {
 		return InstallResult{}, err
 	}
-	value := manifest{SchemaVersion: 1, PackageName: "codex-orchestrator", Version: options.Version, BinaryPath: "bin/codex-orchestrator", BinarySHA256: binaryHash, Files: files}
+	value := manifest{SchemaVersion: 2, InstalledRoot: versionRoot, PackageName: "codex-orchestrator", Version: options.Version, BinaryPath: "bin/codex-orchestrator", BinarySHA256: binaryHash, Files: files}
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return InstallResult{}, err
@@ -291,8 +295,11 @@ func verifyInstalledVersion(destinationRoot, version string) error {
 	}
 	manifestData, err := readOwnedRegular(filepath.Join(versionRoot, "manifest.json"), 0o600, 4*1024*1024)
 	var value manifest
-	if err != nil || json.Unmarshal(manifestData, &value) != nil || value.SchemaVersion != 1 || value.PackageName != "codex-orchestrator" || value.Version != version || value.BinaryPath != "bin/codex-orchestrator" {
+	if err != nil || json.Unmarshal(manifestData, &value) != nil || !validManifestSchema(value) || value.PackageName != "codex-orchestrator" || value.Version != version || value.BinaryPath != "bin/codex-orchestrator" {
 		return errors.New("installed_version_invalid")
+	}
+	if err = validateManifestLocation(value, versionRoot); err != nil {
+		return err
 	}
 	manifestDigest := sha256.Sum256(manifestData)
 	manifestHash := hex.EncodeToString(manifestDigest[:])
@@ -406,7 +413,11 @@ func Doctor(destinationRoot string) (DoctorReport, error) {
 		report.Versions = append(report.Versions, entry.Name())
 		value, readErr := readManifest(filepath.Join(versionsDir, entry.Name(), "manifest.json"))
 		if readErr != nil {
-			report.Issues = append(report.Issues, entry.Name()+":manifest")
+			issue := entry.Name() + ":manifest"
+			if errors.Is(readErr, ErrInstallLocationChanged) {
+				issue = entry.Name() + ":" + ErrInstallLocationChanged.Error()
+			}
+			report.Issues = append(report.Issues, issue)
 			continue
 		}
 		receiptData, receiptErr := os.ReadFile(filepath.Join(destinationRoot, "manifests", entry.Name()+".json"))
@@ -514,6 +525,12 @@ func UninstallPackage(destinationRoot, version string) (UninstallResult, error) 
 			return UninstallResult{Version: version, Status: "retained", Retained: changed}, ErrChangedFiles
 		}
 		intent = uninstallIntent{SchemaVersion: 1, Version: version, ManifestSHA256: manifestHash, Manifest: value, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+		if value.SchemaVersion == 2 {
+			intent.ManifestBody, readErr = readOwnedRegular(manifestPath, 0o600, 4<<20)
+			if readErr != nil || !validIntentManifestSnapshot(intent) {
+				return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
+			}
+		}
 		data, marshalErr := json.MarshalIndent(intent, "", "  ")
 		if marshalErr != nil {
 			return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, marshalErr
@@ -549,6 +566,11 @@ func UninstallPackage(destinationRoot, version string) (UninstallResult, error) 
 	activeRoot := versionRoot
 	if errors.Is(versionErr, os.ErrNotExist) {
 		activeRoot = quarantineRoot
+	}
+	// Authenticate recovery metadata against the original receipt before any
+	// owned files are deleted. Checking only during final receipt removal is too late.
+	if err := verifyReceiptForIntent(receiptPath, intent); err != nil {
+		return UninstallResult{Version: version, Status: "retained", Retained: []string{activeRoot, receiptPath}}, err
 	}
 	changed, err := changedFiles(activeRoot, intent.Manifest, resumed)
 	if err != nil {
@@ -606,8 +628,14 @@ func readUninstallIntent(path, version string) (uninstallIntent, bool, error) {
 		return uninstallIntent{}, false, err
 	}
 	var intent uninstallIntent
-	if json.Unmarshal(data, &intent) != nil || intent.SchemaVersion != 1 || intent.Version != version || intent.ManifestSHA256 == "" || intent.Manifest.Version != version || intent.Manifest.PackageName != "codex-orchestrator" || intent.Manifest.SchemaVersion != 1 {
+	if json.Unmarshal(data, &intent) != nil || intent.SchemaVersion != 1 || intent.Version != version || intent.ManifestSHA256 == "" || intent.Manifest.Version != version || intent.Manifest.PackageName != "codex-orchestrator" || !validManifestSchema(intent.Manifest) || !validIntentManifestSnapshot(intent) {
 		return uninstallIntent{}, false, errors.New("uninstall_intent_invalid")
+	}
+	// The owned deletion protocol can rename the version directory into its
+	// quarantine. The intent remains bound to the original logical location.
+	logicalRoot := filepath.Join(filepath.Dir(filepath.Dir(path)), "versions", version)
+	if err = validateManifestLocation(intent.Manifest, logicalRoot); err != nil {
+		return uninstallIntent{}, false, err
 	}
 	for _, file := range intent.Manifest.Files {
 		clean := filepath.Clean(filepath.FromSlash(file.Path))
@@ -616,6 +644,35 @@ func readUninstallIntent(path, version string) (uninstallIntent, bool, error) {
 		}
 	}
 	return intent, true, nil
+}
+
+func validIntentManifestSnapshot(intent uninstallIntent) bool {
+	body := intent.ManifestBody
+	if len(body) == 0 {
+		if intent.Manifest.SchemaVersion != 1 {
+			return false
+		}
+		// Historical schema1 installers wrote this exact representation. Preserve
+		// their existing intents without allowing a schema2 snapshot to downgrade.
+		var err error
+		body, err = json.MarshalIndent(intent.Manifest, "", "  ")
+		if err != nil {
+			return false
+		}
+		body = append(body, '\n')
+	}
+	digest := sha256.Sum256(body)
+	var original manifest
+	return hex.EncodeToString(digest[:]) == intent.ManifestSHA256 && json.Unmarshal(body, &original) == nil && reflect.DeepEqual(original, intent.Manifest)
+}
+
+func verifyReceiptForIntent(path string, intent uninstallIntent) error {
+	data, err := readOwnedRegular(path, 0o600, 4096)
+	var receipt manifestReceipt
+	if err != nil || json.Unmarshal(data, &receipt) != nil || receipt.Version != intent.Version || receipt.ManifestSHA256 != intent.ManifestSHA256 {
+		return ErrChangedFiles
+	}
+	return nil
 }
 
 func removeReceiptForIntent(path string, intent uninstallIntent) error {
@@ -950,14 +1007,35 @@ func matchesManifestIdentity(info os.FileInfo, file manifestFile) bool {
 	return ok && info.Mode().IsRegular() && uint32(info.Mode().Perm()) == file.Mode && uint64(stat.Dev) == file.Device && uint64(stat.Ino) == file.Inode && info.Size() == file.Size && info.ModTime().UnixNano() == file.ModUnixNano
 }
 
+func validManifestSchema(value manifest) bool {
+	switch value.SchemaVersion {
+	case 1:
+		return value.InstalledRoot == ""
+	case 2:
+		return filepath.IsAbs(value.InstalledRoot) && filepath.Clean(value.InstalledRoot) == value.InstalledRoot
+	default:
+		return false
+	}
+}
+
+func validateManifestLocation(value manifest, logicalRoot string) error {
+	if value.SchemaVersion == 2 && value.InstalledRoot != logicalRoot {
+		return ErrInstallLocationChanged
+	}
+	return nil
+}
+
 func readManifest(path string) (manifest, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return manifest{}, err
 	}
 	var value manifest
-	if err := json.Unmarshal(data, &value); err != nil || value.SchemaVersion != 1 || !versionPattern.MatchString(value.Version) || value.PackageName != "codex-orchestrator" {
+	if err := json.Unmarshal(data, &value); err != nil || !validManifestSchema(value) || !versionPattern.MatchString(value.Version) || value.PackageName != "codex-orchestrator" {
 		return manifest{}, errors.New("manifest_invalid")
+	}
+	if err = validateManifestLocation(value, filepath.Dir(path)); err != nil {
+		return manifest{}, err
 	}
 	return value, nil
 }

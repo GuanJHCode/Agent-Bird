@@ -450,6 +450,10 @@ func TestUninstallResumesAfterOwnedManifestWasAlreadyRemoved(t *testing.T) {
 		t.Fatal(err)
 	}
 	intent := uninstallIntent{SchemaVersion: 1, Version: "1.0.0", ManifestSHA256: installed.ManifestSHA256, Manifest: value, CreatedAt: "test"}
+	intent.ManifestBody, err = os.ReadFile(installed.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	data, err := json.Marshal(intent)
 	if err != nil {
 		t.Fatal(err)

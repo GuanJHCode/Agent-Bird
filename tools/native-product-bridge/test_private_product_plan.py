@@ -80,11 +80,35 @@ def package(root, interpreter):
     return root, runtime
 
 
-def test_distribution_plan_accepts_only_manifest_bound_runtime(tmp_path):
+@pytest.mark.parametrize("location", ["legacy", "bound", "missing", "relative", "unclean", "other-root", "unknown", "legacy-with-binding", "boolean-schema"])
+def test_distribution_plan_accepts_only_manifest_bound_runtime(tmp_path, location):
     interpreter = tmp_path / "python"
     interpreter.write_text("pinned-python")
     interpreter.chmod(0o700)
     package_root, runtime = package(tmp_path / "installed", interpreter)
+    manifest_path = package_root / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    if location != "legacy":
+        manifest.update(schema_version=2, installed_root=str(package_root))
+    if location == "missing":
+        del manifest["installed_root"]
+    elif location == "relative":
+        manifest["installed_root"] = "relative"
+    elif location == "unclean":
+        manifest["installed_root"] = str(package_root) + "/."
+    elif location == "other-root":
+        manifest["installed_root"] = str(package_root) + "-other"
+    elif location == "unknown":
+        manifest["schema_version"] = 3
+    elif location == "legacy-with-binding":
+        manifest["schema_version"] = 1
+    elif location == "boolean-schema":
+        manifest["schema_version"] = True
+    private_json(manifest_path, manifest)
+    if location not in ("legacy", "bound"):
+        with pytest.raises(ValueError, match="package_manifest"):
+            plan.validate_package(package_root, interpreter=interpreter, interpreter_sha256=digest(interpreter))
+        return
     value = plan.validate_package(
         package_root, interpreter=interpreter, interpreter_sha256=digest(interpreter)
     )

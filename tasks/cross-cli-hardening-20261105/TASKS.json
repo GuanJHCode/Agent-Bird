@@ -1030,9 +1030,9 @@
       "status": "in_progress",
       "completion_basis": null,
       "baseline_commit": null,
-      "implementation_agent": "/root/implement_t11_docs",
+      "implementation_agent": "/root",
       "review_agent": null,
-      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-docs",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-location-binding",
       "write_scope": [],
       "changed_files": [
         "README.md",
@@ -1073,7 +1073,7 @@
       "commits": [],
       "blockers": [],
       "limitations": [
-        "Documentation materials reviewed PASS; final package/installation/receipt/PKG-01..04 not yet verified."
+        "Documentation materials reviewed PASS at ba662986. Historical private .1 failed same-filesystem relocation rejection; retained unchanged. Installed manifest schema2 location-binding fix awaits independent review/root acceptance, then new clean source .2 build and PKG-01..04."
       ],
       "updated_at": "2026-11-05T08:44:46.119375+00:00"
     },
@@ -1118,7 +1118,7 @@
       "commits": [],
       "blockers": [],
       "limitations": [
-        "Harness-only fixtures; independent postflight evidence-binding P1 under repair. No model trial yet."
+        "Harness independent fresh fixture suite PASS: 144 passed, 0 failure/error/skip. Canonical signed receipt and provenance repair reviewed PASS; this does not establish final .2 package or actual dual-direction live acceptance. No model inference run yet."
       ],
       "updated_at": null,
       "acceptance_policy": {

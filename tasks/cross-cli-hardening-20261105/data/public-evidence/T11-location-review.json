@@ -1,0 +1,77 @@
+{
+  "verdict": "PASS",
+  "base": "ba6629867a21be0c14fd36665b7c125845c12414",
+  "review_worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-location-review",
+  "task_branch": "work/t11-location-binding-20261105",
+  "task_worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-location-binding",
+  "source_manifest": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-location-evidence/data/source-manifest.json",
+  "source_hashes": {
+    "files": 14,
+    "matched_before_tests": 14,
+    "matched_after_tests": 14,
+    "mismatches": 0
+  },
+  "diff": {
+    "tracked_files": 12,
+    "untracked_source_files": 2,
+    "total_reviewed_files": 14,
+    "diff_check": "PASS",
+    "gofmt_diff": "empty"
+  },
+  "tests": [
+    {
+      "name": "go-focused-normal",
+      "packages": ["./internal/install", "./internal/nativebridgecli"],
+      "top_level_passed": 38,
+      "subtests_passed": 29,
+      "total_nodes_passed": 67,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    {
+      "name": "go-focused-race",
+      "packages": ["./internal/install", "./internal/nativebridgecli"],
+      "top_level_passed": 38,
+      "subtests_passed": 29,
+      "total_nodes_passed": 67,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "race_reports": 0,
+      "exit_code": 0
+    },
+    {
+      "name": "python-location-focused",
+      "parameterized_nodes_passed": 18,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "exit_code": 0
+    },
+    {
+      "name": "python-affected-files",
+      "parameterized_nodes_passed": 18,
+      "non_parameterized_nodes_passed": 6,
+      "total_nodes_passed": 24,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "warnings": 1,
+      "exit_code": 0
+    }
+  ],
+  "blockers": [],
+  "non_blocking": [
+    {
+      "severity": "LOW",
+      "finding": "The task worktree contains untracked __pycache__ directories outside the frozen 14-file review snapshot; stage only the source-manifest files and build from clean source."
+    }
+  ],
+  "not_covered": [
+    "repository-wide Go/Python regression, build and vet",
+    "real private .1 replay and .2 package build/install/receipt acceptance",
+    "native TUI, real model, HTTP, credentials and global installation"
+  ]
+}

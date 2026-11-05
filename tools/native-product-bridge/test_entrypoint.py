@@ -35,7 +35,8 @@ def kernel_executable():
     return Path(os.fsdecode(buffer.value))
 
 
-def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(tmp_path):
+@pytest.mark.parametrize("location", ["legacy", "bound", "missing", "relative", "unclean", "other-root", "unknown", "legacy-with-binding", "boolean-schema"])
+def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(tmp_path, location):
     package = tmp_path / "package"
     package.mkdir(mode=0o700)
     (package / "scripts").mkdir(parents=True)
@@ -54,6 +55,25 @@ def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(
             {"path": "lib/native_bridge/bridge.py", "sha256": sha(core), "mode": 0o600},
         ],
     })
+    manifest_value = json.loads(package_manifest.read_text())
+    if location != "legacy":
+        manifest_value["schema_version"] = 2
+        manifest_value["installed_root"] = str(package)
+    if location == "missing":
+        del manifest_value["installed_root"]
+    elif location == "relative":
+        manifest_value["installed_root"] = "relative"
+    elif location == "unclean":
+        manifest_value["installed_root"] = str(package) + "/."
+    elif location == "other-root":
+        manifest_value["installed_root"] = str(package) + "-other"
+    elif location == "unknown":
+        manifest_value["schema_version"] = 3
+    elif location == "legacy-with-binding":
+        manifest_value["schema_version"] = 1
+    elif location == "boolean-schema":
+        manifest_value["schema_version"] = True
+    private_json(package_manifest, manifest_value)
     runtime = tmp_path / "g0-runtime"
     runtime.mkdir(mode=0o700)
     modules = {}
@@ -85,6 +105,10 @@ def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(
         "g0_modules": modules,
     })
     completed = subprocess.run([str(interpreter), "-B", str(entry), "self-check", "--request", str(request)], capture_output=True, text=True)
+    if location not in ("legacy", "bound"):
+        assert completed.returncode == 2
+        assert json.loads(completed.stderr)["error"] == "package_manifest"
+        return
     assert completed.returncode == 0, completed.stderr
     assert json.loads(completed.stdout) == {"status": "ready", "version": 1}
 

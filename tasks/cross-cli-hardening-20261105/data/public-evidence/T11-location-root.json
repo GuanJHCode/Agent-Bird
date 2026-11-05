@@ -1,0 +1,89 @@
+{
+  "scope": "T11 installed manifest location binding only; .2 package and full regression pending",
+  "base": "ba6629867a21be0c14fd36665b7c125845c12414",
+  "source_files": [
+    {
+      "path": "docs/installation.md",
+      "sha256": "51833c544aada4b7a183dc8014ba74a4260dec9b3b7501843a7d35313b395550"
+    },
+    {
+      "path": "plugins/codex-orchestrator/scripts/native-product-bridge.py",
+      "sha256": "617abe88e7fc76a9da56cb4f31fdad5be59977ed359c6a492b5045ce3e321373"
+    },
+    {
+      "path": "tasks/cross-cli-hardening-20261105/TASKS.json",
+      "sha256": "85ea5782f667a2c2442ee501d7636454b751a58163d2c15b61eb3961b05ce761"
+    },
+    {
+      "path": "tasks/cross-cli-hardening-20261105/docs/delivery-scope.md",
+      "sha256": "a1355e9eb953e9ff3d22fbd55fe891078cd1cedc37b48c364ecf440adc436287"
+    },
+    {
+      "path": "tasks/cross-cli-hardening-20261105/docs/resume.md",
+      "sha256": "46234d62d0265af7ea6b606006682199de2b102ac4164f908fc0305f4f769134"
+    },
+    {
+      "path": "tasks/g1-g4-delivery/scripts/native_product_plan.py",
+      "sha256": "de84de93689fd05d8cebd1149c4777c65c3632ae49b6ec393a3fc0ddef92a422"
+    },
+    {
+      "path": "tools/native-product-bridge/test_entrypoint.py",
+      "sha256": "93bac5bf4e7adb852cead97555c9a39d0c76538d965200f26acc253f770a8798"
+    },
+    {
+      "path": "tools/native-product-bridge/test_private_product_plan.py",
+      "sha256": "43b97421fd5b3b830cd5fbbcf2cc6294b717b942302c357d1d6d32f8e755bd52"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/install.go",
+      "sha256": "368f1d9ded18ace8da75c6661837ba45a5444815a0a6c1227aeff3a0baf68b1e"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/install_test.go",
+      "sha256": "f38016102611c648061606c152a85a8878497769a1ea00015b84e24ded794273"
+    },
+    {
+      "path": "tools/orchestrator/internal/nativebridgecli/bridge.go",
+      "sha256": "efb6bc28bde18d30d374534e7f0863e9392acc95d56678fd4ea2f38cf19b7edc"
+    },
+    {
+      "path": "tools/orchestrator/internal/nativebridgecli/bridge_test.go",
+      "sha256": "3f85a91cc17078f7dfaf670edfb7042f385f0b447a4c47495fef374f398fccd4"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/location_test.go",
+      "sha256": "ac263f9db050b5275c5f214f260819787ce485f72871a974e909f342dbef226e"
+    },
+    {
+      "path": "tasks/cross-cli-hardening-20261105/plans/T11-install-location-binding.md",
+      "sha256": "49e644e42b4252a9bf62dd4f60e696ac025cc129592c49349e848b637b6fa2f6"
+    }
+  ],
+  "independent_verdict": "PASS",
+  "root_acceptance": "PASS for location-binding change",
+  "root_tests": {
+    "go_normal": {
+      "passed": 67,
+      "failed": 0,
+      "skipped": 0
+    },
+    "go_race": {
+      "passed": 67,
+      "failed": 0,
+      "skipped": 0
+    },
+    "python_bridge_full": {
+      "passed": 113,
+      "errors": 0,
+      "failed": 0,
+      "skipped": 13,
+      "skip_reason": "requires integrated final G1 binary; rerun with final installed .2 binary"
+    }
+  },
+  "historical_failures_retained": [
+    "t11-package .1 PKG03 whole destination same-inode rename erroneously healthy",
+    "intent-rebind-red.json proves mutable typed intent bypass before snapshot guard",
+    "consumers-python2.xml root missing short TMPDIR caused 27 AF_UNIX path errors; short basetemp run passed"
+  ],
+  "evidence_root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-location-evidence"
+}

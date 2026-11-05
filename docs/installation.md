@@ -1,6 +1,6 @@
 # 安装与更新
 
-本文首次安装步骤面向公开 `v0.1.0-preview.1`，不包含 2026-11-05 私有候选的新能力。私有候选尚待唯一版本冻结、任务内安装/doctor/入口及同包验收；不替换全局安装。最终 source/binary/package/receipt 身份由最终报告补齐。任务内 MCP 配置与绝对 wrapper 模板见[本轮交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#任务内-mcp-配置)。移动安装或改变解释器/文件摘要后按 receipt 合同重装，不能从源码或 latest 静默替代。
+本文首次安装步骤面向公开 `v0.1.0-preview.1`，不包含 2026-11-05 私有候选的新能力。私有候选尚待唯一版本冻结、任务内安装/doctor/入口及同包验收；不替换全局安装。最终 source/binary/package/receipt 身份由最终报告补齐。任务内 MCP 配置与绝对 wrapper 模板见[本轮交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#任务内-mcp-配置)。本轮新安装的 installed `manifest.json` 使用 schema2，`installed_root` 绑定规范绝对版本目录，并由原两字段 receipt 的完整 manifest SHA256 覆盖。移动整个安装目录（即使 inode 未变）后 doctor 报 `install_location_changed_reinstall_required`，执行 pin、受管入口和卸载恢复拒绝自动采用新位置，应重新安装。历史 schema1 无位置绑定，保留原合同，不自动迁移或声称已有同等移动拒绝。改变解释器/文件摘要后也需按 receipt 合同重装，不能从源码或 latest 静默替代。
 
 ## 首次安装：三步
 

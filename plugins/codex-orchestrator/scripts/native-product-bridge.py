@@ -136,7 +136,10 @@ def validate_runtime(request):
     require(digest(manifest_path) == request["package_manifest_sha256"], "package_manifest_changed")
     manifest = stable_json(manifest_path)
     files = manifest.get("files")
-    require(manifest.get("schema_version") == 1 and isinstance(files, list), "package_manifest")
+    schema = manifest.get("schema_version")
+    location_bound = ((schema == 1 and not manifest.get("installed_root"))
+                      or (schema == 2 and manifest.get("installed_root") == str(package_root)))
+    require(type(schema) is int and location_bound and isinstance(files, list), "package_manifest")
     by_name = {row.get("path"): row for row in files if isinstance(row, dict)}
     expected = {
         "scripts/native-product-bridge.py": Path(__file__).resolve(),

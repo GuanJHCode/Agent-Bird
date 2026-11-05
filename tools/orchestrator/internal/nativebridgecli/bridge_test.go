@@ -38,6 +38,60 @@ func privateJSON(t *testing.T, path string, value any) {
 	}
 }
 
+func TestRunHelperInstalledManifestLocations(t *testing.T) {
+	for _, kind := range []string{"legacy", "bound", "missing", "relative", "unclean", "other-root", "unknown", "legacy-with-binding"} {
+		t.Run(kind, func(t *testing.T) {
+			root, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			interpreter := filepath.Join(root, "interpreter")
+			if err = os.WriteFile(interpreter, []byte("#!/bin/sh\nprintf ready\n"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			packageRoot := filepath.Join(root, "package")
+			if err = os.MkdirAll(filepath.Join(packageRoot, "scripts"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			script := filepath.Join(packageRoot, "scripts", "native-product-bridge.py")
+			if err = os.WriteFile(script, []byte("# fixture\n"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			manifest := map[string]any{"schema_version": 2, "installed_root": packageRoot, "files": []map[string]any{{"path": "scripts/native-product-bridge.py", "sha256": fileSHA(t, script), "mode": 0700}}}
+			switch kind {
+			case "legacy":
+				manifest["schema_version"] = 1
+				delete(manifest, "installed_root")
+			case "missing":
+				delete(manifest, "installed_root")
+			case "relative":
+				manifest["installed_root"] = "relative"
+			case "unclean":
+				manifest["installed_root"] = packageRoot + "/."
+			case "other-root":
+				manifest["installed_root"] = packageRoot + "-other"
+			case "unknown":
+				manifest["schema_version"] = 3
+			case "legacy-with-binding":
+				manifest["schema_version"] = 1
+			}
+			manifestPath := filepath.Join(packageRoot, "manifest.json")
+			privateJSON(t, manifestPath, manifest)
+			requestPath := filepath.Join(root, "request.json")
+			privateJSON(t, requestPath, LaunchRequest{Version: 1, Interpreter: interpreter, InterpreterSHA256: fileSHA(t, interpreter), PackageRoot: packageRoot, PackageManifest: manifestPath, PackageManifestSHA256: fileSHA(t, manifestPath)})
+			var out, stderr bytes.Buffer
+			err = RunHelper(context.Background(), requestPath, strings.NewReader(""), &out, &stderr)
+			if kind == "legacy" || kind == "bound" {
+				if err != nil || out.String() != "ready" {
+					t.Fatalf("supported install rejected: %s %s %v", out.String(), stderr.String(), err)
+				}
+			} else if err == nil || err.Error() != "package_manifest_invalid" || out.Len() != 0 {
+				t.Fatalf("invalid install executed: %s %v", out.String(), err)
+			}
+		})
+	}
+}
+
 func TestRunHelperUsesPinnedInterpreterAndInstalledBridgeScript(t *testing.T) {
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {

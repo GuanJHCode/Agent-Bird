@@ -225,6 +225,7 @@ func verifyOwnerAttachment(capability ownerCapability) (ownerAttachment, error) 
 
 type packageManifest struct {
 	SchemaVersion int            `json:"schema_version"`
+	InstalledRoot string         `json:"installed_root,omitempty"`
 	PackageName   string         `json:"package_name,omitempty"`
 	Version       string         `json:"version,omitempty"`
 	BinaryPath    string         `json:"binary_path,omitempty"`
@@ -279,7 +280,10 @@ func validateLaunch(request LaunchRequest) (string, error) {
 		return "", codeError("package_manifest_changed")
 	}
 	var manifest packageManifest
-	if err := readJSON(request.PackageManifest, &manifest, 16<<20); err != nil || manifest.SchemaVersion != 1 {
+	if err := readJSON(request.PackageManifest, &manifest, 16<<20); err != nil {
+		return "", codeError("package_manifest_invalid")
+	}
+	if !((manifest.SchemaVersion == 1 && manifest.InstalledRoot == "") || (manifest.SchemaVersion == 2 && manifest.InstalledRoot == request.PackageRoot)) {
 		return "", codeError("package_manifest_invalid")
 	}
 	const scriptName = "scripts/native-product-bridge.py"
