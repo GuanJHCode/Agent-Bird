@@ -18,6 +18,22 @@ def module(name):
     return value
 
 
+def test_public_wrapper_forwards_task_local_mcp_with_space_paths(tmp_path):
+    root = tmp_path / "private installed plugin"
+    (root / "scripts").mkdir(parents=True)
+    (root / "bin").mkdir()
+    wrapper = root / "scripts/invoke.sh"
+    wrapper.write_bytes((ROOT / "plugins/codex-orchestrator/scripts/invoke.sh").read_bytes())
+    wrapper.chmod(0o700)
+    binary = root / "bin/codex-orchestrator"
+    binary.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+    binary.chmod(0o700)
+    config = str(tmp_path / "task local config/config.json")
+    result = subprocess.run([str(wrapper), "mcp", "serve", "--config", config], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["mcp", "serve", "--config", config]
+
+
 def test_trial_prepare_creates_isolated_python_repo_without_wrapper_execution(tmp_path):
     wrapper = tmp_path / "never-execute"
     wrapper.write_text("#!/bin/sh\nexit 97\n")

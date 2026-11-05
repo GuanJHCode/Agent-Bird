@@ -1,0 +1,34 @@
+{
+  "command": [
+    "/private/tmp/go1.26.10-sdk/bin/go",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/host",
+    "-run",
+    "^TestNativeClaudeGateway(ReadOnly|ManagedWrite)Transport$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tools/orchestrator",
+  "start": "2026-11-05T08:31:37.829613+00:00",
+  "elapsed_seconds": 7.054,
+  "exit_code": 0,
+  "source_commit": "c7d5f8a0bcff50616f3bc30a642eca693bc4b130",
+  "tracked_diff_sha256": "0e7de12a9806df02a82bc0e9f847526c3e3893e6850f977a80b43219ca5537a8",
+  "counts": {
+    "passed": 2,
+    "failed": 0,
+    "errors": null,
+    "skipped": 0
+  },
+  "package_failures": 0,
+  "environment": {
+    "PATH": "/private/tmp/go1.26.10-sdk/bin:/Users/guanjunhui/.codex/packages/standalone/releases/0.166.0-aarch64-apple-darwin/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOCACHE": "/private/tmp/agent-bird-t08-integrated-r4-go-cache",
+    "TMPDIR": "/private/tmp"
+  },
+  "production_files_sha256": "be3536425c468587503487dcd89bb355a68f8e5caf1b776807a55361ea9d5e67",
+  "log_sha256": "071182bd52117d26fb6f7b1311abdd3d915629ed6b8a42948c3f160aa651c366"
+}

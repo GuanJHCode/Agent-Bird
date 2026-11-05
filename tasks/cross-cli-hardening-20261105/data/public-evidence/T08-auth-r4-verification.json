@@ -1,0 +1,53 @@
+{
+  "snapshot": "r4-source-sha256.txt",
+  "go_version": "go1.26.10 darwin/arm64",
+  "checks": {
+    "r4-red": {
+      "test_nodes": {
+        "fail": 8
+      },
+      "top_level_tests": 2,
+      "package_status": "fail",
+      "elapsed_seconds": 5.314
+    },
+    "r4-final-focused-normal": {
+      "test_nodes": {
+        "pass": 228
+      },
+      "top_level_tests": 34,
+      "package_status": "pass",
+      "elapsed_seconds": 61.973
+    },
+    "r4-final-focused-race": {
+      "test_nodes": {
+        "pass": 228
+      },
+      "top_level_tests": 34,
+      "package_status": "pass",
+      "elapsed_seconds": 92.599
+    },
+    "r4-authguard-normal": {
+      "test_nodes": {
+        "pass": 16
+      },
+      "top_level_tests": 4,
+      "package_status": "pass",
+      "elapsed_seconds": 0.67
+    },
+    "vet": {
+      "command": "go vet ./cmd/orchestrator",
+      "exit_code": 0,
+      "log": "r4-vet.log"
+    },
+    "build": {
+      "command": "go build -o /Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-auth-evidence/tmp/orchestrator-r4 ./cmd/orchestrator",
+      "exit_code": 0,
+      "log": "r4-build.log"
+    }
+  },
+  "limitations": [
+    "No real provider/model/cloud invocation or AGY binary metadata probe. Source references checked for exact route keys; the union applies to the four current providers and is not a guarantee for arbitrary future providers.",
+    "Managed fixture complete environment reaches original provider-not-configured admission; preexisting auth guards are checked separately.",
+    "Whole-module validation, native metadata and independent review remain root-owned."
+  ]
+}

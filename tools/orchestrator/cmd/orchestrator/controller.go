@@ -98,14 +98,15 @@ func controllerEntry(ctx context.Context, args []string) error {
 			_ = os.RemoveAll(dir)
 		}
 	}()
-	request := managedOwnerRequest{Version: 1, Provider: *providerName, Scope: "managed_process", ControllerThread: "managed-" + *providerName + "-" + scope, LauncherPID: os.Getpid(), LauncherBirth: launcherBirth, LauncherPath: launcherPath, LauncherDigest: launcherDigest}
+	sourceEnvironment := environmentWithout(os.Environ(), "CODEX_THREAD_ID")
+	request := managedOwnerRequest{SourceAuthEnv: sourceAuthEnvironment(sourceEnvironment), Version: 1, Provider: *providerName, Scope: "managed_process", ControllerThread: "managed-" + *providerName + "-" + scope, LauncherPID: os.Getpid(), LauncherBirth: launcherBirth, LauncherPath: launcherPath, LauncherDigest: launcherDigest}
 	requestPath := filepath.Join(dir, "owner-request.json")
 	if err = writeExclusiveJSON(requestPath, request); err != nil {
 		return err
 	}
 	cmd := exec.Command(cli, fs.Args()...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	cmd.Env = environmentWith(environmentWithout(os.Environ(), "CODEX_THREAD_ID"), managedOwnerRequestEnv, requestPath)
+	cmd.Env = environmentWith(sourceEnvironment, managedOwnerRequestEnv, requestPath)
 	cmd.Env = environmentWith(cmd.Env, "AGENT_BIRD_COMMAND", launcherPath)
 	cmd.Env = environmentWithout(cmd.Env, "AGENT_BIRD_SKILL")
 	cmd.Env = environmentWith(cmd.Env, "AGENT_BIRD_SKILL", *skillPath)

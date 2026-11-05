@@ -40,6 +40,48 @@ type ownerChangeCheckpoint struct {
 	Spec        store.OwnerReworkSpec `json:"spec"`
 }
 
+func ownerChangeCheckpointPath(handle string, h taskHandle, brief ownerChangeBrief) (string, error) {
+	directory := filepath.Join(filepath.Dir(handle), "owner-decisions")
+	if err := os.Mkdir(directory, 0700); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	path := filepath.Join(directory, dispatchHash(h.RunID+"\x00"+brief.TaskID+"\x00"+brief.CommandID)+".json")
+	return path, privateHandleParent(path)
+}
+
+func ownerChangeSourceCheckpoint(h taskHandle, brief ownerChangeBrief, spec store.OwnerReworkSpec, body []byte) ownerChangeCheckpoint {
+	saved := ownerChangeCheckpoint{Version: 1, RunID: h.RunID, StateDir: h.StateDir, ControlFile: h.ControlFile, Brief: brief, Spec: spec}
+	if brief.Version == 3 {
+		saved.Version = 3
+		saved.Brief.Feedback, saved.Brief.Acceptance = "", ""
+		saved.Spec.Feedback, saved.Spec.Acceptance = "", ""
+		saved.BodySHA256 = dispatchHash(string(body))
+	}
+	return saved
+}
+
+// A signed MCP source can seed the same private checkpoint before the original
+// CLI entry runs. Both entries then replay the identical durable source tuple.
+// This file provides recovery metadata; every RPC still authenticates the owner.
+func persistOwnerChangeSource(handle string, h taskHandle, brief ownerChangeBrief, spec store.OwnerReworkSpec, body []byte) error {
+	path, err := ownerChangeCheckpointPath(handle, h, brief)
+	if err != nil {
+		return err
+	}
+	expected := ownerChangeSourceCheckpoint(h, brief, spec, body)
+	if err = writeExclusiveJSON(path, expected); err != nil && !errors.Is(err, os.ErrExist) {
+		return err
+	}
+	var actual ownerChangeCheckpoint
+	if err = readPrivateJSON(path, &actual); err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(actual, expected) {
+		return codeError("request_changes_command_conflict")
+	}
+	return nil
+}
+
 func validOwnerChangeBrief(b ownerChangeBrief) bool {
 	_, err := hex.DecodeString(b.CandidateOID)
 	if b.WorkRevision < 1 || (len(b.CandidateOID) != 40 && len(b.CandidateOID) != 64) || err != nil || strings.ToLower(b.CandidateOID) != b.CandidateOID || b.CommandID == "" || len(b.CommandID) > 128 {
@@ -121,12 +163,8 @@ func taskRequestChanges(ctx context.Context, args []string, out io.Writer) error
 		checkpointBrief.Feedback = ""
 		checkpointBrief.Acceptance = ""
 	}
-	directory := filepath.Join(filepath.Dir(*handle), "owner-decisions")
-	if err = os.Mkdir(directory, 0700); err != nil && !os.IsExist(err) {
-		return err
-	}
-	checkpointPath := filepath.Join(directory, dispatchHash(h.RunID+"\x00"+brief.TaskID+"\x00"+brief.CommandID)+".json")
-	if err = privateHandleParent(checkpointPath); err != nil {
+	checkpointPath, err := ownerChangeCheckpointPath(*handle, h, brief)
+	if err != nil {
 		return err
 	}
 	var saved ownerChangeCheckpoint
@@ -159,14 +197,7 @@ func taskRequestChanges(ctx context.Context, args []string, out io.Writer) error
 			return codeError("request_changes_stale")
 		}
 		spec := store.OwnerReworkSpec{TaskID: brief.TaskID, WorkRevision: brief.WorkRevision, EventID: binding.EventID, EventRevision: binding.EventRevision, EventHash: binding.EventHash, ActionSlot: binding.ActionSlot, SegmentID: binding.SegmentID, CandidateOID: brief.CandidateOID, Feedback: brief.Feedback, Acceptance: brief.Acceptance, CommandID: brief.CommandID}
-		saved = ownerChangeCheckpoint{Version: 1, RunID: h.RunID, StateDir: h.StateDir, ControlFile: h.ControlFile, Brief: brief, Spec: spec}
-		if brief.Version == 3 {
-			saved.Version = 3
-			saved.Brief = checkpointBrief
-			saved.Spec.Feedback = ""
-			saved.Spec.Acceptance = ""
-			saved.BodySHA256 = dispatchHash(string(body))
-		}
+		saved = ownerChangeSourceCheckpoint(h, brief, spec, body)
 		if err = writeExclusiveJSON(checkpointPath, saved); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}

@@ -23,22 +23,23 @@ import (
 )
 
 type dispatchRequest struct {
-	BudgetGroupID         string       `json:"budget_group_id,omitempty"`
-	MaxActiveMSPerSegment int64        `json:"max_active_ms_per_segment,omitempty"`
-	MaxActiveMSTotal      int64        `json:"max_active_ms_total,omitempty"`
-	Version               int          `json:"version"`
-	RequestID             string       `json:"request_id"`
-	Provider              string       `json:"provider"`
-	ProviderLock          string       `json:"provider_lock"`
-	Directory             string       `json:"directory"`
-	Prompt                string       `json:"prompt"`
-	Role                  adapter.Role `json:"role"`
-	Paths                 []string     `json:"paths,omitempty"`
-	Acceptance            []string     `json:"acceptance"`
-	Model                 string       `json:"model,omitempty"`
-	MaxAttempts           int          `json:"max_attempts"`
-	MaxActiveMS           int64        `json:"max_active_ms"`
-	GrokSessionWrite      bool         `json:"grok_session_write,omitempty"`
+	BudgetGroupID         string                  `json:"budget_group_id,omitempty"`
+	MaxActiveMSPerSegment int64                   `json:"max_active_ms_per_segment,omitempty"`
+	MaxActiveMSTotal      int64                   `json:"max_active_ms_total,omitempty"`
+	Version               int                     `json:"version"`
+	RequestID             string                  `json:"request_id"`
+	Provider              string                  `json:"provider"`
+	ProviderLock          string                  `json:"provider_lock"`
+	Directory             string                  `json:"directory"`
+	Prompt                string                  `json:"prompt"`
+	Role                  adapter.Role            `json:"role"`
+	Paths                 []string                `json:"paths,omitempty"`
+	Acceptance            []string                `json:"acceptance"`
+	Model                 string                  `json:"model,omitempty"`
+	MaxAttempts           int                     `json:"max_attempts"`
+	MaxActiveMS           int64                   `json:"max_active_ms"`
+	GrokSessionWrite      bool                    `json:"grok_session_write,omitempty"`
+	Reasoning             adapter.ReasoningEffort `json:"reasoning,omitempty"`
 }
 
 type dispatchReservation struct {
@@ -63,6 +64,9 @@ func dispatchRejectionCode(reason string) string {
 var dispatchOID = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
 func validateDispatch(req dispatchRequest) error {
+	if req.Reasoning != "" && req.Reasoning != "low" && req.Reasoning != "medium" && req.Reasoning != "high" {
+		return codeError("reasoning_unsupported")
+	}
 	if (req.Version != 1 && req.Version != 2) || !dispatchID.MatchString(req.RequestID) || req.ProviderLock == "" || req.Directory == "" || strings.TrimSpace(req.Prompt) == "" || !utf8.ValidString(req.Prompt) || strings.ContainsRune(req.Prompt, 0) || len(req.Prompt) > 256*1024 || req.MaxAttempts < 1 || req.MaxAttempts > contract.MaxAttempts || len(req.Acceptance) < 1 || len(req.Acceptance) > 64 {
 		return codeError("dispatch_request_invalid")
 	}
@@ -178,7 +182,7 @@ func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base st
 			group = req.BudgetGroupID
 		}
 	}
-	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: active, GrokSessionWrite: req.GrokSessionWrite}
+	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: active, GrokSessionWrite: req.GrokSessionWrite, Reasoning: req.Reasoning}
 	if req.Model == "cli-default" {
 		profile.CLIModelDefault = true
 	} else {

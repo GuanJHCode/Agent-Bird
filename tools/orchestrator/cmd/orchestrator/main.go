@@ -53,6 +53,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
+	case "mcp":
+		return mcpEntry(ctx, args[1:], stdout, stderr)
 	case "runtime-status":
 		return runtimeStatus(ctx, args[1:], stdout)
 	case "routing":
