@@ -59,12 +59,19 @@ func checkOwnerReworkHost(ctx context.Context, tx *sql.Tx, taskID, launch string
 	if err != nil {
 		return err
 	}
-	if p.CandidateWorkspace == nil || p.CandidateWorkspace.Rework == nil || p.CandidateWorkspace.Rework.Version != 2 {
+	if p.CandidateWorkspace == nil || p.CandidateWorkspace.Rework == nil || (p.CandidateWorkspace.Rework.Version != 2 && p.CandidateWorkspace.Rework.Version != 3) {
 		return nil
 	}
 	var savedRaw string
 	if err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE task_id=? AND work_revision=? AND command_id=?`, taskID, p.CandidateWorkspace.Rework.PreviousWorkRevision, p.CandidateWorkspace.Rework.OwnerDecisionID).Scan(&savedRaw); err != nil {
 		return ErrConflict
+	}
+	if p.CandidateWorkspace.Rework.Version == 3 {
+		var saved reworkRefsDecision
+		if json.Unmarshal([]byte(savedRaw), &saved) != nil || saved.Kind != reworkRefsDecisionKind || !reflect.DeepEqual(saved.Context, *p.CandidateWorkspace.Rework) || string(saved.Adapter) != string(raw) {
+			return ErrConflict
+		}
+		return checkRefsHost(ctx, tx, launch)
 	}
 	var saved ownerReworkDecision
 	if json.Unmarshal([]byte(savedRaw), &saved) != nil || saved.Kind != ownerReworkDecisionKind || !reflect.DeepEqual(saved.Context, *p.CandidateWorkspace.Rework) || string(saved.Adapter) != string(raw) {
@@ -129,6 +136,11 @@ func (d *DB) ownerReworkState(ctx context.Context, tx *sql.Tx, taskID string, re
 	}
 	if capable != 1 {
 		return v, CodeError("host_upgrade_required")
+	}
+	if p.CandidateWorkspace.Rework != nil && p.CandidateWorkspace.Rework.Version == 3 {
+		if err = checkRefsHost(ctx, tx, t.hostLaunch); err != nil {
+			return v, err
+		}
 	}
 	var charged int64
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, t.group).Scan(&charged); err != nil {
@@ -303,6 +315,9 @@ func (d *DB) QueueRequestChanges(ctx context.Context, spec OwnerReworkSpec) (Rew
 	v, err := d.ownerReworkEligibility(ctx, tx, spec.TaskID)
 	if err != nil {
 		return empty, err
+	}
+	if v.payload.CandidateWorkspace.Rework != nil && v.payload.CandidateWorkspace.Rework.Version == 3 {
+		return empty, CodeError("rework_format_mismatch")
 	}
 	e := v.event
 	if spec.WorkRevision != v.task.revision || spec.EventID != e.EventID || spec.EventRevision != e.EventRevision || spec.EventHash != e.PayloadHash || spec.ActionSlot != e.ActionSlot || spec.SegmentID != e.SegmentID || spec.CandidateOID != v.candidate.CandidateOID {

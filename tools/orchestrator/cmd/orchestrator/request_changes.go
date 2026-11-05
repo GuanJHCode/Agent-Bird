@@ -15,12 +15,14 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
 type ownerChangeBrief struct {
+	Version      int    `json:"version,omitempty"`
 	TaskID       string `json:"task_id,omitempty"`
 	WorkRevision int    `json:"work_revision"`
 	CandidateOID string `json:"candidate_oid"`
@@ -30,6 +32,7 @@ type ownerChangeBrief struct {
 }
 type ownerChangeCheckpoint struct {
 	Version     int                   `json:"version"`
+	BodySHA256  string                `json:"body_sha256,omitempty"`
 	RunID       string                `json:"run_id"`
 	StateDir    string                `json:"state_dir"`
 	ControlFile string                `json:"control_file"`
@@ -42,8 +45,15 @@ func validOwnerChangeBrief(b ownerChangeBrief) bool {
 	if b.WorkRevision < 1 || (len(b.CandidateOID) != 40 && len(b.CandidateOID) != 64) || err != nil || strings.ToLower(b.CandidateOID) != b.CandidateOID || b.CommandID == "" || len(b.CommandID) > 128 {
 		return false
 	}
+	if b.Version != 0 && b.Version != 2 && b.Version != 3 {
+		return false
+	}
+	limit := 16 * 1024
+	if b.Version == 3 {
+		limit = adapter.ReworkBodyMaxBytes
+	}
 	for _, s := range []string{b.Feedback, b.Acceptance} {
-		if strings.TrimSpace(s) == "" || len(s) > 16*1024 || strings.ContainsRune(s, 0) || !utf8.ValidString(s) {
+		if strings.TrimSpace(s) == "" || len(s) > limit || strings.ContainsRune(s, 0) || !utf8.ValidString(s) {
 			return false
 		}
 	}
@@ -69,7 +79,7 @@ func taskRequestChanges(ctx context.Context, args []string, out io.Writer) error
 		return codeError("task_handle_unresolved")
 	}
 	var brief ownerChangeBrief
-	if err := readPrivateJSON(*path, &brief); err != nil {
+	if err := readOwnerChangeInput(*path, &brief); err != nil {
 		return err
 	}
 	if !validOwnerChangeBrief(brief) {
@@ -97,6 +107,19 @@ func taskRequestChanges(ctx context.Context, args []string, out io.Writer) error
 	}
 	if err = requireOwnerChangesCoordinator(ctx, h.StateDir); err != nil {
 		return err
+	}
+	var body []byte
+	checkpointBrief := brief
+	if brief.Version == 3 {
+		if err = requireRefsCoordinator(ctx, h.StateDir); err != nil {
+			return err
+		}
+		body = ownerRefsBody(cap, brief)
+		if _, err = adapter.DecodeReworkBody(body); err != nil {
+			return codeError("request_changes_utf8_bytes_exceeded")
+		}
+		checkpointBrief.Feedback = ""
+		checkpointBrief.Acceptance = ""
 	}
 	directory := filepath.Join(filepath.Dir(*handle), "owner-decisions")
 	if err = os.Mkdir(directory, 0700); err != nil && !os.IsExist(err) {
@@ -137,6 +160,13 @@ func taskRequestChanges(ctx context.Context, args []string, out io.Writer) error
 		}
 		spec := store.OwnerReworkSpec{TaskID: brief.TaskID, WorkRevision: brief.WorkRevision, EventID: binding.EventID, EventRevision: binding.EventRevision, EventHash: binding.EventHash, ActionSlot: binding.ActionSlot, SegmentID: binding.SegmentID, CandidateOID: brief.CandidateOID, Feedback: brief.Feedback, Acceptance: brief.Acceptance, CommandID: brief.CommandID}
 		saved = ownerChangeCheckpoint{Version: 1, RunID: h.RunID, StateDir: h.StateDir, ControlFile: h.ControlFile, Brief: brief, Spec: spec}
+		if brief.Version == 3 {
+			saved.Version = 3
+			saved.Brief = checkpointBrief
+			saved.Spec.Feedback = ""
+			saved.Spec.Acceptance = ""
+			saved.BodySHA256 = dispatchHash(string(body))
+		}
 		if err = writeExclusiveJSON(checkpointPath, saved); err != nil && !errors.Is(err, os.ErrExist) {
 			return err
 		}
@@ -147,6 +177,12 @@ func taskRequestChanges(ctx context.Context, args []string, out io.Writer) error
 	// revision or result, even if the first request committed but its reply was lost.
 	if err = readPrivateJSON(checkpointPath, &saved); err != nil {
 		return err
+	}
+	if brief.Version == 3 {
+		if saved.Version != 3 || saved.RunID != h.RunID || saved.StateDir != h.StateDir || saved.ControlFile != h.ControlFile || !reflect.DeepEqual(saved.Brief, checkpointBrief) || saved.BodySHA256 != dispatchHash(string(body)) || saved.Spec.TaskID != brief.TaskID || saved.Spec.WorkRevision != brief.WorkRevision || saved.Spec.CandidateOID != brief.CandidateOID || saved.Spec.CommandID != brief.CommandID || saved.Spec.Feedback != "" || saved.Spec.Acceptance != "" {
+			return codeError("request_changes_command_conflict")
+		}
+		return callRequestChangesRefs(ctx, h.StateDir, cap, saved.Spec, body, out)
 	}
 	if saved.Version != 1 || saved.RunID != h.RunID || saved.StateDir != h.StateDir || saved.ControlFile != h.ControlFile || !reflect.DeepEqual(saved.Brief, brief) || saved.Spec.TaskID != brief.TaskID || saved.Spec.WorkRevision != brief.WorkRevision || saved.Spec.CandidateOID != brief.CandidateOID || saved.Spec.Feedback != brief.Feedback || saved.Spec.Acceptance != brief.Acceptance || saved.Spec.CommandID != brief.CommandID {
 		return codeError("request_changes_command_conflict")
@@ -183,8 +219,9 @@ func requestChanges(ctx context.Context, args []string, out io.Writer) error {
 	var req struct {
 		store.OwnerReworkSpec
 		ControlFile string `json:"control_file"`
+		Version     int    `json:"version,omitempty"`
 	}
-	if err := readPrivateJSON(*path, &req); err != nil {
+	if err := readOwnerChangeInput(*path, &req); err != nil {
 		return err
 	}
 	if req.ControlFile == "" {
@@ -207,6 +244,20 @@ func requestChanges(ctx context.Context, args []string, out io.Writer) error {
 	}
 	if err = requireOwnerChangesCoordinator(ctx, state); err != nil {
 		return err
+	}
+	if req.Version == 3 {
+		if err = requireRefsCoordinator(ctx, state); err != nil {
+			return err
+		}
+		b := ownerChangeBrief{Version: 3, TaskID: req.TaskID, WorkRevision: req.WorkRevision, Feedback: req.Feedback, Acceptance: req.Acceptance}
+		body := ownerRefsBody(cap, b)
+		spec := req.OwnerReworkSpec
+		spec.Feedback = ""
+		spec.Acceptance = ""
+		return callRequestChangesRefs(ctx, state, cap, spec, body, out)
+	}
+	if req.Version != 0 && req.Version != 2 {
+		return codeError("invalid_request_changes")
 	}
 	return callRequestChanges(ctx, state, cap, req.OwnerReworkSpec, out)
 }

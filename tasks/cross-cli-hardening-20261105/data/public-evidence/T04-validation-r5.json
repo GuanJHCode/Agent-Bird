@@ -1,0 +1,354 @@
+{
+  "status": "verification_passed_awaiting_independent_r5_review",
+  "source_manifest_sha256": "b9c15ca0dd61c59214aa2612b2b311cc51af56e7bf1fc810494cb22a4607112f",
+  "patch_sha256": "2e4e061611d5fe6a2ecb856d194ade91071ae6761ed956aad8a386a2849791f1",
+  "dependency": {
+    "path": "tools/orchestrator/internal/store/owner_action_guard.go",
+    "sha256": "d3704ec2d0d1ace2b2575af7ab53238b9868240ecd593afb27733d12f9649150"
+  },
+  "frozen_manifest_differences": [],
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t04/tools/orchestrator",
+  "environment": {
+    "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/opt/homebrew/bin:/Users/guanjunhui/.codex/packages/standalone/releases/0.166.0-aarch64-apple-darwin/bin",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "TMPDIR": "/private/tmp",
+    "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t04"
+  },
+  "toolchain": "go1.26.10 darwin/arm64",
+  "codex_version": "0.166.0",
+  "codex_sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+  "commands": [
+    {
+      "command": "go test -json -count=1 ./...",
+      "report": "normal-final-r1.json",
+      "source": "r1; only unaffected coverage reused",
+      "exit_code": 0,
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata",
+      "report_sha256": "cd6cdf662b79340bb82885ef1dc2ada15a88b94cfe75d0da4fac7e2af2e1cfbf",
+      "counts": {
+        "sha256": "cd6cdf662b79340bb82885ef1dc2ada15a88b94cfe75d0da4fac7e2af2e1cfbf",
+        "test_events_including_subtests": {
+          "pass": 1292,
+          "skip": 8
+        },
+        "top_level_tests": {
+          "pass": 588,
+          "skip": 8
+        },
+        "packages": {
+          "codex-cli-orchestration-design/tools/orchestrator/internal/contract": "skip",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/adapter": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/events": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/admincli": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/instance": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/ipc": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/install": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/nativebridgecli": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/process": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/gitops": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/host": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+        },
+        "skips": [
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/internal/adapter",
+            "test": "TestProbeCauseDecompositionObservation"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+            "test": "TestNativeClaudeGatewayReadOnlyTransport"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+            "test": "TestNativeClaudeGatewayManagedWriteTransport"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+            "test": "TestS4StageTimingObservation"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+            "test": "TestRealClaudeManagedCandidate"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+            "test": "TestRealClaudeReviewerProfile"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+            "test": "TestRealVersionMatrixRead"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+            "test": "TestRealVersionMatrixInvocationStages"
+          }
+        ]
+      }
+    },
+    {
+      "command": "go test -json -count=1 ./internal/store ./internal/host ./internal/adapter ./cmd/orchestrator -run '^TestReworkRefs|^TestTaskRequestChangesV3|^TestReworkContextV|^TestOwnerRequestChanges'",
+      "report": "normal-final-r2-focused.json",
+      "source": "r2; final Host/CLI/adapter coverage",
+      "exit_code": 0,
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata",
+      "report_sha256": "1730b497748ce913e6e6ddf2cdc7f9ec04644393da009da6679a1de6b7422fa4",
+      "counts": {
+        "sha256": "1730b497748ce913e6e6ddf2cdc7f9ec04644393da009da6679a1de6b7422fa4",
+        "test_events_including_subtests": {
+          "pass": 137
+        },
+        "top_level_tests": {
+          "pass": 41
+        },
+        "packages": {
+          "codex-cli-orchestration-design/tools/orchestrator/internal/host": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/adapter": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass"
+        },
+        "skips": []
+      }
+    },
+    {
+      "command": "go test -json -count=1 ./internal/store -run '^TestReworkRefs|^TestOwnerRequestChanges|Ack|Delivery'",
+      "report": "normal-final-r3-store.json",
+      "source": "r3; final directly affected Store coverage",
+      "exit_code": 0,
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata",
+      "report_sha256": "b0134c4b1df51e245a30898b7a4117e8cb86ebc7c4652c3f1d5d65a18c3e4fc8",
+      "counts": {
+        "sha256": "b0134c4b1df51e245a30898b7a4117e8cb86ebc7c4652c3f1d5d65a18c3e4fc8",
+        "test_events_including_subtests": {
+          "pass": 130
+        },
+        "top_level_tests": {
+          "pass": 47
+        },
+        "packages": {
+          "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass"
+        },
+        "skips": []
+      }
+    },
+    {
+      "command": "go test -race -json -count=1 ./...",
+      "report": "race-final-r3.json",
+      "source": "r3",
+      "exit_code": 0,
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata",
+      "report_sha256": "e6890e1c21e7c2c8917bacb2d82e76640d36184db7b81cd0561bc56c63628fbd",
+      "counts": {
+        "sha256": "e6890e1c21e7c2c8917bacb2d82e76640d36184db7b81cd0561bc56c63628fbd",
+        "test_events_including_subtests": {
+          "pass": 1307,
+          "skip": 8
+        },
+        "top_level_tests": {
+          "pass": 593,
+          "skip": 8
+        },
+        "packages": {
+          "codex-cli-orchestration-design/tools/orchestrator/internal/contract": "skip",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/events": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/admincli": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/instance": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/adapter": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/ipc": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/nativebridgecli": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/install": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/process": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/gitops": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/host": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass",
+          "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator": "pass"
+        },
+        "skips": [
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/internal/adapter",
+            "test": "TestProbeCauseDecompositionObservation"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+            "test": "TestNativeClaudeGatewayReadOnlyTransport"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+            "test": "TestNativeClaudeGatewayManagedWriteTransport"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/internal/host",
+            "test": "TestS4StageTimingObservation"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+            "test": "TestRealClaudeManagedCandidate"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+            "test": "TestRealClaudeReviewerProfile"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+            "test": "TestRealVersionMatrixRead"
+          },
+          {
+            "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+            "test": "TestRealVersionMatrixInvocationStages"
+          }
+        ]
+      }
+    },
+    {
+      "command": "go vet ./...",
+      "report": "vet-final-r3.log",
+      "source": "r3",
+      "exit_code": 0,
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata",
+      "report_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "go build ./...",
+      "report": "build-final-r3.log",
+      "source": "r3",
+      "exit_code": 0,
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata",
+      "report_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "go test -json -count=1 ./internal/store -run '^TestReworkRefs'",
+      "report": "normal-final-r4.json",
+      "source": "r4",
+      "exit_code": 0,
+      "report_sha256": "7ad816d1677aff51281398fd3f876b3e4a522619e13ecb31b40e3f3faa6f9c21",
+      "counts": {
+        "sha256": "7ad816d1677aff51281398fd3f876b3e4a522619e13ecb31b40e3f3faa6f9c21",
+        "test_events_including_subtests": {
+          "pass": 45
+        },
+        "top_level_tests": {
+          "pass": 20
+        },
+        "packages": {
+          "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass"
+        },
+        "skips": []
+      },
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata"
+    },
+    {
+      "command": "go test -race -json -count=1 ./internal/store -run '^TestReworkRefs'",
+      "report": "race-final-r4.json",
+      "source": "r4",
+      "exit_code": 0,
+      "report_sha256": "3983eb9e6c1647dd24559d27618ee9e5f758393edac6265766e6195552ecf500",
+      "counts": {
+        "sha256": "3983eb9e6c1647dd24559d27618ee9e5f758393edac6265766e6195552ecf500",
+        "test_events_including_subtests": {
+          "pass": 45
+        },
+        "top_level_tests": {
+          "pass": 20
+        },
+        "packages": {
+          "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass"
+        },
+        "skips": []
+      },
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata"
+    },
+    {
+      "command": "go vet ./...",
+      "report": "vet-final-r4.log",
+      "source": "r4",
+      "exit_code": 0,
+      "report_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata"
+    },
+    {
+      "command": "go build ./...",
+      "report": "build-final-r4.log",
+      "source": "r4",
+      "exit_code": 0,
+      "report_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "reuse": "historical unaffected coverage; r5 changes only private quarantine lifecycle and v3 GC cleanup metadata"
+    },
+    {
+      "command": "go test -json -count=1 ./internal/store -run '^TestReworkRefs'",
+      "report": "normal-final-r5-stable.json",
+      "source": "r5",
+      "exit_code": 0,
+      "report_sha256": "a7eda9039706f9b0b1b35bebcdb7ba6bace744c5535a0c033495c0bc8b497484",
+      "counts": {
+        "sha256": "a7eda9039706f9b0b1b35bebcdb7ba6bace744c5535a0c033495c0bc8b497484",
+        "test_events_including_subtests": {
+          "pass": 51
+        },
+        "top_level_tests": {
+          "pass": 23
+        },
+        "packages": {
+          "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass"
+        },
+        "skips": []
+      }
+    },
+    {
+      "command": "go test -race -json -count=1 ./internal/store -run '^TestReworkRefs'",
+      "report": "race-final-r5.json",
+      "source": "r5",
+      "exit_code": 0,
+      "report_sha256": "bef975a3a9f9fff2ba141b15a178e100b615f0920f5ba16e7f6ba022a2888075",
+      "counts": {
+        "sha256": "bef975a3a9f9fff2ba141b15a178e100b615f0920f5ba16e7f6ba022a2888075",
+        "test_events_including_subtests": {
+          "pass": 51
+        },
+        "top_level_tests": {
+          "pass": 23
+        },
+        "packages": {
+          "codex-cli-orchestration-design/tools/orchestrator/internal/store": "pass"
+        },
+        "skips": []
+      }
+    },
+    {
+      "command": "go vet ./...",
+      "report": "vet-final-r5.log",
+      "source": "r5",
+      "exit_code": 0,
+      "report_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "go build ./...",
+      "report": "build-final-r5.log",
+      "source": "r5",
+      "exit_code": 0,
+      "report_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "review_status": "r4_path_replacement_changes_requested_repaired_in_r5_awaiting_rereview",
+  "limitations": [
+    "No real models/providers/live-parent or installed package v3 acceptance",
+    "Existing opt-in native/observation tests skipped; exact list and counts in test-counts.json",
+    "Registered inode without any known path remains charged; explicit owner identity resolution is required rather than guessed GC recovery",
+    "Upload tombstone metadata stays charged; committed history remains pinned",
+    "GC unknown/nonempty quarantine and captured-crash state return rework_cleanup_quarantine_awaiting_cleanup_decision; no automatic adoption/restoration/cleanup",
+    "At most one random .gc-<uploadID>-<nonce> barrier per upload; successful empty barriers retained with upload tombstone for idempotence and boundedness; 4096 is logical metadata accounting, not APFS block measurement",
+    "Darwin exclusive rename uses pinned x/sys RenameatxNp(RENAME_EXCL); other platforms explicitly unsupported before quarantine creation; not runtime-validated outside Darwin",
+    "r4 independent normal171/race45 and original probe1 passed but new path replacement probe1 failed; all sessions ended before root explicitly handed r5 sole writer rights"
+  ],
+  "all_implementation_validation_sessions_ended": true,
+  "known_resolved_findings": [
+    "review-r3/gc-hardlink-probe.json: GC extra-hardlink quota release; permanent red in normal-r4-hardlink-red.json; fixed by complete link-set preflight, held-FD nlink0 proof and missing-identity fail closed",
+    "review-r4/late-path-replacement.json: source-name TOCTOU unlinked foreign replacement; r5 permanent red normal-r5-path-red.json; repaired by exclusive atomic capture into private held quarantine and post-capture complete identity validation"
+  ],
+  "independent_inflight_r3_diagnostics": "66 normal/21 race only diagnostic: root informed that permanent test was appended after own sessions but before independent sessions ended; not reused as frozen acceptance"
+}

@@ -37,6 +37,7 @@ type ReworkContext struct {
 	OwnerDecisionID      string           `json:"owner_decision_id,omitempty"`
 	OwnerSpec            *OwnerReworkSpec `json:"owner_spec,omitempty"`
 	OwnerSpecSHA256      string           `json:"owner_spec_sha256,omitempty"`
+	RefsV3               *ReworkRefs      `json:"refs_v3,omitempty"`
 }
 
 func (r ReworkContext) Digest() string {
@@ -56,6 +57,11 @@ func cloneWorkspace(value *CandidateWorkspace) *CandidateWorkspace {
 		if r.OwnerSpec != nil {
 			spec := *r.OwnerSpec
 			r.OwnerSpec = &spec
+		}
+		if r.RefsV3 != nil {
+			refs := *r.RefsV3
+			refs.Conditions = append([]ReworkObjectRef(nil), refs.Conditions...)
+			r.RefsV3 = &refs
 		}
 		copy.Rework = &r
 	}

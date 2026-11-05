@@ -31,6 +31,7 @@ const (
 )
 
 type DB struct {
+	reworkFault         func(string) error // test-only crash cut points; nil in production
 	sql                 *sql.DB
 	path                string
 	mu                  sync.Mutex

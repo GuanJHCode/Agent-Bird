@@ -1,6 +1,6 @@
 package store
 
-const currentSchemaVersion = 10
+const currentSchemaVersion = 11
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
@@ -80,6 +80,14 @@ func (d *DB) migrateRuntime() error {
    max_active_ms_per_segment INTEGER NOT NULL CHECK(max_active_ms_per_segment BETWEEN 1 AND 3600000),
    max_active_ms_total INTEGER NOT NULL CHECK(max_active_ms_total BETWEEN 1 AND 7200000)
   ); UPDATE schema_meta SET version=10`); err != nil {
+			return err
+		}
+	}
+	if version < 11 {
+		if err = migrateReworkObjects(tx); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE schema_meta SET version=11`); err != nil {
 			return err
 		}
 	}

@@ -325,14 +325,41 @@
       "depends_on": [
         "T03"
       ],
-      "status": "awaiting_review",
-      "completion_basis": null,
+      "status": "done",
+      "completion_basis": "implemented",
       "baseline_commit": "2347d34ce1e5ca4e40751f53064f3d99001f4832",
       "implementation_agent": "/root/implement_t04",
       "review_agent": "/root/review_t04_final",
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t04",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "tools/orchestrator/cmd/orchestrator/main.go",
+        "tools/orchestrator/cmd/orchestrator/request_changes.go",
+        "tools/orchestrator/internal/adapter/owner_rework_test.go",
+        "tools/orchestrator/internal/adapter/workspace.go",
+        "tools/orchestrator/internal/contract/contract.go",
+        "tools/orchestrator/internal/coordinator/server.go",
+        "tools/orchestrator/internal/host/candidate.go",
+        "tools/orchestrator/internal/store/admission.go",
+        "tools/orchestrator/internal/store/delivery.go",
+        "tools/orchestrator/internal/store/migrations.go",
+        "tools/orchestrator/internal/store/owner_rework_test.go",
+        "tools/orchestrator/internal/store/store.go",
+        "tools/orchestrator/internal/store/owner_rework.go",
+        "tools/orchestrator/cmd/orchestrator/request_changes_refs.go",
+        "tools/orchestrator/cmd/orchestrator/request_changes_refs_test.go",
+        "tools/orchestrator/internal/adapter/rework_refs.go",
+        "tools/orchestrator/internal/host/rework_refs.go",
+        "tools/orchestrator/internal/host/rework_refs_test.go",
+        "tools/orchestrator/internal/store/rework_capture_darwin.go",
+        "tools/orchestrator/internal/store/rework_capture_other.go",
+        "tools/orchestrator/internal/store/rework_objects.go",
+        "tools/orchestrator/internal/store/rework_objects_migration.go",
+        "tools/orchestrator/internal/store/rework_quarantine.go",
+        "tools/orchestrator/internal/store/rework_refs_migration_test.go",
+        "tools/orchestrator/internal/store/rework_refs_test.go",
+        "tools/orchestrator/internal/coordinator/request_changes_owner_integration_test.go"
+      ],
       "acceptance_ids": [
         "REW-01",
         "REW-02",
@@ -340,24 +367,59 @@
         "REW-04",
         "LIM-01"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T04-implementation.md",
+      "tests": [
+        {
+          "status": "PASS",
+          "type": "independent r5 normal/race + contract",
+          "evidence": "reviews/T04-review-r5.md",
+          "counts_including_subtests": {
+            "normal": 51,
+            "race": 51,
+            "contract_normal": 133,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "type": "integrated five-package race",
+          "evidence": "data/public-evidence/T04-integrated-race.json",
+          "counts_including_subtests": {
+            "passed": 114,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "type": "independent integration tests",
+          "evidence": "reviews/T04-integration-review.md",
+          "counts_including_subtests": {
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0
+          }
+        }
+      ],
       "review": {
-        "status": "FAIL",
-        "report": "reviews/T04-review-r4.md",
+        "status": "PASS",
+        "report": "reviews/T04-integration-review.md",
         "target_commit": null,
-        "unresolved_findings": [
-          "r5 fixes validated by implementer; first r5 independent agent turn failed due platform risk classification without verdict; new ordinary-code review active"
-        ]
+        "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "PASS",
+        "evidence": "reviews/T04-integration-review.md",
         "accepted_commit": null
       },
       "commits": [],
       "blockers": [],
-      "limitations": [],
+      "limitations": [
+        "installed-package/live-provider/native-parent not yet run",
+        "GC conservative quarantine/manual decision; bounded charged metadata retained; no automatic TTL",
+        "non-Darwin GC unsupported"
+      ],
       "updated_at": null
     },
     {
@@ -528,9 +590,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T06A-review-r2.md",
-        "accepted_commit": null
+        "accepted_commit": "28a3698d"
       },
-      "commits": [],
+      "commits": [
+        "28a3698d"
+      ],
       "blockers": [],
       "limitations": [
         "core benchmark excludes polling sleeps/metrics flush/model and is not end-to-end speed claim",

@@ -104,6 +104,7 @@ type RetryRequest struct {
 }
 
 type RequestChangesRequest struct {
+	RefsV3 *store.ReworkRefsRequest `json:"refs_v3,omitempty"`
 	store.OwnerReworkSpec
 	ControllerThread string `json:"controller_thread"`
 	ControlToken     string `json:"control_token"`
@@ -476,7 +477,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "owner_request_changes_v2", "budget_group_policy_v2", "managed_owner_projection_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "owner_request_changes_v2", "budget_group_policy_v2", "managed_owner_projection_v1", "owner_rework_refs_v3"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
@@ -647,6 +648,16 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		actionCtx, err := s.authorizeOwnerAction(ctx, request.TaskID, request.ControllerThread, request.ControlToken)
 		if err != nil {
 			return nil, err
+		}
+		if request.RefsV3 != nil {
+			result, err := s.db.ReworkRefs(actionCtx, request.ControllerThread, request.OwnerReworkSpec, *request.RefsV3)
+			if err != nil {
+				return nil, err
+			}
+			if result.Receipt != nil {
+				s.dispatchAll()
+			}
+			return json.Marshal(result)
 		}
 		receipt, err := s.db.QueueRequestChanges(actionCtx, request.OwnerReworkSpec)
 		if err != nil {

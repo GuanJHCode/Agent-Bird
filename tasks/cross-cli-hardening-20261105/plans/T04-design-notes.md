@@ -1,0 +1,11 @@
+# T04 实施准备（非完成声明）
+
+只读调查/root/investigate_t04基线c29ac2bb：当前没有通用artifact registry/pin/GC；events.WriteArtifact只写固定result-output.bin、1MiB、exclusive0600+fsync；storage_usage按event/artifact.size与revision_payload计费，不覆盖staging/发布未commit和task_runtime payload。docs/runtime-protocols对应部分是规范而非实现。
+
+原始brief没有独立持久化：dispatch拼prompt+acceptance；私有plan.json保留首次payload，DB只保留当前adapter。owner_rework把feedback同时塞入Spec/Context/Prompt并继续累积。旧contextv1有goldenbytes，v2缺固定golden需先补。旧v1/v2任务保持原解释，不正则猜删历史；新v3明确原brief和完整有效条件引用，Host同份有界bytes验hash/parse/组装，超输入预算失败不截断。
+
+复用位置：store/owner_rework.go QueueRequestChanges先查旧command精确重放，再资格和同一事务推进revision/撤销cap；checkOwnerReworkHost由limits ClaimReady与scheduling PendingLaunches调用。Host main invocationForGrant可在BuildInvocation前组装，candidate.go把ContextDigest绑receipt。强文件读可参考store/reports.go OpenRoot/NOFOLLOW/0600/uid/regular/Nlink1/大小hash+前后stat。
+
+需要最小新增的受管正文生命周期：schema11（等T03 schema10签收）、预占先durable、staging和published未commit均计quota并在途保护、不可覆盖fsync发布；再短事务重核tuple/command/资格、pin正文与保存小receipt/revision；commit后才能调度。GC只能身份一致、无pin/恢复引用、明确abandoned的自有正文；失败删除仍计费，不能用mtime删除将提交引用。queue/claim/pending/reconnect/Host组装全门禁owner_rework_refs_v3；旧Host缺能力不接收新格式，已发生command重放不因当前Host/provider不可用消失。
+
+故障验收必须包含预占未写/半写/发布未commit/commit丢reply/GC交错/quota/降级，不能只JSONroundtrip。与T03共享schema/admission/scheduling/CLI需等其签收后串行实施；T06B inspect锁拆分等T04后进行。公共API/Host/类型最终方案先ADR再实施，不把本草稿当已采用wire。

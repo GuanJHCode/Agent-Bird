@@ -198,7 +198,7 @@ func applyAckDecision(ctx context.Context, tx *sql.Tx, taskID string, decision A
 		}
 		if event.WorkRevision != workRevision {
 			var ownerRevision int
-			if decision.Decision != "handled" || tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions WHERE task_id=? AND work_revision=? AND source_event_id=? AND source_event_revision=? AND source_event_hash=? AND source_segment_id=? AND action_slot=? AND json_extract(revision_payload,'$.kind')=?`, taskID, event.WorkRevision, decision.EventID, decision.EventRevision, decision.EventHash, event.SegmentID, decision.ActionSlot, ownerReworkDecisionKind).Scan(&ownerRevision) != nil || ownerRevision != 1 {
+			if decision.Decision != "handled" || tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions WHERE task_id=? AND work_revision=? AND source_event_id=? AND source_event_revision=? AND source_event_hash=? AND source_segment_id=? AND action_slot=? AND json_extract(revision_payload,'$.kind') IN (?,?)`, taskID, event.WorkRevision, decision.EventID, decision.EventRevision, decision.EventHash, event.SegmentID, decision.ActionSlot, ownerReworkDecisionKind, reworkRefsDecisionKind).Scan(&ownerRevision) != nil || ownerRevision != 1 {
 				return ErrConflict
 			}
 		}

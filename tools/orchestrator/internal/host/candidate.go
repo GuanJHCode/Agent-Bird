@@ -117,7 +117,16 @@ func candidateDirectory(base string, grant contract.LaunchCommand, automatic boo
 
 func validateCandidateRework(spec *adapter.CandidateWorkspace, grant contract.LaunchCommand) error {
 	if r := spec.Rework; r != nil {
-		if (r.Version != 1 && r.Version != 2) || r.RunID != grant.RunID || r.TaskID != grant.TaskID || r.PreviousWorkRevision+1 != grant.WorkRevision || r.PreviousCandidateOID != spec.BaseOID || r.CandidateEventID == "" || len(r.CandidateSHA256) != 64 || r.Feedback == "" || r.Acceptance == "" {
+		if (r.Version != 1 && r.Version != 2 && r.Version != 3) || r.RunID != grant.RunID || r.TaskID != grant.TaskID || r.PreviousWorkRevision+1 != grant.WorkRevision || r.PreviousCandidateOID != spec.BaseOID || r.CandidateEventID == "" || len(r.CandidateSHA256) != 64 || (r.Version != 3 && (r.Feedback == "" || r.Acceptance == "")) {
+			return errors.New("candidate_rework_binding_invalid")
+		}
+		if r.Version == 3 {
+			if r.RefsV3 == nil || r.Source != "owner" || r.OwnerDecisionID == "" || r.OwnerSpec != nil || r.OwnerSpecSHA256 != "" || r.Feedback != "" || r.Acceptance != "" || r.ReviewEventID != "" || r.ReviewSHA256 != "" || r.ReviewSummary != "" {
+				return errors.New("candidate_rework_binding_invalid")
+			}
+			return nil
+		}
+		if r.RefsV3 != nil {
 			return errors.New("candidate_rework_binding_invalid")
 		}
 		if r.Version == 1 {

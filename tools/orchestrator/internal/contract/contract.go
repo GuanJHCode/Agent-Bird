@@ -89,6 +89,7 @@ type HostIdentity struct {
 // HostHello binds a source Host process to a coordinator-approved launch.
 // Credentials and environment data are deliberately absent.
 type HostHello struct {
+	OwnerReworkRefsV3     bool   `json:"owner_rework_refs_v3,omitempty"`
 	OwnerRequestChangesV2 bool   `json:"owner_request_changes_v2,omitempty"`
 	LaunchID              string `json:"launch_id"`
 	LaunchToken           string `json:"launch_token"`

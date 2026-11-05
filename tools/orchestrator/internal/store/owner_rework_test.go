@@ -40,6 +40,11 @@ func newOwnerReworkArtifactFixture(t *testing.T, artifactMutation func(map[strin
 
 func newOwnerReworkArtifactBudgetFixture(t *testing.T, artifactMutation func(map[string]any), policy *contract.BudgetPolicy, mutations ...func(*gitops.CandidateReceipt)) ownerReworkFixture {
 	t.Helper()
+	return newOwnerReworkArtifactRevisionFixture(t, artifactMutation, policy, 1, mutations...)
+}
+
+func newOwnerReworkArtifactRevisionFixture(t *testing.T, artifactMutation func(map[string]any), policy *contract.BudgetPolicy, revision int, mutations ...func(*gitops.CandidateReceipt)) ownerReworkFixture {
+	t.Helper()
 	ctx := context.Background()
 	root := t.TempDir()
 	db, err := Open(filepath.Join(root, "state.db"))
@@ -63,7 +68,7 @@ func newOwnerReworkArtifactBudgetFixture(t *testing.T, artifactMutation func(map
 	base := ownerFixtureGit(t, repoRoot, "rev-parse", "HEAD")
 	lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "2.1.267 (Claude Code)", SHA256: strings.Repeat("a", 64)}}
 	payload, _ := json.Marshal(adapter.InvocationPayload{Provider: string(adapter.ProviderClaude), Directory: work, Prompt: "original", ProviderLock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Implementer, Permission: adapter.WorkspaceWrite, TimeoutMS: 1000}, CandidateWorkspace: &adapter.CandidateWorkspace{Version: 1, RepoRoot: repoRoot, BaseOID: base, Paths: []string{"calc.py"}}})
-	plan, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{{ID: "edit", RunID: "run", MaxAttempts: 3, MaxActiveMS: 1000, BudgetPolicy: policy, AdapterPayload: payload}}})
+	plan, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{{ID: "edit", RunID: "run", WorkRevision: revision, MaxAttempts: 3, MaxActiveMS: 1000, BudgetPolicy: policy, AdapterPayload: payload}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +105,7 @@ func newOwnerReworkArtifactBudgetFixture(t *testing.T, artifactMutation func(map
 	if err = os.WriteFile(path, body, 0600); err != nil {
 		t.Fatal(err)
 	}
-	e := contract.Event{Version: 1, ProducerID: host, EventID: "candidate", RunID: "run", TaskID: "edit", AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: 1, Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: &contract.ArtifactRef{ID: "candidate", Path: path, Size: int64(len(body)), SHA256: runtimeHash(string(body))}}
+	e := contract.Event{Version: 1, ProducerID: host, EventID: "candidate", RunID: "run", TaskID: "edit", AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: 1, Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: &contract.ArtifactRef{ID: "candidate", Path: path, Size: int64(len(body)), SHA256: runtimeHash(string(body))}}
 	if _, err = db.CommitHostEvent(ctx, e); err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +124,7 @@ func newOwnerReworkArtifactBudgetFixture(t *testing.T, artifactMutation func(map
 		t.Fatalf("collect %+v %v", page, err)
 	}
 	e = page.Events[0]
-	spec := OwnerReworkSpec{TaskID: "edit", WorkRevision: 1, EventID: e.EventID, EventRevision: e.EventRevision, EventHash: e.PayloadHash, ActionSlot: e.ActionSlot, SegmentID: e.SegmentID, CandidateOID: c.CandidateOID, Feedback: "Handle negatives", Acceptance: "add(-2,3)==1", CommandID: "owner-change-1"}
+	spec := OwnerReworkSpec{TaskID: "edit", WorkRevision: g.WorkRevision, EventID: e.EventID, EventRevision: e.EventRevision, EventHash: e.PayloadHash, ActionSlot: e.ActionSlot, SegmentID: e.SegmentID, CandidateOID: c.CandidateOID, Feedback: "Handle negatives", Acceptance: "add(-2,3)==1", CommandID: "owner-change-1"}
 	return ownerReworkFixture{db, spec, host, hello, g, e, path, plan.ControlToken}
 }
 

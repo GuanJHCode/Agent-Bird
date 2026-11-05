@@ -1,0 +1,36 @@
+{
+  "base": "28a3698d7df9310aad2eff8b3ab73eceac0ec7ac",
+  "files": {
+    "tools/orchestrator/cmd/orchestrator/main.go": "716ed17a30e573cd7a3fabd3831ce70afdd2221986aa73ee881570bd9e41712c",
+    "tools/orchestrator/cmd/orchestrator/request_changes.go": "4767f506a83519418f52b46fd4e87ca847b1b9d7601d189d7a26be22b76a3ee9",
+    "tools/orchestrator/internal/adapter/owner_rework_test.go": "6531146d483a3041724f4832291b712d78d3af8bf65fdb92b61275739f6ad692",
+    "tools/orchestrator/internal/adapter/workspace.go": "2f138aa771d5ccf986e2617252d30f2029cb31935f5018e155a40130724397f9",
+    "tools/orchestrator/internal/contract/contract.go": "2f81db20c8ffa98c20477d2105cec8cddb00df14d79c9e8ad632dcc8cf7ebd7f",
+    "tools/orchestrator/internal/coordinator/server.go": "3dd5466cdb56386a54b01fae0dda5b4e8681d2fe67be7150b2ce6355e90d85be",
+    "tools/orchestrator/internal/host/candidate.go": "244e67173195f707de380e540dcbd032801c71f8a42c7a7d7097874158c332de",
+    "tools/orchestrator/internal/store/admission.go": "0935a3313fad13317cd63f84889e605665f041ee0886141db97bd3ede1bd7bf6",
+    "tools/orchestrator/internal/store/delivery.go": "a20f06ba3ae39fe0df8a3bdf1d8d2a0f1cb9e6ffaf740d8fc10a0700b575f38b",
+    "tools/orchestrator/internal/store/migrations.go": "143b7b4b5ed388db8e742b17b1216d5c162917e8111538becb51898266dc209e",
+    "tools/orchestrator/internal/store/owner_rework_test.go": "503ba71cef1055eb6d9d3a37c2c108c86d6d565f6cee838452b08a4f0fdd392f",
+    "tools/orchestrator/internal/store/store.go": "70fde3f6948b1ca7aded7c430a64165c1fe246b168a5b8f6f3dec2483baf647b",
+    "tools/orchestrator/internal/store/owner_rework.go": "eb7256552cfa01865888018ac5dac0189ed1e1436416a84e70478d30ae319344",
+    "tools/orchestrator/cmd/orchestrator/request_changes_refs.go": "db5c0e3d2ef4485c5d42203d28807e56b7fb0958637131e4b20bb4507f90bffa",
+    "tools/orchestrator/cmd/orchestrator/request_changes_refs_test.go": "7c94142dba65d463f887c836dd69c06096dbf4b075e6abe53454d934bebad106",
+    "tools/orchestrator/internal/adapter/rework_refs.go": "dc6110d81a42ba6c7056f4186355c2709c6897fce67ee73694edfeea4c2e82a7",
+    "tools/orchestrator/internal/host/rework_refs.go": "ede67bfaf96c710e521ba4104c14b06a3aac2d2f36041c3fb1a020447b50a50b",
+    "tools/orchestrator/internal/host/rework_refs_test.go": "c13e3fd4eca682c7137c9043b086bdff376ba822d0ca9de456d9d01c3e38d6c4",
+    "tools/orchestrator/internal/store/rework_capture_darwin.go": "d6ad35ab875720c813b8fd4c9ee390a752038087e7926139261f21af09db4d4b",
+    "tools/orchestrator/internal/store/rework_capture_other.go": "6b7c221eefd0a04af55e2e9946bd380f5584eb27e8c8f27ce4af34a59a0c9a11",
+    "tools/orchestrator/internal/store/rework_objects.go": "bff30811a88acb274c31285a2315842d4a90ea8d15fead18b16e42aa6c63096b",
+    "tools/orchestrator/internal/store/rework_objects_migration.go": "9af15eaa82d82273a7fa2892c5f109e17f787259480819d50df06b5f33cc8706",
+    "tools/orchestrator/internal/store/rework_quarantine.go": "e5ac696162c25290ce50278c1500bedeec81f8a00aa9568e194fe8ffc5410f25",
+    "tools/orchestrator/internal/store/rework_refs_migration_test.go": "322ed7706a070627c1cd883d9b6f508f7a4d34d389b85b7aa9a27a2f45e8f3b1",
+    "tools/orchestrator/internal/store/rework_refs_test.go": "a63742af9662a53a1db251c59ff4bf4aaebda34c17847bf7841fc199370992ac",
+    "tools/orchestrator/internal/coordinator/request_changes_owner_integration_test.go": "e073de6c5d43060e08bd21faa233c139eb68c5c15b89551e2b99cfc83a144476"
+  },
+  "dependency_sha256": "d3704ec2d0d1ace2b2575af7ab53238b9868240ecd593afb27733d12f9649150",
+  "manual_merge": [
+    "server.go keeps T07 guard/capability, passes actionCtx into both legacy/refs",
+    "owner_rework.go retains T07 short if err declaration; sole textual difference from r5 is := rather than = in identical guard"
+  ]
+}

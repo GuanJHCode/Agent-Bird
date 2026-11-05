@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -1002,6 +1003,7 @@ func sourceHost(parent context.Context, args []string) error {
 	}
 	features, _ := ready["capabilities"].([]string)
 	bootstrap.Hello.OwnerRequestChangesV2 = coordinatorHasOwnerChanges(features)
+	bootstrap.Hello.OwnerReworkRefsV3 = slices.Contains(features, "owner_rework_refs_v3")
 	ctx, cancel := signal.NotifyContext(parent, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	err = host.RunSource(ctx, host.SourceConfig{
@@ -1014,7 +1016,7 @@ func sourceHost(parent context.Context, args []string) error {
 			if json.Unmarshal(grant.AdapterPayload, &discriminator) == nil && discriminator.Kind == "gitops" {
 				return gitopsworker.BuildInvocation(grant.AdapterPayload, executable, bootstrap.SpoolRoot, grant.CommandID)
 			}
-			return invocationForGrant(ctx, grant)
+			return invocationForGrant(ctx, grant, state)
 		},
 	})
 	if err == nil || errors.Is(err, context.Canceled) {
@@ -1046,10 +1048,19 @@ func (i localInvocation) Environment() map[string]string {
 	return out
 }
 
-func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (contract.InvocationView, error) {
+func invocationForGrant(ctx context.Context, grant contract.LaunchCommand, trustedState ...string) (contract.InvocationView, error) {
 	payload, err := adapter.DecodeInvocationPayload(grant.AdapterPayload)
 	if err != nil {
 		return nil, codeError("invalid_json")
+	}
+	if payload.CandidateWorkspace != nil && payload.CandidateWorkspace.Rework != nil && payload.CandidateWorkspace.Rework.Version == 3 {
+		if len(trustedState) != 1 {
+			return nil, codeError("rework_trusted_root_required")
+		}
+		payload.Prompt, err = host.ReworkPrompt(grant, payload, trustedState[0])
+		if err != nil {
+			return nil, err
+		}
 	}
 	if action := payload.CandidateAction; action != nil {
 		if action.Version != 1 || grant.Input == nil || action.SourceTask != grant.Input.Event.TaskID || payload.CandidateWorkspace != nil || grant.SessionID != "" || payload.SessionID != "" || !filepath.IsAbs(payload.Directory) {
@@ -1122,7 +1133,11 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 			return nil, err
 		}
 	}
-	return adapter.BuildInvocation(request)
+	inv, err := adapter.BuildInvocation(request)
+	if err == nil && payload.CandidateWorkspace != nil && payload.CandidateWorkspace.Rework != nil && payload.CandidateWorkspace.Rework.Version == 3 && len(inv.Stdin()) > adapter.ReworkInputMaxBytes {
+		return nil, codeError("rework_input_too_large")
+	}
+	return inv, err
 }
 
 func waitForHost(ctx context.Context, state, launchID, launchToken string) error {
