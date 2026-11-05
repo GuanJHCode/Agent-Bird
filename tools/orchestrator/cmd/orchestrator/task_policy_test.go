@@ -17,7 +17,7 @@ func TestTaskWriteRequiresManagedCandidate(t *testing.T) {
 	root := privateTaskTemp(t)
 	raw, _ := json.Marshal(map[string]any{"provider": "claude-code", "directory": root, "profile": map[string]any{"version": 1, "role": "implementer", "permission": "workspace-write", "timeout_ms": 1000}})
 	for _, fallback := range []bool{false, true} {
-		task := coordinator.TaskRequest{AdapterPayload: raw}
+		task := coordinator.TaskRequest{ID: "task", MaxAttempts: 1, AdapterPayload: raw}
 		if fallback {
 			task.AdapterPayload = json.RawMessage(`{"kind":"fake"}`)
 			task.Fallbacks = []json.RawMessage{raw}

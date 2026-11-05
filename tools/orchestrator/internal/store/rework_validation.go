@@ -210,7 +210,11 @@ func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkT
 		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, group).Scan(&charged); err != nil {
 			return err
 		}
-		if charged >= defaultGroupActiveMS {
+		totalLimit, limitErr := groupTotalLimit(ctx, tx, group)
+		if limitErr != nil {
+			return limitErr
+		}
+		if charged >= totalLimit {
 			return CodeError("budget_exhausted")
 		}
 	}

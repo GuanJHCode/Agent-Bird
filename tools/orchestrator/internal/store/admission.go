@@ -38,6 +38,9 @@ func (d *DB) BeginCoordinatorEpoch(ctx context.Context, epoch uint64) error {
 }
 
 func validateInvocationPayload(raw json.RawMessage) error {
+	if err := contract.ValidateAdapterSize(raw); err != nil {
+		return err
+	}
 	if len(raw) == 0 {
 		return nil
 	}
@@ -65,24 +68,33 @@ func validateInvocationPayload(raw json.RawMessage) error {
 }
 
 func validatePlan(p PlanSpec) error {
-	if p.Run.ID == "" || p.Run.ControllerThread == "" || p.Run.PlanRevision < 1 || p.Run.OriginContextID == "" || p.Run.OriginPID <= 0 || p.Run.OriginBirth == "" {
+	if !contract.ValidControlID(p.Run.ID) || !contract.ValidControlID(p.Run.ControllerThread) || p.Run.PlanRevision < 1 || !contract.ValidControlID(p.Run.OriginContextID) || p.Run.OriginPID <= 0 || p.Run.OriginBirth == "" {
 		return CodeError("invalid_run")
 	}
-	if p.Host.OriginContextID != p.Run.OriginContextID || p.Host.HostGeneration == "" || p.Host.Executable == "" || len(p.Tasks) == 0 || len(p.Tasks) > 64 {
+	if p.Host.OriginContextID != p.Run.OriginContextID || !contract.ValidControlID(p.Host.HostGeneration) || p.Host.Executable == "" || len(p.Tasks) == 0 || len(p.Tasks) > 64 {
 		return ErrInvalidDAG
+	}
+	for _, id := range []string{p.LaunchID, p.LaunchToken, p.ControlToken} {
+		if id != "" && !contract.ValidControlID(id) {
+			return CodeError("invalid_run")
+		}
 	}
 	byID := make(map[string]TaskSpec, len(p.Tasks))
 	groupAttempts := make(map[string]int)
 	groupTasks := make(map[string]int)
 	groupActive := make(map[string]int64)
+	groupPolicy := make(map[string]string)
 	for _, task := range p.Tasks {
+		if err := validateBudgetPolicy(task); err != nil {
+			return err
+		}
 		if err := validateInvocationPayload(task.AdapterPayload); err != nil {
 			return err
 		}
 		if err := rejectSubmittedRework(task.AdapterPayload); err != nil {
 			return err
 		}
-		if task.ID == "" || task.RunID != p.Run.ID || task.MaxAttempts < 1 || task.MaxAttempts > 3 {
+		if !contract.ValidControlID(task.ID) || (task.BudgetGroupID != "" && !contract.ValidControlID(task.BudgetGroupID)) || task.RunID != p.Run.ID || task.MaxAttempts < 1 || task.MaxAttempts > contract.MaxAttempts {
 			return ErrInvalidDAG
 		}
 		if _, exists := byID[task.ID]; exists {
@@ -123,12 +135,20 @@ func validatePlan(p PlanSpec) error {
 		if existing, ok := groupAttempts[group]; ok && existing != task.MaxAttempts {
 			return ErrInvalidDAG
 		}
+		policyJSON, _ := json.Marshal(task.BudgetPolicy)
+		if old, ok := groupPolicy[group]; ok && old != string(policyJSON) {
+			return CodeError("budget_policy_conflict")
+		}
+		groupPolicy[group] = string(policyJSON)
 		groupAttempts[group] = task.MaxAttempts
 		groupTasks[group]++
 		if groupTasks[group] > task.MaxAttempts {
 			return CodeError("budget_group_attempts_insufficient")
 		}
 		active := task.MaxActiveMS
+		if task.BudgetPolicy != nil {
+			active = task.BudgetPolicy.MaxActiveMSPerSegment
+		}
 		if active <= 0 || active > defaultSegmentActiveMS {
 			active = defaultSegmentActiveMS
 		}
@@ -218,6 +238,9 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 			}
 		}
 	}
+	if err = registerBudgetPolicies(ctx, tx, p); err != nil {
+		return rollback(err)
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	var activeHosts int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM host_launches WHERE status!='released'`).Scan(&activeHosts); err != nil {
@@ -259,6 +282,9 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 			group = task.ID
 		}
 		active := task.MaxActiveMS
+		if task.BudgetPolicy != nil {
+			active = task.BudgetPolicy.MaxActiveMSPerSegment
+		}
 		if active <= 0 || active > defaultSegmentActiveMS {
 			active = defaultSegmentActiveMS
 		}

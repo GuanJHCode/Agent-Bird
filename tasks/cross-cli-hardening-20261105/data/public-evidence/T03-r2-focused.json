@@ -1,0 +1,35 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/store",
+    "./cmd/orchestrator",
+    "-run",
+    "TestBudgetPolicy|TestAcceptedInputWithMaximum|TestControlID|TestAttemptLimits|TestDispatchBudget|TestSubmitPreflight|TestAdapterLimits|Test.*Migration|TestPreflight|TestTaskWrite|TestDispatchPublicCLI|TestManagedDispatchReuses"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t03/tools/orchestrator",
+  "start": "2026-11-05T04:16:40.579865+00:00",
+  "elapsed_seconds": 4.244,
+  "exit_code": 1,
+  "source_commit": "bde4bacf71450c8b476230a32263e977444e6450",
+  "tracked_diff_sha256": "517ff78bf9acfb8df899aa51b9ab27c3b81f3247db878e9b52de65100dfedc1b",
+  "counts": {
+    "passed": 21,
+    "failed": 0,
+    "errors": null,
+    "skipped": 0
+  },
+  "package_failures": 1,
+  "environment": {
+    "PATH": "/private/tmp/go1.26.10-sdk/bin:/usr/bin:/bin:/opt/homebrew/bin",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t03",
+    "TMPDIR": "/private/tmp"
+  },
+  "production_files_sha256": "ec3773bab0ca76ca1db82a671b8baa139786593e115b3dcb49d24271cc1705b8",
+  "log_sha256": "696fd06d73c2bdc318ad259bc5718bd137a88f755d784c76dfa48bb1c9d3f92d"
+}

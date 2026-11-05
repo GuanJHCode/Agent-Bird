@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 )
 
@@ -18,9 +19,18 @@ func preflightTasks(tasks []coordinator.TaskRequest) error {
 		return codeError("invalid_submit")
 	}
 	for i := range tasks {
+		if !contract.ValidControlID(tasks[i].ID) || (tasks[i].BudgetGroupID != "" && !contract.ValidControlID(tasks[i].BudgetGroupID)) {
+			return codeError("invalid_task_plan")
+		}
+		if tasks[i].MaxAttempts < 1 || tasks[i].MaxAttempts > contract.MaxAttempts {
+			return codeError("invalid_task_plan")
+		}
 		payloads := append([]json.RawMessage{tasks[i].AdapterPayload}, tasks[i].Fallbacks...)
 		normalized := make([]json.RawMessage, len(payloads))
 		for j, raw := range payloads {
+			if err := contract.ValidateAdapterSize(raw); err != nil {
+				return err
+			}
 			normalized[j] = raw
 			if len(raw) == 0 {
 				continue

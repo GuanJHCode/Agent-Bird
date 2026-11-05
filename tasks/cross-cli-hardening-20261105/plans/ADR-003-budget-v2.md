@@ -1,0 +1,17 @@
+# ADR-003：版本化总预算与字节限制（设计草案）
+
+状态：采用；T02已签收。T03在独立worktree实施，未签收前不提交。
+
+新dispatch v2明确max_active_ms_per_segment/max_active_ms_total和budget_group_id；v1的max_active_ms仍是每段额度，组上限120分钟不变。新契约不能混入v1字段或自动降级。Coordinator通过显式capability声明支持budget_group_policy_v2，旧coordinator在Submit前拒绝。Host沿用GrantedActiveMS，无需新增Host字段。
+
+同一SQLite账本增加不可变group policy：绑定现有controller_thread、group、总attempts和总active；同组多task/run、retry/rework共用，不以revision为key。新请求复用组必须同owner、同规范policy；冲突拒绝。活动/unknown按已有granted预占，settled按used；授权下一段min(per_segment,total-used-reserved)。rebind仅换进程绑定，不修改policy/已用预算。
+
+旧数据库迁移只能保存原legacy语义，不能从max_active_ms猜总预算；保留旧task/receipt/digest。旧组总上限固定120分钟并显式标legacy，不能被新policy重新定义。具体迁移和既有跨run同名组的处理必须先检查实际旧数据契约，再冻结DDL；不会静默覆盖旧记录。
+
+attempts统一为1–3。文本/adapter/owner decision/IPC frame分别按实际JSON UTF-8 bytes检查（含escaping和envelope），不是一律放大frame。对无法在提交时证明可launch的payload提前拒绝，不创建task、不消耗attempt/预算；不截断合同。
+
+验收：BUD01边界；BUD02可控结算110秒后只余70秒；BUD03同组多task/重试/返工/unknown/restart不补额；BUD04旧语义/迁移回滚/旧端门禁；LIM01中文/转义/最终frame。不跑真实模型测预算。
+
+实现决策：schema9→10原子新增group_budget_policies，只保存显式v2策略；旧组由既有task_runtime/账本识别，没有v2行即legacy_policy，原每段及120分钟总限完全保留，不根据历史冲突数据猜一个新policy。v2不得接管已有legacy组，legacy也不得加入v2组。这样迁移不回写旧task/receipt/字节，旧同名组历史行为不被静默修改。v2行绑定controller_thread，max_attempts/单段/总额必须完全相同，跨run继续共享。low-level任务MaxActiveMS若非零须与policy每段一致；dispatch v2禁止v1的max_active_ms，避免调用语义混淆。旧Host仍只收到GrantedActiveMS。
+
+独审P2闭环：新提交的run/task/group/controller/origin/host-generation及显式launch/token标识受共同contract.ValidControlID的128 UTF-8字节上限约束，保留生成launch绑定空间；CLI/preflight/Store一致应用，不回写旧row/receipt。原validateLaunchSize仍保护衍生AcceptedInput及pending，新增最大ID+双adapter+实际源event的序列化边界回归。

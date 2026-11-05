@@ -17,24 +17,28 @@ import (
 	"unicode/utf8"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
 )
 
 type dispatchRequest struct {
-	Version          int          `json:"version"`
-	RequestID        string       `json:"request_id"`
-	Provider         string       `json:"provider"`
-	ProviderLock     string       `json:"provider_lock"`
-	Directory        string       `json:"directory"`
-	Prompt           string       `json:"prompt"`
-	Role             adapter.Role `json:"role"`
-	Paths            []string     `json:"paths,omitempty"`
-	Acceptance       []string     `json:"acceptance"`
-	Model            string       `json:"model,omitempty"`
-	MaxAttempts      int          `json:"max_attempts"`
-	MaxActiveMS      int64        `json:"max_active_ms"`
-	GrokSessionWrite bool         `json:"grok_session_write,omitempty"`
+	BudgetGroupID         string       `json:"budget_group_id,omitempty"`
+	MaxActiveMSPerSegment int64        `json:"max_active_ms_per_segment,omitempty"`
+	MaxActiveMSTotal      int64        `json:"max_active_ms_total,omitempty"`
+	Version               int          `json:"version"`
+	RequestID             string       `json:"request_id"`
+	Provider              string       `json:"provider"`
+	ProviderLock          string       `json:"provider_lock"`
+	Directory             string       `json:"directory"`
+	Prompt                string       `json:"prompt"`
+	Role                  adapter.Role `json:"role"`
+	Paths                 []string     `json:"paths,omitempty"`
+	Acceptance            []string     `json:"acceptance"`
+	Model                 string       `json:"model,omitempty"`
+	MaxAttempts           int          `json:"max_attempts"`
+	MaxActiveMS           int64        `json:"max_active_ms"`
+	GrokSessionWrite      bool         `json:"grok_session_write,omitempty"`
 }
 
 type dispatchReservation struct {
@@ -59,8 +63,15 @@ func dispatchRejectionCode(reason string) string {
 var dispatchOID = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
 func validateDispatch(req dispatchRequest) error {
-	if req.Version != 1 || !dispatchID.MatchString(req.RequestID) || req.ProviderLock == "" || req.Directory == "" || strings.TrimSpace(req.Prompt) == "" || !utf8.ValidString(req.Prompt) || strings.ContainsRune(req.Prompt, 0) || len(req.Prompt) > 256*1024 || req.MaxAttempts < 1 || req.MaxAttempts > 64 || req.MaxActiveMS < 1 || req.MaxActiveMS > 3600000 || len(req.Acceptance) < 1 || len(req.Acceptance) > 64 {
+	if (req.Version != 1 && req.Version != 2) || !dispatchID.MatchString(req.RequestID) || req.ProviderLock == "" || req.Directory == "" || strings.TrimSpace(req.Prompt) == "" || !utf8.ValidString(req.Prompt) || strings.ContainsRune(req.Prompt, 0) || len(req.Prompt) > 256*1024 || req.MaxAttempts < 1 || req.MaxAttempts > contract.MaxAttempts || len(req.Acceptance) < 1 || len(req.Acceptance) > 64 {
 		return codeError("dispatch_request_invalid")
+	}
+	if req.Version == 1 {
+		if req.MaxActiveMS < 1 || req.MaxActiveMS > 3600000 || req.MaxActiveMSPerSegment != 0 || req.MaxActiveMSTotal != 0 || req.BudgetGroupID != "" {
+			return codeError("dispatch_request_invalid")
+		}
+	} else if req.MaxActiveMS != 0 || req.MaxActiveMSPerSegment < 1 || req.MaxActiveMSPerSegment > 3600000 || req.MaxActiveMSTotal < 1 || req.MaxActiveMSTotal > 7200000 || (req.BudgetGroupID != "" && !dispatchID.MatchString(req.BudgetGroupID)) {
+		return codeError("budget_policy_invalid")
 	}
 	p, _, err := taskProvider(req.Provider)
 	if err != nil {
@@ -157,7 +168,17 @@ func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base st
 	if err != nil {
 		return taskPlan{}, err
 	}
-	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: req.MaxActiveMS, GrokSessionWrite: req.GrokSessionWrite}
+	active := req.MaxActiveMS
+	var budget *contract.BudgetPolicy
+	group := runID + "-budget"
+	if req.Version == 2 {
+		active = req.MaxActiveMSPerSegment
+		budget = &contract.BudgetPolicy{Version: 2, MaxActiveMSPerSegment: active, MaxActiveMSTotal: req.MaxActiveMSTotal}
+		if req.BudgetGroupID != "" {
+			group = req.BudgetGroupID
+		}
+	}
+	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: active, GrokSessionWrite: req.GrokSessionWrite}
 	if req.Model == "cli-default" {
 		profile.CLIModelDefault = true
 	} else {
@@ -173,7 +194,7 @@ func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base st
 	if err != nil {
 		return taskPlan{}, err
 	}
-	return taskPlan{RunID: runID, PlanRevision: 1, Tasks: []coordinator.TaskRequest{{ID: runID + "-work", MaxAttempts: req.MaxAttempts, MaxActiveMS: req.MaxActiveMS, BudgetGroupID: runID + "-budget", CompletionPolicy: "owner_review", AdapterPayload: raw}}}, nil
+	return taskPlan{RunID: runID, PlanRevision: 1, Tasks: []coordinator.TaskRequest{{ID: runID + "-work", MaxAttempts: req.MaxAttempts, MaxActiveMS: active, BudgetPolicy: budget, BudgetGroupID: group, CompletionPolicy: "owner_review", AdapterPayload: raw}}}, nil
 }
 
 func taskDispatch(ctx context.Context, args []string, out io.Writer) error {

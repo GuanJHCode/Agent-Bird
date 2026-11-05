@@ -147,9 +147,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T01-review.md",
-        "accepted_commit": null
+        "accepted_commit": "c29ac2bb"
       },
-      "commits": [],
+      "commits": [
+        "c29ac2bb"
+      ],
       "blockers": [],
       "limitations": [],
       "updated_at": null
@@ -224,14 +226,47 @@
       "depends_on": [
         "T02"
       ],
-      "status": "in_progress",
-      "completion_basis": null,
+      "status": "done",
+      "completion_basis": "implemented",
       "baseline_commit": "bde4bacf71450c8b476230a32263e977444e6450",
       "implementation_agent": "/root",
-      "review_agent": null,
+      "review_agent": "/root/review_t03",
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t03",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "tasks/cross-cli-hardening-20261105/plans/ADR-003-budget-v2.md",
+        "tools/orchestrator/cmd/orchestrator/budget_policy_test.go",
+        "tools/orchestrator/cmd/orchestrator/coordinator_features.go",
+        "tools/orchestrator/cmd/orchestrator/main.go",
+        "tools/orchestrator/cmd/orchestrator/preflight.go",
+        "tools/orchestrator/cmd/orchestrator/preflight_test.go",
+        "tools/orchestrator/cmd/orchestrator/task_dispatch.go",
+        "tools/orchestrator/cmd/orchestrator/task_entry.go",
+        "tools/orchestrator/cmd/orchestrator/task_policy_test.go",
+        "tools/orchestrator/internal/contract/budget.go",
+        "tools/orchestrator/internal/contract/identifiers.go",
+        "tools/orchestrator/internal/contract/input_limits.go",
+        "tools/orchestrator/internal/coordinator/server.go",
+        "tools/orchestrator/internal/ipc/ipc.go",
+        "tools/orchestrator/internal/store/admission.go",
+        "tools/orchestrator/internal/store/budget_policy.go",
+        "tools/orchestrator/internal/store/budget_policy_migration_test.go",
+        "tools/orchestrator/internal/store/budget_policy_test.go",
+        "tools/orchestrator/internal/store/limits.go",
+        "tools/orchestrator/internal/store/migrations.go",
+        "tools/orchestrator/internal/store/owner_rework.go",
+        "tools/orchestrator/internal/store/owner_rework_migration_test.go",
+        "tools/orchestrator/internal/store/owner_rework_test.go",
+        "tools/orchestrator/internal/store/provider_controls_test.go",
+        "tools/orchestrator/internal/store/quota_bench_test.go",
+        "tools/orchestrator/internal/store/review_retry.go",
+        "tools/orchestrator/internal/store/review_retry_test.go",
+        "tools/orchestrator/internal/store/rework_migration_test.go",
+        "tools/orchestrator/internal/store/rework_validation.go",
+        "tools/orchestrator/internal/store/scheduling.go",
+        "tools/orchestrator/internal/store/store.go",
+        "tools/orchestrator/internal/store/summary.go"
+      ],
       "acceptance_ids": [
         "BUD-01",
         "BUD-02",
@@ -239,17 +274,41 @@
         "BUD-04",
         "LIM-01"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T03-implementation.md",
+      "tests": [
+        {
+          "status": "PASS",
+          "evidence": "data/public-evidence/T03-r2-focused-buildfix.json",
+          "counts": {
+            "passed": 35,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "evidence": "data/public-evidence/T03-integrated.json",
+          "counts": {
+            "passed": 35,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "evidence": "reviews/T03-review-r2.md",
+          "note": "独审148/57/1项；r2 vet/build通过。修订前ordinary/race范围分开见报告"
+        }
+      ],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
+        "status": "PASS",
+        "report": "reviews/T03-review-r2.md",
         "target_commit": null,
         "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "PASS",
+        "evidence": "reviews/T03-review-r2.md",
         "accepted_commit": null
       },
       "commits": [],
@@ -304,11 +363,11 @@
       "depends_on": [
         "T02"
       ],
-      "status": "in_progress",
+      "status": "changes_requested",
       "completion_basis": null,
       "baseline_commit": "428a5877d63247d0dd0b345b0765aa3c912507c2",
       "implementation_agent": "/root/implement_t05",
-      "review_agent": null,
+      "review_agent": "/root/review_t05",
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t05",
       "write_scope": [],
       "changed_files": [],
@@ -322,10 +381,13 @@
       "implementation_report": null,
       "tests": [],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
+        "status": "CHANGES_REQUESTED",
+        "report": "reviews/T05-review-r1.md",
         "target_commit": null,
-        "unresolved_findings": []
+        "unresolved_findings": [
+          "P1 partial websocket frame read timeout leaves connection desynchronized; must discard and history-only recover",
+          "DEL05 production driver/helper crash recovery evidence incomplete"
+        ]
       },
       "owner_acceptance": {
         "status": "NOT_RUN",
@@ -800,5 +862,14 @@
     "DRAFT",
     "PREPARED"
   ],
-  "authorization_source": "用户 2026-11-05：每功能独立 agent 复核，通过后提交并 push；未授权 release、正式分支合并、全局安装替换。"
+  "authorization_source": "用户 2026-11-05：每功能独立 agent 复核，通过后提交并 push；未授权 release、正式分支合并、全局安装替换。",
+  "live_authorization": {
+    "evidence": "docs/live-budget.md",
+    "per_direction_wall_seconds": 180,
+    "per_direction_max_worker_attempts": 2,
+    "worker_segment_ms": 60000,
+    "worker_total_ms": 90000,
+    "models": "lowest verified available; third-party default unchanged",
+    "automatic_increase": false
+  }
 }

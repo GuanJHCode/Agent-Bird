@@ -25,7 +25,7 @@ func TestPreflightCanonicalizesReadOnlyWorkspaceWithoutRuntime(t *testing.T) {
 	if err = os.Symlink(actual, alias); err != nil {
 		t.Fatal(err)
 	}
-	request := coordinator.SubmitRequest{Tasks: []coordinator.TaskRequest{{ID: "check", AdapterPayload: json.RawMessage(`{"kind":"provider","provider":"claude-code","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000},"directory":` + string(mustJSON(t, alias)) + `}`)}}}
+	request := coordinator.SubmitRequest{Tasks: []coordinator.TaskRequest{{ID: "check", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"kind":"provider","provider":"claude-code","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000},"directory":` + string(mustJSON(t, alias)) + `}`)}}}
 	path := filepath.Join(root, "request.json")
 	if err = writeExclusiveJSON(path, request); err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func mustJSON(t *testing.T, v any) []byte {
 
 func TestPreflightPreservesLegacyGitopsProtocol(t *testing.T) {
 	raw := json.RawMessage(`{"kind":"gitops","operation":"prepare","repo_root":"/repository"}`)
-	tasks := []coordinator.TaskRequest{{ID: "legacy", AdapterPayload: raw}}
+	tasks := []coordinator.TaskRequest{{ID: "legacy", MaxAttempts: 1, AdapterPayload: raw}}
 	if err := preflightTasks(tasks); err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestSubmitInvalidWorkspaceFailsBeforeOwnerAndRuntime(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "request.json")
 	state := filepath.Join(root, "state")
-	req := coordinator.SubmitRequest{Tasks: []coordinator.TaskRequest{{ID: "check", AdapterPayload: json.RawMessage(`{"kind":"provider","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000},"directory":` + string(mustJSON(t, filepath.Join(root, "missing"))) + `}`)}}}
+	req := coordinator.SubmitRequest{Tasks: []coordinator.TaskRequest{{ID: "check", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"kind":"provider","profile":{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":1000},"directory":` + string(mustJSON(t, filepath.Join(root, "missing"))) + `}`)}}}
 	if err := writeExclusiveJSON(path, req); err != nil {
 		t.Fatal(err)
 	}

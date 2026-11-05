@@ -103,8 +103,12 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, budgetGroup).Scan(&charged); err != nil {
 		return rollback(err)
 	}
+	totalLimit, err := groupTotalLimit(ctx, tx, budgetGroup)
+	if err != nil {
+		return rollback(err)
+	}
 	grant := maxActive
-	if remaining := defaultGroupActiveMS - charged; grant > remaining {
+	if remaining := totalLimit - charged; grant > remaining {
 		grant = remaining
 	}
 	if grant <= 0 {

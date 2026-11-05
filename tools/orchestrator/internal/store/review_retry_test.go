@@ -25,6 +25,10 @@ type reviewRetryFixture struct {
 }
 
 func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryBudgetFixture(t, terminal, nil, sharedGroup...)
+}
+
+func newReviewRetryBudgetFixture(t *testing.T, terminal string, budget *contract.BudgetPolicy, sharedGroup ...bool) reviewRetryFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -57,6 +61,9 @@ func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) r
 			if id == "validate" {
 				p.CandidateAction.Command = []string{"/usr/bin/true"}
 			}
+		}
+		if id == "review" {
+			task.BudgetPolicy = budget
 		}
 		task.AdapterPayload, _ = json.Marshal(p)
 		tasks = append(tasks, task)

@@ -296,7 +296,7 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 		return err
 	}
 	request.HostExecutable = executable
-	if request.HostGeneration == "" || len(request.Tasks) == 0 {
+	if !contract.ValidControlID(request.RunID) || !contract.ValidControlID(request.ControllerThread) || !contract.ValidControlID(request.OriginContextID) || !contract.ValidControlID(request.HostGeneration) || len(request.Tasks) == 0 {
 		return codeError("invalid_submit")
 	}
 	if request.OwnerMode == "local" {
@@ -332,6 +332,11 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err != nil {
 		return err
 	}
+	request.LaunchID, request.LaunchToken, request.ControlToken = launchID, launchToken, controlToken
+	submitRequestID := fmt.Sprintf("control-%d-%d", os.Getpid(), time.Now().UnixNano())
+	if err = preflightSubmitFrame(request, submitRequestID); err != nil {
+		return err
+	}
 	bootstrap := hostBootstrap{Version: 2, SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
 	bootstrapPath, err := writeBootstrap(state, bootstrap)
 	if err != nil {
@@ -365,7 +370,7 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 		}
 	}
 	request.LaunchID, request.LaunchToken, request.ControlToken = launchID, launchToken, controlToken
-	response, err := call(ctx, state, ipc.KindSubmit, request)
+	response, err := callRequest(ctx, state, ipc.KindSubmit, request, submitRequestID)
 	if err != nil {
 		var rejected remoteError
 		if errors.As(err, &rejected) {
@@ -761,7 +766,19 @@ func reportEvent(ctx context.Context, args []string, stdout io.Writer) error {
 	return err
 }
 
+func preflightSubmitFrame(request coordinator.SubmitRequest, requestID string) error {
+	body, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+	return ipc.Write(io.Discard, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindSubmit, RequestID: requestID, Payload: body})
+}
+
 func call(ctx context.Context, state string, kind ipc.Kind, payload any) (ipc.Envelope, error) {
+	return callRequest(ctx, state, kind, payload, fmt.Sprintf("control-%d-%d", os.Getpid(), time.Now().UnixNano()))
+}
+
+func callRequest(ctx context.Context, state string, kind ipc.Kind, payload any, requestID string) (ipc.Envelope, error) {
 	if _, err := ensureServer(ctx, state); err != nil {
 		return ipc.Envelope{}, err
 	}
@@ -769,7 +786,6 @@ func call(ctx context.Context, state string, kind ipc.Kind, payload any) (ipc.En
 	if err != nil {
 		return ipc.Envelope{}, err
 	}
-	requestID := fmt.Sprintf("control-%d-%d", os.Getpid(), time.Now().UnixNano())
 	response, err := ipc.Call(ctx, filepath.Join(state, "coordinator.sock"), ipc.Envelope{Version: ipc.Version, Kind: kind, RequestID: requestID, Payload: body})
 	if err != nil {
 		return ipc.Envelope{}, err

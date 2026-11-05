@@ -28,6 +28,9 @@ func checkCoordinatorTasks(capabilities []string, tasks []coordinator.TaskReques
 		return codeError("coordinator_upgrade_required")
 	}
 	for _, task := range tasks {
+		if task.BudgetPolicy != nil && !slices.Contains(capabilities, "budget_group_policy_v2") {
+			return codeError("coordinator_upgrade_required")
+		}
 		for _, raw := range append([]json.RawMessage{task.AdapterPayload}, task.Fallbacks...) {
 			var payload struct {
 				Profile *struct {

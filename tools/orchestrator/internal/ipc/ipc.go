@@ -65,6 +65,10 @@ type Envelope struct {
 }
 
 func Call(ctx context.Context, socketPath string, request Envelope) (Envelope, error) {
+	// Reject exact encoded UTF-8 frame size before connecting or writing bytes.
+	if err := Write(io.Discard, request); err != nil {
+		return Envelope{}, err
+	}
 	if !filepath.IsAbs(socketPath) {
 		return Envelope{}, ErrInvalidMessage
 	}

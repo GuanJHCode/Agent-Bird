@@ -35,6 +35,10 @@ func newOwnerReworkFixture(t *testing.T, mutations ...func(*gitops.CandidateRece
 	return newOwnerReworkArtifactFixture(t, nil, mutations...)
 }
 func newOwnerReworkArtifactFixture(t *testing.T, artifactMutation func(map[string]any), mutations ...func(*gitops.CandidateReceipt)) ownerReworkFixture {
+	return newOwnerReworkArtifactBudgetFixture(t, artifactMutation, nil, mutations...)
+}
+
+func newOwnerReworkArtifactBudgetFixture(t *testing.T, artifactMutation func(map[string]any), policy *contract.BudgetPolicy, mutations ...func(*gitops.CandidateReceipt)) ownerReworkFixture {
 	t.Helper()
 	ctx := context.Background()
 	root := t.TempDir()
@@ -59,7 +63,7 @@ func newOwnerReworkArtifactFixture(t *testing.T, artifactMutation func(map[strin
 	base := ownerFixtureGit(t, repoRoot, "rev-parse", "HEAD")
 	lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "2.1.267 (Claude Code)", SHA256: strings.Repeat("a", 64)}}
 	payload, _ := json.Marshal(adapter.InvocationPayload{Provider: string(adapter.ProviderClaude), Directory: work, Prompt: "original", ProviderLock: &lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Implementer, Permission: adapter.WorkspaceWrite, TimeoutMS: 1000}, CandidateWorkspace: &adapter.CandidateWorkspace{Version: 1, RepoRoot: repoRoot, BaseOID: base, Paths: []string{"calc.py"}}})
-	plan, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{{ID: "edit", RunID: "run", MaxAttempts: 3, MaxActiveMS: 1000, AdapterPayload: payload}}})
+	plan, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{{ID: "edit", RunID: "run", MaxAttempts: 3, MaxActiveMS: 1000, BudgetPolicy: policy, AdapterPayload: payload}}})
 	if err != nil {
 		t.Fatal(err)
 	}

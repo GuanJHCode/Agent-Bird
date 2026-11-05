@@ -129,7 +129,7 @@ func TestQuotaMigrationBackfillsReportAndRuntimeUsage(t *testing.T) {
 		}
 	}
 	// Recreate the actual v4 schema, including removal of the later v6 ledger.
-	if _, err := db.sql.Exec(`ALTER TABLE runtime_hosts DROP COLUMN owner_request_changes_v2; DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; DROP TABLE storage_usage; UPDATE schema_meta SET version=4`); err != nil {
+	if _, err := db.sql.Exec(`DROP TABLE group_budget_policies; ALTER TABLE runtime_hosts DROP COLUMN owner_request_changes_v2; DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; DROP TABLE storage_usage; UPDATE schema_meta SET version=4`); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.migrateRuntime(); err != nil {

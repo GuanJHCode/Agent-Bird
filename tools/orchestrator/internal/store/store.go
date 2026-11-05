@@ -1,6 +1,7 @@
 package store
 
 import (
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -54,6 +55,7 @@ type RunSpec struct {
 	OriginBirth          string
 }
 type TaskSpec struct {
+	BudgetPolicy           *contract.BudgetPolicy
 	ID, RunID              string
 	Dependencies           []string
 	MaxAttempts            int

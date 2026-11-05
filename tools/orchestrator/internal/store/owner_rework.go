@@ -134,7 +134,11 @@ func (d *DB) ownerReworkState(ctx context.Context, tx *sql.Tx, taskID string, re
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, t.group).Scan(&charged); err != nil {
 		return v, err
 	}
-	if charged >= defaultGroupActiveMS {
+	totalLimit, limitErr := groupTotalLimit(ctx, tx, t.group)
+	if limitErr != nil {
+		return v, limitErr
+	}
+	if charged >= totalLimit {
 		return v, CodeError("budget_exhausted")
 	}
 	if requireAvailable {

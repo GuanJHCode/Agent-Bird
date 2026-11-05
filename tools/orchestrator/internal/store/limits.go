@@ -165,7 +165,11 @@ func selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64,
 		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, task.group).Scan(&charged); err != nil {
 			return readyTask{}, err
 		}
-		if task.maxActive <= 0 || defaultGroupActiveMS-charged <= 0 {
+		totalLimit, limitErr := groupTotalLimit(ctx, tx, task.group)
+		if limitErr != nil {
+			return readyTask{}, limitErr
+		}
+		if task.maxActive <= 0 || totalLimit-charged <= 0 {
 			if task.launchID == launchID {
 				return readyTask{}, CodeError("budget_exhausted")
 			}

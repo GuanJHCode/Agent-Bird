@@ -23,16 +23,17 @@ import (
 )
 
 type TaskRequest struct {
-	ID                     string            `json:"id"`
-	Dependencies           []string          `json:"dependencies,omitempty"`
-	MaxAttempts            int               `json:"max_attempts"`
-	WorkRevision           int               `json:"work_revision,omitempty"`
-	BudgetGroupID          string            `json:"budget_group_id,omitempty"`
-	MaxActiveMS            int64             `json:"max_active_ms,omitempty"`
-	AdapterPayload         json.RawMessage   `json:"adapter"`
-	Fallbacks              []json.RawMessage `json:"fallbacks,omitempty"`
-	CompletionPolicy       string            `json:"completion_policy,omitempty"`
-	ExpectedArtifactSHA256 string            `json:"expected_artifact_sha256,omitempty"`
+	BudgetPolicy           *contract.BudgetPolicy `json:"budget_policy,omitempty"`
+	ID                     string                 `json:"id"`
+	Dependencies           []string               `json:"dependencies,omitempty"`
+	MaxAttempts            int                    `json:"max_attempts"`
+	WorkRevision           int                    `json:"work_revision,omitempty"`
+	BudgetGroupID          string                 `json:"budget_group_id,omitempty"`
+	MaxActiveMS            int64                  `json:"max_active_ms,omitempty"`
+	AdapterPayload         json.RawMessage        `json:"adapter"`
+	Fallbacks              []json.RawMessage      `json:"fallbacks,omitempty"`
+	CompletionPolicy       string                 `json:"completion_policy,omitempty"`
+	ExpectedArtifactSHA256 string                 `json:"expected_artifact_sha256,omitempty"`
 }
 
 type SubmitRequest struct {
@@ -475,7 +476,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "owner_request_changes_v2"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "owner_request_changes_v2", "budget_group_policy_v2"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
@@ -504,7 +505,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			if policy == "" {
 				policy = "owner_review"
 			}
-			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
+			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, BudgetPolicy: task.BudgetPolicy, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
 		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {

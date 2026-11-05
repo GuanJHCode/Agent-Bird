@@ -1,0 +1,23 @@
+# T03 实施与待审证据
+
+实现者/root。源树HEAD bde4bacf + source-manifest/implementation.patch；独立树tmp/t03，未提交。T01在集成树c29ac2bb中独立完成，T03未修改Host执行协议。T03当前源码冻结，后续验证不修改代码。
+
+明确budget_policy version2，独立max_active_ms_per_segment与max_active_ms_total；dispatch version2禁止非零legacy max_active_ms，可显式同组ID。旧v1按每段+默认120分钟组限保持，旧context/receipt字节和decoder未修改。schema9→10原子新增group_budget_policies，只登记新v2，不猜改旧组。v2与legacy组不得互相接管；同组跨task/run必须同controller/policy/max_attempts。总attempts及used/reserved仍在原attempt/budget_runtime账本，retry/rework/unknown/restart/rebind不补满；Host只消费原GrantedActiveMS。
+
+summary追加budget投影，标legacy_policy/group_policy_v2、attempts used/remaining、active used/reserved/remaining。写/调度重查policy，summary不作为授权。各既有预算检查路径都使用同group总额；原owner_rework独立任务范围与旧互斥/候选校验保留。
+
+输入边界：各入口attempts统一1–3；新提交adapter及fallback按实际嵌入JSON编码后16KiB（包含UTF-8/escaping）检查，保留旧receipt可读且不重写。完整Submit envelope在生成真实launch/control token后、创建bootstrap/control前，以同一实际requestID预检，中文/HTML escaping与JSON信封开销都计入；ipc.Call也在dial之前校验，未放大64KiB frame。旧已存pending launch仍使用原有validateLaunchSize；超新输入限制明确失败，不截断验收。
+
+新coordinator宣告budget_group_policy_v2。CLI submit/dispatch遇旧协调器缺能力在Submit之前拒绝，不降级。v1新增字段omitempty不改变旧有效请求规范字节。
+
+验证：T03-red保留8项行为失败，实证旧实现不裁总额/immutable group；policy-r1有未使用import编译失败，已修；policy-r2八项PASS。base-regression361PASS/4FAIL，四个失败均来自旧迁移fixture模拟低版本时遗留新group表，随后修fixture删除schema10表再降级并保持原rollback/兼容断言（owner升级最终版本改currentSchemaVersion）。新增schema9→10注入version更新失败的真实rollback测试；后续focused23PASS，再补技术retry/ownerrework/明确Hostrebind/跨runattempts/unknown释放其它槽后重启耗尽等，final-focused32PASS/0fail/0skip。原失败日志保留不覆盖。完整普通/race及静态检查待当前冻结树新报告。
+
+新测试经真实Store/API admitted policy，不在已提交legacy组里SQL插入新policy。unknown测试仅用SQL故障注入status，但释放第二真实slot后要求精确budget_exhausted，避免仅因no_slot误报预算保护。新rework测试总150ms第一段结算100后下一段50，额度尽仍保留candidate_oid可审查；retry测试显式epoch+Host rebind后余500ms。
+
+没有模型/安装/最终包验证。范围是unit/protocol-fixture；单段110秒采用已测ActiveMS事件输入结算，未真实等待180秒。独审与主签收待执行，不能标done。
+
+## 初审修订与有效证据
+
+独审P2反例原65455-byte Submit在已有准入下可创建超大group任务后卡Launch。修订用共同ValidControlID将新run/task/group/controller/origin/host-generation/显式launch/token限定128 UTF8 bytes，无NUL/CRLF；CLI与Store一致，旧记录只读不回写。新增精确反例零分配断言和最大转义ID/两adapter/AcceptedInput实际Launch余量。r2首次focused缺import编译失败保留，buildfix最终35PASS，集成T01后的树35PASS。r2静态vet相关5包/build全模块exit0。
+
+独立复审/root/review_t03 PASS：148相关focused、57原反例与扩展矩阵、1精确双16384-byte adapter边界全部通过。32文件manifest与patchSHA匹配。修订前ordinary673PASS/4skip与race134PASS只作为未变预算逻辑回归；最终ID准入变更以r2 focused/独立矩阵/集成35项及r2 vet/build证明，不伪称旧全量报告绑定修订源码。最终包仍需T12全量普通/race及真实验收。

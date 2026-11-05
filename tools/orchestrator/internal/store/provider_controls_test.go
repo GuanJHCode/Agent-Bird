@@ -210,7 +210,7 @@ func TestProviderMigrationPreservesVersionSevenRuns(t *testing.T) {
 	if _, err = db.SubmitPlan(ctx, providerTestPlan("history", "owner", "grok-build")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.sql.Exec(`ALTER TABLE runtime_hosts DROP COLUMN owner_request_changes_v2; DROP TABLE provider_settings; UPDATE schema_meta SET version=7`); err != nil {
+	if _, err = db.sql.Exec(`DROP TABLE group_budget_policies; ALTER TABLE runtime_hosts DROP COLUMN owner_request_changes_v2; DROP TABLE provider_settings; UPDATE schema_meta SET version=7`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()

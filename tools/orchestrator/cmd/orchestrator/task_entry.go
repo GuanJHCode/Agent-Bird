@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 )
 
@@ -203,7 +204,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	} else if reusePreparing {
 		return codeError("dispatch_checkpoint_invalid")
 	}
-	if plan.RunID == "" || plan.PlanRevision < 1 {
+	if !contract.ValidControlID(plan.RunID) || plan.PlanRevision < 1 {
 		return codeError("invalid_submit")
 	}
 	state, err := resolveState(*stateArg)
@@ -231,7 +232,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	}
 	h := taskHandle{Version: 1, RunID: plan.RunID, StateDir: state, Status: "submitting", TaskIDs: []string{}}
 	for _, task := range plan.Tasks {
-		if task.ID == "" || slices.Contains(h.TaskIDs, task.ID) || task.MaxAttempts < 1 || task.MaxActiveMS < 1 {
+		if task.ID == "" || slices.Contains(h.TaskIDs, task.ID) || task.MaxAttempts < 1 || task.MaxAttempts > 3 || (task.MaxActiveMS < 1 && task.BudgetPolicy == nil) {
 			return codeError("invalid_task_plan")
 		}
 		h.TaskIDs = append(h.TaskIDs, task.ID)

@@ -17,6 +17,7 @@ type RunSummary struct {
 }
 
 type SummaryTask struct {
+	Budget                      *BudgetSummary           `json:"budget,omitempty"`
 	TechnicalRetryCount         int                      `json:"technical_retry_count"`
 	ReviewReworkCount           int                      `json:"review_rework_count"`
 	RequestChangesBlockedReason string                   `json:"request_changes_blocked_reason,omitempty"`
@@ -154,6 +155,11 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 	defer tx.Rollback()
 	for i := range summary.Tasks {
 		task := &summary.Tasks[i]
+		budget, budgetErr := summarizeBudget(ctx, tx, task.TaskID)
+		if budgetErr != nil {
+			return RunSummary{}, budgetErr
+		}
+		task.Budget = &budget
 		task.ReviewReworkCount = task.WorkRevision - 1
 		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions WHERE task_id=? AND (revision_payload='' OR json_extract(revision_payload,'$.kind')=?)`, task.TaskID, reviewRetryKind).Scan(&task.TechnicalRetryCount); err != nil {
 			return RunSummary{}, err

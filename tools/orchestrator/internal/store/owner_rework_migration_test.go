@@ -15,7 +15,7 @@ func TestOwnerRequestChangesMigrationFromEightIsAtomic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.sql.Exec(`ALTER TABLE runtime_hosts DROP COLUMN owner_request_changes_v2; UPDATE schema_meta SET version=8; CREATE TRIGGER block_nine BEFORE UPDATE ON schema_meta WHEN NEW.version=9 BEGIN SELECT RAISE(ABORT,'injected migration failure'); END`); err != nil {
+	if _, err = db.sql.Exec(`DROP TABLE group_budget_policies; ALTER TABLE runtime_hosts DROP COLUMN owner_request_changes_v2; UPDATE schema_meta SET version=8; CREATE TRIGGER block_nine BEFORE UPDATE ON schema_meta WHEN NEW.version=9 BEGIN SELECT RAISE(ABORT,'injected migration failure'); END`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
@@ -46,7 +46,7 @@ func TestOwnerRequestChangesMigrationFromEightIsAtomic(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 9 {
+	if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
 		t.Fatalf("version=%d %v", version, err)
 	}
 	// Old Host hellos omit the feature. Their old tasks still schedule normally.
