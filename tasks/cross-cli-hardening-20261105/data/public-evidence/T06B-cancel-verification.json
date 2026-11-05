@@ -1,0 +1,15 @@
+{
+  "root_race_repetitions": 20,
+  "independent_race_repetitions": 5,
+  "failed": 0,
+  "skipped": 0,
+  "original_full_race": {
+    "passed": 1465,
+    "failed": 1,
+    "skipped": 8,
+    "failure": "TestSummaryVerificationBoundAndCancellation: Stats.InUse=1 after canceled callers returned",
+    "log_sha256": "6d2d7900bf47a788940182c969679233f7b956bcf76e240045f1113d0ee17964"
+  },
+  "root_repeat_log_sha256": "11b40bdab16b9343c8f3c40836c3f5be24767cc85dde4018414936f1ca817385",
+  "production_changes": false
+}

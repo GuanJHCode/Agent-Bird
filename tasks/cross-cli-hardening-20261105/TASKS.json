@@ -662,6 +662,18 @@
             "failed": 0,
             "skipped": 0
           }
+        },
+        {
+          "status": "PASS",
+          "type": "cancellation oracle bounded pool barrier; root20/independent5/integrated3 race",
+          "evidence": "reviews/T06B-cancellation-oracle-review.md",
+          "counts_including_subtests": {
+            "root_repeated_passed": 20,
+            "independent_repeated_passed": 5,
+            "integrated_passed": 3,
+            "failed": 0,
+            "skipped": 0
+          }
         }
       ],
       "review": {
@@ -673,14 +685,16 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T06B-review.md",
-        "accepted_commit": null
+        "accepted_commit": "0e2b6988"
       },
-      "commits": [],
+      "commits": [
+        "0e2b6988"
+      ],
       "blockers": [],
       "limitations": [
         "final-package/SDK dependency upgrade/native TUI/live provider not yet verified"
       ],
-      "updated_at": null
+      "updated_at": "2026-11-05T07:17:48.957382+00:00"
     },
     {
       "id": "T07",
@@ -789,8 +803,8 @@
       "completion_basis": null,
       "baseline_commit": "7242fd95",
       "implementation_agent": "/root",
-      "review_agent": null,
-      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08",
+      "review_agent": "/root/review_t08",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-r4",
       "write_scope": [],
       "changed_files": [],
       "acceptance_ids": [
@@ -803,7 +817,7 @@
       "implementation_report": null,
       "tests": [],
       "review": {
-        "status": "NOT_RUN",
+        "status": "CHANGES_REQUESTED",
         "report": null,
         "target_commit": null,
         "unresolved_findings": []
@@ -815,8 +829,10 @@
       },
       "commits": [],
       "blockers": [],
-      "limitations": [],
-      "updated_at": null
+      "limitations": [
+        "r1/r2/r3 reviewer blockers are retained as historical; r4 source-auth projection under verification. Final package/native parent continuation/live provider NOT_RUN."
+      ],
+      "updated_at": "2026-11-05T07:17:48.957382+00:00"
     },
     {
       "id": "T09",
@@ -827,10 +843,10 @@
         "T07",
         "T08"
       ],
-      "status": "pending",
+      "status": "blocked",
       "completion_basis": null,
       "baseline_commit": null,
-      "implementation_agent": null,
+      "implementation_agent": "/root",
       "review_agent": null,
       "worktree": null,
       "write_scope": [],
@@ -855,9 +871,13 @@
         "accepted_commit": null
       },
       "commits": [],
-      "blockers": [],
-      "limitations": [],
-      "updated_at": null
+      "blockers": [
+        "Current ordinary MCP SDK1.8.0 has no Tasks implementation; same-package native original-thread parent model continuation is unverified."
+      ],
+      "limitations": [
+        "No new native implementation included; existing managed_process collect/wait and explicit native rejection retained. Native acceptance not done."
+      ],
+      "updated_at": "2026-11-05T07:17:48.957382+00:00"
     },
     {
       "id": "T10",
@@ -944,12 +964,12 @@
         "T08",
         "T10"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "completion_basis": null,
       "baseline_commit": null,
-      "implementation_agent": null,
+      "implementation_agent": "/root/implement_t11_docs",
       "review_agent": null,
-      "worktree": null,
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-docs",
       "write_scope": [],
       "changed_files": [],
       "acceptance_ids": [
@@ -974,8 +994,10 @@
       },
       "commits": [],
       "blockers": [],
-      "limitations": [],
-      "updated_at": null
+      "limitations": [
+        "Documentation materials only in progress; frozen package/build/install/live NOT_RUN."
+      ],
+      "updated_at": "2026-11-05T07:17:48.957382+00:00"
     },
     {
       "id": "T12",

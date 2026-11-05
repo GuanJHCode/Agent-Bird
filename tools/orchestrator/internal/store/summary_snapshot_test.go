@@ -195,6 +195,19 @@ func TestSummaryVerificationBoundAndCancellation(t *testing.T) {
 			t.Fatal("canceled inspect leaked")
 		}
 	}
+	// database/sql may win cancellation's rollback CAS and return ErrTxDone
+	// from our deferred Rollback before its background rollback releases the
+	// connection. With this fixture's one-connection pool, acquiring and closing
+	// a fresh connection is a bounded cleanup barrier; a real leak still fails.
+	cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cleanupCancel()
+	connection, err := f.db.sql.Conn(cleanupCtx)
+	if err != nil {
+		t.Fatalf("canceled inspect retained SQL connection: %v", err)
+	}
+	if err = connection.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if maximum.Load() != 2 || active.Load() != 0 || len(f.db.summarySlots) != 0 || f.db.sql.Stats().InUse != 0 {
 		t.Fatalf("leaked resources: max=%d active=%d slots=%d sql=%+v", maximum.Load(), active.Load(), len(f.db.summarySlots), f.db.sql.Stats())
 	}
