@@ -1,0 +1,10 @@
+{
+  "base": "7242fd95a43848f489e162f52a320e39fba9d0c1",
+  "source_files": {
+    "tools/orchestrator/internal/store/summary.go": "d6d6af23d0d4a493684b60abbe1848c406147819850a7436b3bf257d4410b93f",
+    "tools/orchestrator/internal/store/owner_rework.go": "136d91db52241fa5ffdce782d67a937be1a02955872b3e6848b9e5175cbd86f2",
+    "tools/orchestrator/internal/store/store.go": "f53f76c39b0cabb982592cb791c9627a46f0cb1e1e855d3d80539ba89e69806d",
+    "tools/orchestrator/internal/store/summary_snapshot_test.go": "dc5d72edc2cf46da3f785df9c08346719e7e353ee8f49441ddb0d950cab92f87"
+  },
+  "patch_sha256": "a80cfb333688cf1548bd6fe65afe0ef0f1b85d81dbc826be4c0d9dbf47e5ba07"
+}

@@ -1,0 +1,91 @@
+{
+  "data/final-normal.json": {
+    "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": {
+      "package_terminal": [
+        [
+          "pass",
+          6.786
+        ]
+      ],
+      "top": {
+        "pass": 31
+      },
+      "sub": {
+        "pass": 55
+      },
+      "unfinished": []
+    },
+    "codex-cli-orchestration-design/tools/orchestrator/internal/store": {
+      "package_terminal": [
+        [
+          "pass",
+          183.7
+        ]
+      ],
+      "top": {
+        "pass": 169
+      },
+      "sub": {
+        "pass": 236
+      },
+      "unfinished": []
+    }
+  },
+  "data/final-race.json": {
+    "codex-cli-orchestration-design/tools/orchestrator/internal/coordinator": {
+      "package_terminal": [
+        [
+          "pass",
+          20.584
+        ]
+      ],
+      "top": {
+        "pass": 31
+      },
+      "sub": {
+        "pass": 55
+      },
+      "unfinished": []
+    },
+    "codex-cli-orchestration-design/tools/orchestrator/internal/store": {
+      "package_terminal": [
+        [
+          "pass",
+          270.47
+        ]
+      ],
+      "top": {
+        "pass": 169
+      },
+      "sub": {
+        "pass": 236
+      },
+      "unfinished": []
+    }
+  },
+  "review/focused-race.json": {
+    "codex-cli-orchestration-design/tools/orchestrator/internal/store": {
+      "package_terminal": [
+        [
+          "pass",
+          46.457
+        ]
+      ],
+      "top": {
+        "pass": 16
+      },
+      "sub": {
+        "pass": 36
+      },
+      "unfinished": []
+    }
+  },
+  "source_manifest_match": true,
+  "source_sha256": {
+    "tools/orchestrator/internal/store/summary.go": "d6d6af23d0d4a493684b60abbe1848c406147819850a7436b3bf257d4410b93f",
+    "tools/orchestrator/internal/store/owner_rework.go": "136d91db52241fa5ffdce782d67a937be1a02955872b3e6848b9e5175cbd86f2",
+    "tools/orchestrator/internal/store/store.go": "f53f76c39b0cabb982592cb791c9627a46f0cb1e1e855d3d80539ba89e69806d",
+    "tools/orchestrator/internal/store/summary_snapshot_test.go": "dc5d72edc2cf46da3f785df9c08346719e7e353ee8f49441ddb0d950cab92f87"
+  },
+  "review_exit_code": 0
+}

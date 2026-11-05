@@ -411,9 +411,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T04-integration-review.md",
-        "accepted_commit": null
+        "accepted_commit": "7242fd95"
       },
-      "commits": [],
+      "commits": [
+        "7242fd95"
+      ],
       "blockers": [],
       "limitations": [
         "installed-package/live-provider/native-parent not yet run",
@@ -610,35 +612,74 @@
         "T03",
         "T04"
       ],
-      "status": "pending",
-      "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
-      "review_agent": null,
-      "worktree": null,
+      "status": "done",
+      "completion_basis": "implemented",
+      "baseline_commit": "7242fd95",
+      "implementation_agent": "/root/implement_t06b",
+      "review_agent": "/root/review_t06b",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t06b",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "tools/orchestrator/internal/store/summary.go",
+        "tools/orchestrator/internal/store/owner_rework.go",
+        "tools/orchestrator/internal/store/store.go",
+        "tools/orchestrator/internal/store/summary_snapshot_test.go"
+      ],
       "acceptance_ids": [
         "READ-01",
         "READ-02",
         "READ-03"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T06B-implementation.md",
+      "tests": [
+        {
+          "status": "PASS",
+          "type": "module store/coordinator normal and race",
+          "evidence": "reviews/T06B-review.md",
+          "counts_including_subtests": {
+            "normal_passed": 491,
+            "race_passed": 491,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "type": "independent focused race",
+          "evidence": "data/public-evidence/T06B-review-verification.json",
+          "counts_including_subtests": {
+            "passed": 52,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "status": "PASS",
+          "type": "integrated affected race",
+          "evidence": "data/public-evidence/T06B-integrated.json",
+          "counts_including_subtests": {
+            "passed": 124,
+            "failed": 0,
+            "skipped": 0
+          }
+        }
+      ],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
+        "status": "PASS",
+        "report": "reviews/T06B-review.md",
         "target_commit": null,
         "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "PASS",
+        "evidence": "reviews/T06B-review.md",
         "accepted_commit": null
       },
       "commits": [],
       "blockers": [],
-      "limitations": [],
+      "limitations": [
+        "final-package/SDK dependency upgrade/native TUI/live provider not yet verified"
+      ],
       "updated_at": null
     },
     {
@@ -744,12 +785,12 @@
         "T05",
         "T07"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
+      "baseline_commit": "7242fd95",
+      "implementation_agent": "/root",
       "review_agent": null,
-      "worktree": null,
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08",
       "write_scope": [],
       "changed_files": [],
       "acceptance_ids": [

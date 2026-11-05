@@ -31,6 +31,8 @@ const (
 )
 
 type DB struct {
+	summaryVerify       func(context.Context) error // test-only verifier barrier; nil in production
+	summarySlots        chan struct{}
 	reworkFault         func(string) error // test-only crash cut points; nil in production
 	sql                 *sql.DB
 	path                string

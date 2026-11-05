@@ -2,7 +2,7 @@
 
 集成worktree /Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration，分支 feat/cross-cli-hardening-20261105。原仓库 /Users/guanjunhui/code/ai/codex-cli-orchestration-design 保持原分支与未跟踪文件。root唯一写集成树；子agent不递归，最多两个并发子agent；每功能另一agent独审PASS、root核验/签收后才commit并push任务分支。未授权merge正式分支/release/全局安装替换。
 
-已独审/签收并push：T00=08aa0184，T02=428a5877，T10=bde4bacf，T01=c29ac2bb，T03=2347d34c；T07=3fe267b9（独审73pass/集成55pass）；T05=a14affc4（独审39pass/集成19pass）；T06A=28a3698d（独审45pass/集成28pass）；T04 r5独审及组合签收PASS，当前提交。相关reviews和new reports可查，未将skip/旧树报告混为当前全验收。
+已独审/签收并push：T00=08aa0184，T02=428a5877，T10=bde4bacf，T01=c29ac2bb，T03=2347d34c；T07=3fe267b9（独审73pass/集成55pass）；T05=a14affc4（独审39pass/集成19pass）；T06A=28a3698d（独审45pass/集成28pass）；T04=7242fd95（r5独审与组合签收PASS）；T06B独审52pass/集成124pass，当前提交。相关reviews和new reports可查，未将skip/旧树报告混为当前全验收。
 
 活动负责人/树（均位于上述integration的同级tmp目录）：
 - /root/implement_t04，t04 HEAD2347d34c：v3正文refs/schema11，ADR004已root采用（256KiB正文，512KiB最终stdin硬限，chunk16KiB；旧v1/v2golden保留，显式CLI v3）。r3实现冻结后正常/race有效完成，但独审实证GC额外hardlink仍存时提前释放charge。r3 fullrace1307pass8skip、store normal130pass不能覆盖此漏洞；review_t04全部会话已结束；root因消息交叉曾让worker在独审未结束时追加单一red测试，这批独审66顶层normal/21顶层race只作诊断；GC反例仍有效。现明确移交worker唯一写权修r4：先证明已知stage/final link集合/nlink再unlink，未知links保留charged deleting。未修/复审前不可提交。证据tmp/t04-evidence。它只读依赖T07 owner_action_guard.go快照SHA d3704ec2d0d1ace2b2575af7ab53238b9868240ecd593afb27733d12f9649150，必须排除其feature patch，由T07先集成。
@@ -22,3 +22,5 @@ T06A r2已独审PASS、root组合28pass，准备提交。T04 r5 normal/race各51
 T04 r5新reviewer review_t04_final已稳定完成normal/race TestReworkRefs各51events/23顶层PASS，仍在已有legacy/CLI/Host/golden/ACK合同回归，未出最终结论。root尚未合入T04。预期server.go手动组合3hunk：追加RefsV3字段；Ready同时保留managed_owner_projection_v1、owner_rework_refs_v3；KindRequestChanges在authorizeOwnerAction后分legacy/v3且均传actionCtx。须新增5phase wrong-token/dead-owner组合回归，并在稳定integration树验证/另请reviewer签集成差异后才T04commit。T04 source manifest是全树2778文件，不可把它当changed_files；delivery-manifest-r5列25产品变更且排除T07helper/legacyhook。root当前无活动工具会话。
 
 T04 r5已独审+组合签收PASS，root最终26file manifest匹配，5pkg race114pass与独立新coordinator12pass均终态完成；source仍冻结。现在提交/push T04，随后T06B依赖满足可隔离worker实施，T08依赖也满足由root隔离实施；共享Summary结构维持兼容，不并改同树。T09、T11/T12/T13仍待后续。root当前无活动工具会话。
+
+T06B四文件已独审PASS、root集成124race PASS，正在commit/push；T08由root唯一写tmp/t08（base7242），已添加官方SDK1.8（x/sys0.31→0.41，GOPROXYoff首轮缺metadata后用官方proxy补齐，之后应offline验证）。当前生产只有config CLI/main接线与未验证mcp_routes.go基础；8工具/stdio/业务handlers及完整验收仍待实施，不能称MCP完成。T08-config-red/green记录configure原invalid_args→private配置成功；config不绑定未来owner，serve无需owner可tools/list，dispatch沿用原currentOwner，route/review按逻辑controller_thread签名，物理owner在每次业务mutation仍由T07核。query/stop/ACK不额外要求owner-live。advisor已确认RebindOwner只变PID/birth而逻辑controller不变，native legacy bearer例外不得误称managed隔离。T06B源码可在其commit后按依赖补入t08（不计MCP patch）。

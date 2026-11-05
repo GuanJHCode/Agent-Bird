@@ -4,6 +4,7 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"context"
 	"encoding/json"
+	"reflect"
 )
 
 // RunSummary is a read-only projection of the existing task database. Actions
@@ -45,11 +46,89 @@ type ReviewableResultBinding struct {
 	WorkRevision  int    `json:"work_revision"`
 }
 
+// summaryCandidate is a DB-only snapshot, never an authorization cache.
+type summaryCandidate struct {
+	state     ownerReworkState
+	admission string
+	evidence  string
+	slot      string
+}
+
 func (d *DB) SummarizeRun(ctx context.Context, taskID, controller, token string) (RunSummary, error) {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	if err := d.ValidateTaskOwner(ctx, taskID, controller, token); err != nil {
+	if d.summarySlots == nil {
+		d.summarySlots = make(chan struct{}, 2)
+	}
+	slots, hook := d.summarySlots, d.summaryVerify
+	before, facts, err := d.summarizeRunFacts(ctx, taskID, controller, token)
+	d.mu.Unlock()
+	if err != nil {
 		return RunSummary{}, err
+	}
+	verified := make([]ownerReworkState, len(facts))
+	verification := make([]error, len(facts))
+	for i, fact := range facts {
+		if fact.evidence != "" {
+			continue
+		}
+		// Waiting for bounded external work never holds mu, Rows, or a SQL transaction.
+		select {
+		case slots <- struct{}{}:
+		case <-ctx.Done():
+			return RunSummary{}, ctx.Err()
+		}
+		func() {
+			defer func() { <-slots }()
+			if hook != nil {
+				verification[i] = hook(ctx)
+			}
+			if verification[i] == nil {
+				verified[i], verification[i] = verifyOwnerCandidateEvidence(ctx, fact.state, true)
+			}
+		}()
+		if err := ctx.Err(); err != nil {
+			return RunSummary{}, err
+		}
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	after, current, err := d.summarizeRunFacts(ctx, taskID, controller, token)
+	if err != nil {
+		return RunSummary{}, err
+	}
+	for i := range after.Tasks {
+		task := &after.Tasks[i]
+		// Any changed task is returned at the final observation point, without
+		// mutation projections built from the earlier external verification.
+		if i >= len(facts) || !reflect.DeepEqual(before.Tasks[i], *task) || !reflect.DeepEqual(facts[i], current[i]) {
+			task.AllowedActions = []string{"status", "collect"}
+			task.ReviewableResult = nil
+			continue
+		}
+		if current[i].evidence != "" || current[i].slot != "" {
+			continue
+		}
+		if verification[i] == nil {
+			if current[i].admission == "" {
+				task.AllowedActions = append(task.AllowedActions, "request-changes")
+			}
+			if binding := task.ReviewableResult; binding != nil {
+				e := verified[i].event
+				if binding.EventID == e.EventID && binding.EventRevision == e.EventRevision && binding.EventHash == e.PayloadHash && binding.ActionSlot == e.ActionSlot && binding.SegmentID == e.SegmentID && binding.WorkRevision == e.WorkRevision {
+					binding.CandidateOID = verified[i].candidate.CandidateOID
+				}
+			}
+		} else if current[i].admission == "" {
+			task.RequestChangesBlockedReason = verification[i].Error()
+		}
+	}
+	return after, nil
+}
+
+// Caller holds mu. All Rows and transactions are closed before this returns.
+func (d *DB) summarizeRunFacts(ctx context.Context, taskID, controller, token string) (RunSummary, []summaryCandidate, error) {
+	if err := d.ValidateTaskOwner(ctx, taskID, controller, token); err != nil {
+		return RunSummary{}, nil, err
 	}
 	rows, err := d.sql.QueryContext(ctx, `
 SELECT t.run_id,t.id,t.status,r.work_revision,
@@ -76,7 +155,7 @@ SELECT t.run_id,t.id,t.status,r.work_revision,
 FROM tasks t JOIN task_runtime r ON r.task_id=t.id
 WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 	if err != nil {
-		return RunSummary{}, err
+		return RunSummary{}, nil, err
 	}
 	defer rows.Close()
 	summary := RunSummary{Version: 1, Counts: map[string]int{"pending": 0, "running": 0, "blocked": 0, "completed": 0}, Tasks: []SummaryTask{}}
@@ -86,16 +165,16 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 		var result, question, failure, technicalReviewFailure bool
 		var adapterPayload, reviewableResult, latestProgress string
 		if err := rows.Scan(&summary.RunID, &task.TaskID, &task.Status, &task.WorkRevision, &task.ActiveSegments, &attempts, &maxAttempts, &result, &question, &failure, &adapterPayload, &technicalReviewFailure, &groupTasks, &reviewableResult, &task.StopReason, &latestProgress); err != nil {
-			return RunSummary{}, err
+			return RunSummary{}, nil, err
 		}
 		if reviewableResult != "" && task.ActiveSegments == 0 {
 			if err := json.Unmarshal([]byte(reviewableResult), &task.ReviewableResult); err != nil {
-				return RunSummary{}, err
+				return RunSummary{}, nil, err
 			}
 		}
 		if latestProgress != "" {
 			if err := json.Unmarshal([]byte(latestProgress), &task.LatestProgress); err != nil {
-				return RunSummary{}, err
+				return RunSummary{}, nil, err
 			}
 		}
 		managed := candidateManaged([]byte(adapterPayload))
@@ -143,47 +222,59 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 		summary.Tasks = append(summary.Tasks, task)
 	}
 	if err := rows.Err(); err != nil {
-		return RunSummary{}, err
+		return RunSummary{}, nil, err
 	}
 	if err := rows.Close(); err != nil {
-		return RunSummary{}, err
+		return RunSummary{}, nil, err
 	}
 	tx, err := d.sql.BeginTx(ctx, nil)
 	if err != nil {
-		return RunSummary{}, err
+		return RunSummary{}, nil, err
 	}
 	defer tx.Rollback()
+	facts := make([]summaryCandidate, len(summary.Tasks))
 	for i := range summary.Tasks {
 		task := &summary.Tasks[i]
 		budget, budgetErr := summarizeBudget(ctx, tx, task.TaskID)
 		if budgetErr != nil {
-			return RunSummary{}, budgetErr
+			return RunSummary{}, nil, budgetErr
 		}
 		task.Budget = &budget
 		task.ReviewReworkCount = task.WorkRevision - 1
 		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions WHERE task_id=? AND (revision_payload='' OR json_extract(revision_payload,'$.kind')=?)`, task.TaskID, reviewRetryKind).Scan(&task.TechnicalRetryCount); err != nil {
-			return RunSummary{}, err
+			return RunSummary{}, nil, err
 		}
-		state, checkErr := d.ownerReworkEligibility(ctx, tx, task.TaskID)
-		if checkErr == nil {
-			task.AllowedActions = append(task.AllowedActions, "request-changes")
-		} else if state.payload.Profile != nil && state.payload.Profile.Role == "implementer" && state.payload.CandidateWorkspace != nil {
+		state, checkErr := d.ownerReworkFacts(ctx, tx, task.TaskID, true)
+		if checkErr != nil && state.payload.Profile != nil && state.payload.Profile.Role == "implementer" && state.payload.CandidateWorkspace != nil {
 			task.RequestChangesBlockedReason = checkErr.Error()
 		}
-		if task.ReviewableResult != nil {
-			candidateState, candidateErr := state, checkErr
-			if checkErr != nil && !state.evidenceChecked {
-				candidateState, candidateErr = d.loadOwnerCandidateState(ctx, tx, task.TaskID)
-				if candidateErr == nil {
-					candidateState, candidateErr = d.ownerCandidateEvidence(ctx, tx, candidateState, true)
-				}
-			}
-			binding := task.ReviewableResult
-			event := candidateState.event
-			if candidateErr == nil && binding.EventID == event.EventID && binding.EventRevision == event.EventRevision && binding.EventHash == event.PayloadHash && binding.ActionSlot == event.ActionSlot && binding.SegmentID == event.SegmentID && binding.WorkRevision == event.WorkRevision {
-				binding.CandidateOID = candidateState.candidate.CandidateOID
+		if checkErr != nil {
+			facts[i].admission = checkErr.Error()
+		}
+		// Candidate validity survives transient Host/provider/budget unavailability.
+		candidate, candidateErr := d.loadOwnerCandidateState(ctx, tx, task.TaskID)
+		if candidateErr == nil {
+			candidate, candidateErr = loadOwnerCandidateEvidence(ctx, tx, candidate)
+		}
+		if candidateErr == nil {
+			var slotErr error
+			candidate, slotErr = ownerCandidateSlot(ctx, tx, candidate)
+			if slotErr != nil {
+				facts[i].slot = slotErr.Error()
 			}
 		}
+		facts[i].state = candidate
+		if candidateErr != nil {
+			facts[i].evidence = candidateErr.Error()
+		}
+		if checkErr == nil {
+			if candidateErr != nil {
+				task.RequestChangesBlockedReason = candidateErr.Error()
+			} else if facts[i].slot != "" {
+				task.RequestChangesBlockedReason = facts[i].slot
+			}
+		}
+
 	}
-	return summary, nil
+	return summary, facts, nil
 }

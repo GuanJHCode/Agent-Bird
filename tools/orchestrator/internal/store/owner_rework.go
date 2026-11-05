@@ -40,6 +40,7 @@ type ownerReworkState struct {
 	payload         adapter.InvocationPayload
 	candidate       gitops.CandidateReceipt
 	evidenceChecked bool
+	rawAdapter      string
 }
 
 func validateOwnerRework(spec OwnerReworkSpec) error {
@@ -99,6 +100,16 @@ func (d *DB) ownerReworkEligibility(ctx context.Context, tx *sql.Tx, taskID stri
 // Host retention preserves a structurally revisable candidate through temporary
 // provider/storage outages. Only queueing and action projection need availability.
 func (d *DB) ownerReworkState(ctx context.Context, tx *sql.Tx, taskID string, requireAvailable bool) (ownerReworkState, error) {
+	v, err := d.ownerReworkFacts(ctx, tx, taskID, requireAvailable)
+	if err != nil {
+		return v, err
+	}
+	return d.ownerCandidateEvidence(ctx, tx, v, requireAvailable)
+}
+
+// ownerReworkFacts checks database admission only; inspect verifies evidence after
+// releasing both the Store mutex and its sole SQL connection.
+func (d *DB) ownerReworkFacts(ctx context.Context, tx *sql.Tx, taskID string, requireAvailable bool) (ownerReworkState, error) {
 	v, err := d.loadOwnerCandidateState(ctx, tx, taskID)
 	if err != nil {
 		return v, err
@@ -163,7 +174,7 @@ func (d *DB) ownerReworkState(ctx context.Context, tx *sql.Tx, taskID string, re
 			return v, err
 		}
 	}
-	return d.ownerCandidateEvidence(ctx, tx, v, requireAvailable)
+	return v, nil
 }
 
 // Loading the immutable candidate context does not require another attempt, a
@@ -176,6 +187,7 @@ func (d *DB) loadOwnerCandidateState(ctx context.Context, tx *sql.Tx, taskID str
 	if err != nil {
 		return v, ErrNotFound
 	}
+	v.rawAdapter = raw
 	p, err := adapter.DecodeInvocationPayload([]byte(raw))
 	v.payload = p
 	var fallbacks []json.RawMessage
@@ -187,11 +199,22 @@ func (d *DB) loadOwnerCandidateState(ctx context.Context, tx *sql.Tx, taskID str
 	return v, nil
 }
 
-// evidenceChecked prevents summary from repeating the bounded Git verification
-// when mutation admission reached evidence validation and failed closed.
+// ownerCandidateEvidence preserves mutation's original transactional ordering.
 func (d *DB) ownerCandidateEvidence(ctx context.Context, tx *sql.Tx, v ownerReworkState, verifyGit bool) (ownerReworkState, error) {
 	v.evidenceChecked = true
-	t, p := &v.task, v.payload
+	v, err := loadOwnerCandidateEvidence(ctx, tx, v)
+	if err != nil {
+		return v, err
+	}
+	v, err = verifyOwnerCandidateEvidence(ctx, v, verifyGit)
+	if err != nil {
+		return v, err
+	}
+	return ownerCandidateSlot(ctx, tx, v)
+}
+
+func loadOwnerCandidateEvidence(ctx context.Context, tx *sql.Tx, v ownerReworkState) (ownerReworkState, error) {
+	t := &v.task
 	taskID := t.id
 	var body, slot, producer, attempt, segment, command string
 	var rev int64
@@ -200,7 +223,15 @@ func (d *DB) ownerCandidateEvidence(ctx context.Context, tx *sql.Tx, v ownerRewo
 		return v, CodeError("rework_evidence_stale")
 	}
 	v.event.EventRevision, v.event.ActionSlot = rev, slot
-	e := v.event
+	return v, nil
+}
+
+func verifyOwnerCandidateEvidence(ctx context.Context, v ownerReworkState, verifyGit bool) (ownerReworkState, error) {
+	if err := ctx.Err(); err != nil {
+		return v, err
+	}
+	t, p, e := &v.task, v.payload, v.event
+	var err error
 	ref := e.Artifact
 	if ref == nil || !filepath.IsAbs(ref.Path) || ref.Size < 1 || ref.Size > 1024*1024 || ref.SHA256 != e.PayloadHash || !validDigest(ref.SHA256) {
 		return v, CodeError("rework_artifact_invalid")
@@ -267,8 +298,13 @@ func (d *DB) ownerCandidateEvidence(ctx context.Context, tx *sql.Tx, v ownerRewo
 			return v, CodeError("rework_candidate_mismatch")
 		}
 	}
+	return v, nil
+}
+
+func ownerCandidateSlot(ctx context.Context, tx *sql.Tx, v ownerReworkState) (ownerReworkState, error) {
+	e := v.event
 	var occupied int
-	if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM review_decisions WHERE event_id=? OR action_slot=?)+(SELECT COUNT(*) FROM retry_decisions WHERE source_event_id=? OR action_slot=?)`, e.EventID, slot, e.EventID, slot).Scan(&occupied); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM review_decisions WHERE event_id=? OR action_slot=?)+(SELECT COUNT(*) FROM retry_decisions WHERE source_event_id=? OR action_slot=?)`, e.EventID, e.ActionSlot, e.EventID, e.ActionSlot).Scan(&occupied); err != nil {
 		return v, err
 	}
 	if occupied != 0 {
