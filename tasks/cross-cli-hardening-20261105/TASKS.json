@@ -884,9 +884,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "docs/T08-implementation.md",
-        "accepted_commit": null
+        "accepted_commit": "c3de5226"
       },
-      "commits": [],
+      "commits": [
+        "c3de5226"
+      ],
       "blockers": [],
       "limitations": [
         "Final installed package/receipt and real parent/worker model cycles remain T11/T12 gates.",
@@ -1032,7 +1034,16 @@
       "review_agent": null,
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-docs",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "README.md",
+        "docs/design-v0.1.md",
+        "docs/installation.md",
+        "docs/support-matrix.md",
+        "docs/provider-runtime.md",
+        "docs/runtime-protocols.md",
+        "docs/testing.md",
+        "tasks/cross-cli-hardening-20261105/docs/delivery-scope.md"
+      ],
       "acceptance_ids": [
         "PKG-01",
         "PKG-02",
@@ -1040,8 +1051,14 @@
         "PKG-04",
         "DOC-01"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T11-materials.md",
+      "tests": [
+        {
+          "status": "PASS",
+          "type": "frozen documentation materials only",
+          "evidence": "reviews/T11-docs-review.md"
+        }
+      ],
       "review": {
         "status": "NOT_RUN",
         "report": null,
@@ -1056,9 +1073,9 @@
       "commits": [],
       "blockers": [],
       "limitations": [
-        "Documentation materials only in progress; frozen package/build/install/live NOT_RUN."
+        "Documentation materials reviewed PASS; final package/installation/receipt/PKG-01..04 not yet verified."
       ],
-      "updated_at": "2026-11-05T07:17:48.957382+00:00"
+      "updated_at": "2026-11-05T08:44:46.119375+00:00"
     },
     {
       "id": "T12",
@@ -1067,10 +1084,10 @@
       "depends_on": [
         "T11"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "completion_basis": null,
       "baseline_commit": null,
-      "implementation_agent": null,
+      "implementation_agent": "/root + /root/implement_t12_harness",
       "review_agent": null,
       "worktree": null,
       "write_scope": [],
@@ -1100,7 +1117,9 @@
       },
       "commits": [],
       "blockers": [],
-      "limitations": [],
+      "limitations": [
+        "Harness-only fixtures; independent postflight evidence-binding P1 under repair. No model trial yet."
+      ],
       "updated_at": null,
       "acceptance_policy": {
         "required_pass_for_core": [

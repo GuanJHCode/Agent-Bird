@@ -1,5 +1,7 @@
 # 支持矩阵
 
+**2026-11-05 本轮私有候选（待最终包验收）：** 当前范围、parent/provider/version/artifact、进程 scope、read/write、fresh/resume、delivery、平台与证据逐项见[本轮矩阵](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#交付身份与验收边界)。下文带日期/版本的结果均为历史证据，不是本轮同包 PASS。managed_process 不证明 native chat，native_push=false；T09 native 总体 BLOCKED。最终包身份、PKG-01～04 与 T12 双向 live 尚待验收；AGY/Grok coding 和 typed resume 未开放。
+
 **多 Provider 本机增量（2026-09-17）：** `0.1.0-multi-provider.1` 增加 AGY/Grok 选择入口。AGY 1.2.5 在当前 Codex owner 下经正式安装、高层 task run、随机文件读取、哈希校验、ACK/accept 后 completed；仅支持只读分析。Grok 1.0.30 已登录，隔离下创建会话因 FS_PERMISSION_DENIED 失败，typed 执行继续拒绝；旧未登录记录已不是当前状态。公开 preview.1 尚不包含增量，见[本轮交付](../tasks/mvp-multi-provider-entry/docs/delivery.md)。
 
 **公开下载预览（2026-09-17）：** `v0.1.0-preview.1` 提供 macOS arm64 预编译插件，运行逻辑对应已验证的中断反馈修复版。后续新 Codex CLI 会话已自然派发真实 Claude，记录进度并收到退出码0的完整报告；主脑因部分比较结论证据不足拒绝原稿、完成ACK并自行修正交付，任务保持 failed、0 active。这证明自然触发、真实进度和验收拒绝收尾，不证明真实超时分支或 Claude 返工闭环。

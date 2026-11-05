@@ -2,6 +2,8 @@
 
 日期：2026-09-10。
 
+**历史提案说明（2026-11-05）：** 本文保留最初设计及待验证目标；“未实现”“不使用 MCP”“Windows”等下文表述不作为当前源码状态。当前候选采用 managed_process + collect/wait，加入官方 SDK 的 8 个普通 MCP 工具；不启 Tasks/native push，不把进程身份当聊天绑定。当前 read/write、认证、父退出、fresh/rebind/resume 与交付门禁以[本轮实现范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)为准，最终包与真实双向验收尚未完成。
+
 设计过程：GPT-6 Astra、max 推理强度子 Agent 负责架构设计与压力检查；主 Agent 整理需求、核验接口、编写验收矩阵并汇总本文件。
 
 状态：设计提案，经过逐项评审修订后仍须通过可行性原型；未实现程序，未完成原生会话回调或 Windows 端到端验证。下文“必须/不得”是实现与发布条件，不代表已经实现。项目独立实现，不基于此前讨论的第三方仓库。

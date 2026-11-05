@@ -1,6 +1,8 @@
 # Codex Bird Orchestrator
 
-在当前 CLI 中通过 **Agent Bird** 派发独立任务、检查候选结果并明确验收。Codex 原生会话可直接绑定；Claude、Grok、AGY 主会话通过受控 controller 启动绑定。
+在 CLI 中通过 **Agent Bird** 派发独立任务、检查候选结果并明确验收。
+
+**版本边界：** 下方公开下载仍为 `v0.1.0-preview.1`；2026-11-05 源码是本轮私有候选（待最终包验收），尚无本轮最终包身份或同包双向 live 结论。新 managed owner 仅为 `managed_process`，通过 wait/collect 返回，不能据此声称绑定原生聊天或支持 native push。详见[本轮交付范围与 MCP 用法](tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)。
 
 > 用 Claude 检查这个项目的代码，列出问题和改进建议。
 
@@ -52,7 +54,7 @@
 ## 当前源码的多 CLI 入口
 
 当前源码支持 `controller start`、`routing`、`task dispatch/wait/reconcile`，以及
-`inspect/collect/request-changes/accept/ack/stop`。`reconcile` 仅用于保留原 control receipt 的 `submitting`/`submit_uncertain` handle 或 `reconciled` 重放；正常 queued 提交无需 reconcile。取消先用 `task inspect --handle H` 观察 task_id/work_revision，再调用 `task stop --handle H --task-id <observed-task-id> --work-revision <observed-work-revision>`，并检查执行树确已终止。历史下载包不自动获得这些能力。
+`inspect/collect/request-changes/accept/ack/stop`；本轮候选另有 `mcp configure/serve` 的 8 个普通工具（非 Tasks）。`reconcile` 仅用于保留原 control receipt 的 `submitting`/`submit_uncertain` handle 或 `reconciled` 重放；正常 queued 提交无需 reconcile。取消先用 `task inspect --handle H` 观察 task_id/work_revision，再调用 `task stop --handle H --task-id <observed-task-id> --work-revision <observed-work-revision>`，并检查执行树确已终止。历史下载包不自动获得这些能力。
 安装后使用该版本的 `scripts/invoke.sh` 绝对路径；无需 `PLUGIN_ROOT`。
 Claude、Grok、AGY 的 owner 是受控主进程作用域，同一进程内多个原生聊天共享此作用域。
 Worker 不能再次派发。已有 handle 保留原 runtime 路由，升级不能改绑为“最新任务”。

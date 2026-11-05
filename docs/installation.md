@@ -1,5 +1,7 @@
 # 安装与更新
 
+本文首次安装步骤面向公开 `v0.1.0-preview.1`，不包含 2026-11-05 私有候选的新能力。私有候选尚待唯一版本冻结、任务内安装/doctor/入口及同包验收；不替换全局安装。最终 source/binary/package/receipt 身份由最终报告补齐。任务内 MCP 配置与绝对 wrapper 模板见[本轮交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#任务内-mcp-配置)。移动安装或改变解释器/文件摘要后按 receipt 合同重装，不能从源码或 latest 静默替代。
+
 ## 首次安装：三步
 
 前提：macOS Apple Silicon（M 系列芯片），终端中 `codex` 和 `claude` 已能正常使用。原生 Codex 插件命令已在 Codex CLI 0.154.0 上验证。

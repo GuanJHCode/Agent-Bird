@@ -1,0 +1,34 @@
+[
+  {
+    "path": "README.md",
+    "sha256": "52519898fb46429d53e8a55006493a8a7e5eaf4462b229bc8d5465cd82de1f3d"
+  },
+  {
+    "path": "docs/design-v0.1.md",
+    "sha256": "08cbef9600689da04c0edb8ce250d082a92eb0424eaf385dd5efb81de47032c2"
+  },
+  {
+    "path": "docs/installation.md",
+    "sha256": "2b267be165afc299cfd4e0ad7289ccce2da7433fcc7248be5b252cc0647d160c"
+  },
+  {
+    "path": "docs/support-matrix.md",
+    "sha256": "a35e6dd159688d2311c60daed4c788be3f1f24a364e481b0f00499d784511d58"
+  },
+  {
+    "path": "docs/provider-runtime.md",
+    "sha256": "6d72e3d4780a40704a338c99633a3f41a410033bbb35404569dbf4d82b40c096"
+  },
+  {
+    "path": "docs/runtime-protocols.md",
+    "sha256": "323f7209f07077488437858e4bc33c9119dba62d1b827c50734758091fd6883b"
+  },
+  {
+    "path": "docs/testing.md",
+    "sha256": "a1878b21643a9bcab80a78c5894184824d1bbe57dcc0029b180b52357c1adba3"
+  },
+  {
+    "path": "tasks/cross-cli-hardening-20261105/docs/delivery-scope.md",
+    "sha256": "309f1a23bf406082b0699f9fbbd3e542cf43eea045831ce86b8609a320c06958"
+  }
+]

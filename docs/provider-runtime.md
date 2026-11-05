@@ -1,5 +1,7 @@
 # Provider、owner 与运行时配置
 
+2026-11-05 私有候选的当前 scope、认证投影/refresh 限制、预算、v3 refs 与 MCP 用法见[本轮合同](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)。下文旧版本试验保留其日期/身份，不是本轮包或 live 结论。
+
 ## 三个独立层次
 
 1. **协议 Adapter**：构造固定参数、解析版本化事件、识别 session。禁止 `extra_args`；未知协议/能力显式拒绝。
@@ -160,7 +162,7 @@ orchestrator provider-lock  --request /private/confirmed-lock.json
 
 ## Owner 与返回方式
 
-`owner_mode` 和 `delivery_mode` 分别表示授权来源和结果返回方式；均默认 `native`，不是同一个开关。
+`owner_mode` 和 `delivery_mode` 分别表示授权来源和结果返回方式。legacy 省略字段的 native 默认仍保留；local owner 新提交空 delivery 默认 collect，显式非 collect 拒绝 `managed_owner_native_delivery_unavailable`，高层 task/MCP 固定 local/collect，不能由 legacy 默认推导 native chat 能力。
 
 通用接入先准备 `0600` 的 owner 请求：
 
@@ -203,6 +205,8 @@ orchestrator provider-lock  --request /private/confirmed-lock.json
 
 上述流程适用于 v2 bootstrap。旧 v1 的显式 rebind 在修改数据库前返回 `legacy_bootstrap_rebind_unsupported`，保留现场；当前增量没有提供旧恢复材料迁移，不能将只读启动兼容描述为完整恢复兼容，也不能手改凭据或版本号绕过。
 
+当前 `owner_projection_version:1` 明确返回 managed_process、native_push=false、typed_resume=false、automatic_rebind=false；只支持 fresh invocation 和 explicit rebind，不观察同进程聊天切换。父退出为 stop_and_retain，unknown 未确认前保留现场与资源。六类业务 mutation（resume/retry/rework/request-changes/accept/answer）在 receipt replay/事务更新前核验真实当前 owner；query/stop/ACK 保留原 bearer 收尾合同。
+
 ## 并发与数据库
 
 在私有 state 目录创建 `0600` 的 `runtime-limits.json`，由下次协调器启动读取并事务保存到同一个 SQLite 数据库：
@@ -218,7 +222,7 @@ orchestrator provider-lock  --request /private/confirmed-lock.json
 
 数值范围 1–32；未指定的 Provider/工作区沿用全局值。默认全局 2。路径按规范工作区归一化；不合法字段、版本、权限或数值拒绝启动，不静默忽略。修改配置在下一次安全重启后生效；删除配置文件不会撤销数据库中已保存的策略。降低上限不杀现有任务；prepared/running/stopping/unknown 均计数。符合其他资源限制的 ready 任务可继续启动。
 
-数据库当前 schema v9：v2 归并既有 runtime schema，v3 增加 local owner / collection receipt，v4 保存并发策略，v5 增加事务额度计数，v6 在既有 retry 账本保存绑定反馈的 revision payload，v7 增加 Host progress 记录及 global/run 额度触发器，v8 增加按 controller thread / Provider 保存 enabled 与 model 的 provider settings，v9 在 runtime_hosts 增加 owner_request_changes_v2 能力位。DDL、回填与 schema 版本更新在同一事务中提交。旧二进制拒绝新 schema；升级前应在协调器安全停止后备份整个 state，不能直接降级覆盖。
+数据库当前 schema v11；v10 保存预算组政策，v11 保存 immutable rework refs/object/pin。旧合同不自动升级，升级前先安全停止并备份完整 state。以下为 v2～v9 的历史演进：v2 归并既有 runtime schema，v3 增加 local owner / collection receipt，v4 保存并发策略，v5 增加事务额度计数，v6 在既有 retry 账本保存绑定反馈的 revision payload，v7 增加 Host progress 记录及 global/run 额度触发器，v8 增加按 controller thread / Provider 保存 enabled 与 model 的 provider settings，v9 在 runtime_hosts 增加 owner_request_changes_v2 能力位。DDL、回填与 schema 版本更新在同一事务中提交。旧二进制拒绝新 schema；升级前应在协调器安全停止后备份整个 state，不能直接降级覆盖。
 
 `owner_request_changes_v2` 默认 false，由 HostHello 注册或重连时更新；升级数据库不会自动赋予旧 Host 新能力。owner `request-changes` 要求对应 launch 唯一 ready Host 声明该能力，否则返回 `host_upgrade_required`（没有唯一 ready Host 时为 `rework_host_not_ready`）。已排队的 v2 返工在调度及下发 launch 时再次校验；不支持的 Host 不获得该 launch，旧任务不因缺少此能力而被一律拒绝。
 

@@ -1,5 +1,7 @@
 # 分层验证
 
+2026-11-05 私有候选的证据分层与未完成项见[本轮交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)。各 Txx 单项记录不能替代最终冻结源码/安装包验证。必须以新报告中的实际 pass/fail/error/skip 及源码身份验收；本轮 PKG-01～04、T12 同包 Codex→Claude / Claude→Codex 双向 live 和最终集成签收尚未完成。MCP metadata 装载不是 live-parent；native 原线程回传与父模型续审仍 BLOCKED。第三方 Claude 计划使用 cli-default，Codex 计划使用 gpt-6-luna/low 最低档，不改账户或默认配置。
+
 ## 1. 协议、状态与安全边界
 
 在 `tools/orchestrator`：
