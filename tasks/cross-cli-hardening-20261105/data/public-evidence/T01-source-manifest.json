@@ -1,0 +1,24 @@
+{
+  "baseline": "29691e9f08468b1de56cb0c42977084b58c91975",
+  "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t01",
+  "platform": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
+  "files": {
+    "tools/orchestrator/internal/host/candidate.go": "bfe00ba3485cd1325e7b867e17935919b93d7eb94468caad2ccea595f040dec0",
+    "tools/orchestrator/internal/host/host.go": "66e2e51a1bfd3ddd29f9b4a74cdf0de9eb4543cdb8725560ab899dbdcf985e8b",
+    "tools/orchestrator/internal/host/managed_policy.go": "3a52f8217db6b5cebc6d2e21364451154d09af019c31720551a4c2fe463d3492",
+    "tools/orchestrator/internal/host/managed_directories.go": "10504e7fee349746e5da97110936d94df09a36202038b32c4160f7058e981a62",
+    "tools/orchestrator/internal/host/managed_directories_test.go": "51f65c6b7d421c28a075e0ebce2079f60ab052568294154b5b3e171270829fe2"
+  },
+  "patch_sha256": "85acc30fa938ed5454b4342b2c432be12f5fca46e674a8ef1bc2d1a773dc4d52",
+  "changed_source_sha256": "68da52b5b662c34fb270b22022d90881ebdd7a6f53028405d9d2067de5aca706",
+  "codex": {
+    "path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.166.0-aarch64-apple-darwin/bin/codex",
+    "sha256": "39acf979729dd290f9a24ee38b2914e036c91b65952872e28ae2a6b88a7db7c1",
+    "version": "codex-cli 0.166.0"
+  },
+  "claude": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/cli-version-compatibility/tmp/npm/extract/claude-2.1.316/package/claude",
+    "sha256": "64c327e92b2c5e0f78c0a980c5a518121e1f0d140ca771ca5dd4488d1a2dcb3f",
+    "version": "2.1.316 (Claude Code)"
+  }
+}

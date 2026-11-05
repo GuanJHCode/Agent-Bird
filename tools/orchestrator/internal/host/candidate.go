@@ -12,7 +12,7 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker"
 )
 
-func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, profile *adapter.ExecutionProfile) (func(context.Context, string) ([]byte, error), func(), error) {
+func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, profile *adapter.ExecutionProfile, guards ...*func() error) (func(context.Context, string) ([]byte, error), func(), error) {
 	value, ok := inv.(interface {
 		CandidateWorkspace() *adapter.CandidateWorkspace
 	})
@@ -22,6 +22,9 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 	spec := value.CandidateWorkspace()
 	if spec.Version != 1 || profile == nil || profile.Role != adapter.Implementer || profile.Permission != adapter.WorkspaceWrite || grant.SessionID != "" {
 		return nil, func() {}, errors.New("candidate_workspace_profile_invalid")
+	}
+	if err := validateManagedDeclarations(ctx, spec.Paths); err != nil {
+		return nil, func() {}, err
 	}
 	binding := gitops.CandidateBinding{RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
 	if err := validateCandidateRework(spec, grant); err != nil {
@@ -47,7 +50,26 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 		closeJournal()
 		return nil, func() {}, err
 	}
+	directories, err := prepareManagedDirectories(ctx, prepared.Receipt.Worktree, spec.Paths, func(phase string, value any) error {
+		return journal.RecordCandidateAction(ctx, phase, value)
+	}, prepared.Receipt.RootIdentity)
+	if err != nil {
+		closeJournal()
+		return nil, func() {}, err
+	}
+	closePrepared := func() { directories.Close(); closeJournal() }
+	if len(guards) > 0 {
+		*guards[0] = func() error {
+			if err := directories.Validate(); err != nil {
+				return err
+			}
+			return validateManagedTopology(ctx, directories.root, spec.Paths)
+		}
+	}
 	return func(ctx context.Context, providerResult string) ([]byte, error) {
+		if err := directories.Validate(); err != nil {
+			return nil, err
+		}
 		if len(providerResult) > 512*1024 {
 			return nil, errors.New("candidate_provider_result_too_large")
 		}
@@ -60,7 +82,7 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 			return nil, err
 		}
 		return gitops.CandidateArtifact(providerResult, receipt)
-	}, closeJournal, nil
+	}, closePrepared, nil
 }
 
 func candidateFailure(err error) []byte {

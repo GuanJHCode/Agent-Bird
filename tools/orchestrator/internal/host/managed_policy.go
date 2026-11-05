@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 )
@@ -17,7 +18,10 @@ import (
 // files. Git metadata and symlink targets never become worker write authority.
 func managedWritePaths(ctx context.Context, cwd string, spec *adapter.CandidateWorkspace) ([]string, []string, error) {
 	fail := func() ([]string, []string, error) { return nil, nil, errors.New("managed_write_policy_untrusted") }
-	if spec == nil || spec.Version != 1 || len(spec.Paths) == 0 {
+	if spec == nil || spec.Version != 1 {
+		return fail()
+	}
+	if err := validateManagedDeclarations(ctx, spec.Paths); err != nil {
 		return fail()
 	}
 	resolved, err := filepath.EvalSymlinks(cwd)
@@ -43,32 +47,17 @@ func managedWritePaths(ctx context.Context, cwd string, spec *adapter.CandidateW
 		}
 		protected = append(protected, path)
 	}
+	root, err := os.OpenFile(cwd, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return fail()
+	}
+	defer root.Close()
+	if err := validateManagedTopology(ctx, root, spec.Paths); err != nil {
+		return fail()
+	}
 	paths := []string{}
-	seen := map[string]bool{}
 	for _, path := range spec.Paths {
-		if path == "" || filepath.IsAbs(path) || filepath.Clean(path) != path || path == "." || path == ".." || strings.HasPrefix(path, "../") || strings.ContainsAny(path, "\x00\r\n") {
-			return fail()
-		}
-		for _, part := range strings.Split(path, string(filepath.Separator)) {
-			if strings.EqualFold(part, ".git") || part == ".codex" || part == ".claude" || part == ".claude.json" || part == ".mcp.json" {
-				return fail()
-			}
-		}
-		absolute := filepath.Join(cwd, path)
-		for parent := absolute; parent != cwd; parent = filepath.Dir(parent) {
-			info, err := os.Lstat(parent)
-			if os.IsNotExist(err) {
-				continue
-			}
-			if err != nil || info.Mode()&os.ModeSymlink != 0 || (parent == absolute && !info.Mode().IsRegular()) || (parent != absolute && !info.IsDir()) {
-				return fail()
-			}
-		}
-		if seen[absolute] {
-			return fail()
-		}
-		seen[absolute] = true
-		paths = append(paths, absolute)
+		paths = append(paths, filepath.Join(cwd, path))
 	}
 	return paths, protected, nil
 }

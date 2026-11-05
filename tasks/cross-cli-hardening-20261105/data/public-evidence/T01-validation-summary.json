@@ -1,0 +1,194 @@
+{
+  "baseline": {
+    "sha256": "0352c0811c6711092a788f8a37eadd9a9b5e780f54d4e8fe1c6d4d010d8aabe0",
+    "counts": {
+      "top_level": {
+        "fail": 2
+      },
+      "subtest": {
+        "fail": 7
+      },
+      "package": {
+        "fail": 1
+      }
+    },
+    "skipped": [],
+    "failed": [
+      "TestCandidatePreparesMissingParentsWithoutFiles",
+      "TestManagedDeclarationConflictsRejectedBeforePreparation/foo_foo/bar",
+      "TestManagedDeclarationConflictsRejectedBeforePreparation/foo/bar_foo",
+      "TestManagedDeclarationConflictsRejectedBeforePreparation/Foo/a_foo/b",
+      "TestManagedDeclarationConflictsRejectedBeforePreparation/A_a",
+      "TestManagedDeclarationConflictsRejectedBeforePreparation/caf\u00e9/a_cafe\u0301/b",
+      "TestManagedDeclarationConflictsRejectedBeforePreparation/caf\u00e9_cafe\u0301/b",
+      "TestManagedDeclarationConflictsRejectedBeforePreparation/safe/new/a_.ClAuDe/settings.json",
+      "TestManagedDeclarationConflictsRejectedBeforePreparation",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host"
+    ]
+  },
+  "focused": {
+    "sha256": "f397aa603b7e7ca6b6d5a4cd059b64e6bb1db82cf1bfc278c2b904f341679d6b",
+    "counts": {
+      "top_level": {
+        "pass": 3
+      },
+      "subtest": {
+        "pass": 7
+      },
+      "package": {
+        "pass": 1
+      }
+    },
+    "skipped": [],
+    "failed": []
+  },
+  "focused-v2": {
+    "sha256": "c2d795863ce50485fe19f07a8aa59382f8281f3f9a1a9d8df050f4682e324eec",
+    "counts": {
+      "top_level": {
+        "pass": 4,
+        "fail": 1
+      },
+      "subtest": {
+        "pass": 13,
+        "fail": 4
+      },
+      "package": {
+        "fail": 1
+      }
+    },
+    "skipped": [],
+    "failed": [
+      "TestManagedDirectoryReplacementRejectedBeforeWorkerStarts/directory",
+      "TestManagedDirectoryReplacementRejectedBeforeWorkerStarts/symlink",
+      "TestManagedDirectoryReplacementRejectedBeforeWorkerStarts/root",
+      "TestManagedDirectoryReplacementRejectedBeforeWorkerStarts/target-symlink",
+      "TestManagedDirectoryReplacementRejectedBeforeWorkerStarts",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host"
+    ]
+  },
+  "focused-v3": {
+    "sha256": "4106e07a004544d5c2ca495f34cbf7542116aff7453ba17e9df40b8fb0bdace4",
+    "counts": {
+      "top_level": {
+        "pass": 5
+      },
+      "subtest": {
+        "pass": 17
+      },
+      "package": {
+        "pass": 1
+      }
+    },
+    "skipped": [],
+    "failed": []
+  },
+  "native": {
+    "sha256": "1b879d53446e9163fa8e9cdeb6c715d917359adb752ab897931bfc6bc6ccf420",
+    "counts": {
+      "subtest": {
+        "fail": 1,
+        "pass": 1
+      },
+      "top_level": {
+        "fail": 1
+      },
+      "package": {
+        "fail": 1
+      }
+    },
+    "skipped": [],
+    "failed": [
+      "TestManagedNewDirectoriesNativeSandboxes/codex",
+      "TestManagedNewDirectoriesNativeSandboxes",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host"
+    ]
+  },
+  "focused-v4": {
+    "sha256": "58d251016aa7dcde38f738ca977693b4b2ef62e958ee256768e7c7d53795eec5",
+    "counts": {
+      "top_level": {
+        "pass": 6
+      },
+      "subtest": {
+        "pass": 19
+      },
+      "package": {
+        "pass": 1
+      }
+    },
+    "skipped": [],
+    "failed": []
+  },
+  "regression": {
+    "sha256": "ae28694a1fd208f2e1e4eb903e64fdc0b8824a03b448f50b7466d5184a9bae1a",
+    "counts": {
+      "top_level": {
+        "pass": 163,
+        "skip": 3
+      },
+      "subtest": {
+        "pass": 235
+      },
+      "package": {
+        "pass": 3
+      }
+    },
+    "skipped": [
+      "TestNativeClaudeGatewayReadOnlyTransport",
+      "TestNativeClaudeGatewayManagedWriteTransport",
+      "TestS4StageTimingObservation"
+    ],
+    "failed": []
+  },
+  "race": {
+    "sha256": "f56165b62f0da27e17339314445baf7ee6fec3f4c3b9105867d3f7e065e2f47d",
+    "counts": {
+      "top_level": {
+        "pass": 163,
+        "skip": 3
+      },
+      "subtest": {
+        "pass": 235
+      },
+      "package": {
+        "pass": 3
+      }
+    },
+    "skipped": [
+      "TestNativeClaudeGatewayReadOnlyTransport",
+      "TestNativeClaudeGatewayManagedWriteTransport",
+      "TestS4StageTimingObservation"
+    ],
+    "failed": []
+  },
+  "claude-native-transport": {
+    "sha256": "fbbaf5363f8cf109065ee039833d9480f1d0e82cdfa9c38dc0c9a847ed5c84cd",
+    "counts": {
+      "top_level": {
+        "pass": 2
+      },
+      "package": {
+        "pass": 1
+      }
+    },
+    "skipped": [],
+    "failed": []
+  },
+  "vet": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exit_code": 0
+  },
+  "build": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exit_code": 0
+  },
+  "diff-check": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exit_code": 0
+  },
+  "gofmt-check": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "exit_code": 0
+  }
+}

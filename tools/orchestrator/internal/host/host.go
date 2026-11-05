@@ -170,8 +170,10 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		CandidateWorkspace() *adapter.CandidateWorkspace
 	}); ok && managed.CandidateWorkspace() != nil {
 		cmd.Dir = candidateDirectory(cmd.Dir, grant, managed.CandidateWorkspace().AutoDirectory)
+		var validateWorkspace func() error
+		meta.validateWorkspace = &validateWorkspace
 		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
-			freeze, closeCandidate, err := h.prepareCandidate(ctx, grant, inv, profile)
+			freeze, closeCandidate, err := h.prepareCandidate(ctx, grant, inv, profile, meta.validateWorkspace)
 			if err != nil {
 				return cmd, nil, closeCandidate, err
 			}
@@ -225,6 +227,7 @@ type launchMetadata struct {
 	structuredReview  bool
 	prepareAction     func(context.Context) (process.Command, actionFinalizer, func(), error)
 	finalizeAction    actionFinalizer
+	validateWorkspace *func() error
 	prepareCandidate  func(context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error)
 	freezeCandidate   func(context.Context, string) ([]byte, error)
 	commandID         string
@@ -379,6 +382,14 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		cmd = prepared
 		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 			return finalizeStopped(nil, &preSpawnExit, context.Canceled)
+		}
+	}
+	if meta.validateWorkspace != nil {
+		if *meta.validateWorkspace == nil {
+			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, managedPolicyError()
+		}
+		if err := (*meta.validateWorkspace)(); err != nil {
+			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, err
 		}
 	}
 	p, err := process.Start(ctx, cmd)

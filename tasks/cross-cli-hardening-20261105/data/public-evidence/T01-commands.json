@@ -1,0 +1,19 @@
+{
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t01/tools/orchestrator",
+  "go": "/private/tmp/go1.26.10-sdk/bin/go",
+  "environment": {
+    "PATH_prefix": "/private/tmp/go1.26.10-sdk/bin",
+    "GOENV": "off",
+    "GOTOOLCHAIN": "local",
+    "GOPROXY": "off",
+    "TMPDIR": "/private/tmp",
+    "GOCACHE": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/go-cache-t01"
+  },
+  "commands": {
+    "regression": "go test -json -count=1 ./internal/host ./internal/gitops ./internal/gitopsworker",
+    "race": "go test -race -json -count=1 ./internal/host ./internal/gitops ./internal/gitopsworker",
+    "vet": "go vet ./internal/host ./internal/gitops ./internal/gitopsworker",
+    "build": "go build ./...",
+    "claude-native-transport": "ORCHESTRATOR_CLAUDE_NATIVE_BINARY=<locked Claude 2.1.316 absolute path> go test -json -count=1 ./internal/host -run ^TestNativeClaudeGateway(ReadOnly|ManagedWrite)Transport$"
+  }
+}
