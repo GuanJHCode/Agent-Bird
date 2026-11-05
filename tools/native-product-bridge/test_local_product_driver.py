@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import shutil
 import signal
+import shlex
 import socket
 import sys
 import tempfile
@@ -87,11 +88,12 @@ def send_owner(process, value):
     process.stdin.write(value)
 
 
-@pytest.mark.parametrize("backend_mode,crash_stage", [
-    ("complete", ""), ("delayed-history", ""),
-    *(("complete", stage) for stage in ["pending", "sending_before_io", "sending_before_io_detach", "sending_after_io", "response", "proof_unrecorded", "proof_recorded", "ack_success", "controller_acked"]),
+@pytest.mark.parametrize("backend_mode,crash_stage,gated_worker", [
+    ("complete", "", False), ("delayed-history", "", False),
+    *(("complete", stage, False) for stage in ["pending", "sending_before_io", "sending_before_io_detach", "sending_after_io", "response", "proof_unrecorded", "proof_recorded", "ack_success", "controller_acked"]),
+    ("complete", "sending_before_io", True),
 ])
-def test_owner_bound_driver_waits_then_delivers_without_manual_collect(backend_mode, crash_stage):
+def test_owner_bound_driver_waits_then_delivers_without_manual_collect(backend_mode, crash_stage, gated_worker):
     async def scenario():
         with (
             tempfile.TemporaryDirectory(
@@ -198,7 +200,10 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect(backend_m
                                 "completion_policy": "exit_success_fixture",
                                 "adapter": {
                                     "kind": "fake",
-                                    "args": ["/bin/sh", "-c", "exit 0"],
+                                    "args": ["/bin/sh", "-c", (
+                                        "while [ ! -f " + shlex.quote(str(root / "worker-release"))
+                                        + " ]; do sleep 0.01; done; exit 0"
+                                    ) if gated_worker else "exit 0"],
                                     "directory": profiles["a"]["workspace"],
                                 },
                             }
@@ -255,12 +260,44 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect(backend_m
                     with sqlite3.connect(root / "g1/state.db") as db:
                         return {table: db.execute("SELECT * FROM " + table + " ORDER BY 1").fetchall()
                             for table in ("runs", "attempts", "budget_reservations", "budget_runtime")}
+                gated_snapshot = None
+                if gated_worker:
+                    deadline = asyncio.get_running_loop().time() + 5
+                    while True:
+                        with sqlite3.connect(root / "g1/state.db") as db:
+                            running = db.execute("SELECT COUNT(*) FROM attempts WHERE status='running'").fetchone()[0]
+                        if running:
+                            break
+                        assert asyncio.get_running_loop().time() < deadline
+                        await asyncio.sleep(.01)
+                    gated_snapshot = business_snapshot()
+                    assert gated_snapshot["attempts"][0][3] == "running"
+                    assert gated_snapshot["budget_runtime"] and all(row[5] == "reserved" for row in gated_snapshot["budget_runtime"])
+                    with sqlite3.connect(root / "g1/state.db") as db:
+                        assert db.execute("SELECT COUNT(*) FROM segment_runtime WHERE status IN ('launch_requested','prepared','spawned','running','stopping','unknown')").fetchone()[0] > 0
+                    (root / "worker-release").write_text("release")
                 before_recovery = None
                 async def restart_if_crashed():
                     nonlocal request, status_request, before_recovery
                     if marker is None or not marker.exists():
                         return False
+                    # Recovery must not mutate settled business state. Wait for
+                    # the independent original worker before taking that oracle.
+                    deadline = asyncio.get_running_loop().time() + 5
+                    while True:
+                        with sqlite3.connect(root / "g1/state.db") as db:
+                            attempt = db.execute("SELECT status FROM attempts WHERE task_id='driver-task'").fetchall()
+                            active = db.execute("SELECT COUNT(*) FROM segment_runtime WHERE status IN ('launch_requested','prepared','spawned','running','stopping','unknown')").fetchone()[0]
+                            budgets = db.execute("SELECT status FROM budget_runtime").fetchall()
+                        if attempt == [("result_ready",)] and active == 0 and budgets and all(row == ("settled",) for row in budgets):
+                            break
+                        assert asyncio.get_running_loop().time() < deadline, (attempt, active, budgets)
+                        await asyncio.sleep(.01)
                     before_recovery = business_snapshot()
+                    if gated_worker:
+                        # The earlier live-worker snapshot is a stale oracle,
+                        # independent of any delivery recovery mutation.
+                        assert gated_snapshot != before_recovery
                     old_request = json.loads(request.read_text())
                     old_status = json.loads((Path(old_request["driver_root"]) / "status.json").read_text())
                     new_root = root / "driver-restart"
@@ -394,3 +431,32 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect(backend_m
                 listener.close()
 
     asyncio.run(asyncio.wait_for(scenario(), 45))
+
+
+def test_metrics_failure_preserves_valid_decision_and_ack(monkeypatch):
+    """An unknown nonprivate metrics file must neither be replaced nor block ACK."""
+    original_json = private_json
+    original_cli = cli
+    injected = []
+
+    def write_json(path, value):
+        if "decisions" in value and "history_receipt" in value:
+            metrics = Path(value["driver_root"]) / "decision-wait-metrics.json"
+            metrics.write_text("{}")
+            metrics.chmod(0o644)
+            injected.append(metrics)
+        return original_json(path, value)
+
+    async def observed_cli(binary, *args):
+        result = await original_cli(binary, *args)
+        if injected and args[:2] == ("native-bridge", "status"):
+            assert result.get("status") != "failed", result
+            if result.get("status") == "completed":
+                assert injected[0].read_text() == "{}"
+                assert injected[0].stat().st_mode & 0o777 == 0o644
+        return result
+
+    monkeypatch.setattr(sys.modules[__name__], "private_json", write_json)
+    monkeypatch.setattr(sys.modules[__name__], "cli", observed_cli)
+    test_owner_bound_driver_waits_then_delivers_without_manual_collect("complete", "", False)
+    assert len(injected) == 1

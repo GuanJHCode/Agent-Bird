@@ -1,0 +1,48 @@
+{
+  "source_manifest": "source-manifest.json",
+  "platform": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
+  "reports": [
+    {
+      "path": "red.xml",
+      "counts": {
+        "tests": 1,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 0
+      },
+      "sha256": "ad9849da8d36e2e0c4a9a7ced1c9966909cc6bfe03e8658fe598e073922249f2",
+      "timestamp": "2026-11-05T13:34:41.892490+08:00",
+      "seconds": 1.638
+    },
+    {
+      "path": "green.xml",
+      "counts": {
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 6
+      },
+      "sha256": "1d8f05a85037b7c0aedb5650afbc820fc57fecdd821ded8ea78394facaa11929",
+      "timestamp": "2026-11-05T13:35:22.490468+08:00",
+      "seconds": 2.134
+    },
+    {
+      "path": "final.xml",
+      "counts": {
+        "tests": 76,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 76
+      },
+      "sha256": "1bf940a9e2a1f00be3570fb7728fe0c86be6248cc2173730476475014381077a",
+      "timestamp": "2026-11-05T13:35:55.393541+08:00",
+      "seconds": 37.685
+    }
+  ],
+  "reused_binary_sha256": "911b570f92d128dd6e378f285dc77353fb8ff383236419aedaa78b7859bbd6b7",
+  "command": "TMPDIR=/private/tmp PYTHONDONTWRITEBYTECODE=1 ORCHESTRATOR_PRODUCT_BINARY=<evidence>/tmp/codex-orchestrator PATH=<fixed Codex 0.166.0 bin>:/usr/bin:/bin:/usr/sbin:/sbin <venv>/bin/python -m pytest -p no:cacheprovider --basetemp=/private/tmp/t06a-r2-final tools/native-product-bridge/test_wait_performance.py tools/native-product-bridge/test_entrypoint.py tools/native-product-bridge/test_delivery_deadlines.py tools/native-product-bridge/test_local_product_driver.py -q -rs --junitxml=<r2>/data/final.xml",
+  "not_rerun": "Go unchanged; r1 broad unrelated suites and no-model stage benchmark retained as scoped prior evidence, not labeled new r2 runs."
+}

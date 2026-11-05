@@ -1,0 +1,32 @@
+{
+  "command": [
+    "/private/tmp/agent-bird-cross-cli-5c9jyn8o/python-venv/bin/python",
+    "-m",
+    "pytest",
+    "tools/native-product-bridge/test_wait_performance.py",
+    "tools/native-product-bridge/test_local_product_driver.py::test_metrics_failure_preserves_valid_decision_and_ack",
+    "-p",
+    "no:cacheprovider",
+    "-q",
+    "-rs",
+    "--junitxml=/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t06a-evidence/integrated/T06A-integrated.xml"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration",
+  "exit_code": 0,
+  "elapsed_seconds": 3.459,
+  "binary_evidence": "T05-integrated binary; Go sources unchanged by T06A",
+  "binary_sha256": "54a2a0b32688edee232bc21c8180dbacd5d31f384338a6ed5d6ab55c2fce68ab",
+  "junit": [
+    {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0",
+      "tests": "28",
+      "time": "3.222",
+      "timestamp": "2026-11-05T13:40:30.246716+08:00",
+      "hostname": "guanjunhuideMacBook-Pro.local"
+    }
+  ],
+  "log_sha256": "885c529385232635a269f1f354ab55a689679d792287ad1cf4b76b2f07db8224"
+}

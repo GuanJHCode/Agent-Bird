@@ -1,0 +1,8 @@
+{
+  "r1_production_sha256": "6cc4d716a2854e298c51753f2141d53b50d55a49a8ce576618b2539294f318d6",
+  "core_functions": "file_identity + AttachmentWait + wait_decision",
+  "identical_core_sha256": "143b5e528fa2d69b0cd2b1bbd63f06de2cb2dbb9bf21b6898d7984500ab5977a",
+  "r1_patch_sha256": "98cf053956ca471a9e392130c8321dc87c5dbb4d3a3804941f10a9a113fc1135",
+  "reused_benchmark": "../../data/benchmark.json",
+  "scope": "Only hash/identity/polling work distribution and original unchanged probe/spawn/first_event/history observations; wrapper best-effort persist behavior is tested anew, no claimed new p50/p95."
+}

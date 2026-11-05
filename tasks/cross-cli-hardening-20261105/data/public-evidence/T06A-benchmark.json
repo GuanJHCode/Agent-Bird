@@ -1,0 +1,463 @@
+{
+  "kind": "OS-native-local/protocol-fixture; no model or credentials",
+  "platform": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
+  "python": "3.14.3 (main, Feb  3 2026, 15:32:20) [Clang 16.0.0 (clang-1600.0.26.6)]",
+  "source_head": "a14affc483ae79522197d1adaaed35b7118b8d1c",
+  "wait_sample": "20 waits, each 20 liveness polls plus decision strong boundary; same current Python process in three roles; changed watches four pinned binding documents; no sleeps included",
+  "executable": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python",
+  "artifact_size": 51584,
+  "baseline": {
+    "wait": {
+      "n": 20,
+      "p50_seconds": 0.14922322903294116,
+      "p95_seconds": 0.19105008395854384
+    },
+    "samples": [
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      },
+      {
+        "hash_calls": 63,
+        "hash_bytes": 3249792,
+        "metadata_calls": 63
+      }
+    ],
+    "usage_delta": {
+      "user_seconds": 0.250922,
+      "sys_seconds": 0.9832669999999999,
+      "input_blocks": 0,
+      "output_blocks": 0
+    },
+    "unchanged_stages": {
+      "probe_version": {
+        "n": 5,
+        "p50_seconds": 0.009202249930240214,
+        "p95_seconds": 0.010000333073548973,
+        "calls": 5,
+        "output_bytes": 18,
+        "retained_body": false
+      },
+      "probe_help": {
+        "n": 5,
+        "p50_seconds": 0.008978458005003631,
+        "p95_seconds": 0.009178958949632943,
+        "calls": 5,
+        "output_bytes": 5944,
+        "retained_body": false
+      },
+      "spawn": {
+        "n": 10,
+        "p50_seconds": 0.00122337497305125,
+        "p95_seconds": 0.001314957975409925,
+        "calls": 10,
+        "kind": "local Python event fixture, not provider/model"
+      },
+      "first_event": {
+        "n": 10,
+        "p50_seconds": 0.01508474996080622,
+        "p95_seconds": 0.015208041993901134,
+        "calls": 10,
+        "kind": "local Python event fixture, not provider/model"
+      },
+      "history": {
+        "n": 20,
+        "p50_seconds": 9.489594958722591e-05,
+        "p95_seconds": 0.00016366597265005112,
+        "calls": 20,
+        "kind": "real local UDS thread/read fixture; no provider/model/history claim"
+      }
+    }
+  },
+  "changed": {
+    "wait": {
+      "n": 20,
+      "p50_seconds": 0.13619620801182464,
+      "p95_seconds": 0.17856620892416686
+    },
+    "samples": [
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00015445798635482788,
+        "metadata_seconds": 0.16905153903644532,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.0002525000600144267
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00013437506277114153,
+        "metadata_seconds": 0.13164775038603693,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.0001779989106580615
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00013620895333588123,
+        "metadata_seconds": 0.1721014998620376,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00019587716087698936
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00015062594320625067,
+        "metadata_seconds": 0.13993653759825975,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.0002018751110881567
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00017166684847325087,
+        "metadata_seconds": 0.17728124605491757,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00018724973779171705
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00014508306048810482,
+        "metadata_seconds": 0.1648497487185523,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00020875001791864634
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.0001433739671483636,
+        "metadata_seconds": 0.16148370876908302,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00018221000209450722
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00014020793605595827,
+        "metadata_seconds": 0.16001787909772247,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.0001842499477788806
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00013179017696529627,
+        "metadata_seconds": 0.1277626263909042,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00018262688536196947
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00013612397015094757,
+        "metadata_seconds": 0.12716317258309573,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00018316612113267183
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00016566691920161247,
+        "metadata_seconds": 0.15660424751695246,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00018462585285305977
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00014074903447180986,
+        "metadata_seconds": 0.14425095357000828,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00018149882089346647
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.0001301668817177415,
+        "metadata_seconds": 0.12577704107388854,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00017691694665700197
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.000132917077280581,
+        "metadata_seconds": 0.12658987834583968,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00017666607163846493
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00012245913967490196,
+        "metadata_seconds": 0.12452887173276395,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00017629005014896393
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00012820807751268148,
+        "metadata_seconds": 0.12676595733501017,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.0001728750066831708
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00013337505515664816,
+        "metadata_seconds": 0.12873270770069212,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00017541588749736547
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00013508298434317112,
+        "metadata_seconds": 0.13020008278544992,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00017495802603662014
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.00012741691898554564,
+        "metadata_seconds": 0.128145415103063,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.0001796659780666232
+      },
+      {
+        "hash_calls": 4,
+        "hash_bytes": 206336,
+        "metadata_calls": 63,
+        "poll_count": 21,
+        "binding_hash_calls": 8,
+        "binding_hash_bytes": 224,
+        "hash_seconds": 0.0001345841446891427,
+        "metadata_seconds": 0.12587933335453272,
+        "wait_seconds": 0.0,
+        "binding_hash_seconds": 0.00017054076306521893
+      }
+    ],
+    "usage_delta": {
+      "user_seconds": 0.22919199999999995,
+      "sys_seconds": 0.95675,
+      "input_blocks": 0,
+      "output_blocks": 0
+    },
+    "unchanged_stages": {
+      "probe_version": {
+        "n": 5,
+        "p50_seconds": 0.008636499987915158,
+        "p95_seconds": 0.009296374977566302,
+        "calls": 5,
+        "output_bytes": 18,
+        "retained_body": false
+      },
+      "probe_help": {
+        "n": 5,
+        "p50_seconds": 0.008832666906528175,
+        "p95_seconds": 0.008904834045097232,
+        "calls": 5,
+        "output_bytes": 5944,
+        "retained_body": false
+      },
+      "spawn": {
+        "n": 10,
+        "p50_seconds": 0.001343020994681865,
+        "p95_seconds": 0.0014881659299135208,
+        "calls": 10,
+        "kind": "local Python event fixture, not provider/model"
+      },
+      "first_event": {
+        "n": 10,
+        "p50_seconds": 0.01557070849230513,
+        "p95_seconds": 0.016880207927897573,
+        "calls": 10,
+        "kind": "local Python event fixture, not provider/model"
+      },
+      "history": {
+        "n": 20,
+        "p50_seconds": 9.572901763021946e-05,
+        "p95_seconds": 0.00014187500346451998,
+        "calls": 20,
+        "kind": "real local UDS thread/read fixture; no provider/model/history claim"
+      }
+    }
+  },
+  "limitations": [
+    "Warm page cache; input_blocks may be zero; hash_bytes counts bytes read by code, not physical disk IO.",
+    "OS process metadata invokes ps; three distinct role checks retained.",
+    "Provider probes unchanged and deliberately uncached. Probe stages run sequentially in baseline then changed order; noise is not an optimization claim.",
+    "Wait benchmark isolates local verification work, excludes polling delays and model inference. No model was run."
+  ]
+}

@@ -173,6 +173,12 @@ def test_decision_wait_survives_bootstrap_window_and_stops_on_owner_exit(tmp_pat
     spec = importlib.util.spec_from_file_location("native_product_bridge_entry", ENTRY)
     entry = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(entry)
+    class Wait:
+        metrics = {}
+        def __init__(self, attachment, proxy_transport, metrics=None, binding_files=None): pass
+        def live(self, **_kwargs): return owner_live[0]
+        def close(self): pass
+    monkeypatch.setattr(entry, "AttachmentWait", Wait)
     decision = tmp_path / "decision.json"
     clock = [0.0]
     owner_live = [True]

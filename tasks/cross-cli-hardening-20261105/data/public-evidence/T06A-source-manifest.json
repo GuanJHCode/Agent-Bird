@@ -1,0 +1,10 @@
+{
+  "head": "a14affc483ae79522197d1adaaed35b7118b8d1c",
+  "files": {
+    "plugins/codex-orchestrator/scripts/native-product-bridge.py": "a2e601a046035f21beb9a8eb3b0f2d93a901040b3d2daf3e6d56d321c15800aa",
+    "tools/native-product-bridge/test_entrypoint.py": "181dd4eb3c7bca5e692463aba1277250e48c3cb31098068ea6d50dedd813a9a5",
+    "tools/native-product-bridge/test_local_product_driver.py": "809a11256dd1e1071c668b8a47e806bb2e662135593d9c92fc4cad7682f5832a",
+    "tools/native-product-bridge/test_wait_performance.py": "91fd433e32ac30d64d9b305d7f30f6c3dbc6b8ce32f6d0c73da09fa4b033d5eb"
+  },
+  "patch_sha256": "8d5653e439738ddba339c0b93533379e07fe285fcc03ea0379ba6c70b1cd0177"
+}

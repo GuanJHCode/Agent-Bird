@@ -325,11 +325,11 @@
       "depends_on": [
         "T03"
       ],
-      "status": "changes_requested",
+      "status": "awaiting_review",
       "completion_basis": null,
       "baseline_commit": "2347d34ce1e5ca4e40751f53064f3d99001f4832",
       "implementation_agent": "/root/implement_t04",
-      "review_agent": "/root/review_t04",
+      "review_agent": "/root/review_t04_final",
       "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t04",
       "write_scope": [],
       "changed_files": [],
@@ -344,10 +344,10 @@
       "tests": [],
       "review": {
         "status": "FAIL",
-        "report": "reviews/T04-review-r3.md",
+        "report": "reviews/T04-review-r4.md",
         "target_commit": null,
         "unresolved_findings": [
-          "independently reproduced extra hardlink GC quota release while bytes still retained; r4 fix pending stable review sessions completion"
+          "r5 fixes validated by implementer; first r5 independent agent turn failed due platform risk classification without verdict; new ordinary-code review active"
         ]
       },
       "owner_acceptance": {
@@ -437,9 +437,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T05-review-r5.md",
-        "accepted_commit": null
+        "accepted_commit": "a14affc4"
       },
-      "commits": [],
+      "commits": [
+        "a14affc4"
+      ],
       "blockers": [],
       "limitations": [
         "synthetic local process/UDS recovery only; final package/live-provider/TUI not yet verified"
@@ -458,35 +460,82 @@
         "T05",
         "T07"
       ],
-      "status": "pending",
-      "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
-      "review_agent": null,
-      "worktree": null,
+      "status": "done",
+      "completion_basis": "implemented",
+      "baseline_commit": "a14affc4",
+      "implementation_agent": "/root/implement_t06a",
+      "review_agent": "/root/review_t06a",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t06a",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "plugins/codex-orchestrator/scripts/native-product-bridge.py",
+        "tools/native-product-bridge/test_entrypoint.py",
+        "tools/native-product-bridge/test_local_product_driver.py",
+        "tools/native-product-bridge/test_wait_performance.py"
+      ],
       "acceptance_ids": [
         "PERF-01",
         "PERF-02",
         "PERF-03"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T06A-implementation.md",
+      "tests": [
+        {
+          "type": "affected protocol-fixture/OS-native-local",
+          "status": "PASS",
+          "evidence": "data/public-evidence/T06A-validation-r2.json",
+          "counts": {
+            "passed": 76,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "type": "independent affected tests",
+          "status": "PASS",
+          "evidence": "reviews/T06A-review-r2.md",
+          "counts": {
+            "passed": 45,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "type": "integrated affected tests",
+          "status": "PASS",
+          "evidence": "data/public-evidence/T06A-integrated.json",
+          "counts": {
+            "passed": 28,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0
+          }
+        },
+        {
+          "type": "benchmark unchanged core",
+          "status": "PASS",
+          "evidence": "data/public-evidence/T06A-benchmark-reuse.json"
+        }
+      ],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
+        "status": "PASS",
+        "report": "reviews/T06A-review-r2.md",
         "target_commit": null,
         "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "PASS",
+        "evidence": "reviews/T06A-review-r2.md",
         "accepted_commit": null
       },
       "commits": [],
       "blockers": [],
-      "limitations": [],
+      "limitations": [
+        "core benchmark excludes polling sleeps/metrics flush/model and is not end-to-end speed claim",
+        "r1 unaffected full suite evidence reused; 8 existing native opt-ins not run"
+      ],
       "updated_at": null
     },
     {

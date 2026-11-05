@@ -1,0 +1,127 @@
+{
+  "kind": "protocol-fixture/OS-native-local; no provider model",
+  "platform": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
+  "source_manifest": "source-manifest.json",
+  "reports": [
+    {
+      "report": "red.xml",
+      "sha256": "a1d1656728b5d18aa2fe8343a696d8a3fb5e6ff38b95334248d4313b23f125a3",
+      "counts": {
+        "tests": 12,
+        "failures": 0,
+        "errors": 12,
+        "skipped": 0,
+        "passed": 0
+      },
+      "timestamp": "2026-11-05T13:19:10.623814+08:00",
+      "time": 0.202
+    },
+    {
+      "report": "red-api.xml",
+      "sha256": "df83dd0df681eb0f63d0d3449c9136c686190a4c4f2d4946d526e34f02ee6dff",
+      "counts": {
+        "tests": 2,
+        "failures": 2,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 0
+      },
+      "timestamp": "2026-11-05T13:19:48.153785+08:00",
+      "time": 0.043
+    },
+    {
+      "report": "green.xml",
+      "sha256": "676f92d11390682d748cfffa28eab4e9bd2dad1671a13a822fe18e5f452acd13",
+      "counts": {
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 17
+      },
+      "timestamp": "2026-11-05T13:20:32.501301+08:00",
+      "time": 0.384
+    },
+    {
+      "report": "green2.xml",
+      "sha256": "fab6b7df5a458227fa7ec5bb3cfeaf544217f891e46fe9ad907717c4fad24945",
+      "counts": {
+        "tests": 52,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 52
+      },
+      "timestamp": "2026-11-05T13:21:17.753424+08:00",
+      "time": 2.095
+    },
+    {
+      "report": "regression.xml",
+      "sha256": "196d5d2a962a3b56b89eb9383622fa2e1df2465dd63c5bcf73649da43e987549",
+      "counts": {
+        "tests": 304,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 8,
+        "passed": 295
+      },
+      "timestamp": "2026-11-05T13:22:03.355107+08:00",
+      "time": 55.648
+    },
+    {
+      "report": "response.xml",
+      "sha256": "f8bd900d4fad1877d6b0f3e03ca9972d2b557b76259bfb5acf6c0a737208f5ac",
+      "counts": {
+        "tests": 20,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 20
+      },
+      "timestamp": "2026-11-05T13:23:55.014596+08:00",
+      "time": 1.317
+    },
+    {
+      "report": "recovery-green.xml",
+      "sha256": "4b7dbbce03a642ef2218735e5c8206bb3a6b9933e17d1bc9834a495592e528c4",
+      "counts": {
+        "tests": 12,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 11
+      },
+      "timestamp": "2026-11-05T13:24:42.365939+08:00",
+      "time": 48.259
+    },
+    {
+      "report": "recovery-green2.xml",
+      "sha256": "a79fda4b18a428875cd8c284ac1f043d67434692ca0396aa6a7e1266fdd0dc96",
+      "counts": {
+        "tests": 12,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 12
+      },
+      "timestamp": "2026-11-05T13:25:55.579918+08:00",
+      "time": 32.376
+    },
+    {
+      "report": "final.xml",
+      "sha256": "efd231052a110f89f1f7542bd1dfe62c402d718c93630726e7d49f9eb4cb3888",
+      "counts": {
+        "tests": 309,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 8,
+        "passed": 301
+      },
+      "timestamp": "2026-11-05T13:26:39.882761+08:00",
+      "time": 58.805
+    }
+  ],
+  "binary_sha256": "911b570f92d128dd6e378f285dc77353fb8ff383236419aedaa78b7859bbd6b7",
+  "final_command": "TMPDIR=/private/tmp PYTHONDONTWRITEBYTECODE=1 ORCHESTRATOR_PRODUCT_BINARY=<evidence>/tmp/codex-orchestrator PATH=<fixed Codex bin>:/usr/bin:/bin:/usr/sbin:/sbin <venv>/bin/python -m pytest -p no:cacheprovider --basetemp=/private/tmp/t06a-final tools/native-product-bridge tools/real-user-trial tasks/cross-cli-subagent/tests/test_delivery_scripts.py -q -rs --junitxml=<evidence>/data/final.xml",
+  "build_command": "GOENV=off GOTOOLCHAIN=local GOPROXY=off TMPDIR=/private/tmp GOCACHE=<evidence>/tmp/gocache /private/tmp/go1.26.10-sdk/bin/go build -o <evidence>/tmp/codex-orchestrator ./cmd/orchestrator"
+}

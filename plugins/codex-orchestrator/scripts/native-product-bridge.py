@@ -682,13 +682,156 @@ def wait_actionable_events(client, task_id, control_file, cursor, attachment,
         return status, events, next_cursor
 
 
-async def wait_decision(path, attachment, proxy_transport):
-    while True:
-        if not attachment_live(attachment, proxy_transport):
-            raise EntryError("owner_detached")
-        if path.exists():
-            return stable_json(path, private=True)
-        await asyncio.sleep(0.05)
+def file_identity(info):
+    return (info.st_dev, info.st_ino, info.st_uid, info.st_mode, info.st_nlink,
+            info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+class AttachmentWait:
+    """One decision wait's artifact facts; never an owner authorization cache.
+
+    Hold at most three descriptors. Kernel process identity and socket identity
+    are still read on every poll. Any artifact/receipt change retires this wait;
+    a new binding must be established by the normal admission path.
+    """
+
+    def __init__(self, attachment, proxy_transport, metrics=None, binding_files=None):
+        self.attachment = attachment
+        self.proxy_transport = proxy_transport
+        self.metrics = metrics if metrics is not None else {}
+        self.files = {}
+        # Small metadata watches of already pinned admission/install documents.
+        # They never stand in for permission or owner authorization checks.
+        self.binding_files = dict(binding_files or {})
+        require(len(self.binding_files) <= 4, "wait_binding_files")
+        self.binding_identities = {}
+        self.binding = json.dumps(attachment.persisted(), sort_keys=True)
+        self.peers = [dict(attachment.service_identity), dict(attachment.backend_identity),
+                      dict(pid=attachment.origin_pid, uid=os.getuid(), birth=attachment.origin_birth,
+                           executable=attachment.origin_executable,
+                           executable_sha256=attachment.origin_executable_sha256)]
+        for key in ("hash_calls", "hash_bytes", "metadata_calls", "poll_count", "binding_hash_calls", "binding_hash_bytes"):
+            self.metrics[key] = 0
+        for key in ("hash_seconds", "metadata_seconds", "wait_seconds", "binding_hash_seconds"):
+            self.metrics[key] = 0.0
+
+    def close(self):
+        for fd, _, _ in self.files.values():
+            os.close(fd)
+        self.files.clear()
+
+    def _hash(self, fd, identity):
+        started = time.monotonic()
+        self.metrics["hash_calls"] += 1
+        try:
+            os.lseek(fd, 0, os.SEEK_SET)
+            value = hashlib.sha256()
+            remaining = identity[5]
+            while remaining:
+                block = os.read(fd, min(1024 * 1024, remaining))
+                require(block, "file_changed")
+                value.update(block)
+                remaining -= len(block)
+                self.metrics["hash_bytes"] += len(block)
+            require(os.read(fd, 1) == b"" and file_identity(os.fstat(fd)) == identity,
+                    "file_changed")
+            return value.hexdigest()
+        finally:
+            self.metrics["hash_seconds"] += time.monotonic() - started
+
+    def _artifact(self, path, expected_digest, force):
+        require(Path(path).is_absolute() and str(Path(path).resolve()) == path,
+                "file_identity")
+        if path not in self.files:
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            try:
+                info = os.fstat(fd)
+                require(stat.S_ISREG(info.st_mode) and info.st_uid in (0, os.getuid())
+                        and info.st_nlink == 1 and 0 < info.st_size <= 512 * 1024 * 1024,
+                        "file_identity")
+                identity = file_identity(info)
+                require(file_identity(os.lstat(path)) == identity, "file_changed")
+                require(self._hash(fd, identity) == expected_digest, "file_changed")
+                require(file_identity(os.lstat(path)) == identity, "file_changed")
+                self.files[path] = (fd, identity, expected_digest)
+            except BaseException:
+                os.close(fd)
+                raise
+        else:
+            fd, identity, verified_digest = self.files[path]
+            require(verified_digest == expected_digest
+                    and file_identity(os.fstat(fd)) == identity
+                    and file_identity(os.lstat(path)) == identity, "file_changed")
+            if force:
+                require(self._hash(fd, identity) == expected_digest, "file_changed")
+                require(file_identity(os.lstat(path)) == identity, "file_changed")
+
+    def live(self, *, force=False):
+        self.metrics["poll_count"] += 1
+        try:
+            require(json.dumps(self.attachment.persisted(), sort_keys=True) == self.binding,
+                    "attachment_changed")
+            for path, expected_digest in self.binding_files.items():
+                identity = file_identity(os.lstat(path))
+                if path not in self.binding_identities or force:
+                    started = time.monotonic()
+                    self.metrics["binding_hash_calls"] += 1
+                    self.metrics["binding_hash_bytes"] += identity[5]
+                    try:
+                        require(digest(path) == expected_digest
+                                and file_identity(os.lstat(path)) == identity, "file_changed")
+                    finally:
+                        self.metrics["binding_hash_seconds"] += time.monotonic() - started
+                require(self.binding_identities.get(path, identity) == identity, "file_changed")
+                self.binding_identities[path] = identity
+            for expected in self.peers:
+                started = time.monotonic()
+                try:
+                    self.metrics["metadata_calls"] += 1
+                    birth, executable = self.proxy_transport._process_metadata(expected["pid"])
+                finally:
+                    self.metrics["metadata_seconds"] += time.monotonic() - started
+                require(expected["uid"] == os.getuid() and birth == expected["birth"]
+                        and executable == expected["executable"], "process_identity")
+                self._artifact(executable, expected["executable_sha256"], force)
+            return socket_identity(self.attachment.private_socket) == list(
+                self.attachment.private_socket_identity)
+        except (OSError, EntryError, KeyError):
+            return False
+
+
+async def wait_decision(path, attachment, proxy_transport, *, metrics=None, binding_files=None):
+    wait = AttachmentWait(attachment, proxy_transport, metrics, binding_files)
+    started = time.monotonic()
+    delay = 0.05
+    try:
+        while True:
+            require(wait.live(), "owner_detached")
+            if path.exists():
+                # A cached digest is never sufficient to cross the action
+                # boundary. Re-read all current executable bytes before return.
+                require(wait.live(force=True), "owner_detached")
+                return stable_json(path, private=True)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, 0.2)
+    finally:
+        wait.metrics["wait_seconds"] = time.monotonic() - started
+        wait.close()
+
+
+async def wait_decision_with_metrics(path, attachment, proxy_transport, *, metrics_path,
+                                     delivery_id, binding_files=None):
+    metrics = {}
+    try:
+        return await wait_decision(path, attachment, proxy_transport, metrics=metrics,
+                                   binding_files=binding_files)
+    finally:
+        # Observability cannot replace a decision, owner loss, or cancellation.
+        # Keep private-file checks intact; leave unknown/unsafe files untouched.
+        try:
+            replace_private(metrics_path, dict(version=1, delivery_id=delivery_id, **metrics))
+        except (EntryError, OSError):
+            pass
 
 
 async def run_driver(request_path_value):
@@ -1071,7 +1214,18 @@ async def run_driver(request_path_value):
             if (batch.path / "controller-ack-request.json").exists():
                 ack_sha = client.replay_ack(batch)
             else:
-                decision = await wait_decision(decision_path, attachment, proxy_transport)
+                decision = await wait_decision_with_metrics(
+                    decision_path, attachment, proxy_transport,
+                    metrics_path=driver_root / "decision-wait-metrics.json",
+                    delivery_id=batch.delivery_id,
+                    binding_files={
+                        str(request_path_value): launcher["request_sha256"],
+                        request["manifest_path"]: request["manifest_sha256"],
+                        request["runtime"]["package_manifest"]:
+                            request["runtime"]["package_manifest_sha256"],
+                        request["runtime"]["g0_runtime_manifest"]:
+                            request["runtime"]["g0_runtime_manifest_sha256"],
+                    })
                 require(
                     set(decision)
                     == {
