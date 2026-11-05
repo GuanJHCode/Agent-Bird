@@ -29,6 +29,7 @@ type taskPlan struct {
 // A handle is routing metadata, not authority. The underlying CLI/service still
 // validates the control capability and owner for every operation. It is never
 // a source of cached task status, revisions, acceptance, or remaining budget.
+// Status/Error record only the durable submission decision and recovery phase.
 type taskHandle struct {
 	Version     int      `json:"version"`
 	RunID       string   `json:"run_id"`
@@ -36,6 +37,7 @@ type taskHandle struct {
 	ControlFile string   `json:"control_file,omitempty"`
 	TaskIDs     []string `json:"task_ids"`
 	Status      string   `json:"status"`
+	Error       string   `json:"error,omitempty"`
 }
 
 func taskEntry(ctx context.Context, args []string, out io.Writer) error {
@@ -276,9 +278,9 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 		return submitWithPreparedControl(ctx, []string{"--state-dir", state, "--request", path}, &receipt, func(controlPath string) error {
 			h.ControlFile = controlPath
 			return replacePrivateJSON(*handle, h)
-		}, func() error {
+		}, func(reason string) error {
 			rejected := h
-			rejected.Status, rejected.ControlFile = "rejected", ""
+			rejected.Status, rejected.ControlFile, rejected.Error = "rejected", "", reason
 			if err := replacePrivateJSON(*handle, rejected); err != nil {
 				return err
 			}
@@ -303,8 +305,15 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 			return err
 		}
 	}
-	if err = json.NewEncoder(out).Encode(map[string]any{"version": 1, "handle": *handle, "run_id": h.RunID, "task_ids": h.TaskIDs, "status": h.Status}); err != nil {
+	result := map[string]any{"version": 1, "handle": *handle, "run_id": h.RunID, "task_ids": h.TaskIDs, "status": h.Status}
+	if h.Status == "rejected" {
+		result["error"] = dispatchRejectionCode(h.Error)
+	}
+	if err = json.NewEncoder(out).Encode(result); err != nil {
 		return err
+	}
+	if h.Status == "rejected" {
+		return codeError(dispatchRejectionCode(h.Error))
 	}
 	return submitErr
 }

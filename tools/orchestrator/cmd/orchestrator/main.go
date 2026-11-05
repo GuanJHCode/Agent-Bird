@@ -272,7 +272,7 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 }
 
 // Persist the high-level recovery route before any submission can reach the coordinator.
-func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Writer, onPrepared func(string) error, rejectionCheckpoint ...func() error) error {
+func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Writer, onPrepared func(string) error, rejectionCheckpoint ...func(string) error) error {
 	fs := flag.NewFlagSet("submit", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
@@ -370,8 +370,8 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 		var rejected remoteError
 		if errors.As(err, &rejected) {
 			var checkpoint func() error
-			if len(rejectionCheckpoint) > 0 {
-				checkpoint = rejectionCheckpoint[0]
+			if len(rejectionCheckpoint) > 0 && rejectionCheckpoint[0] != nil {
+				checkpoint = func() error { return rejectionCheckpoint[0](dispatchRejectionCode(string(rejected))) }
 			}
 			if checkpointErr := finishSubmitRejection(checkpoint, func() {
 				for _, taskID := range pinned {

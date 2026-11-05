@@ -70,8 +70,9 @@
         },
         {
           "type": "unit/protocol-fixture/OS-native-local",
-          "status": "NOT_RUN",
-          "note": "基线Go进程运行中，后续读取新报告登记，不属于BASE-01/02通过依据。"
+          "status": "PASS",
+          "note": "相关基线通过；4个skip单列，非产品最终验收。",
+          "evidence": "docs/test-report.md"
         }
       ],
       "review": {
@@ -83,9 +84,11 @@
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "reviews/T00-review.md",
-        "accepted_commit": null
+        "accepted_commit": "08aa0184a8ea4348dce4b4ab3e6f44780f9795e3"
       },
-      "commits": [],
+      "commits": [
+        "08aa0184a8ea4348dce4b4ab3e6f44780f9795e3"
+      ],
       "blockers": [],
       "limitations": [],
       "updated_at": null
@@ -97,12 +100,12 @@
       "depends_on": [
         "T00"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
+      "baseline_commit": "29691e9f08468b1de56cb0c42977084b58c91975",
+      "implementation_agent": "/root/implement_t01",
       "review_agent": null,
-      "worktree": null,
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t01",
       "write_scope": [],
       "changed_files": [],
       "acceptance_ids": [
@@ -136,31 +139,53 @@
       "depends_on": [
         "T00"
       ],
-      "status": "pending",
-      "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
-      "review_agent": null,
-      "worktree": null,
+      "status": "done",
+      "completion_basis": "implemented",
+      "baseline_commit": "29691e9f08468b1de56cb0c42977084b58c91975",
+      "implementation_agent": "/root/implement_t02",
+      "review_agent": "/root/review_t02",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t02",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "tools/orchestrator/cmd/orchestrator/main.go",
+        "tools/orchestrator/cmd/orchestrator/task_dispatch.go",
+        "tools/orchestrator/cmd/orchestrator/task_entry.go",
+        "tools/orchestrator/cmd/orchestrator/submit_rejection_test.go",
+        "tools/orchestrator/cmd/orchestrator/task_dispatch_rejection_integration_test.go"
+      ],
       "acceptance_ids": [
         "DIS-01",
         "DIS-02",
         "DIS-03",
         "DIS-04"
       ],
-      "implementation_report": null,
-      "tests": [],
+      "implementation_report": "docs/T02-implementation.md",
+      "tests": [
+        {
+          "status": "PASS",
+          "evidence": "data/public-evidence/T02-worker-results.json",
+          "type": "protocol-fixture + race"
+        },
+        {
+          "status": "PASS",
+          "evidence": "data/public-evidence/T02-integrated.json",
+          "type": "protocol-fixture",
+          "counts_including_subtests": {
+            "passed": 23,
+            "failed": 0,
+            "skipped": 0
+          }
+        }
+      ],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
+        "status": "PASS",
+        "report": "reviews/T02-review.md",
         "target_commit": null,
         "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
+        "status": "PASS",
+        "evidence": "reviews/T02-review.md",
         "accepted_commit": null
       },
       "commits": [],
@@ -498,12 +523,12 @@
       "depends_on": [
         "T00"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "completion_basis": null,
-      "baseline_commit": null,
-      "implementation_agent": null,
+      "baseline_commit": "29691e9f08468b1de56cb0c42977084b58c91975",
+      "implementation_agent": "/root",
       "review_agent": null,
-      "worktree": null,
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t10",
       "write_scope": [],
       "changed_files": [],
       "acceptance_ids": [

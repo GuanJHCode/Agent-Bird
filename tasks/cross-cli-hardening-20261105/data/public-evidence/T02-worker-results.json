@@ -1,0 +1,34 @@
+[
+  {
+    "command": "go test -count=1 -run 'TestDispatch|TestManagedDispatchReuses|TestRejectedSubmit|TestSubmitRemoteRejection|Test.*Reconcile|TestLostSubmit' -json ./cmd/orchestrator",
+    "exit_code": 0,
+    "counts_including_subtests": {
+      "pass": 47,
+      "fail": 0,
+      "skip": 0
+    },
+    "top_level_counts": {
+      "pass": 14,
+      "fail": 0,
+      "skip": 0
+    },
+    "output": "focused-final.jsonl",
+    "output_sha256": "945d4252770900a11c3cf44546a03e253ab9304cf38c912947e77775304e9139"
+  },
+  {
+    "command": "go test -race -count=1 -run 'TestDispatchPublicCLI|TestManagedDispatchReuses|TestRejectedSubmit|TestSubmitRemoteRejection|Test.*Reconcile|TestLostSubmit' -json ./cmd/orchestrator",
+    "exit_code": 0,
+    "counts_including_subtests": {
+      "pass": 23,
+      "fail": 0,
+      "skip": 0
+    },
+    "top_level_counts": {
+      "pass": 7,
+      "fail": 0,
+      "skip": 0
+    },
+    "output": "race-focused.jsonl",
+    "output_sha256": "393e01a3deebe2e6fc57e6fa5eefc77ec394f78b7d1cb375480f2f61e11da055"
+  }
+]

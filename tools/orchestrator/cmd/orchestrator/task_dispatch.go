@@ -47,6 +47,15 @@ type dispatchReservation struct {
 }
 
 var dispatchID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$`)
+var dispatchErrorCode = regexp.MustCompile(`^[a-z][a-z0-9_]{0,127}$`)
+
+func dispatchRejectionCode(reason string) string {
+	if !dispatchErrorCode.MatchString(reason) {
+		return "submit_rejected_error_unavailable"
+	}
+	return reason
+}
+
 var dispatchOID = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
 func validateDispatch(req dispatchRequest) error {
@@ -257,13 +266,21 @@ func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	if h != nil && (h.ControlFile != "" || h.Status != "submitting") {
+		if h.Status == "rejected" {
+			reason := dispatchRejectionCode(h.Error)
+			_ = json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "rejected", "error": reason, "handle": handle, "run_id": runID, "task_ids": h.TaskIDs, "existing": true})
+			return codeError(reason)
+		}
 		if h.Status == "submitting" || h.Status == "submit_uncertain" {
 			if err = taskFollowup(ctx, "reconcile", []string{"--handle", handle}, io.Discard); err != nil {
 				_ = json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": h.Status, "handle": handle, "run_id": runID, "existing": true})
 				return err
 			}
+			if err = readPrivateJSON(handle, h); err != nil {
+				return err
+			}
 		}
-		return json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "existing", "handle": handle, "run_id": runID, "task_ids": h.TaskIDs, "existing": true})
+		return json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": h.Status, "handle": handle, "run_id": runID, "task_ids": h.TaskIDs, "existing": true})
 	}
 	planPath := filepath.Join(directory, "plan.json")
 	if checkpoint.Phase == "preparing" {
@@ -370,6 +387,11 @@ func loadDispatchCheckpoint(directory, state string, expected dispatchReservatio
 	}
 	if h.Version != 1 || h.RunID != current.RunID || h.StateDir != state || len(h.TaskIDs) != 1 || h.TaskIDs[0] != current.RunID+"-work" {
 		return current, nil, codeError("task_handle_scope_mismatch")
+	}
+	switch h.Status {
+	case "submitting", "rejected", "submit_uncertain", "queued", "queued_host_unavailable", "reconciled":
+	default:
+		return current, nil, codeError("dispatch_checkpoint_invalid")
 	}
 	if h.Status != "submitting" && h.Status != "rejected" && h.ControlFile == "" {
 		return current, nil, codeError("task_handle_unresolved")

@@ -153,7 +153,7 @@ func TestSubmitRemoteRejectionRetainsDurableRecoveryAtCrashBoundaries(t *testing
 						return errors.New("injected post-rename sync failure")
 					}
 					return nil
-				}, func() error {
+				}, func(_ string) error {
 					if phase == "checkpoint-write-failure" {
 						if err := os.Chmod(handle, 0400); err != nil {
 							return err

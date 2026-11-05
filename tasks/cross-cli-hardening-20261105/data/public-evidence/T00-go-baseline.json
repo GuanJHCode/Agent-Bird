@@ -1,0 +1,24 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/adapter",
+    "./internal/store",
+    "./internal/host"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tools/orchestrator",
+  "start": "2026-11-05T03:34:09.390732+00:00",
+  "elapsed_seconds": 132.345,
+  "exit_code": 0,
+  "source_commit": "29691e9f08468b1de56cb0c42977084b58c91975",
+  "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "counts": {
+    "passed": 696,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 4
+  },
+  "log_sha256": "028f89b6ee61556bd6f0c3fc6632704b03897549e52b51e112cf7c0301bb2483"
+}

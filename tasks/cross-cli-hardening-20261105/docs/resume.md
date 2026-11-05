@@ -1,5 +1,7 @@
 # 恢复入口
 
-读取 TASKS.json、docs/baseline.md、plans/current-plan.md 与 reviews。实际 worktree 及分支见 baseline。仅主会话写集成树，禁止递归 agent。每功能独审通过、主会话签收后才提交，并 push 本任务分支。T00 当前待独审；后续先 T01/T02 并行，T10 主会话准备。不重置用户工作区，不读取/公开旧 capability 或认证。
+读取TASKS.json、baseline、current-plan、reviews。集成worktree与分支见baseline；root唯一写入，子agent不递归。用户明确每功能独审/主签收后commit并push本任务分支，不merge正式分支、不发布或替换全局安装。
 
-当前 core_status=NOT_RUN，native_push_status=NOT_RUN，handoff_status=DRAFT；没有最终包或 live 通过声明。
+T00 done/pushed=08aa0184；T02独审及集成签收PASS，本轮提交；T10已实现并集成未提交，独审PASS待落盘主签收；T01隔离worktree由implement_t01冻结验证中。T03预算草案在plans/ADR-003，依赖T02；下一组T03/T05可并行但隔离文件与测试。所有旧用户现场保留，未跑live。
+
+core_status=NOT_RUN，native_push_status=NOT_RUN，handoff_status=DRAFT。最终包尚未生成，不能宣称整体完成。
