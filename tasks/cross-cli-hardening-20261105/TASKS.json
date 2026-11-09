@@ -1174,11 +1174,11 @@
       },
       "commits": [],
       "blockers": [
-        "LIVE01: lowest-model parent changed opaque847char refs; no accept/ACK/FF.",
-        "LIVE02: supplied API-key header route returned10 HTTP401 retries, no dispatch before174s cleanup reserve."
+        "Current .4 product worker gateway cli-default drops source default model env; fix and new uniquely verified package required before live preserving user model.",
+        "Actual current-candidate real parent/worker review/accept/ACK/integration NOT_RUN; old .3 bounded failures preserved."
       ],
       "limitations": [
-        "Original .3 failures/budgets and earlier chat-key probe preserved. New .4 source/PKG/offline regression PASS; product real bidirectional live NOT_RUN. User now configured CC Switch; effective settings match selected provider, AUTH_TOKEN/default model preserved. One standalone CLI check of current DashScope route returned403 and no model answer; no further retry or account/model/global-config change. Specific provider denial reason remains undetermined."
+        "Current CC Switch gateway address now matches ZCode; standalone Claude nonce call PASS with original token/default model. Historical401/UNKNOWN/403 retained. .4 product cli-default source model inheritance gap found during preparation, not hidden by explicit model override. New .4/next-candidate bidirectional live NOT_RUN; no old budget reset."
       ],
       "updated_at": null,
       "acceptance_policy": {
@@ -1205,17 +1205,17 @@
         "scope": "current source/package, Python raw JUnit and network-denied metadata; no live"
       },
       "authentication_recheck": {
-        "status": "BLOCKED",
-        "evidence": "data/public-evidence/T12-cc-claude-check-20261109.json",
-        "report": "docs/cc-claude-connectivity-20261109.md",
-        "scope": "current effective CC Switch Claude token route; standalone check only",
+        "status": "PASS",
+        "scope": "standalone direct Claude only; not product worker or bidirectional live",
+        "evidence": "data/public-evidence/T12-cc-gateway-check-20261109.json",
+        "report": "docs/cc-gateway-connectivity-20261109.md",
         "cli_launches": 1,
-        "observed_http_code": 403,
-        "settings_match_current_cc_switch": true,
+        "input_tokens": 69,
+        "output_tokens": 24,
+        "default_model_unchanged": true,
         "review": {
           "status": "PASS",
-          "report": "reviews/T12-cc-claude-check-review.md",
-          "scope": "record accuracy only; HTTP403 still BLOCKED"
+          "report": "reviews/T12-cc-gateway-check-review.md"
         }
       },
       "authentication_recheck_history": [
@@ -1231,6 +1231,20 @@
             "status": "PASS",
             "report": "reviews/T12-claude-recheck-review.md",
             "scope": "accurate blocked probe record, not successful authentication"
+          }
+        },
+        {
+          "status": "BLOCKED",
+          "evidence": "data/public-evidence/T12-cc-claude-check-20261109.json",
+          "report": "docs/cc-claude-connectivity-20261109.md",
+          "scope": "current effective CC Switch Claude token route; standalone check only",
+          "cli_launches": 1,
+          "observed_http_code": 403,
+          "settings_match_current_cc_switch": true,
+          "review": {
+            "status": "PASS",
+            "report": "reviews/T12-cc-claude-check-review.md",
+            "scope": "record accuracy only; HTTP403 still BLOCKED"
           }
         }
       ]
@@ -1357,7 +1371,7 @@
       "evidence": "data/public-evidence/T13-handoff-root.json",
       "scope": "PREPARED only; product root acceptance remains BLOCKED"
     },
-    "latest_authentication_probe": "data/public-evidence/T12-cc-claude-check-20261109.json"
+    "latest_authentication_probe": "data/public-evidence/T12-cc-gateway-check-20261109.json"
   },
   "handoff_statuses": [
     "NOT_RUN",

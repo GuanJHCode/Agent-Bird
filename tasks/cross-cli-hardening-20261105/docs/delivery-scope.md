@@ -148,3 +148,5 @@ ACK 必须从 collect 页复制实际字段；每项 `decision` 仅 `handled/wai
 402af7cc交接后用户另授权尝试Claude既有Key/API。[本次最小复测](claude-connectivity-20261109.md)的已观测补测返回HTTP401（原来源API-key模式、默认模型保留）；首次采集异常结果UNKNOWN。两次均已收尾，无进一步自动重试。该检查未使用`.4`产品派发闭环，不改变本页PKG/REG或历史`.3`身份，也不将`.4`LIVE从NOT_RUN提升。
 
 用户随后已配置生效CC Switch Claude路由；[新配置验证](cc-claude-connectivity-20261109.md)使用AUTH_TOKEN/Bearer和原默认模型，单次CLI返回HTTP403、无模型回答，具体权限/接入原因未确定。这与旧聊天Key/API的401分开记录，不改变产品`.4`LIVE=NOT_RUN。
+
+最新网关对齐验证：用户替换CC地址为ZCode实际第三方网关后，Key/实际模型保持一致，单次真实Claude调用成功（2.332s，input69/output24，nonce完全匹配）。见[成功记录](cc-gateway-connectivity-20261109.md)。这解除独立连通性阻塞，旧401/403仍为历史；产品worker另发现cli-default丢来源model env缺口，需先修复并生成新包，当前产品双向LIVE仍NOT_RUN/coreBLOCKED，不用显式换模型绕过。

@@ -13,3 +13,5 @@
 最新后续：用户在402af7cc交接后授权Claude既有Key/API最小连通性尝试。此前会话同配置补测HTTP401，CLI token0；首次采集异常/API结果UNKNOWN。共两次CLI启动，已收尾且不再自动重试。见[复测记录](claude-connectivity-20261109.md)，独立审查/root已通过准确的受阻记录，认证本身未通过。若另有已配置路由，只需路径/管理工具信息，不提供密钥；新.4真实双向仍NOT_RUN。
 
 最新CC配置验证：用户随后已完成CC Switch Claude配置，root确认生效settings与当前provider一致，使用新AUTH_TOKEN/原默认模型调用一次，CLI返回HTTP403、usage0、无模型回答/残留/密钥落盘。见[当前CC验证](cc-claude-connectivity-20261109.md)。这次不是旧会话Key/API，也不再以“未找到配置”描述当前状态；先前401记录仅为历史。未自动修改接口/模型/权限，`.4`双向仍NOT_RUN。
+
+最新网关对齐验证：用户替换CC地址为ZCode实际第三方网关后，Key/实际模型保持一致，单次真实Claude调用成功（2.332s，input69/output24，nonce完全匹配）。见[成功记录](cc-gateway-connectivity-20261109.md)。这解除独立连通性阻塞，旧401/403仍为历史；产品worker另发现cli-default丢来源model env缺口，需先修复并生成新包，当前产品双向LIVE仍NOT_RUN/coreBLOCKED，不用显式换模型绕过。
