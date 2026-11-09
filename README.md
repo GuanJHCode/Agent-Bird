@@ -2,7 +2,7 @@
 
 在 CLI 中通过 **Agent Bird** 派发独立任务、检查候选结果并明确验收。
 
-**版本边界：** 下方公开下载仍为 `v0.1.0-preview.1`，没有发布或替换全局安装。2026-11-09 私有 `.4` 包已完成 PKG-01～04 独审/root验收，短引用源码及离线回归见[当前交接](tasks/cross-cli-hardening-20261105/docs/final-handoff.md)。历史 `.3` 两方向真实 live 均未通过，新 `.4` 未运行真实模型试验，产品核心仍 BLOCKED。managed owner 仅为 `managed_process`，通过 wait/collect 返回，不证明原生聊天绑定或 native push。
+**版本边界：** 下方公开下载仍为 `v0.1.0-preview.1`，没有发布或替换全局安装。2026-11-09 当前私有 `.5` 包已纳入 Claude `cli-default` 六字段来源模型 ENV 修复，完成 PKG-01～04 独审/root验收；源码 Go、同包 Python 和无网络 native metadata 已运行通过，REG 独审与 root 签收已完成。身份和分层证据见[当前交付范围](tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)。历史 `.4` 包及 `.3` 双向失败保留；新 `.5` 真实模型 LIVE=NOT_RUN，core/T12/T13 product 与 native push 仍 BLOCKED，handoff资料已独审/root签收为PREPARED。managed owner 仅为 `managed_process`，通过 wait/collect 返回，不证明原生聊天绑定或 native push。
 
 > 用 Claude 检查这个项目的代码，列出问题和改进建议。
 

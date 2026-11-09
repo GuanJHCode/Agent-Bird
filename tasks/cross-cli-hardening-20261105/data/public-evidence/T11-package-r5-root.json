@@ -1,0 +1,140 @@
+{
+  "status": "PASS",
+  "package_identity": {
+    "commit": "7eb8c8d434a584fd109d9bed96d8c3a82f3fea98",
+    "tree": "2f90c500965cfe9098a9ff203078e5dfd896be36",
+    "materials_sha256": "e2bf10bc8b2a0ad9339a4078be58f951e1e787e1e0f67e3c4aeb4b107efd9810",
+    "platform": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
+    "uname": [
+      "Darwin",
+      "guanjunhuideMacBook-Pro.local",
+      "25.3.0",
+      "Darwin Kernel Version 25.3.0: Wed Jan 28 20:56:35 PST 2026; root:xnu-12377.91.3~2/RELEASE_ARM64_T6030",
+      "arm64",
+      "arm"
+    ],
+    "python": {
+      "path": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
+      "mode": "0o755",
+      "uid": 501
+    },
+    "version": "0.1.24-hardening.20261105.5",
+    "go": {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+      "sha256": "5742f0004c49c005313d88cd06df964b09cad6bcf2eac4506bdb90abc923b1f4",
+      "mode": 493,
+      "uid": 501,
+      "regular": true,
+      "symlink": false,
+      "archive": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/data/go1.26.10.darwin-arm64.tar.gz",
+      "archive_sha256": "0b5183492292ada170f9b561a834863808dd02edba599e4ad0e89899330020b3",
+      "archive_go_sha256": "5742f0004c49c005313d88cd06df964b09cad6bcf2eac4506bdb90abc923b1f4",
+      "version": "go version go1.26.10 darwin/arm64",
+      "goroot": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go"
+    },
+    "binary_sha256": "6b1d91d56d3189b04662fb56e4b6b733712fec10fb720f05c840e33becdd345b",
+    "package_manifest_sha256": "7f0200eefb119fe7a9360dc931ddfffd5413bc8cf4e4efac0665f01748bee3a8",
+    "archive_sha256": "5ad3caec4f13aaf457df27422998a12a60d6c63460ea305da27cb004a1da5db1",
+    "archive": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/agent-bird-0.1.24-hardening.20261105.5-full-native.tar.gz",
+    "installs": {
+      "installed": {
+        "destination": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed",
+        "root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed/versions/0.1.24-hardening.20261105.5",
+        "wrapper": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed/versions/0.1.24-hardening.20261105.5/scripts/invoke.sh",
+        "manifest_sha256": "34430957582f29d35223858c1a4eca7b6a2c5defa2383798367b9cb1641d3083",
+        "receipt_sha256": "addfa0e9e462c1c7cfedaee71cec4eefa09849c38d9ed7bf1dfa532eeda8ad68",
+        "runtime_manifest_sha256": "7f48d3a9959347e7873ad7e7009ef2023defbe2d71dc8807369e23adb84a9bb8",
+        "wrapper_sha256": "4f70ef56a1a40f8bd592f69fd11e8a6b63c3259ca9f53c11b2b07cd0ad0591ea",
+        "binary_sha256": "6b1d91d56d3189b04662fb56e4b6b733712fec10fb720f05c840e33becdd345b"
+      },
+      "installed with spaces": {
+        "destination": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed with spaces",
+        "root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed with spaces/versions/0.1.24-hardening.20261105.5",
+        "wrapper": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed with spaces/versions/0.1.24-hardening.20261105.5/scripts/invoke.sh",
+        "manifest_sha256": "deb6882df18881f63625c90973e9435798cc8ba52845fc7c4e1ba42046765113",
+        "receipt_sha256": "36037a5393b1bec60560a95f74ba5e301b6dd3058187f1ea9996e952d9bcd391",
+        "runtime_manifest_sha256": "7f48d3a9959347e7873ad7e7009ef2023defbe2d71dc8807369e23adb84a9bb8",
+        "wrapper_sha256": "4f70ef56a1a40f8bd592f69fd11e8a6b63c3259ca9f53c11b2b07cd0ad0591ea",
+        "binary_sha256": "6b1d91d56d3189b04662fb56e4b6b733712fec10fb720f05c840e33becdd345b"
+      }
+    }
+  },
+  "evidence_index_sha256": "0f3deb12183d4e9327170ea5d37c5c73788ae01d2475fcabdeedf9177e0d3c92",
+  "evidence_files": 180,
+  "archive_members": 37,
+  "archive_files": 25,
+  "installs": [
+    {
+      "name": "installed",
+      "files": 24,
+      "fresh_doctor_healthy": true,
+      "root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed/versions/0.1.24-hardening.20261105.5",
+      "manifest_sha256": "34430957582f29d35223858c1a4eca7b6a2c5defa2383798367b9cb1641d3083",
+      "receipt_sha256": "addfa0e9e462c1c7cfedaee71cec4eefa09849c38d9ed7bf1dfa532eeda8ad68"
+    },
+    {
+      "name": "installed with spaces",
+      "files": 24,
+      "fresh_doctor_healthy": true,
+      "root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed with spaces/versions/0.1.24-hardening.20261105.5",
+      "manifest_sha256": "deb6882df18881f63625c90973e9435798cc8ba52845fc7c4e1ba42046765113",
+      "receipt_sha256": "36037a5393b1bec60560a95f74ba5e301b6dd3058187f1ea9996e952d9bcd391"
+    }
+  ],
+  "negatives": 5,
+  "whole_destination_move_same_inode_rejected": true,
+  "installed_go_fixture": {
+    "passed": 7,
+    "failed": 0,
+    "skipped": 0
+  },
+  "interpreter_guard": {
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0
+  },
+  "runtime": [
+    {
+      "install": "installed",
+      "explicit_state_dir": "/private/tmp/ab-pkg-cvzyqg3v/runtime-main",
+      "observation_only": true,
+      "active_segments": 0,
+      "unknown_segments": 0,
+      "queued_tasks": 0,
+      "terminated": true,
+      "sqlite_schema_version": 11
+    },
+    {
+      "install": "installed with spaces",
+      "explicit_state_dir": "/private/tmp/ab-pkg-cvzyqg3v/runtime-space",
+      "observation_only": true,
+      "active_segments": 0,
+      "unknown_segments": 0,
+      "queued_tasks": 0,
+      "terminated": true,
+      "sqlite_schema_version": 11
+    }
+  ],
+  "build_attempts": {
+    "build_attempts": 1,
+    "successful_builds": 1,
+    "failed_builds": 0,
+    "package_invocations": 1,
+    "commit": "7eb8c8d434a584fd109d9bed96d8c3a82f3fea98",
+    "version": "0.1.24-hardening.20261105.5",
+    "gomodcache": "/Users/guanjunhui/go/pkg/mod"
+  },
+  "production_binding": {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/production-source-binding-r5.json",
+    "files": 149,
+    "aggregate_sha256": "6f0bf52cdd3659c4ed3860f1879c419eef68c2e6e1d2606576df12983916fabb"
+  },
+  "model_live": "NOT_RUN_ON_5",
+  "product_status": "BLOCKED",
+  "global_install_or_release": false,
+  "independent_review": "PASS",
+  "reviewer": "/root/review_claude_source_model",
+  "review": "reviews/T11-package-r5-review.md",
+  "date": "2026-11-09T07:03:29.637834+00:00"
+}

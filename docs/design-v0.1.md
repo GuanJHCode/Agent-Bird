@@ -2,7 +2,7 @@
 
 日期：2026-09-10。
 
-**历史提案说明（2026-11-09）：** 本文保留最初设计和待验证目标；下文“未实现”“不使用 MCP”“Windows”不作为当前源码状态。候选采用 managed_process + collect/wait、8 个普通 MCP 工具和短引用；不启 Tasks/native push，不把进程身份当聊天绑定。当前合同以[交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)及[交接证据](../tasks/cross-cli-hardening-20261105/docs/final-handoff.md)为准：私有 `.4` PKG与离线回归通过，真实模型试验未运行；历史 `.3` 双向未通过，core 仍 BLOCKED。
+**历史提案说明（2026-11-09）：** 本文保留最初设计和待验证目标；下文“未实现”“不使用 MCP”“Windows”不作为当前源码状态。候选采用 managed_process + collect/wait、8 个普通 MCP 工具和短引用；不启 Tasks/native push，不把进程身份当聊天绑定。当前合同以[交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)及[交接证据](../tasks/cross-cli-hardening-20261105/docs/final-handoff.md)为准：当前私有 `.5` 已修复 Claude 默认模型来源 ENV，PKG 独审/root通过，离线回归及同包 metadata 已运行通过、REG 独审与 root 签收已完成；真实模型 LIVE=NOT_RUN。历史 `.4` 包和 `.3` 双向失败保留，core/T12/T13 product 与 native push 仍 BLOCKED。
 
 设计过程：GPT-6 Astra、max 推理强度子 Agent 负责架构设计与压力检查；主 Agent 整理需求、核验接口、编写验收矩阵并汇总本文件。
 

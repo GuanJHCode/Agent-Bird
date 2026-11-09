@@ -1,6 +1,6 @@
 # Provider、owner 与运行时配置
 
-2026-11-09 私有 `.4` 的 scope、认证投影/refresh 限制、预算、v3 refs 和 MCP 短引用见[本轮合同](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)，安装、回归和受阻交接见[当前交接](../tasks/cross-cli-hardening-20261105/docs/final-handoff.md)。旧版本试验保留其日期/身份，不继承为新包或真实 live 结论。
+2026-11-09 当前私有 `.5` 的 scope、认证投影/refresh 限制、预算、v3 refs 和 MCP 短引用见[本轮合同](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)，安装、回归和受阻交接见[当前交接](../tasks/cross-cli-hardening-20261105/docs/final-handoff.md)。`.5` 已纳入 Claude 默认模型来源六字段 ENV 修复，离线回归/同包 metadata 已运行通过，真实模型 LIVE=NOT_RUN；REG 独审与 root 签收已完成。历史 `.4`、`.3` 试验保留其日期/身份，不继承为新包或真实 live 结论。
 
 ## 三个独立层次
 
@@ -31,9 +31,9 @@
 }
 ```
 
-省略 `model` 使用 Provider 的当前默认模型；需要可复现的模型选择时填写明确模型 ID。`provider_lock` 与旧 `binary_*` 字段不能混用。旧请求保留兼容层；新 profile 的权限不可与旧 allow/deny 列表混用。
+省略 `model` 使用 Provider 的当前默认模型；需要可复现的模型选择时填写明确模型 ID。`.5` 的 Claude gateway 在 `cli-default` 分支保留来源 `ANTHROPIC_MODEL`、`ANTHROPIC_DEFAULT_HAIKU_MODEL`、`ANTHROPIC_DEFAULT_SONNET_MODEL`、`ANTHROPIC_DEFAULT_OPUS_MODEL`、`ANTHROPIC_DEFAULT_FABLE_MODEL`、`ANTHROPIC_SMALL_FAST_MODEL` 六字段，避免隔离 HOME/config 时丢失已选第三方默认模型；不通过显式换模型绕过来源合同。该修复已有源码审查/回归与同包无网络 metadata 证据，尚无 `.5` 产品模型闭环验收。`provider_lock` 与旧 `binary_*` 字段不能混用。旧请求保留兼容层；新 profile 的权限不可与旧 allow/deny 列表混用。
 
-本机 Claude CLI 接入第三方模型服务。验收默认沿用用户已有配置，不强制 `haiku` 等官方别名；CLI 返回 403 RBAC 不能直接归因于 Claude 官方登录。本轮真实双向试验中，Codex→Claude worker 已 dispatch 并启动，但父模型后续改写 opaque 引用导致闭环中断；Claude→Codex 父 CLI 请求在 dispatch 前收到 HTTP 401，未创建 worker。两方向均无 accept/ACK/FF，详见[本轮交付记录](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#真实双向-live-结果)及[本轮双向 live 结果](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#真实双向-live-结果)。试验未改动服务地址、登录或凭据。
+本机 Claude CLI 接入第三方模型服务。验收默认沿用用户已有配置，不强制 `haiku` 等官方别名；CLI 返回 403 RBAC 不能直接归因于 Claude 官方登录。历史 `.3` 真实双向试验中，Codex→Claude worker 已 dispatch 并启动，但父模型后续改写 opaque 引用导致闭环中断；Claude→Codex 父 CLI 请求在 dispatch 前收到 HTTP 401，未创建 worker。两方向均无 accept/ACK/FF，详见[本轮交付记录](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#真实双向-live-结果)及[本轮双向 live 结果](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#真实双向-live-结果)。试验未改动服务地址、登录或凭据。
 
 ### 角色与隔离
 

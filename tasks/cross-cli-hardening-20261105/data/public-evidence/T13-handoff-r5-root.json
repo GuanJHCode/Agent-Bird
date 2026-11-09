@@ -1,0 +1,18 @@
+{
+  "status": "PREPARED",
+  "date": "2026-11-09T07:07:08.707245+00:00",
+  "source_commit": "7eb8c8d434a584fd109d9bed96d8c3a82f3fea98",
+  "package_version": "0.1.24-hardening.20261105.5",
+  "offline_source_package_regression_bootstrap": "PASS",
+  "current_package_real_live": "NOT_RUN",
+  "core_status": "BLOCKED",
+  "native_push_status": "BLOCKED",
+  "independent_final_doc_review": "PASS",
+  "root_handoff_acceptance": "PASS",
+  "product_acceptance": "BLOCKED",
+  "old_failure_budgets_preserved": true,
+  "global_install_or_release": false,
+  "review_report": "reviews/T13-final-r5-review.md",
+  "review_snapshot_r3_sha256": "32a34e28d79955d64faaff355f19c1fd6efd40ece309df972e9343c03e0af311",
+  "metadata_finalization": "Only agreed DOC statuses and signed review changed after r3; source/package/REG/bootstrap bytes unchanged"
+}

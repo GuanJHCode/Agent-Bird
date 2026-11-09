@@ -1,6 +1,8 @@
 # 分层验证
 
-2026-11-09 私有 `.4` 的包身份、源码与分层证据见[当前交接](../tasks/cross-cli-hardening-20261105/docs/final-handoff.md)。Go normal/race 各 1,654 pass、8 个既有 opt-in skip；vet/build 通过。同包实际安装 Go 的 Python 回归 301 pass、7 个 native opt-in skip；Codex/Claude metadata 均装载 8 工具且 source projection 一致，OS 禁止联网。PKG-01～04 独审/root通过。这些证据不证明模型 live：历史 `.3` 双向未完成核心闭环，新 `.4` 未运行真实模型试验，core/native push 保持 BLOCKED。第三方 Claude 保留 cli-default，Codex 原试验使用 gpt-6-luna/low，未换账户或默认模型。
+2026-11-09 当前私有 `.5` 的身份与证据见[交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#交付身份与验收边界)。Go normal/race 各1,659pass（659顶层、1,000子测试）、0fail、8个既有opt-in skip，vet/全模块build通过；首次normal的1个AGY 2秒probe_error失败原样保留，随后5次focused及fresh normal/race均通过，未改超时。149个生产材料与包源码逐文件一致。见[.5回归记录](../tasks/cross-cli-hardening-20261105/data/public-evidence/T12-regression-r5-root.json)、[源码绑定](../tasks/cross-cli-hardening-20261105/data/public-evidence/T12-source-binding-r5.json)及[REG独立审查](../tasks/cross-cli-hardening-20261105/reviews/T12-regression-r5-review.md)；上述运行已通过，REG独审与root签收已完成。
+
+同一 `.5` 实际安装binary的Python回归301pass/7native opt-in skip/0fail/0error；JUnit SHA256 `4947c51c3ba81c88fa3259d4b64773e1a6d0871308757374cb41e1160722a00f`。Codex/Claude metadata各8工具、完整source proof相等、无owned残留，OS禁止联网；Claude normal模式检查7个managed路径/2个defaults域，未发送模型turn。PKG-01～04独审/root通过，单次build/package均成功且0失败，见[.5包记录](../tasks/cross-cli-hardening-20261105/data/public-evidence/T11-package-r5-root.json)和[包审查](../tasks/cross-cli-hardening-20261105/reviews/T11-package-r5-review.md)。这些是离线/metadata层证据：历史 `.4`、`.3` 及其失败保留；新 `.5` 真实模型LIVE=NOT_RUN，core/T12/T13 product与native push保持BLOCKED，LIVE-03=NOT_EXERCISED。Claude保留cli-default及来源模型ENV，Codex原试验使用gpt-6-luna/low。
 
 ## 1. 协议、状态与安全边界
 

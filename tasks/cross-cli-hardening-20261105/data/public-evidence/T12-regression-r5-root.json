@@ -1,0 +1,87 @@
+{
+  "status": "PASS",
+  "date": "2026-11-09T07:03:29.637834+00:00",
+  "source_commit": "7eb8c8d434a584fd109d9bed96d8c3a82f3fea98",
+  "package_version": "0.1.24-hardening.20261105.5",
+  "binary_sha256": "6b1d91d56d3189b04662fb56e4b6b733712fec10fb720f05c840e33becdd345b",
+  "python": {
+    "exit_code": 0,
+    "seconds": 62.088,
+    "command": [
+      "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/test-runtime-restore/venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "-p",
+      "no:cacheprovider",
+      "tools/native-product-bridge",
+      "tools/real-user-trial",
+      "-q",
+      "-rs",
+      "--basetemp",
+      "/private/tmp/p5-76qv98my",
+      "--junitxml",
+      "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-regression-r5/data/python.xml"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration",
+    "source_commit": "7eb8c8d434a584fd109d9bed96d8c3a82f3fea98",
+    "counts": {
+      "tests": 308,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 7,
+      "passed": 301
+    },
+    "installed_binary": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed/versions/0.1.24-hardening.20261105.5/bin/codex-orchestrator",
+    "installed_binary_sha256": "6b1d91d56d3189b04662fb56e4b6b733712fec10fb720f05c840e33becdd345b",
+    "binary_unchanged": true,
+    "owned_basetemp": "/private/tmp/p5-76qv98my",
+    "credential_environment": "allowlist: no actual credentials/provider route inherited",
+    "junit_sha256": "4947c51c3ba81c88fa3259d4b64773e1a6d0871308757374cb41e1160722a00f",
+    "skipped": [
+      "tools.real-user-trial.test_native_auth_tripwire:test_fixed_native_refresh_tripwire_blocks_oauth_egress",
+      "tools.real-user-trial.test_native_codex_policy:test_fixed_native_named_profile_preserves_host_and_auth_boundaries[reviewer]",
+      "tools.real-user-trial.test_native_codex_policy:test_fixed_native_named_profile_preserves_host_and_auth_boundaries[implementer]",
+      "tools.real-user-trial.test_native_codex_prepare:test_prepare_launch_real_native_candidate_full_path",
+      "tools.real-user-trial.test_native_codex_prepare:test_duplicate_override_rejected_before_native_or_auth_read[]",
+      "tools.real-user-trial.test_native_codex_prepare:test_duplicate_override_rejected_before_native_or_auth_read[invalid://refresh-blocked]",
+      "tools.real-user-trial.test_native_codex_prepare:test_duplicate_override_rejected_before_native_or_auth_read[https://invalid.example/token]"
+    ]
+  },
+  "native_metadata": [
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-native-r5/data/latest-report.json",
+      "sha256": "26c2431e44d71942e4ad94d8f7854765cc2cb25b728237f4578e1eac6e5a08c6",
+      "tools": 8,
+      "source_projection_matches": true,
+      "remaining_owned_process_group_members": [],
+      "model_turn_requested": false
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-native-r5/data/control-latest-report.json",
+      "sha256": "6950b56ec51d7af86db821764027a3e046a33077c31b1ae16e0c60c32ee7114f",
+      "tools": 8,
+      "source_projection_matches": true,
+      "remaining_owned_process_group_members": [],
+      "model_turn_requested": false
+    }
+  ],
+  "native_execution_index": {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-native-r5/docs/metadata-execution-evidence-index.json",
+    "sha256": "d9c6f792c2f5c4af6d6b907d8c1ccd19ecffbbabd73a02e608edec04b944138a",
+    "files": 132
+  },
+  "independent_review": {
+    "status": "PASS",
+    "agent": "/root/review_claude_source_model",
+    "report": "reviews/T12-regression-r5-review.md"
+  },
+  "root_acceptance": "PASS",
+  "scope": "same installed .5 binary Python and no-network control-only native metadata; not model/dispatch/Tasks/native continuation",
+  "model_live": "NOT_RUN_ON_5",
+  "product_status": "BLOCKED",
+  "limitations": [
+    "Claude mcp_status does not expose Tasks capability; same-package PKG initialize separately proves noTasks.",
+    "One existing SyntaxWarning return in finally is retained in pytest stdout; no unrelated source change."
+  ]
+}

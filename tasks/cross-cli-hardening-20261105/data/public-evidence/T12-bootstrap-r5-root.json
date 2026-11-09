@@ -1,0 +1,77 @@
+{
+  "status": "BOOTSTRAP_PASS_NOT_LIVE",
+  "root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109",
+  "package_identity_sha256": "75f7358740914e1bcfe9463322cfda6ce1457e1f85475cd235c5b0f585761069",
+  "package_version": "0.1.24-hardening.20261105.5",
+  "pinned_files": 51,
+  "all_seven_scripts_pinned": true,
+  "current_source_matches_setup": true,
+  "source_projection_matches_both_generated_codex_args": true,
+  "directions": [
+    {
+      "direction": "codex-to-claude",
+      "provider": "claude",
+      "model": "cli-default",
+      "source_env_names_forwarded": true,
+      "binding_valid": true,
+      "provider_lock_valid": true,
+      "unconsumed": true,
+      "budget": {
+        "per_segment_ms": 60000,
+        "total_ms": 90000,
+        "max_attempts": 2,
+        "group_id": "t12-codex-to-claude"
+      }
+    },
+    {
+      "direction": "claude-to-codex",
+      "provider": "codex",
+      "model": "gpt-6-luna",
+      "source_env_names_forwarded": true,
+      "binding_valid": true,
+      "provider_lock_valid": true,
+      "unconsumed": true,
+      "budget": {
+        "per_segment_ms": 60000,
+        "total_ms": 90000,
+        "max_attempts": 2,
+        "group_id": "t12-claude-to-codex"
+      }
+    }
+  ],
+  "credential_persisted": false,
+  "credential_scan_passed": true,
+  "credential_files_scanned": 100,
+  "credential_file_hits": [],
+  "owned_modes": [
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109",
+      "mode": "0o700"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/setup.json",
+      "mode": "0o600"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/source-preflight.json",
+      "mode": "0o600"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/mcp-request.json",
+      "mode": "0o600"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/claude-to-codex/mcp-request.json",
+      "mode": "0o600"
+    }
+  ],
+  "actual_setup_cli_model_invocations": 0,
+  "controller_worker_started": false,
+  "live_authorization": "PENDING_NEW_BOUNDED_SCOPE_CONFIRMATION",
+  "core_status": "BLOCKED",
+  "independent_review": {
+    "status": "PASS",
+    "agent": "/root/review_r5_live_preparation",
+    "report": "reviews/T12-live-preparation-r5-review.md"
+  }
+}

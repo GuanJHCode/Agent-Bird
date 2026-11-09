@@ -1,6 +1,6 @@
 # v0.1 运行协议补充
 
-历史状态：原始设计合同与测试规格，以下数值和目标不自动表示当前已实现/实测。2026-11-09 `.4` 的实现边界见[本轮运行合同](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)，包括 shared budget、完整 brief、MCP 短引用、owner 活性检查和 GC charge/barrier。私有 `.4` PKG及离线回归通过；真实模型试验未运行，历史 `.3` 双向未通过，core 仍 BLOCKED。补充[设计 §3–8](design-v0.1.md)，不新增用户入口或模型决策层。
+历史状态：原始设计合同与测试规格，以下数值和目标不自动表示当前已实现/实测。2026-11-09 `.5` 的实现边界见[本轮运行合同](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)，包括 shared budget、完整 brief、MCP 短引用、owner 活性检查、GC charge/barrier 与 Claude 默认模型来源 ENV 保留。私有 `.5` PKG 独审/root通过，离线回归及同包 metadata 已运行通过、REG 独审与 root 签收已完成；真实模型 LIVE=NOT_RUN。历史 `.4` 包和 `.3` 双向失败保留，core/T12/T13 product 与 native push 仍 BLOCKED。补充[设计 §3–8](design-v0.1.md)，不新增用户入口或模型决策层。
 
 ## 1. 版本、持久化与进程角色
 
