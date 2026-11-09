@@ -136,13 +136,21 @@ func (f *mcpFacade) mintRoute(path, owner string) (string, error) {
 	if h.Version != 1 || h.RunID == "" || h.StateDir != f.config.StateDir || len(h.TaskIDs) == 0 {
 		return "", codeError("mcp_route_scope_mismatch")
 	}
-	route := mcpRoute{ID: dispatchHash(f.config.Namespace + "\x00" + path + "\x00" + h.RunID + "\x00" + owner), Handle: path, StateDir: h.StateDir, Workspace: f.config.Workspace, RunID: h.RunID, Owner: owner, TaskIDs: append([]string(nil), h.TaskIDs...)}
+	route := f.routeValue(path, owner, h)
 	if h.ControlFile != "" {
 		if _, err := f.loadRouteControl(route, h); err != nil {
 			return "", err
 		}
 	}
+	if coordinates, ok := f.routeCoordinates(path); ok {
+		return f.compactRoute(route, coordinates)
+	}
+	// Historical noncanonical dispatch layouts retain their sealed references.
 	return f.seal("route", route)
+}
+
+func (f *mcpFacade) routeValue(path, owner string, h taskHandle) mcpRoute {
+	return mcpRoute{ID: dispatchHash(f.config.Namespace + "\x00" + path + "\x00" + h.RunID + "\x00" + owner), Handle: path, StateDir: h.StateDir, Workspace: f.config.Workspace, RunID: h.RunID, Owner: owner, TaskIDs: append([]string(nil), h.TaskIDs...)}
 }
 func (f *mcpFacade) loadRouteControl(route mcpRoute, h taskHandle) (controlCapability, error) {
 	var empty controlCapability
@@ -172,8 +180,14 @@ func (f *mcpFacade) resolveRoute(token string) (mcpRoute, taskHandle, controlCap
 	if err := f.checkConfiguration(); err != nil {
 		return route, h, cap, err
 	}
-	if err := f.unseal(token, "route", &route); err != nil {
-		return route, h, cap, err
+	var decodeErr error
+	if strings.HasPrefix(token, mcpCompactRoutePrefix) {
+		route, decodeErr = f.openCompactRoute(token)
+	} else {
+		decodeErr = f.unseal(token, "route", &route)
+	}
+	if decodeErr != nil {
+		return route, h, cap, decodeErr
 	}
 	if route.Owner == "" || route.RunID == "" || len(route.TaskIDs) == 0 || route.StateDir != f.config.StateDir || route.Workspace != f.config.Workspace || !f.routePathAllowed(route.Handle) || route.ID != dispatchHash(f.config.Namespace+"\x00"+route.Handle+"\x00"+route.RunID+"\x00"+route.Owner) {
 		return route, h, cap, codeError("mcp_route_scope_mismatch")
@@ -201,23 +215,44 @@ type mcpReview struct {
 }
 
 func (f *mcpFacade) reviewReference(route mcpRoute, task string, binding store.ReviewableResultBinding) (string, error) {
-	if !slices.Contains(route.TaskIDs, task) || binding.CandidateOID == "" || binding.EventID == "" || binding.EventRevision < 1 || binding.EventHash == "" || binding.ActionSlot == "" || binding.SegmentID == "" || binding.WorkRevision < 1 {
-		return "", codeError("candidate_not_reviewable")
+	if err := validMCPReview(route, mcpReview{route.ID, route.Owner, route.RunID, task, binding}); err != nil {
+		return "", err
 	}
-	return f.seal("review", mcpReview{route.ID, route.Owner, route.RunID, task, binding})
+	if err := f.checkConfiguration(); err != nil {
+		return "", err
+	}
+	review := mcpReview{route.ID, route.Owner, route.RunID, task, binding}
+	if route.Handle != "" {
+		return f.compactReview(route, review)
+	}
+	return f.seal("review", review)
+}
+
+func validMCPReview(route mcpRoute, review mcpReview) error {
+	if review.RouteID != route.ID || review.Owner != route.Owner || review.RunID != route.RunID || !slices.Contains(route.TaskIDs, review.TaskID) {
+		return codeError("mcp_review_scope_mismatch")
+	}
+	binding := review.Binding
+	if binding.CandidateOID == "" || binding.EventID == "" || binding.EventRevision < 1 || binding.EventHash == "" || binding.ActionSlot == "" || binding.SegmentID == "" || binding.WorkRevision < 1 {
+		return codeError("candidate_not_reviewable")
+	}
+	return nil
 }
 func (f *mcpFacade) resolveReview(token string, route mcpRoute) (mcpReview, error) {
 	var review mcpReview
-	if err := f.unseal(token, "review", &review); err != nil {
+	if err := f.checkConfiguration(); err != nil {
 		return review, err
 	}
-	if review.RouteID != route.ID || review.Owner != route.Owner || review.RunID != route.RunID || !slices.Contains(route.TaskIDs, review.TaskID) {
-		return review, codeError("mcp_review_scope_mismatch")
+	var err error
+	if strings.HasPrefix(token, mcpCompactReviewPrefix) {
+		review, err = f.openCompactReview(token, route)
+	} else {
+		err = f.unseal(token, "review", &review)
 	}
-	if _, err := f.reviewReference(route, review.TaskID, review.Binding); err != nil {
+	if err != nil {
 		return review, err
 	}
-	return review, nil
+	return review, validMCPReview(route, review)
 }
 func mcpTask(route mcpRoute, task string) (string, error) {
 	if task == "" && len(route.TaskIDs) == 1 {

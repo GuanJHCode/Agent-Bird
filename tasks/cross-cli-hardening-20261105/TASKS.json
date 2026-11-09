@@ -800,12 +800,12 @@
         "T05",
         "T07"
       ],
-      "status": "in_progress",
+      "status": "done",
       "completion_basis": "implemented",
       "baseline_commit": "c7d5f8a0",
-      "implementation_agent": "/root + /root/implement_t08_auth",
-      "review_agent": "/root/review_t08",
-      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-r4",
+      "implementation_agent": "/root",
+      "review_agent": "/root/review_short_refs_security",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs",
       "write_scope": [],
       "changed_files": [
         "plugins/codex-orchestrator/scripts/invoke.sh",
@@ -826,7 +826,10 @@
         "tools/orchestrator/cmd/orchestrator/source_auth_environment_test.go",
         "tools/orchestrator/cmd/orchestrator/task_dispatch.go",
         "tools/orchestrator/go.mod",
-        "tools/orchestrator/go.sum"
+        "tools/orchestrator/go.sum",
+        "tools/orchestrator/cmd/orchestrator/mcp_references.go",
+        "tools/orchestrator/cmd/orchestrator/mcp_references_test.go",
+        "tasks/cross-cli-hardening-20261105/plans/T08-short-references.md"
       ],
       "acceptance_ids": [
         "MCP-01",
@@ -873,18 +876,35 @@
           "status": "PASS",
           "type": "Codex/Claude actual MCP metadata loading; no model",
           "evidence": "data/public-evidence/T08-native-metadata.json"
+        },
+        {
+          "status": "PASS",
+          "type": "compact-reference final-source normal/race/vet/build and MCP",
+          "evidence": "data/public-evidence/T08-short-references-root.json",
+          "counts_including_subtests": {
+            "full-normal": {
+              "pass": 1654,
+              "skip": 8
+            },
+            "full-race": {
+              "pass": 1654,
+              "skip": 8
+            }
+          }
         }
       ],
       "review": {
         "status": "PASS",
-        "report": "reviews/T08-review-r4.md",
+        "report": "reviews/T08-short-references-review.md",
         "target_commit": null,
+        "target_snapshot": "data/public-evidence/T08-short-references-root.json",
         "unresolved_findings": []
       },
       "owner_acceptance": {
         "status": "PASS",
-        "evidence": "docs/T08-implementation.md",
-        "accepted_commit": "c3de5226"
+        "evidence": "data/public-evidence/T08-short-references-root.json",
+        "accepted_commit": null,
+        "basis": "exact integrated/reviewed four-file SHA256 snapshot"
       },
       "commits": [
         "c3de5226"
@@ -894,9 +914,9 @@
         "Final installed package/receipt and real parent/worker model cycles remain T11/T12 gates.",
         "Additional managed-native admission under external Seatbelt blocked before owner bind by setuid ps; no sourceproof conclusion.",
         "Independent r3/r4 subset raw outputs were not retained as files; source review report states this; root fresh full-module reports retained.",
-        "New offline follow-up: real lowest-model parent changed847-char route refs; compact refs implementation pending, original security checks correctly rejected mutations."
+        "Compact refs offline PASS; unique .4 package pending. Actual .4 model transmission/live NOT_RUN; original .3 trial failures and budgets retained. Old binaries cannot parse new compact refs."
       ],
-      "updated_at": "2026-11-05T08:36:51.029285+00:00"
+      "updated_at": "2026-11-09T02:46:34.780833+00:00"
     },
     {
       "id": "T09",
@@ -1080,7 +1100,7 @@
       "commits": [],
       "blockers": [],
       "limitations": [
-        "Historical .3 source d700 unique package independently/root PKG-01..04 PASS; final documentation state synchronization and new offline compact-reference candidate remain pending. No release/global replacement."
+        "Historical .3 source d700 unique package independently/root PKG-01..04 PASS; compact-reference offline source fix PASS; unique .4 package and final documentation remain pending. No release/global replacement."
       ],
       "updated_at": "2026-11-05T08:44:46.119375+00:00"
     },
@@ -1136,7 +1156,7 @@
         "LIVE02: supplied API-key header route returned10 HTTP401 retries, no dispatch before174s cleanup reserve."
       ],
       "limitations": [
-        "Both original bounded trials ended; no budget/ID reset or added paid trial. Compact-reference offline fix and exact working third-party auth mode pending; preserve all original failure evidence."
+        "Both original bounded trials ended; no budget/ID reset or added paid trial. Compact-reference offline source fix PASS; unique .4 package/live transmission and exact working third-party auth mode pending; preserve all original failure evidence."
       ],
       "updated_at": null,
       "acceptance_policy": {

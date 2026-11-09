@@ -101,6 +101,8 @@ serve 无 owner 也可列工具。MCP 新 dispatch 必须由本版已安装 `con
 | `ack` | handle/delivery_id/collection_proof_sha256/decisions；该页全部 actionable 事件的真实 tuple 和处置，非验收。 |
 | `stop` | handle/work_revision，可选 task_id；使用 inspect 刚观察的 revision；requested 不等于 confirmed，需复查无 active/unknown。 |
 
+新候选的 canonical dispatch handle 使用 79 字符 `m1r_` 短引用，review token 使用 47 字符 `m1v_` 短引用；均保留完整 HMAC 和原 owner/完整 tuple/业务授权校验，旧 sealed 引用仍可解析。inspect 可在私有 request 的 `mcp-reviews/` 创建不可变辅助元数据（目录 `0700`、文件 `0600`、最多 64 条 × 16 KiB）；不修改业务数据库或决定，重复 inspect 不重写同 tuple。损坏、越权或超额记录明确拒绝，缺失的当前 tuple 可重新 inspect 重建。旧二进制不能解析新短引用，须保留兼容安装与私有元数据。详见[短引用合同](../plans/T08-short-references.md)。此生产变更须用新私有 `.4` 包验收，历史 `.3` 安装和真实试验不代替新包或短引用的 live 证据。
+
 `cli_handle` 仅为只读路由元数据，不是 owner/control authority。MCP 服务关闭后，可使用同一已安装 wrapper 的 `task inspect/collect/request-changes/accept/ack/stop`，将该路径传给 `--handle` 并提供原命令要求的其余真实参数；仍受原授权、receipt 和 revision 校验。不要把 opaque MCP handle 当作 CLI 文件路径。
 
 调用参数示例（不是 shell 命令，`H`、`T` 取真实响应，禁止自行编造）：

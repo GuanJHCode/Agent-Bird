@@ -149,11 +149,16 @@ func newMCPBusinessFixture(t *testing.T, candidate bool) *mcpBusinessFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handle := filepath.Join(state, "dispatch", "fixture", "handle.json")
+	// Match the durable dispatch layout used by the actual CLI; route codecs may
+	// reconstruct these fixed-size coordinates without exposing absolute paths.
+	handle := filepath.Join(state, "dispatch", strings.Repeat("c", 24), strings.Repeat("d", 24), "handle.json")
 	if err = os.MkdirAll(filepath.Dir(handle), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err = writeExclusiveJSON(handle, taskHandle{Version: 1, RunID: "run", StateDir: state, ControlFile: control, TaskIDs: []string{"edit"}, Status: "queued"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = writeExclusiveJSON(filepath.Join(filepath.Dir(handle), "reservation.json"), dispatchReservation{Version: 1, RunID: "run", ControllerThread: owner.ControllerThread, Phase: "accepted"}); err != nil {
 		t.Fatal(err)
 	}
 	route, err := f.mintRoute(handle, owner.ControllerThread)
@@ -291,9 +296,8 @@ func TestMCPBusinessCrossEntryRequestChangesReplay(t *testing.T) {
 			x := newMCPBusinessFixture(t, true)
 			token := x.review(t)
 			brief := ownerChangeBrief{Version: version, TaskID: "edit", WorkRevision: 1, Feedback: "handle negatives", Acceptance: "negative case passes", CommandID: "same-command"}
-			var r mcpRoute
-			var review mcpReview
-			if err := x.f.unseal(x.route, "route", &r); err != nil {
+			r, _, _, err := x.f.resolveRoute(x.route)
+			if err != nil {
 				t.Fatal(err)
 			}
 			review, err := x.f.resolveReview(token, r)
@@ -349,8 +353,8 @@ func TestMCPBusinessMCPFirstLostReplyReplaysThroughWrapper(t *testing.T) {
 			if errorCode(err) != "request_changes_uncertain" {
 				t.Fatalf("lost reply not preserved: %v", err)
 			}
-			var route mcpRoute
-			if err = x.f.unseal(x.route, "route", &route); err != nil {
+			route, _, _, err := x.f.resolveRoute(x.route)
+			if err != nil {
 				t.Fatal(err)
 			}
 			review, err := x.f.resolveReview(token, route)

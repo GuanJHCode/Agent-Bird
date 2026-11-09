@@ -1,0 +1,169 @@
+{
+  "status": "PASS_FOR_FROZEN_SOURCE",
+  "date": "2026-11-09T02:46:34.780833+00:00",
+  "implementation_owner": "/root",
+  "independent_reviewer": "/root/review_short_refs_security",
+  "review": "reviews/T08-short-references-review.md",
+  "base_commit": "48b3a9b25f7428c50c6305abbb1fb8eee14c48f0",
+  "integration_base": "03bc5550680d0883c83e2f702c6d08a4b09d2358",
+  "source_hashes": {
+    "tools/orchestrator/cmd/orchestrator/mcp_routes.go": "a7926614a977f7c6968b99bb6c5586639cb24e5e2f225e0ae0ac3aab07db2f41",
+    "tools/orchestrator/cmd/orchestrator/mcp_references.go": "ad5042d928bd1668b2be4995f8f68f5b0713c19cab10fbe26c2de483d44cee1e",
+    "tools/orchestrator/cmd/orchestrator/mcp_business_test.go": "aed3fad1a93579787aa561111cd1aed112768d1cb1514828c5b001ff58fb35c5",
+    "tools/orchestrator/cmd/orchestrator/mcp_references_test.go": "34d9656a6bcfd3b8bec5c3da17e859d2ec1cde1326475f04a4a4f735e6ea1477"
+  },
+  "plan_sha256": "05c95d8c6ed03a7459751f088470962d64e66b67574160e3cdd89214726e8893",
+  "focused": {
+    "passed": 181,
+    "failed": 0,
+    "skipped": 0,
+    "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs-evidence/data/green3.jsonl",
+    "sha256": "25665541c3d4781bbeff095b41ac77a0c1cbe557aeea63fb340635207ff06284"
+  },
+  "full_validation": [
+    {
+      "name": "full-normal",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "test",
+        "-count=1",
+        "-json",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 344.119,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs-evidence/data/full-normal.jsonl",
+      "sha256": "6841774688f8e0fab32f04dc16605cadb461f2f100173e5995281a63bce0ff9c",
+      "tests": {
+        "pass": 1654,
+        "skip": 8
+      },
+      "top_level": {
+        "pass": 656,
+        "skip": 8
+      },
+      "failures": [],
+      "skipped": [
+        "codex-cli-orchestration-design/tools/orchestrator/internal/adapter:TestProbeCauseDecompositionObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayReadOnlyTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayManagedWriteTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestS4StageTimingObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeManagedCandidate",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeReviewerProfile",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixRead",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixInvocationStages"
+      ]
+    },
+    {
+      "name": "full-race",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "test",
+        "-race",
+        "-count=1",
+        "-json",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 526.545,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs-evidence/data/full-race.jsonl",
+      "sha256": "bcdfdb1ec61b381b3db2d57287c7efb78787a4a6f2a5981d4667358abc32d93e",
+      "tests": {
+        "pass": 1654,
+        "skip": 8
+      },
+      "top_level": {
+        "pass": 656,
+        "skip": 8
+      },
+      "failures": [],
+      "skipped": [
+        "codex-cli-orchestration-design/tools/orchestrator/internal/adapter:TestProbeCauseDecompositionObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayReadOnlyTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayManagedWriteTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestS4StageTimingObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeManagedCandidate",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeReviewerProfile",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixRead",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixInvocationStages"
+      ]
+    },
+    {
+      "name": "vet",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "vet",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 3.267,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs-evidence/data/vet.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "build",
+        "-o",
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs-evidence/tmp/codex-orchestrator",
+        "./cmd/orchestrator"
+      ],
+      "exit_code": 0,
+      "seconds": 0.855,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs-evidence/data/build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build-all",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "build",
+        "./..."
+      ],
+      "exit_code": 0,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs-evidence/data/build-all.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_hashes": {
+        "tools/orchestrator/cmd/orchestrator/mcp_routes.go": "a7926614a977f7c6968b99bb6c5586639cb24e5e2f225e0ae0ac3aab07db2f41",
+        "tools/orchestrator/cmd/orchestrator/mcp_references.go": "ad5042d928bd1668b2be4995f8f68f5b0713c19cab10fbe26c2de483d44cee1e",
+        "tools/orchestrator/cmd/orchestrator/mcp_business_test.go": "aed3fad1a93579787aa561111cd1aed112768d1cb1514828c5b001ff58fb35c5",
+        "tools/orchestrator/cmd/orchestrator/mcp_references_test.go": "34d9656a6bcfd3b8bec5c3da17e859d2ec1cde1326475f04a4a4f735e6ea1477"
+      },
+      "go": {
+        "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "version": "go version go1.26.10 darwin/arm64",
+        "sha256": "5742f0004c49c005313d88cd06df964b09cad6bcf2eac4506bdb90abc923b1f4",
+        "mode": "0o755",
+        "uid": 501
+      }
+    }
+  ],
+  "behavior": {
+    "canonical_route_characters": 79,
+    "review_characters": 47,
+    "full_hmac_bytes": 32,
+    "old_sealed_references_accepted": true,
+    "tools": 8,
+    "tasks_capability": false,
+    "record_quota": 64,
+    "record_max_bytes": 16384,
+    "auxiliary_storage_only": true
+  },
+  "historical_failures_retained": {
+    "red": "old implementation rejected length requirements; red2.jsonl",
+    "sdk": "green1 SDK setup failure: missing temporary stdlib sources; official same-version SDK restored",
+    "initial_green": "green2 two legacy test helpers unsealed new compact refs directly; changed to resolveRoute, original business assertions retained"
+  },
+  "toolchain_restore": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/docs/restore-report.md",
+  "package_status": "NEW_UNIQUE_0.1.24-hardening.20261105.4_REQUIRED_NOT_YET_BUILT",
+  "live_status": "NOT_RUN_ON_NEW_SOURCE; historical .3 bounded failures remain BLOCKED, no new paid trial",
+  "product_status": "BLOCKED",
+  "test_runtime_restore": {
+    "report": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/test-runtime-restore/docs/restore-report.md",
+    "sha256": "a296cea0d17eb34feb0bc0f459c7b7a2bdab6a148f7bc920b9fdc895735336b4",
+    "python": "3.14.3",
+    "pytest": "9.2.0",
+    "global_or_old_venv_modified": false
+  }
+}
