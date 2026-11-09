@@ -1,0 +1,79 @@
+{
+  "status": "PASS_FOR_OFFLINE_REGRESSION",
+  "source_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+  "binary_sha256": "11e573d8d240cafb25d580d0a62862f2f617cf5b6ca38340c16df42222ea9a89",
+  "go_evidence": "data/public-evidence/T08-short-references-root.json",
+  "production_binding": "data/public-evidence/T12-source-binding-r4.json",
+  "python": {
+    "exit_code": 0,
+    "seconds": 61.796,
+    "command": [
+      "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/test-runtime-restore/venv/bin/python",
+      "-B",
+      "-m",
+      "pytest",
+      "-p",
+      "no:cacheprovider",
+      "tools/native-product-bridge",
+      "tools/real-user-trial",
+      "-q",
+      "-rs",
+      "--basetemp",
+      "/private/tmp/p4-0iwkjqps",
+      "--junitxml",
+      "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-regression-r4/data/python.xml"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t13-final-handoff",
+    "source_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+    "counts": {
+      "tests": 308,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 7,
+      "passed": 301
+    },
+    "installed_binary": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r4/artifacts/installed/versions/0.1.24-hardening.20261105.4/bin/codex-orchestrator",
+    "installed_binary_sha256": "11e573d8d240cafb25d580d0a62862f2f617cf5b6ca38340c16df42222ea9a89",
+    "binary_unchanged": true,
+    "owned_basetemp": "/private/tmp/p4-0iwkjqps",
+    "credential_environment": "allowlist: no actual credentials/provider route inherited",
+    "junit_sha256": "3e65be8ef98a70dc9a3c870c91e1a3710ed80f67d0e0d91a3bb9787a38a3b492",
+    "skipped": [
+      "tools.real-user-trial.test_native_auth_tripwire:test_fixed_native_refresh_tripwire_blocks_oauth_egress",
+      "tools.real-user-trial.test_native_codex_policy:test_fixed_native_named_profile_preserves_host_and_auth_boundaries[reviewer]",
+      "tools.real-user-trial.test_native_codex_policy:test_fixed_native_named_profile_preserves_host_and_auth_boundaries[implementer]",
+      "tools.real-user-trial.test_native_codex_prepare:test_prepare_launch_real_native_candidate_full_path",
+      "tools.real-user-trial.test_native_codex_prepare:test_duplicate_override_rejected_before_native_or_auth_read[]",
+      "tools.real-user-trial.test_native_codex_prepare:test_duplicate_override_rejected_before_native_or_auth_read[invalid://refresh-blocked]",
+      "tools.real-user-trial.test_native_codex_prepare:test_duplicate_override_rejected_before_native_or_auth_read[https://invalid.example/token]"
+    ]
+  },
+  "native_metadata": [
+    {
+      "report": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-native-r4/data/latest-report.json",
+      "sha256": "36e9e3c64409bb02c30aa96b72b0d5f88ee2f875f1af255ad5dfe27bdf594e34",
+      "status": "PASS",
+      "tool_count": 8,
+      "source_environment_projection_matches": true,
+      "remaining_process_group_members": [],
+      "installed_binary_sha256": "11e573d8d240cafb25d580d0a62862f2f617cf5b6ca38340c16df42222ea9a89",
+      "model_turn": false,
+      "network": "OS deny network*"
+    },
+    {
+      "report": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-native-r4/data/control-latest-report.json",
+      "sha256": "cae3b986a22d41a613ebab8f5544b80bd564b9ebbe69b8e031af393f95305c7f",
+      "status": "PASS",
+      "tool_count": 8,
+      "source_environment_projection_matches": true,
+      "remaining_process_group_members": [],
+      "installed_binary_sha256": "11e573d8d240cafb25d580d0a62862f2f617cf5b6ca38340c16df42222ea9a89",
+      "model_turn": false,
+      "network": "OS deny network*"
+    }
+  ],
+  "python_warning": "one pre-existing Python3.14 SyntaxWarning: return in finally; no behavior change here",
+  "historical_native_loopback": "Original .3 API-key/token synthetic 4 modes remain history on unchanged auth/host source; not claimed as newly executed .4 provider inference",
+  "real_model_live": "NOT_RUN_ON_4",
+  "product_status": "BLOCKED"
+}

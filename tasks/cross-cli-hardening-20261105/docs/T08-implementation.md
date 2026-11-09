@@ -1,5 +1,7 @@
 # T08 本地普通 MCP 工具：实现与集成签收
 
+历史记录：以下保留首次 T08 façade 实现记录及其当时状态，不表示当前包/交接结论。2026-11-09 短引用源码已完成，当前冻结源为 `7b7f0421`；最新包、回归和阻塞状态以[当前交接](final-handoff.md)为准。
+
 实现完成，源码独审 /root/review_t08 r4 PASS；root按19文件SHA逐项核对集成，无手工冲突合并。base c7d5f8a0已单独包含独审通过的T06B取消测试同步。此结论不是最终安装包或真实父模型闭环通过。
 
 8个普通stdio工具复用原CLI/IPC/SQLite。官方Go SDK1.8.0固定，x/sys0.41；未引入Tasks、新业务DB、自动规划模型或原生聊天回调。v3 refs、预算组、owner授权和明确accept/ACK保持原合同。输入frame2MiB/CLI捕获128KiB/完整结果256KiB，不截断分页proof；typed严格字段和int64原值，4并发、45s单call、wait<=30s。

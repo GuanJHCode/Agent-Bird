@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-09T03:27:12.743196+00:00",
+  "handoff_status": "PREPARED",
+  "root_offline_acceptance": "PASS",
+  "product_acceptance": "BLOCKED",
+  "source_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+  "package_version": "0.1.24-hardening.20261105.4",
+  "package_sha256": "1817a713d710ac0d6c75539b1c765b5826f991d2ab9b81befd78b47b42d33597",
+  "package_evidence": "data/public-evidence/T11-package-r4-root.json",
+  "regression_evidence": "data/public-evidence/T12-regression-r4-root.json",
+  "original_live_evidence": "data/public-evidence/T12-live-root.json",
+  "current_package_real_live": "NOT_RUN",
+  "native_push": "BLOCKED",
+  "no_model_budget_reset": true,
+  "global_install_or_public_release": false,
+  "independent_current_doc_review": "PASS",
+  "retained": "original failed packages/live ledgers/raw evidence; new SDK/pytest environment and private runtime for recovery",
+  "cleanup": "all observed owned PKG/native metadata processes exited; no unknown original files removed",
+  "independent_review": "reviews/T13-final-review.md",
+  "root_handoff_acceptance": "PASS",
+  "no_new_paid_cli_trials": true,
+  "inherited_history_link_gap": {
+    "occurrences": 39,
+    "unique_targets": 36,
+    "all_inherited": true,
+    "scope": "two old historical-doc sections only; new .4 links valid"
+  },
+  "final_doc_snapshot_file": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t13-handoff-evidence/data/review-snapshot-final.json"
+}

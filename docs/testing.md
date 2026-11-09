@@ -1,6 +1,6 @@
 # 分层验证
 
-2026-11-05 私有候选的证据分层与未完成项见[本轮交付范围](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)。各 Txx 单项记录不能替代最终冻结源码/安装包验证。私有 `.3` 包 PKG-01～04 已通过独立审查；同包 Codex→Claude / Claude→Codex 双向 live 均未通过核心闭环，最终集成签收尚未完成。实际双向结果见[本轮双向 live 结果](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#真实双向-live-结果)。MCP metadata 装载不是 live-parent；native 原线程回传与父模型续审仍 BLOCKED。第三方 Claude 使用 cli-default，Codex 使用 gpt-6-luna/low；未更改账户或默认配置。
+2026-11-09 私有 `.4` 的包身份、源码与分层证据见[当前交接](../tasks/cross-cli-hardening-20261105/docs/final-handoff.md)。Go normal/race 各 1,654 pass、8 个既有 opt-in skip；vet/build 通过。同包实际安装 Go 的 Python 回归 301 pass、7 个 native opt-in skip；Codex/Claude metadata 均装载 8 工具且 source projection 一致，OS 禁止联网。PKG-01～04 独审/root通过。这些证据不证明模型 live：历史 `.3` 双向未完成核心闭环，新 `.4` 未运行真实模型试验，core/native push 保持 BLOCKED。第三方 Claude 保留 cli-default，Codex 原试验使用 gpt-6-luna/low，未换账户或默认模型。
 
 ## 1. 协议、状态与安全边界
 

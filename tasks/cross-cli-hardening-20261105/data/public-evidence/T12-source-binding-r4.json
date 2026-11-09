@@ -1,0 +1,609 @@
+{
+  "status": "PASS",
+  "package_source_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+  "regression_worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs",
+  "regression_base": "48b3a9b25f7428c50c6305abbb1fb8eee14c48f0",
+  "production_source_files": 149,
+  "file_hashes": [
+    {
+      "path": "plugins/codex-orchestrator/.codex-plugin/plugin.json",
+      "sha256": "baccfe4ba37f2de20f3a87783eb04a3076eb1dff3b5b9a5134fc252e5e1574ea"
+    },
+    {
+      "path": "plugins/codex-orchestrator/defaults.json",
+      "sha256": "d87cce1addf8d6b66930adb465abb5438214b09ac691e351a0b64865687acda5"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/native_bridge/__init__.py",
+      "sha256": "41d9d039fb2d04cf66f9c76480381d829a96931ed1e1a7a327d6e40e3aa2b872"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/native_bridge/bridge.py",
+      "sha256": "b3ffeeec7a310395262b950a73b4a4661677364ea8ea77a05f07fb0178c29795"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/auth_guard.py",
+      "sha256": "4c3bfcb04a74c9f5b14585a582e4c5e3931304b42a4beead5bf401373e802973"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/auth_wire.py",
+      "sha256": "660572ff577d3d1302811c1107e7ae47f9447f82fce87857e669b0f733aaad79"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/codex_exec.py",
+      "sha256": "b9580732b6e2bba406d511449a3bb52850c3b5d7057866c26bae83cc405b1e03"
+    },
+    {
+      "path": "plugins/codex-orchestrator/lib/trial/rpc_policy.py",
+      "sha256": "a4417dcf54e48c96b827f13a41c47043a4fbf0950988a95e78a35aab2e2f6f85"
+    },
+    {
+      "path": "plugins/codex-orchestrator/scripts/invoke.sh",
+      "sha256": "4f70ef56a1a40f8bd592f69fd11e8a6b63c3259ca9f53c11b2b07cd0ad0591ea"
+    },
+    {
+      "path": "plugins/codex-orchestrator/scripts/native-product-bridge.py",
+      "sha256": "617abe88e7fc76a9da56cb4f31fdad5be59977ed359c6a492b5045ce3e321373"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/controller.go",
+      "sha256": "6cc03bae11f5f9a29443a91bc14f54e62977b609c4a29dd5799d9b03014868f0"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/coordinator_features.go",
+      "sha256": "73abf46d67953f98b3a4ea9af37bf8385204f5140f477e467047a336acfe84e0"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/current_codex.go",
+      "sha256": "f2c56c89b481ae18599a99d711ac627cd3bd72c7cab5f914282809ec072dddcd"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/current_owner.go",
+      "sha256": "52e3d21a9b2ed77e27c0c3b0f3a4bf55cb23cde497d6b2ecdd54e683b3aa07f7"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/host_recovery.go",
+      "sha256": "43313100e2be881e2c0fa696166f3be07d43ba7b81b6c5f90be09956759e63e8"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/local_owner.go",
+      "sha256": "e0bdcd748698b8206007dd0d86fbde2098668942116966c9bad3808e794701e5"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/main.go",
+      "sha256": "d46de69b647119606825b608db9e7ee3c91628c6cf7a681f3c1a791db1708d99"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/mcp_config.go",
+      "sha256": "71309400cdbc3b5d024100caf10da214494a293001e6a540a0085f265d33ffe5"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/mcp_references.go",
+      "sha256": "ad5042d928bd1668b2be4995f8f68f5b0713c19cab10fbe26c2de483d44cee1e"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/mcp_routes.go",
+      "sha256": "a7926614a977f7c6968b99bb6c5586639cb24e5e2f225e0ae0ac3aab07db2f41"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/mcp_server.go",
+      "sha256": "3050c085f90ee06bc4693ad942198a3f9bb050cad895dbd7f147d235288eea2e"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/mcp_tools.go",
+      "sha256": "262d1f20f5c2c0883ef69adbd27a4cc2a9579fa5e50dc1be648076df22d12715"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/native_metadata.go",
+      "sha256": "d01d8de6c12e18048c3c769e4e24a5fa759fede4d25d8eb8dd69d4ae2c4d89b7"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/plugin_run.go",
+      "sha256": "6adcd666259337caf8843bfbdb864e9754408612b17f20ca6cfedd0458b07cb7"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/preflight.go",
+      "sha256": "c29979287c1028c04bfa3799488271edc5c3c12033856d7d77f5be63f3379896"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider.go",
+      "sha256": "94066fa9e024760417109e4c3a652f375b43b668fe8b8cd9a9beabfb7e712217"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/provider_settings.go",
+      "sha256": "c21b6420bbb29a80a16aaef2252bb64c71bfb1d3271ce9e972c53f0a0a6227ff"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/request_changes.go",
+      "sha256": "ba2f68446a9a1e348c8e2327e9ac96de5160f6a13b151106d2437925a462c76b"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/request_changes_refs.go",
+      "sha256": "db5c0e3d2ef4485c5d42203d28807e56b7fb0958637131e4b20bb4507f90bffa"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/rework.go",
+      "sha256": "c7920e4e782244a24c57d6c011221c1ee3d3d544f0d78e311092728334d0a183"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/routing_preferences.go",
+      "sha256": "a63475c5316e85c72309e9821c6ef27754a454115626208754d6daab65973d24"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/runtime_status.go",
+      "sha256": "0e65f9ce80e55db8e5c248db79f5af84dbaff2f792022cc5a26e85c742c3d579"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/source_auth_environment.go",
+      "sha256": "612c287ac9e909cbfc9dfb2ce715b9dce8319d9a4bae270ad2c31b0c8e874ee8"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_dispatch.go",
+      "sha256": "08d1b18d30c4848af2f694e2f5c285ca0e30d734b4d5dd730af7477e012c0b8d"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_entry.go",
+      "sha256": "8b6440a70698da203f2ff5311a265f7f0d8e8580dcb4abd0de1e982f36064367"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_reconcile.go",
+      "sha256": "385151f18a3a2529ff0e7eb1d5e32b286f3262be572703fe4d861fe1aba0b3fe"
+    },
+    {
+      "path": "tools/orchestrator/cmd/orchestrator/task_workspaces.go",
+      "sha256": "3cf46a0c7437e282968f96bd21bd0297101bdb2751d898a865a27b4c291b1b3d"
+    },
+    {
+      "path": "tools/orchestrator/go.mod",
+      "sha256": "49b6932d018c1bc1aada17d775a8371b431016089d88445cce46d69b88e7d66c"
+    },
+    {
+      "path": "tools/orchestrator/go.sum",
+      "sha256": "1f4753b04abde644cce55642c0d333ed057b2b9c52da59735e070d00b5ea11e0"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/action.go",
+      "sha256": "06d57743bb2d7f8b734314e3c4fff407732809abe9fc1e3c4e21e53b4771093a"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/adapter.go",
+      "sha256": "20523337bf1a4a1c0e4141f350465981f248855314915fa737813f06316654b2"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/admit.go",
+      "sha256": "acad4d290903d8755b5f7dcd625fca52032891d9fff6deac70fc8d954e54da36"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/catalog.go",
+      "sha256": "ee9e7ad6f70f4c1407339aba8d3b5fb2a4b02bb7814c5b4e06288c03156cfc19"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/claude_probe.go",
+      "sha256": "4ead856b6f1520e42fbe2f6eee69e1fbb126255ad5383e129c815cf0b6e1e641"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/compatibility_catalog.json",
+      "sha256": "67a34b8716782c36fa3dcda432fa4778aedc6f5785946e5908ce0bd2dbe88d50"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/lock.go",
+      "sha256": "9f7324f16da6569d82704e26954a44adfc589889e6d08f5ce061cdcff8e4ada3"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/payload.go",
+      "sha256": "3921f5b176a37e91106853c30ccc942591b14f51beb7207307fbaa61b7c67ab6"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/probe.go",
+      "sha256": "05d8a59e8cdf9f63cb8df014ed214a46ed0e0845aac81c80c2065b9c314dcefa"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/profile.go",
+      "sha256": "935eb13e8b111841f4d32107703da66f05d192fd1e44b449799fd1459b783324"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/protocol.go",
+      "sha256": "f33843400aaecb4a427958ef2b1d0d1f8d810eedd033961eb10b1c1df5774178"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/rework_refs.go",
+      "sha256": "dc6110d81a42ba6c7056f4186355c2709c6897fce67ee73694edfeea4c2e82a7"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/testdata/codex-success.jsonl",
+      "sha256": "1b78de4ec7be1c4cddcdeee53eaaebd0c196b9cc9620565dcddf896cb2c1ba7e"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/version.go",
+      "sha256": "fe58cd097bc7ca0897088a76068086e987e87b3adff2cf7aba9915e622625b03"
+    },
+    {
+      "path": "tools/orchestrator/internal/adapter/workspace.go",
+      "sha256": "2f138aa771d5ccf986e2617252d30f2029cb31935f5018e155a40130724397f9"
+    },
+    {
+      "path": "tools/orchestrator/internal/admincli/admin.go",
+      "sha256": "3d55698494d9f0b4434255a0a1092a0d3feeff7173180963f5a731009df05cb6"
+    },
+    {
+      "path": "tools/orchestrator/internal/contract/budget.go",
+      "sha256": "daf2bf732650414d6aabb33e26091e999afbeb936645ea253fa529d30f8429af"
+    },
+    {
+      "path": "tools/orchestrator/internal/contract/contract.go",
+      "sha256": "2f81db20c8ffa98c20477d2105cec8cddb00df14d79c9e8ad632dcc8cf7ebd7f"
+    },
+    {
+      "path": "tools/orchestrator/internal/contract/identifiers.go",
+      "sha256": "8fd1dc5e9f05e6a48f32875bdc9d32e8be6a25bceaf97a4aa39fa7460f2539d7"
+    },
+    {
+      "path": "tools/orchestrator/internal/contract/input_limits.go",
+      "sha256": "ee71b8a3047360cdb683253379910b3072ade6c8d83dc17857b896507a02aa8c"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/host_progress.go",
+      "sha256": "6674a6d3be48486217f61316b30c98be766217d58cb8f6cbae8fb11f6c5bba46"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/host_recovery.go",
+      "sha256": "717292a0ff5c59b6c38902bc041836a801dfc34d0c102b9c4fa13b98b2923156"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/limits.go",
+      "sha256": "f5735c97d85316a0c8682737b30e52e3b4de9e97313e3abe77fb6d349f1d1bb7"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/local_owner.go",
+      "sha256": "0fb1666004a48609c152d67d41b55b39959e209e5aa21f2a6a329d07d3dc70ea"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/owner_action_guard.go",
+      "sha256": "a766d175afa08830c69a492e861466124316e00cc9ca09f31df7d98729472f87"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/provider_controls.go",
+      "sha256": "301f647fe34c41bd2f6ae7d38e567e526b757daeff58d1f0737389410d69e609"
+    },
+    {
+      "path": "tools/orchestrator/internal/coordinator/server.go",
+      "sha256": "3dd5466cdb56386a54b01fae0dda5b4e8681d2fe67be7150b2ce6355e90d85be"
+    },
+    {
+      "path": "tools/orchestrator/internal/events/events.go",
+      "sha256": "8b23752a89189345050b2a784d30c10455656c6c8cd79feeed22a7b817d5018b"
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/anchored_unix.go",
+      "sha256": "98e7c956281a0c478b4a2fbc2d0711597f93c569a019ebd86ba727c8cf997570"
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/candidate_runner.go",
+      "sha256": "b64e366ea1d0cc9b62ebebfc5cb59bca0749db2ff43caf3f031eb048b9a77c83"
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/candidate_verify.go",
+      "sha256": "ccdff52a23ed3ce79f1f6d4ca4a2f0da96746cfdb533deed41b53ddfe8306903"
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/delivery.go",
+      "sha256": "87504a938f1d6c9e4c8dd5b9febad7fdd93ffe18ecfe9c523f512dddee9205a6"
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/freeze.go",
+      "sha256": "c8abfdf6aa8bb17fed5d4fd43e4df2b1e97dfa8abaa11506a3c92adf0e019027"
+    },
+    {
+      "path": "tools/orchestrator/internal/gitops/gitops.go",
+      "sha256": "f0d8cb4ffb658107dde3588841979f181a5d4bbdb0989f31d3aa9b3349fabf80"
+    },
+    {
+      "path": "tools/orchestrator/internal/gitopsworker/worker.go",
+      "sha256": "6ba1064dd2da2f1fdd1e160a32da3807fcd3d03cf921bdec3eb9937d70dbf732"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/candidate.go",
+      "sha256": "244e67173195f707de380e540dcbd032801c71f8a42c7a7d7097874158c332de"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/claude.go",
+      "sha256": "20c7a4d1e2ea9ca4f2ba2faea08094f8b122117d4bb9249833e356cbacad26e4"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/codex.go",
+      "sha256": "a3fc818edc1e6069432b21202822f0bc96b010e903e1cfae9742469984b3bb61"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/delivery.go",
+      "sha256": "41c81cfb86210f545c95fe6a0dcb2d27ccb95c2363eb829c53a1ae4db846e6fd"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/grok_session.go",
+      "sha256": "792621debf85b18018e96a5927cc45c261ab061176eb3d92209d30ea5595fe82"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/host.go",
+      "sha256": "66e2e51a1bfd3ddd29f9b4a74cdf0de9eb4543cdb8725560ab899dbdcf985e8b"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/launch_failure.go",
+      "sha256": "77189c29aec7e43c07a384170fc5f9abaf88d24abfc23b7cf76b2bd5b32d1544"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/managed_directories.go",
+      "sha256": "10504e7fee349746e5da97110936d94df09a36202038b32c4160f7058e981a62"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/managed_policy.go",
+      "sha256": "3a52f8217db6b5cebc6d2e21364451154d09af019c31720551a4c2fe463d3492"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/profile.go",
+      "sha256": "7fabf24680522a2a00572668a4aaf52098e5ab6ef10c87d398924d108e0be1d5"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/progress.go",
+      "sha256": "4e5122c8c4168ebf548937b37e654aa782a4d780e140c1778ed82697a62d3ce3"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/protocol.go",
+      "sha256": "f9d197a84009e5378f539fb462b7dea6c9408a7766aec8a6023507558b2af345"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/provider_diagnostics.go",
+      "sha256": "c05e4ad48d523c37fd75686340fc1e561d3c8d486b0d4454c750b4522794a67b"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/report.go",
+      "sha256": "9898b873fc3483ca11b04927ef2f09e5d3dba5f68f7aba0d1249a02be1a80cd0"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/rework_refs.go",
+      "sha256": "ede67bfaf96c710e521ba4104c14b06a3aac2d2f36041c3fb1a020447b50a50b"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/source.go",
+      "sha256": "386658e2f3abc431cb098207c9f293fa18aba2966d9d4e329853a888a572079a"
+    },
+    {
+      "path": "tools/orchestrator/internal/host/stop_lifecycle.go",
+      "sha256": "550aa74701fd359511273705adf79e549b8438677fe3f44da715458ea8d2da11"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/anchored_unix.go",
+      "sha256": "eb8dd14f13e7fc713877df1888a74e11f95bd7864ef043e255e72aa5632123b3"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/codex_runtime.go",
+      "sha256": "94c9d783edfbda47dd3e23034cec8777f26f6a40023321b81f33693e256c7152"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/default_policy.go",
+      "sha256": "853171f3198c85a04dcc98ae62eda2deb6fc057c6aab32a389606fe3298adad2"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/install.go",
+      "sha256": "368f1d9ded18ace8da75c6661837ba45a5444815a0a6c1227aeff3a0baf68b1e"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/lifecycle.go",
+      "sha256": "248eb42390a86bd87596ea1e1d890b7de14cb6dee8a4a6299c84a2adadf1db69"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/portable.go",
+      "sha256": "ce93223b58ebd6870574c0902e76babf02ea7dfb164808eb6a729b510f48d949"
+    },
+    {
+      "path": "tools/orchestrator/internal/install/runtime.go",
+      "sha256": "e88d83b49f21806d2237765dbd5edc310ac2dbc8cb22f2b6e71d79a77bf59fcd"
+    },
+    {
+      "path": "tools/orchestrator/internal/instance/instance.go",
+      "sha256": "1228c022d25cc41975bfd93180624b200c6b894bb04d616f7ad1ea7e5fc9e664"
+    },
+    {
+      "path": "tools/orchestrator/internal/ipc/ipc.go",
+      "sha256": "8cd7377fe8a62cc965d670d474a955e34e06fa40912b8334d562cd5f05f39c55"
+    },
+    {
+      "path": "tools/orchestrator/internal/ipc/peer.go",
+      "sha256": "02898915368eaa4dce24dbf7914ded9967285c91d715c80ad37c6842f9f7b63e"
+    },
+    {
+      "path": "tools/orchestrator/internal/nativebridgecli/bridge.go",
+      "sha256": "efb6bc28bde18d30d374534e7f0863e9392acc95d56678fd4ea2f38cf19b7edc"
+    },
+    {
+      "path": "tools/orchestrator/internal/nativebridgecli/driver.go",
+      "sha256": "9eb3a2c825e9ac183e92666261a93ca4aa8284773dcbf0cee016d04082991efb"
+    },
+    {
+      "path": "tools/orchestrator/internal/process/ancestry.go",
+      "sha256": "0bd16296d1a40921ec87c85db9c79229bcb52e3aba82486f392611bae7608c60"
+    },
+    {
+      "path": "tools/orchestrator/internal/process/executable_darwin.go",
+      "sha256": "701869d6abeb0243f613159c698c6e630d6b5fb32c5fa87259e22a895418f934"
+    },
+    {
+      "path": "tools/orchestrator/internal/process/executable_other.go",
+      "sha256": "2cfb7d4344df1d9952466e908315a04814d146cab8ad2f9d613ab5fad8e170dc"
+    },
+    {
+      "path": "tools/orchestrator/internal/process/group.go",
+      "sha256": "92c5fb73a5c51fbc3f7d0923d870203d490a495291b57a633b5bd7cce4bc458a"
+    },
+    {
+      "path": "tools/orchestrator/internal/process/process.go",
+      "sha256": "63bcaf81010ad622de5c20ba61384389d35a74a0a381e1712976870858b4d9dc"
+    },
+    {
+      "path": "tools/orchestrator/internal/process/role_darwin.go",
+      "sha256": "a3ab09bee1a56da86de11b71240df883ea5c2e9bc6522dbb41eb9c8f20ca2b29"
+    },
+    {
+      "path": "tools/orchestrator/internal/process/role_other.go",
+      "sha256": "0fef4fb9b5536edd9beb2702821d07a22908b25793a35acf5246ac41ed9f2fe1"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/admission.go",
+      "sha256": "0935a3313fad13317cd63f84889e605665f041ee0886141db97bd3ede1bd7bf6"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/budget_policy.go",
+      "sha256": "68aa7f8c837c8c78ec2876649aefdc35c444da1282436db4dfeee97fe932cafc"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/candidate_input.go",
+      "sha256": "d91f2f887e2b0a32be82693ebf769b94612ba5db19266cca8b8f46790c77f991"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/collection.go",
+      "sha256": "a3e62b1470e91f44a228c31768843d27c90397ab66460dfcb41a5bb5182acca6"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/decisions.go",
+      "sha256": "80d4f2e45626f16b315cd95b27b61dbb77fadb4fa84c3f01fc6e31fa61a453d1"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/delivery.go",
+      "sha256": "a20f06ba3ae39fe0df8a3bdf1d8d2a0f1cb9e6ffaf740d8fc10a0700b575f38b"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/hash.go",
+      "sha256": "42184ae031fcf108a1e91085b03fdcb83141a1f48d62f1651b613130583d8274"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/host_events.go",
+      "sha256": "4ad0259c61ece11d8188283c2f9efe12ecd87566fb885460b0fa40551a833a1c"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/host_hello.go",
+      "sha256": "ebcc772213e000348dbddac2e24ef1d2e22ef0486ee5725278c86ee102ec07b3"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/host_progress.go",
+      "sha256": "ba0da4fb90ac0f68480391f4da3c007caa0b499a0b9b439cd1875e6c392c471c"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/host_recovery.go",
+      "sha256": "9f5d9563f4949dddc17d95f0a4fdb39f7a9cf717c34a5ec592f10f5ac6bec435"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/launch_size.go",
+      "sha256": "52363fea86b540e99b9335d72a0be0cfa3f265b9c246d30d516fbeaba58e72cc"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/lifecycle.go",
+      "sha256": "5878c8b965134a34452aba8a50e4d5719e696cbd8ad7af08eddabe2a6c6c3c96"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/limits.go",
+      "sha256": "859f2c1bac7ed2d994fb0a7072a0c83bea501cc5784af37be77b6e04745e2887"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/migrations.go",
+      "sha256": "143b7b4b5ed388db8e742b17b1216d5c162917e8111538becb51898266dc209e"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner.go",
+      "sha256": "9c6b2874bfeefabbe7b61f378503aa3438bfaa6241ef9ee8621dbb599ed372fc"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_action_guard.go",
+      "sha256": "d3704ec2d0d1ace2b2575af7ab53238b9868240ecd593afb27733d12f9649150"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_grants.go",
+      "sha256": "134e9ee67bf66563dfc4015a549d813d6d0a7e2c7a17d990bf6d25da28c54f0c"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/owner_rework.go",
+      "sha256": "136d91db52241fa5ffdce782d67a937be1a02955872b3e6848b9e5175cbd86f2"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/provider_controls.go",
+      "sha256": "c00d02c64640a7f2adf3e98fe201f0c54adff46940923c3f5bd864c0cb2c4a1a"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/quota.go",
+      "sha256": "ca34c1878d60da6ef4466fa1c7924c648654092b8f1fd36db75de132f36a8b3f"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/reports.go",
+      "sha256": "73aab244104cdb46dc986aeb5142d584cac49464107c997c2596c4e9fdb0bf00"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/resume_profile.go",
+      "sha256": "4c7933660e146f55ddb9a91929a9d9f6c185146da666a7d295e2932ed56a70b3"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/review_retry.go",
+      "sha256": "0c5d9195b364450c7de04bb32ba5a6c6b237ed7b151bdbf15dce29637296a44d"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework.go",
+      "sha256": "5ab4dff69edc06e92696c0f7d0330914173abdaaac2d06bb0e94dbd6d454c826"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework_capture_darwin.go",
+      "sha256": "d6ad35ab875720c813b8fd4c9ee390a752038087e7926139261f21af09db4d4b"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework_capture_other.go",
+      "sha256": "6b7c221eefd0a04af55e2e9946bd380f5584eb27e8c8f27ce4af34a59a0c9a11"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework_migration.go",
+      "sha256": "2e1e692830b1cbd95e4bcc16315da541b1e0a63fa79bd6b9d892f60d5276e662"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework_objects.go",
+      "sha256": "bff30811a88acb274c31285a2315842d4a90ea8d15fead18b16e42aa6c63096b"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework_objects_migration.go",
+      "sha256": "9af15eaa82d82273a7fa2892c5f109e17f787259480819d50df06b5f33cc8706"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework_quarantine.go",
+      "sha256": "e5ac696162c25290ce50278c1500bedeec81f8a00aa9568e194fe8ffc5410f25"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/rework_validation.go",
+      "sha256": "4eb539ffd0dd5350a8f865bdd349545724d8d81baaa42a776224a04f58065ee6"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/runtime.go",
+      "sha256": "317402ddfe2baa2e1119826ca7dbe951140f163ac8d3a34549eb513257e8f090"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/scheduling.go",
+      "sha256": "888161ed914bb6d89869c78303d7f8b18ae033b37223769973f89b6673c8577a"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/schema.go",
+      "sha256": "6bb50d7319bee543607e7201cad90cc4f993728a62bc02722540e0108f867aea"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/snapshot.go",
+      "sha256": "bb17cfbe8b8b47f271f9cc5065ae73d6911a9a0a29d8a6181f581210927ef05e"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/storage_migration.go",
+      "sha256": "6084647a2c054748f4d651fc9eb8e3e233b7e4a25bee9cb2685b65cc30cbf729"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/store.go",
+      "sha256": "f53f76c39b0cabb982592cb791c9627a46f0cb1e1e855d3d80539ba89e69806d"
+    },
+    {
+      "path": "tools/orchestrator/internal/store/summary.go",
+      "sha256": "d6d6af23d0d4a493684b60abbe1848c406147819850a7436b3bf257d4410b93f"
+    }
+  ],
+  "aggregate_sha256": "54e6b86fcfbc6fd0b50cc808778e6b70a4e249a580bb0822de575981c1475c0f",
+  "all_equal_to_clean_package_source": true,
+  "full_go_reports": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-short-refs-evidence/data/full-validation-summary.json",
+  "selection": "prior complete 148 production binding paths plus new mcp_references.go; .4 package runtime-material list to be cross-checked separately"
+}

@@ -11,7 +11,7 @@
   "actual_baseline_commit": "29691e9f08468b1de56cb0c42977084b58c91975",
   "working_branch": "feat/cross-cli-hardening-20261105",
   "source_tree_sha256": null,
-  "note": "所有任务是待实施模板，不表示已有实现或通过验收。按当前代码核验已修复项，保留 verified_existing 证据。",
+  "note": "当前实施与证据记录。done仅代表该任务注明的快照/验收层次；历史证据不继承为新包或live PASS。以final_delivery及各任务限制共同判断产品状态。",
   "states": [
     "pending",
     "in_progress",
@@ -896,25 +896,26 @@
       "review": {
         "status": "PASS",
         "report": "reviews/T08-short-references-review.md",
-        "target_commit": null,
+        "target_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
         "target_snapshot": "data/public-evidence/T08-short-references-root.json",
         "unresolved_findings": []
       },
       "owner_acceptance": {
         "status": "PASS",
         "evidence": "data/public-evidence/T08-short-references-root.json",
-        "accepted_commit": null,
+        "accepted_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
         "basis": "exact integrated/reviewed four-file SHA256 snapshot"
       },
       "commits": [
-        "c3de5226"
+        "c3de5226",
+        "7b7f0421fc9dc553be29d871b16d15f779293b76"
       ],
       "blockers": [],
       "limitations": [
-        "Final installed package/receipt and real parent/worker model cycles remain T11/T12 gates.",
-        "Additional managed-native admission under external Seatbelt blocked before owner bind by setuid ps; no sourceproof conclusion.",
-        "Independent r3/r4 subset raw outputs were not retained as files; source review report states this; root fresh full-module reports retained.",
-        "Compact refs offline PASS; unique .4 package pending. Actual .4 model transmission/live NOT_RUN; original .3 trial failures and budgets retained. Old binaries cannot parse new compact refs."
+        "Final .4 installed package/receipt passed T11 PKG; actual parent/worker model cycles remain T12 gates.",
+        "Historical additional managed-native admission under external Seatbelt blocked before owner bind by setuid ps; no sourceproof conclusion.",
+        "Historical initial T08 r3/r4 auth-review subset raw outputs were not retained as files; source review report states this; root fresh full-module reports retained.",
+        "Compact refs offline PASS; unique .4 package independently/root PKG PASS. Actual .4 model transmission/live NOT_RUN; original .3 trial failures and budgets retained. Old binaries cannot parse new compact refs."
       ],
       "updated_at": "2026-11-09T02:46:34.780833+00:00"
     },
@@ -1048,12 +1049,12 @@
         "T08",
         "T10"
       ],
-      "status": "in_progress",
-      "completion_basis": null,
+      "status": "done",
+      "completion_basis": "implemented",
       "baseline_commit": null,
-      "implementation_agent": "/root",
-      "review_agent": null,
-      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-location-binding",
+      "implementation_agent": "/root + /root/prepare_package_r4",
+      "review_agent": "/root/review_package_r4_scripts",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t13-final-handoff",
       "write_scope": [],
       "changed_files": [
         "README.md",
@@ -1084,25 +1085,40 @@
           "type": "actual unique .3 private package PKG-01..04",
           "evidence": "data/public-evidence/T11-package-root.json",
           "independent_report": "reviews/T11-package-review.md"
+        },
+        {
+          "status": "PASS",
+          "type": "unique .4 private package PKG01..04 and final current DOC01 PASS",
+          "evidence": "data/public-evidence/T11-package-r4-root.json",
+          "independent_report": "reviews/T11-package-r4-review.md"
         }
       ],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
-        "target_commit": null,
+        "status": "PASS",
+        "report": "reviews/T11-package-r4-review.md",
+        "target_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+        "scope": "actual frozen .4 PKG; current DOC01 independently PASS in T13 review",
         "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
-        "accepted_commit": null
+        "status": "PASS",
+        "evidence": "data/public-evidence/T11-package-r4-root.json",
+        "accepted_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+        "scope": "source and PKG/root; current DOC01 signed off after independent PASS"
       },
-      "commits": [],
+      "commits": [
+        "7b7f0421fc9dc553be29d871b16d15f779293b76"
+      ],
       "blockers": [],
       "limitations": [
-        "Historical .3 source d700 unique package independently/root PKG-01..04 PASS; compact-reference offline source fix PASS; unique .4 package and final documentation remain pending. No release/global replacement."
+        "Unique .4 PKG and DOC01 independently/root PASS. Historical .3 evidence retained separately. No release/global replacement; new .4 real model/live NOT_RUN; private fixed-interpreter macOS arm64 only."
       ],
-      "updated_at": "2026-11-05T08:44:46.119375+00:00"
+      "updated_at": "2026-11-09T03:27:12.743196+00:00",
+      "doc_review": {
+        "status": "PASS",
+        "report": "reviews/T13-final-review.md",
+        "snapshot_r2_sha256": "7a432f16e56b8510be19cbade9af3a5147f1c2a4533850f24c9fcbaa3fcb7952"
+      }
     },
     {
       "id": "T12",
@@ -1136,6 +1152,12 @@
           "type": "bounded actual bidirectional ordinary-MCP trials on same.3",
           "evidence": "data/public-evidence/T12-live-root.json",
           "review": "reviews/T12-live-review.md"
+        },
+        {
+          "status": "PASS",
+          "type": "current .4 offline REG01/02/03; not live",
+          "evidence": "data/public-evidence/T12-regression-r4-root.json",
+          "independent_report": "reviews/T11-package-r4-review.md"
         }
       ],
       "review": {
@@ -1156,7 +1178,7 @@
         "LIVE02: supplied API-key header route returned10 HTTP401 retries, no dispatch before174s cleanup reserve."
       ],
       "limitations": [
-        "Both original bounded trials ended; no budget/ID reset or added paid trial. Compact-reference offline source fix PASS; unique .4 package/live transmission and exact working third-party auth mode pending; preserve all original failure evidence."
+        "Original bounded .3 trials ended with failures; no budget/ID reset or new paid trial. Compact-reference offline source/unique .4 PKG and regression PASS. New .4 model transmission and actual parent review/accept/ACK/integration NOT_RUN; user has no working local Claude configuration."
       ],
       "updated_at": null,
       "acceptance_policy": {
@@ -1175,6 +1197,12 @@
           "required_prerequisite": "确定性返工测试及其余必需核心门槛通过",
           "claim": "只有真实证据 PASS 才能宣称原始缺陷由真实主会话发现后的返工已验收"
         }
+      },
+      "current_offline_review": {
+        "status": "PASS",
+        "report": "reviews/T11-package-r4-review.md",
+        "source_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+        "scope": "current source/package, Python raw JUnit and network-denied metadata; no live"
       }
     },
     {
@@ -1184,36 +1212,62 @@
       "depends_on": [
         "T00"
       ],
-      "status": "in_progress",
+      "status": "blocked",
       "completion_basis": null,
       "baseline_commit": null,
-      "implementation_agent": null,
-      "review_agent": null,
-      "worktree": null,
+      "implementation_agent": "/root",
+      "review_agent": "/root/review_final_handoff",
+      "worktree": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t13-final-handoff",
       "write_scope": [],
-      "changed_files": [],
+      "changed_files": [
+        "README.md",
+        "docs/design-v0.1.md",
+        "docs/installation.md",
+        "docs/provider-runtime.md",
+        "docs/runtime-protocols.md",
+        "docs/support-matrix.md",
+        "docs/testing.md",
+        "tasks/cross-cli-hardening-20261105/TASKS.json",
+        "tasks/cross-cli-hardening-20261105/data/public-evidence/T11-package-r4-root.json",
+        "tasks/cross-cli-hardening-20261105/data/public-evidence/T12-regression-r4-root.json",
+        "tasks/cross-cli-hardening-20261105/data/public-evidence/T12-source-binding-r4.json",
+        "tasks/cross-cli-hardening-20261105/data/public-evidence/T13-handoff-root.json",
+        "tasks/cross-cli-hardening-20261105/docs/T08-implementation.md",
+        "tasks/cross-cli-hardening-20261105/docs/T11-materials.md",
+        "tasks/cross-cli-hardening-20261105/docs/delivery-scope.md",
+        "tasks/cross-cli-hardening-20261105/docs/final-handoff.md",
+        "tasks/cross-cli-hardening-20261105/docs/resume-history-20261105-20261109.md",
+        "tasks/cross-cli-hardening-20261105/docs/resume.md",
+        "tasks/cross-cli-hardening-20261105/docs/test-report.md",
+        "tasks/cross-cli-hardening-20261105/reviews/T11-package-r4-review.md",
+        "tasks/cross-cli-hardening-20261105/reviews/T13-final-review.md"
+      ],
       "acceptance_ids": [
         "FIN-01",
         "FIN-02",
         "FIN-03"
       ],
-      "implementation_report": null,
+      "implementation_report": "docs/final-handoff.md",
       "tests": [],
       "review": {
-        "status": "NOT_RUN",
-        "report": null,
-        "target_commit": null,
+        "status": "PASS",
+        "report": "reviews/T13-final-review.md",
+        "target_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+        "scope": "current documentation/integration and prepared blocked handoff only; product blocked",
         "unresolved_findings": []
       },
       "owner_acceptance": {
-        "status": "NOT_RUN",
-        "evidence": null,
-        "accepted_commit": null
+        "status": "BLOCKED",
+        "evidence": "data/public-evidence/T13-handoff-root.json",
+        "accepted_commit": null,
+        "scope": "product signoff remains BLOCKED despite prepared-handoff root PASS"
       },
       "commits": [],
-      "blockers": [],
+      "blockers": [
+        "Required actual model/live gates not passed; current .4 real trials NOT_RUN; original .3 failures preserved."
+      ],
       "limitations": [],
-      "updated_at": null,
+      "updated_at": "2026-11-09T03:27:12.743196+00:00",
       "reporting_inputs": [
         "T00",
         "T01",
@@ -1234,32 +1288,52 @@
       "start_policy": "可基于 T00 建立交接；正式审查汇总全部任务的已完成或准确受阻状态。T12 blocked 不阻止整理受阻交接。",
       "product_signoff": {
         "status": "BLOCKED",
-        "evidence": "data/public-evidence/T12-live-root.json"
+        "evidence": "data/public-evidence/T12-live-root.json",
+        "current_package_real_live": "NOT_RUN"
+      },
+      "handoff_owner_acceptance": {
+        "status": "PASS",
+        "evidence": "data/public-evidence/T13-handoff-root.json",
+        "scope": "PREPARED offline handoff; not product acceptance"
       }
     }
   ],
   "final_delivery": {
-    "source_commit": "d700356c9ee497952b22ec9220d1fde111f71848",
-    "package_version": "0.1.24-hardening.20261105.3",
-    "package_sha256": "dfbbf79b29471a9ec81b92598b74b03ba02af96ad4eac7f4b0e4ca53ee6529f8",
-    "binary_sha256": "f5c54bde90a72e2e95e130989a53cfc595b33dcb0a86b607832dd3f926ba5c4c",
-    "manifest_sha256": "26f2a2b22eeaa74d4246b797ff251a58667b5b041ab3165a4f63f6fa10979bcc",
+    "source_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
+    "package_version": "0.1.24-hardening.20261105.4",
+    "package_sha256": "1817a713d710ac0d6c75539b1c765b5826f991d2ab9b81befd78b47b42d33597",
+    "binary_sha256": "11e573d8d240cafb25d580d0a62862f2f617cf5b6ca38340c16df42222ea9a89",
+    "manifest_sha256": "665429b8ea50adfe5a1036665a04121dbaeb3c86a4dcbfa5f0a8334314aebb99",
     "core_status": "BLOCKED",
     "native_push_status": "BLOCKED",
     "live_original_failure_rework_status": "NOT_EXERCISED",
-    "final_review": null,
-    "root_acceptance": null,
-    "delivery_report": null,
+    "final_review": {
+      "status": "PASS",
+      "scope": "prepared blocked handoff; not product/live",
+      "report": "reviews/T13-final-review.md"
+    },
+    "root_acceptance": {
+      "status": "BLOCKED",
+      "scope": "product; offline source/package acceptance separate",
+      "evidence": "data/public-evidence/T13-handoff-root.json"
+    },
+    "delivery_report": "docs/final-handoff.md",
     "resume_document": "docs/resume.md",
-    "handoff_status": "DRAFT",
-    "aggregation_rule": "core PASS 要求核心必做实现/独审/主会话签收、REG-01/02/03、LIVE-01/02/04/05及最终集成审查通过。任何必需核心项 FAIL/BLOCKED/NOT_RUN 不得 PASS。LIVE-03 未触发可 NOT_EXERCISED 且不得宣称其已覆盖。T09 与 native_push_status 独立；交接 PREPARED 不豁免产品 gate。"
+    "handoff_status": "PREPARED",
+    "aggregation_rule": "core PASS 要求核心必做实现/独审/主会话签收、REG-01/02/03、LIVE-01/02/04/05及最终集成审查通过。任何必需核心项 FAIL/BLOCKED/NOT_RUN 不得 PASS。LIVE-03 未触发可 NOT_EXERCISED 且不得宣称其已覆盖。T09 与 native_push_status 独立；交接 PREPARED 不豁免产品 gate。",
+    "current_package_real_live": "NOT_RUN",
+    "handoff_root_acceptance": {
+      "status": "PASS",
+      "evidence": "data/public-evidence/T13-handoff-root.json",
+      "scope": "PREPARED only; product root acceptance remains BLOCKED"
+    }
   },
   "handoff_statuses": [
     "NOT_RUN",
     "DRAFT",
     "PREPARED"
   ],
-  "authorization_source": "用户 2026-11-05：每功能独立 agent 复核，通过后提交并 push；未授权 release、正式分支合并、全局安装替换。",
+  "authorization_source": "用户2026-11-05每功能独立agent复核PASS后提交push；2026-11-09继续离线实施。未授权release/正式分支merge/全局安装替换；不自动增加原模型预算。",
   "live_authorization": {
     "evidence": "docs/live-budget.md",
     "per_direction_wall_seconds": 180,

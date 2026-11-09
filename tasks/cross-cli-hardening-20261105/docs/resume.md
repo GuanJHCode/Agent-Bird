@@ -1,30 +1,11 @@
-# 当前恢复入口
+# 当前恢复入口（2026-11-09）
 
-集成树 `/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration`，分支 `feat/cross-cli-hardening-20261105`，当前已推送 HEAD `ba662986`。原仓库分支与已有未跟踪文件保留。每功能须独立 agent 审查 PASS、root 验证签收后才 commit 并立即 push；不合并正式分支、不 release、不替换全局安装。
+先读[完整交接](final-handoff.md)和[TASKS](../TASKS.json)。当前资料已最终独审/root签收为PREPARED；产品core/T12/T13、T09 native push仍BLOCKED，新.4真实模型试验NOT_RUN。
 
-已完成并推送：T00 `08aa0184`、T02 `428a5877`、T10 `bde4bacf`、T01 `c29ac2bb`、T03 `2347d34c`、T07 `3fe267b9`、T05 `a14affc4`、T06A `28a3698d`、T04 `7242fd95`、T06B `0e2b6988`、其取消测试同步 `c7d5f8a`、T08 `c3de5226`。T11 文档材料 `ba662986` 已独审通过，不等于安装包完成。明细与审查见 TASKS.json 和 reviews/。
+工作分支`feat/cross-cli-hardening-20261105`，集成目录`/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration`。最新生产功能已独审/root验收并push7b7f0421；新文档提交不改变私有包源7b。原工作区及未跟踪文件未动，未merge正式分支/release/替换全局安装。
 
-T08 最终源 full normal/race 各1598 pass（641顶层+957子测试）、0 fail、8既有skip；vet/build通过。源码真实 Codex/Claude MCP metadata 均连接8工具，无 Tasks/native续审声明。T09 条件native仍 BLOCKED，保留collect/wait合同。
+私有`.4` archive SHA256 `1817a713d710ac0d6c75539b1c765b5826f991d2ab9b81befd78b47b42d33597`。PKG/独审/root、Go1654normal+1654race（各8skip）、Python301pass/7skip和两CLI无网络8工具metadata见交接证据。首build失败已保留，同源受限attempt2成功，package仅1次；禁止删除marker或第三次build。
 
-当前 root 唯一写隔离树 `../t11-location-binding`（base ba662986），修复真实私有 `.1` 包的PKG-03失败：整个 destination 同文件系统 rename 保留inode时doctor错误healthy。旧 `../t11-package` 包/安装/失败证据冻结不覆盖。新 installed manifest schema2绑定绝对installed_root，所有Go/Python消费者同步，receipt仍两字段。恢复intent须原manifest快照及原receipt先验，不能篡改根位置/降级/重算hash后删除文件。设计和红绿证据索引见 plans/T11-install-location-binding.md、外部 `../t11-location-evidence`。待独审/root签收后功能commit/push，再从clean source构建唯一 `0.1.24-hardening.20261105.2`。打包worker唯一写外部 `../t11-package-r2`，目前只准备脚本，未获启动构建。
+原`.3`两方向模型试验失败并已收尾；Codex长引用问题已离线修复成route79/review47，新模型传递未验；Claude10次401且用户无可用本机配置。不猜认证模式、不索取或打印密钥、不追加付费CLI验收试验/重置旧预算/切账户模型。只有可用既有认证路由及明确新受控验收授权后，才准备后续真实试验。
 
-T12 外部 `../t12-harness` 已冻结并独审PASS：fresh144 pass/0失败错误skip，报告 `../t12-harness-review/docs/T12-harness-P1-rereview.md`。source hashes见该目录data/final-provenance-fixture-evidence.json。只证明fixture，尚未绑定最终 .2 或运行模型。canonical receipt/HMAC、真实Core accept tuple、全包/工具/Seatbelt/Git lineage绑定已修；父模型需自行读取合同、diff、同候选测试并明确accept/独立ACK。私有FF是另一步，不能合并正式仓。Codex parent禁用7项实际功能，Claude parent --tools空/strict MCP；第9个fixture checker仅验收专用，产品仍8工具。
-
-用户已授权既有账户/第三方默认路由、最低可用档：Codex gpt-6-luna/low；Claude cli-default，进程环境采用用户指定默认模型，不升级/换账户。每方向总wall180s含cleanup、单段60s/共享组90s/最多2attempt；两方向串行，失败不能换身份/预算重来。真实模型尚未运行。用户网关凭据仅root在当前会话user message中动态内存加载，不复制到代码/日志/报告/argv；外部 `../t12-launch/scripts/source_environment.py` 只向精确child注入ANTHROPIC_API_KEY等source环境。已有CLI本地配置loggedIn=true，仅GET models返回404，均不证明远端推理成功。MCP configure必须与controller相同source环境且先于controller；installed manifest schema2不改变MCP configure request version1。
-
-固定Go1.26.10 `/private/tmp/go1.26.10-sdk/bin`；真实Python `/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14` SHA760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689。私有输出与cache隔离，TMPDIR=/private/tmp避免Unixsocket路径过长。所有git命令禁自动gc；不删除未知文件或旧失败证据。
-
-下一步：位置绑定独审+root验收并push；clean .2同包PKG验收与独审；最终同包REG/实际安装路径native metadata；在相同source环境配置MCP并绑定两私有repo开展预算内真实双向试验；T13最终独审/交接。最终核心PASS要求所有必需REG/LIVE/审查签收通过；LIVE-03未触发可NOT_EXERCISED，T09独立BLOCKED；外部阻塞时准确交接PREPARED不得冒充产品完成。
-
-最新里程碑：T11 installed-root修复已独审/root签收并push ce4a9c78；历史 .2 full normal/race各1624pass（649top975sub）8既有optinskip/vet/build通过，PKG负例/同inode移动拒绝通过。但root真实metadata-only source projection发现Claude自动注入CLAUDE_CODE_SESSION_ID/CLAUDE_PROJECT_DIR，.2保留为BLOCKED_FOR_LIVE。新的精确2key context排除已独审136normal/race及root137normal/race通过，原proof/owner/Hostauth不宽化；当前功能commit/push后需clean .3新包。最新源码及证据见plans/T08-Claude-stdio-context.md、reviews/T08-Claude-stdio-context-review.md、data/public-evidence/T08-Claude-stdio-context-root.json；新source fullREG在外部t08-claude-context-evidence/data运行。原t11-package-r2冻结，原metadata t12-native-r2保留；不能拼成最终同包PASS。
-T12最新独审harness位于外部t12-harness-r2，149fixture PASS，report t12-harness-r2-review/docs/T12-harness-r2-independent-review.md。修复Codex launcher遗漏generated env_vars：强绑定相邻codex-args.json/installed Go binary及精确名字无值，旧t12-harness144证据保留。root-only final_trial.py仅prepare .3/setup/预算内launch，providerbin只会话PATH，APIKEY/用户默认模型仅内存，CLAUDE_CODE_ENTRYPOINT=sdk-py明确在configure/controller同env建立。无真实模型调用。
-
-T11唯一最终.3实际包已独审PASS/root逐file+archive+receipt重新核验；身份见data/public-evidence/T11-package-root.json，独审reviews/T11-package-review.md。实际source d700356c，后续测试/文档记录提交不冒充新包来源。PKG01..04已通过，不等于T12真实双向/核心PASS。全normal/race各1628pass8skip/vet/build0，PythonactualinstalledGo301pass7nativeoptinskip，root本机nativeClaude syntheticgateway APIkey2+token2通过（testoracle修复独审中）。最终harness r3固定九个非交互MCP授权/精确enabledtools已worker160fixturePASS，rootbootstrap5P1修复13fakefixturePASS，分别正在独审；原blocked报告保留。真实模型仍未开始。
-
-T12 native APIkey/token oracle已独审/root各4实际本机loopback模式通过，非真实model；修复只*_test.go按flag选择auth，原header/tool/freeze断言保留，docs/testing当前可执行路径及docs/installation tar-xzpf补充同批审查PASS。当前提交不改变.3生产字节，不重建包。最终状态段落的PKG已完成/真实live门禁分离留T13统一更新，不能照旧doc占位词判断真实包身份。报告reviews/T12-native-auth-oracle-review.md与data/public-evidence/T12-native-auth-oracle-root.json。
-
-实际两方向.3试验已结束，核心BLOCKED（详data/public-evidence/T12-live-root.json和独审reviews/T12-live-review.md）。Codex6luna parent dispatch+firstinspect成功，随后改写847字引用被正确拒绝；任务interrupted/segmentexited，activeunknownreserved0，used53160/remain36840/attempt1remain1，无acceptACKFF。Claude parent默认用户模型、9工具connected，10次HTTP401，174.17s watchdog收尾，无dispatch/task/worker；不是model404证明。所有已记录owned模型进程退出且无unverified，保留私有runtime/evidence，不追加paid或重置预算。freeGETmetadata比较Bearer/APIkey/无auth均404，不能推断正确auth模式，已async请求现有可用配置路径/认证方式而非密钥。Root正在隔离t08-short-refs唯一实施短route79/短review47方案（完整HMAC/currentOwner/fulltuple/旧引用兼容），新Go材料必须新.4包，.3不重标为新版本。文档8file状态草案在t13-doc-refresh，独审仅因旧TASKS还写NOT_RUN而blocked；当前TASKS已更新真实试验，待联合复核。
-
-2026-11-09 用户已明确“继续”。原集成af4d与origin一致且clean；继续离线短引用修复，不重开付费试验。八文档当前状态复审PASS：此前linkedTASKS过时block已由af4d修复，8file SHA不变，证据reviews/T13-doc-state-review.md；根会话按hash精确集成/签收。公开仍preview，私有.3 PKG通过不代表LIVE通过；新.4未生成。Claude尚无可用本机配置，原401不推断密钥失效，不追加请求或切模型。short-ref隔离树只有红测/现代dispatch fixture改动，生产实现待做。
-
-2026-11-09 T08 短引用已完成：canonical route79/review47字符，完整HMAC、旧格式解析和原业务授权保留；四源码及计划独立安全审查PASS，root核对实际full normal/race/vet/build及集成hash后签收。精确计数与raw日志hash见data/public-evidence/T08-short-references-root.json，review见reviews/T08-short-references-review.md。新Go材料必须新.4包，当前尚未构建；历史.3 PKG与双向失败保持独立，未重开付费试验。Go/pytest已从易失临时目录恢复到任务专用路径，分别见该root证据的toolchain_restore/test_runtime_restore字段；旧SDK、旧venv及全局配置未改。
+本轮Go1.26.10与pytest运行时已恢复到任务专用稳定目录，准确路径和provenance见T08 root证据。保留全部私有包/失败现场/authority与0700/0600权限，勿运行reset/clean/gc/prune或全局清理。[历史恢复记录](resume-history-20261105-20261109.md)仅作过程证据，不用其中旧“当前”覆盖本文件。

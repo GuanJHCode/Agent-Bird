@@ -1,6 +1,6 @@
 # Provider、owner 与运行时配置
 
-2026-11-05 私有候选的当前 scope、认证投影/refresh 限制、预算、v3 refs 与 MCP 用法见[本轮合同](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)。下文旧版本试验保留其日期/身份，不是本轮包或 live 结论。
+2026-11-09 私有 `.4` 的 scope、认证投影/refresh 限制、预算、v3 refs 和 MCP 短引用见[本轮合同](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md)，安装、回归和受阻交接见[当前交接](../tasks/cross-cli-hardening-20261105/docs/final-handoff.md)。旧版本试验保留其日期/身份，不继承为新包或真实 live 结论。
 
 ## 三个独立层次
 

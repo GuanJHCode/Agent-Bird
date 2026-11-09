@@ -1,24 +1,26 @@
 # 2026-11-05 私有候选范围与使用合同
 
-状态：私有候选 `.3` 已完成包身份冻结与 PKG-01～04 安装验收，并通过独立审查；公开下载仍为 `v0.1.0-preview.1`，没有 release 或全局安装替换。包安装通过不等于核心真实双向 live 通过：Codex→Claude 与 Claude→Codex 两次试验均未完成核心闭环，T12 核心门槛当前 BLOCKED，最终集成签收待执行。`.3` 是已实测包身份，不代表后续离线修复或最终候选；本任务状态及交接门禁见[TASKS.json](../TASKS.json)。本文说明源码合同与验收边界，不表示 native 回调通过。历史试验保持原日期、版本及失败记录，不自动继承到本轮。完整冻结身份见[T11 包证据](../data/public-evidence/T11-package-root.json)和[独立包审查](../reviews/T11-package-review.md)。
+状态：截至 2026-11-09，私有 `.4` 已完成唯一包身份及 PKG-01～04 独审/root验收；公开下载仍为 `v0.1.0-preview.1`，无 release 或全局替换。`.4` 的短引用、源码回归、同包 Python 和无网络 native metadata 已验收相应层次，但未执行真实模型试验。历史 `.3` 两方向真实试验未完成核心闭环，core/T12 与 T09 native push 仍 BLOCKED。最新资料见[当前交接](final-handoff.md)、[TASKS.json](../TASKS.json)、[.4 root证据](../data/public-evidence/T11-package-r4-root.json)和[独立包审查](../reviews/T11-package-r4-review.md)；各历史日期、身份及失败记录保留。
 
 ## 交付身份与验收边界
 
-当前私有包身份为 `0.1.24-hardening.20261105.3`，source commit `d700356c9ee497952b22ec9220d1fde111f71848`、tree `5b04a4d7fb49c47a5f16ebe26a04ddc3a1ee509a`；archive SHA-256 `dfbbf79b29471a9ec81b92598b74b03ba02af96ad4eac7f4b0e4ca53ee6529f8`、binary SHA-256 `f5c54bde90a72e2e95e130989a53cfc595b33dcb0a86b607832dd3f926ba5c4c`、package manifest SHA-256 `26f2a2b22eeaa74d4246b797ff251a58667b5b041ab3165a4f63f6fa10979bcc`。PKG-01～04 已由 root 验收并通过独立审查，完整 receipt、wrapper、解释器和安装核验见[T11 包证据](../data/public-evidence/T11-package-root.json)及[独立审查](../reviews/T11-package-review.md)。该身份只适用于 `.3`，后续源码或包变化须重新冻结、构建和验收。公开下载仍为 `v0.1.0-preview.1`，未发布或替换全局安装。
+当前私有包 `0.1.24-hardening.20261105.4`，source commit `7b7f0421fc9dc553be29d871b16d15f779293b76`、tree `51b0bd73b3efcb607a2ff47476eced440f2b3731`；archive SHA256 `1817a713d710ac0d6c75539b1c765b5826f991d2ab9b81befd78b47b42d33597`、binary SHA256 `11e573d8d240cafb25d580d0a62862f2f617cf5b6ca38340c16df42222ea9a89`、package manifest SHA256 `665429b8ea50adfe5a1036665a04121dbaeb3c86a4dcbfa5f0a8334314aebb99`。两套普通/空格安装与 receipt 身份详见[.4 root证据](../data/public-evidence/T11-package-r4-root.json)。历史 `.3` 身份及原安装审查保留在[原包证据](../data/public-evidence/T11-package-root.json)和[原包审查](../reviews/T11-package-review.md)，不继承为新包 live。
 
 本轮新安装写 installed `manifest.json` schema2，以 `installed_root` 和原 receipt 的完整 manifest SHA256 绑定规范绝对版本目录。整个 destination 同文件系统 rename 也需重装，doctor、pin、Go/Python native bridge 与入口计划均拒绝位置不匹配。历史 schema1 保留无位置绑定的原合同；portable `package-manifest.json`、`runtime-manifest.json` 和 SQLite schema 不因此升级。卸载 quarantine 恢复仍绑定原逻辑 `versions/<version>`，并在删除前核验原 receipt 和 manifest 快照；不会把任意移动后的目录当作合法恢复。
 
-T01/T02/T03/T04/T05/T06A/T06B/T07/T10 的功能证据见本任务 `reviews/` 和 `data/public-evidence/`，各自只证明记录的源码快照及证据层次。`.3` 纳包后 Go normal/race 各 1,628 pass（649 top-level、979 subtests）、0 fail、8 个明确 opt-in skip；vet/build 通过。实际安装 Go 的 Python 回归 301 pass、7 个 native opt-in skip。PKG-01～04 独立审查 PASS；这些结果不替代真实双向 live。T09 native 总体 BLOCKED，本轮沿用保守关闭及 wait/collect，不新增 native 实现。
+T01/T02/T03/T04/T05/T06A/T06B/T07/T10 的单项证据见本任务 reviews/ 和 data/public-evidence/，只证明各自快照/层次。新包源与回归树的149个生产材料逐文件一致；Go normal/race各1,654 pass（656顶层、998子测试）、0fail、8既有opt-in skip，vet/全模块build通过；实际安装Go的Python301pass/7native opt-in skip/0fail/0error。两CLI无网络metadata各8工具/source projection一致，不证明模型续审。详见[当前回归](../data/public-evidence/T12-regression-r4-root.json)及[生产源绑定](../data/public-evidence/T12-source-binding-r4.json)。T09保守关闭，沿用wait/collect。
 
 | parent → provider | version / artifact | scope、read/write | fresh/resume、delivery | 平台与证据、未覆盖 |
 | --- | --- | --- | --- | --- |
-| managed Codex → Claude | Claude 写 exact 2.1.267 / 2.1.316 + SHA lock；读窗口见 provider-runtime | managed_process；reviewer read-only；implementer 仅声明的 managed candidate | fresh invocation；无 typed resume；collect/wait | macOS；本轮真实 dispatch 与首次 inspect 成功，后续 opaque ref 被改写，stop 后 worker 已退出；核心 LIVE 未通过 |
-| managed Claude → Codex | Codex 写 exact 0.166.0 + SHA pin、receipt、full-native runtime；读窗口仍须 exact admission | managed_process；read-only 或限定 candidate write | fresh invocation；无 typed resume；collect/wait | macOS；真实父 CLI 10 次 HTTP 401，watchdog stop；未 dispatch、未创建 worker，核心 LIVE 未通过 |
+| managed Codex → Claude | Claude 写 exact 2.1.267 / 2.1.316 + SHA lock；读窗口见 provider-runtime | managed_process；reviewer read-only；implementer 仅声明的 managed candidate | fresh invocation；无 typed resume；collect/wait | macOS；历史 `.3` 真实 dispatch 与首次 inspect 成功，后续 opaque ref 被改写，stop 后 worker 已退出；核心 LIVE 未通过 |
+| managed Claude → Codex | Codex 写 exact 0.166.0 + SHA pin、receipt、full-native runtime；读窗口仍须 exact admission | managed_process；read-only 或限定 candidate write | fresh invocation；无 typed resume；collect/wait | macOS；历史 `.3` 真实父 CLI 10 次 HTTP 401，watchdog stop；未 dispatch、未创建 worker，核心 LIVE 未通过 |
 | managed Codex/Claude/Grok/AGY → AGY/Grok | 冻结已发布版本目录 + binary lock；Grok 另需显式 session-write 授权 | 进程作用域；仅 reviewer/read-only；coding 未开放 | fresh；无 typed resume；collect/wait | macOS；旧 live 只限旧版本/原范围；本轮无新真实闭环 |
-| MCP parent → 上述 provider | 官方 Go SDK 1.8.0，8 ordinary tools；provider 门禁不变 | namespace + logical controller + 原 owner/control；不是 chat 绑定 | collect/wait；无 Tasks / native push | 私有 `.3` 安装包的 8-tools metadata 验证通过；不证明模型续审或核心双向 live |
+| MCP parent → 上述 provider | 官方 Go SDK 1.8.0，8 ordinary tools；provider 门禁不变 | namespace + logical controller + 原 owner/control；不是 chat 绑定 | collect/wait；无 Tasks / native push | 私有 `.4` 安装包的 8-tools metadata 验证通过；不证明模型续审或核心双向 live |
 | legacy controlled native 通道 | 独立精确 pin、attached connection/lease/thread/epoch、history proof | 不接管任意已有 TUI；不从 managed grant 推导 | 仅原合同；本轮不提升能力 | 当前 pin 下 idle/busy 原线程真实父模型续审缺证据，BLOCKED |
 
 ## 真实双向 live 结果
+
+以下仅为历史 `.3` 的原始两次有界试验；新 `.4` 未执行真实模型试验，不能将短引用离线修复或 metadata 当作新 live PASS。用户确认没有可用本机 Claude 配置；不猜测认证模式，不再请求或复制密钥，不自动追加/重置模型预算。
 
 两方向具体状态、账本与限制按本轮独立审查结果摘要如下。Codex→Claude 使用 `gpt-6-luna/low` 父模型与 Claude CLI `cli-default` worker，成功 dispatch 和首 inspect 后因父模型改写引用而 BLOCKED；已确认 worker interrupted/exited、active/unknown/reserved 均为 0，消耗 1 attempt、53,160ms。Claude→Codex 父模型沿用户默认 `deepseek-v4.1-flash-1017`，10 次 HTTP 401 后 watchdog stop；没有 dispatch/task/worker，账本均为 0。`unrecognized_model` 仅为 warning，不是 404 证据。两方向均无 accept/ACK/FF，不追加模型试验；失败原因不推断为 key 失效或模型不存在。包安装验证通过不等于核心真实双向通过。
 
@@ -61,7 +63,7 @@ schema 当前为 v11（v10 预算政策、v11 refs 对象与 pin）。迁移不�
 }
 ```
 
-通过本轮已验收安装包的绝对 wrapper 生成配置（具体路径以[T11 包证据](../data/public-evidence/T11-package-root.json)中的安装记录为准）：
+通过本轮已验收安装包的绝对 wrapper 生成配置（具体路径以[T11 包证据](../data/public-evidence/T11-package-r4-root.json)中的安装记录为准）：
 
 ```sh
 "/absolute/installed/plugin/scripts/invoke.sh" mcp configure --request /private/task/configure-request.json
@@ -101,7 +103,7 @@ serve 无 owner 也可列工具。MCP 新 dispatch 必须由本版已安装 `con
 | `ack` | handle/delivery_id/collection_proof_sha256/decisions；该页全部 actionable 事件的真实 tuple 和处置，非验收。 |
 | `stop` | handle/work_revision，可选 task_id；使用 inspect 刚观察的 revision；requested 不等于 confirmed，需复查无 active/unknown。 |
 
-新候选的 canonical dispatch handle 使用 79 字符 `m1r_` 短引用，review token 使用 47 字符 `m1v_` 短引用；均保留完整 HMAC 和原 owner/完整 tuple/业务授权校验，旧 sealed 引用仍可解析。inspect 可在私有 request 的 `mcp-reviews/` 创建不可变辅助元数据（目录 `0700`、文件 `0600`、最多 64 条 × 16 KiB）；不修改业务数据库或决定，重复 inspect 不重写同 tuple。损坏、越权或超额记录明确拒绝，缺失的当前 tuple 可重新 inspect 重建。旧二进制不能解析新短引用，须保留兼容安装与私有元数据。详见[短引用合同](../plans/T08-short-references.md)。此生产变更须用新私有 `.4` 包验收，历史 `.3` 安装和真实试验不代替新包或短引用的 live 证据。
+新候选的 canonical dispatch handle 使用 79 字符 `m1r_` 短引用，review token 使用 47 字符 `m1v_` 短引用；均保留完整 HMAC 和原 owner/完整 tuple/业务授权校验，旧 sealed 引用仍可解析。inspect 可在私有 request 的 `mcp-reviews/` 创建不可变辅助元数据（目录 `0700`、文件 `0600`、最多 64 条 × 16 KiB）；不修改业务数据库或决定，重复 inspect 不重写同 tuple。损坏、越权或超额记录明确拒绝，缺失的当前 tuple 可重新 inspect 重建。旧二进制不能解析新短引用，须保留兼容安装与私有元数据。详见[短引用合同](../plans/T08-short-references.md)。此生产变更已使用唯一私有 `.4` 包完成安装/metadata等离线验收，历史 `.3` 真实试验仍不代替短引用的新模型传递/live证据。
 
 `cli_handle` 仅为只读路由元数据，不是 owner/control authority。MCP 服务关闭后，可使用同一已安装 wrapper 的 `task inspect/collect/request-changes/accept/ack/stop`，将该路径传给 `--handle` 并提供原命令要求的其余真实参数；仍受原授权、receipt 和 revision 校验。不要把 opaque MCP handle 当作 CLI 文件路径。
 
