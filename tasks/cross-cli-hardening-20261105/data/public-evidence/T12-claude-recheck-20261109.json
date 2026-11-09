@@ -1,0 +1,59 @@
+{
+  "status": "BLOCKED",
+  "scope": "standalone Claude connectivity, not .4 product bidirectional live",
+  "user_authorization": "2026-11-09 user explicitly allowed trying the existing Claude key/API",
+  "cli_launches": 2,
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "INDETERMINATE",
+      "reason": "result serialization interrupted by cleanup PermissionError",
+      "api_outcome": "UNKNOWN"
+    },
+    {
+      "attempt": 2,
+      "status": "BLOCKED",
+      "http_error_codes": [
+        401
+      ],
+      "cli_exit_code": 1,
+      "seconds": 0.564,
+      "usage": {
+        "input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 0
+      }
+    }
+  ],
+  "auth_mode": "ANTHROPIC_API_KEY; unchanged from original source route",
+  "auth_source": "earlier explicit active-thread key/API/default model",
+  "default_model_unchanged": true,
+  "ordinary_cli_retries": 0,
+  "max_agentic_turns_each": 1,
+  "output_token_limit_each": 128,
+  "inference_deadline_seconds_each": 25,
+  "collector_fixtures": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0
+  },
+  "raw_cli_output_saved": false,
+  "credentials_saved": false,
+  "credential_scan_passed": true,
+  "owned_probe_processes_remaining": [],
+  "billing": "NOT_VERIFIED; token zeros are only the second CLI-reported usage",
+  "key_validity_or_correct_auth_scheme": "NOT_INFERRED_FROM_401",
+  "current_config_lookup": "No key/API in standard Claude settings or current CC Switch Claude settings; no account/global config changed",
+  "package_real_bidirectional_live": "NOT_RUN_ON_4",
+  "product_status": "BLOCKED",
+  "no_further_automatic_retry": true,
+  "external_evidence_index": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-claude-recheck-20261109/docs/evidence-index.json",
+  "external_evidence_index_sha256": "daeb52dc4953186f6a3fa1097eff7ef561110a26e732df99ce7a94e036efdccd",
+  "independent_review": {
+    "status": "PASS",
+    "agent": "/root/review_claude_connectivity_recheck",
+    "report": "reviews/T12-claude-recheck-review.md",
+    "scope": "record accuracy and privacy only; probe remains BLOCKED"
+  }
+}

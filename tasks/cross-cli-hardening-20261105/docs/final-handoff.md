@@ -27,9 +27,9 @@
 
 ## 未完成与未验证
 
-历史 `.3` 的两次有界真实试验均未完成accept/ACK/FF，详见[原live证据](../data/public-evidence/T12-live-root.json)与[原独审](../reviews/T12-live-review.md)。Codex→Claude成功dispatch和首inspect后，父模型改写847字符引用，被产品正确拒绝；worker已interrupted/exited，active/unknown/reserved=0，已用1attempt/53160ms。Claude→Codex在dispatch前10次HTTP401、watchdog收尾，无task/worker。两个原预算/身份没有重置，本轮没有追加付费CLI验收调用。
+历史 `.3` 的两次有界真实试验均未完成accept/ACK/FF，详见[原live证据](../data/public-evidence/T12-live-root.json)与[原独审](../reviews/T12-live-review.md)。Codex→Claude成功dispatch和首inspect后，父模型改写847字符引用，被产品正确拒绝；worker已interrupted/exited，active/unknown/reserved=0，已用1attempt/53160ms。Claude→Codex在dispatch前10次HTTP401、watchdog收尾，无task/worker。两个原预算/身份没有重置，上述离线收尾阶段（截至402af7cc）没有追加付费CLI验收调用。
 
-新 `.4` 的短引用模型传递、真实父审查、accept/ACK/整合均NOT_RUN。用户确认没有可用本机Claude配置；401不证明key失效或模型不存在，不猜认证模式、不切默认模型/账户。后续真实验收需要可用的既有认证路由，以及明确的受控新验收授权；不得借换ID重置旧失败预算。请勿发送密钥。
+新 `.4` 的短引用模型传递、真实父审查、accept/ACK/整合均NOT_RUN。11月5日用户曾确认没有可用本机Claude配置；最新Key/API复测见下方后续记录。401不证明key失效或模型不存在，不猜认证模式、不切默认模型/账户。后续真实验收需要可用的既有认证路由，以及明确的受控新验收授权；不得借换ID重置旧失败预算。请勿发送密钥。
 
 T09 native原线程idle/busy续审仍BLOCKED，typed resume、AGY/Grok coding不开放。LIVE-03原始条件缺陷返工未自然触发，保持NOT_EXERCISED，不用fixture伪装。T12与T13产品签收保持BLOCKED；当前资料已独审/root签收为PREPARED，产品仍不能标PASS。未实际执行`.4`卸载、非macOS arm64、公开发行/签名/公证。
 
@@ -40,3 +40,7 @@ T09 native原线程idle/busy续审仍BLOCKED，typed resume、AGY/Grok coding不
 所有观察到的本轮owned metadata/PKG coordinator已退出；原有两模型试验退出证明亦保留。私有runtime、authority/request文件、包、原始日志、SDK/venv和审查副本用于恢复，保持原0700/0600约束，不纳入Git或全局清理。没有删除归属不明文件；可确认无用的测试临时对象由各fixture按自身合同清理。
 
 历史可追溯性限制：provider-runtime/support-matrix继承的39处历史链接（36个不同target）在当前checkout缺目标，全部为基线已有；本轮未扩张修复。当前`.4`的新增证据/入口链接已核对，详见最终独审。
+
+## 交接后的用户授权连通性复测
+
+用户随后明确允许使用Claude现有Key/API尝试。使用此前会话提供的同一配置，未换账号或默认模型：首次结果采集异常/API结果未知，补测返回HTTP401、CLI token统计0，已停止重试。详情见[复测记录](claude-connectivity-20261109.md)。这不是同包`.4`双向模型验收；core/T12/T13产品仍BLOCKED。若用户另有已配置路由，待其提供路径或管理工具信息，不要求密钥。旧交接root报告的no_new_paid_cli_trials仅对应402af7cc当时的离线阶段，不扩展到这次新授权的复测。

@@ -1178,7 +1178,7 @@
         "LIVE02: supplied API-key header route returned10 HTTP401 retries, no dispatch before174s cleanup reserve."
       ],
       "limitations": [
-        "Original bounded .3 trials ended with failures; no budget/ID reset or new paid trial. Compact-reference offline source/unique .4 PKG and regression PASS. New .4 model transmission and actual parent review/accept/ACK/integration NOT_RUN; user has no working local Claude configuration."
+        "Original .3 trials and budgets retained. New .4 source/PKG/offline regression PASS; actual .4 parent/worker review/accept/ACK/integration NOT_RUN. User now states an existing Claude key/API; standard settings/current CC Switch have no effective route. Newly authorized standalone earlier-chat-key probe returned401 on observed attempt2; attempt1 capture unknown. Other configured route path is pending user clarification; no automatic further retry."
       ],
       "updated_at": null,
       "acceptance_policy": {
@@ -1203,6 +1203,20 @@
         "report": "reviews/T11-package-r4-review.md",
         "source_commit": "7b7f0421fc9dc553be29d871b16d15f779293b76",
         "scope": "current source/package, Python raw JUnit and network-denied metadata; no live"
+      },
+      "authentication_recheck": {
+        "status": "BLOCKED",
+        "evidence": "data/public-evidence/T12-claude-recheck-20261109.json",
+        "report": "docs/claude-connectivity-20261109.md",
+        "scope": "newly authorized standalone existing-key/API probe only; not package .4 bidirectional live",
+        "cli_launches": 2,
+        "first_api_outcome": "UNKNOWN",
+        "second_http_code": 401,
+        "review": {
+          "status": "PASS",
+          "report": "reviews/T12-claude-recheck-review.md",
+          "scope": "accurate blocked probe record, not successful authentication"
+        }
       }
     },
     {
@@ -1326,7 +1340,8 @@
       "status": "PASS",
       "evidence": "data/public-evidence/T13-handoff-root.json",
       "scope": "PREPARED only; product root acceptance remains BLOCKED"
-    }
+    },
+    "latest_authentication_probe": "data/public-evidence/T12-claude-recheck-20261109.json"
   },
   "handoff_statuses": [
     "NOT_RUN",
