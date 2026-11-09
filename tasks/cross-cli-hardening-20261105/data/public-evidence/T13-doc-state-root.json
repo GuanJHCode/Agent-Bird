@@ -1,0 +1,19 @@
+{
+  "status": "PASS for current documentation facts only",
+  "reviewed_source_files": {
+    "README.md": "6990a3fe2f947ec4e1589db1dca618441f0925ded137504e7331c8140657e89d",
+    "docs/design-v0.1.md": "690222d9217722c35a810800cdc68ecde4e0a30f22c8edeb2ce76f25c3d931ae",
+    "docs/installation.md": "b1b7dd1387613ecf24b08c31a8b7afcb1b6af78cb1a6fa0055bdd93444cf80f9",
+    "docs/support-matrix.md": "e5d68b8ba8bec15d2d85e75308181d37d6b40c1c89d61ff81c8c7db92cc1a7c8",
+    "docs/provider-runtime.md": "8ba78152771346defab9084244bdb96256abf1668ee4b3af3ef980f43f85ebb3",
+    "docs/runtime-protocols.md": "4060f11872db2eacc3fce4e1edf48f2b22e2686c3b3c458b5031be9487e2477c",
+    "docs/testing.md": "948bf73166cd223cf16652d15f09cc0b7e36d23690679e37452e5bc295662880",
+    "tasks/cross-cli-hardening-20261105/docs/delivery-scope.md": "e923b00f281593e0b6f082d7befa3a5d7252d59424690c78233478813c5ded5b"
+  },
+  "review": "reviews/T13-doc-state-review.md",
+  "root_acceptance": "8file hashes match and linked TASKS/evidence exact af4d62b1 bytes; no production materials changed",
+  "core_status": "BLOCKED",
+  "scope": "published preview vs private .3 PKG PASS, actual failed bidirectional trials, no future.4 or native claim",
+  "resumed": "2026-11-09; offline short-reference work only, no extra paid calls",
+  "remaining": "short-reference implementation, new package and final integrated handoff"
+}

@@ -33,7 +33,7 @@
 
 省略 `model` 使用 Provider 的当前默认模型；需要可复现的模型选择时填写明确模型 ID。`provider_lock` 与旧 `binary_*` 字段不能混用。旧请求保留兼容层；新 profile 的权限不可与旧 allow/deny 列表混用。
 
-本机 Claude CLI 接入第三方模型服务。验收默认沿用用户已有配置，不强制 `haiku` 等官方别名；CLI 返回 403 RBAC 不能直接归因于 Claude 官方登录。本轮没有改动服务地址、登录或凭据。
+本机 Claude CLI 接入第三方模型服务。验收默认沿用用户已有配置，不强制 `haiku` 等官方别名；CLI 返回 403 RBAC 不能直接归因于 Claude 官方登录。本轮真实双向试验中，Codex→Claude worker 已 dispatch 并启动，但父模型后续改写 opaque 引用导致闭环中断；Claude→Codex 父 CLI 请求在 dispatch 前收到 HTTP 401，未创建 worker。两方向均无 accept/ACK/FF，详见[本轮交付记录](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#真实双向-live-结果)及[本轮双向 live 结果](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#真实双向-live-结果)。试验未改动服务地址、登录或凭据。
 
 ### 角色与隔离
 

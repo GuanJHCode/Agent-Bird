@@ -1,0 +1,101 @@
+{
+  "verdict": "PASS",
+  "reviewed_root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t13-doc-refresh",
+  "reviewed_head": "48b3a9b25f7428c50c6305abbb1fb8eee14c48f0",
+  "reviewed_head_mode": "detached",
+  "main_branch": "feat/cross-cli-hardening-20261105",
+  "main_head": "af4d62b17cc589a13e7401fc5831c86cad23706f",
+  "final_diff": {
+    "files": 11,
+    "insertions": 170,
+    "deletions": 34,
+    "tracked_modified": 9,
+    "untracked_added": 2,
+    "diff_check": "PASS",
+    "new_files_whitespace_check": "PASS"
+  },
+  "frozen_docs_manifest_match": true,
+  "files": {
+    "README.md": {
+      "base_sha256": "52519898fb46429d53e8a55006493a8a7e5eaf4462b229bc8d5465cd82de1f3d",
+      "current_sha256": "6990a3fe2f947ec4e1589db1dca618441f0925ded137504e7331c8140657e89d",
+      "manifest_match": true
+    },
+    "docs/design-v0.1.md": {
+      "base_sha256": "08cbef9600689da04c0edb8ce250d082a92eb0424eaf385dd5efb81de47032c2",
+      "current_sha256": "690222d9217722c35a810800cdc68ecde4e0a30f22c8edeb2ce76f25c3d931ae",
+      "manifest_match": true
+    },
+    "docs/installation.md": {
+      "base_sha256": "52c210037e699e81cb01ded0e6498d2a72338fc86b1a7f97fabf285c46ca6eac",
+      "current_sha256": "b1b7dd1387613ecf24b08c31a8b7afcb1b6af78cb1a6fa0055bdd93444cf80f9",
+      "manifest_match": true
+    },
+    "docs/provider-runtime.md": {
+      "base_sha256": "6d72e3d4780a40704a338c99633a3f41a410033bbb35404569dbf4d82b40c096",
+      "current_sha256": "8ba78152771346defab9084244bdb96256abf1668ee4b3af3ef980f43f85ebb3",
+      "manifest_match": true
+    },
+    "docs/runtime-protocols.md": {
+      "base_sha256": "323f7209f07077488437858e4bc33c9119dba62d1b827c50734758091fd6883b",
+      "current_sha256": "4060f11872db2eacc3fce4e1edf48f2b22e2686c3b3c458b5031be9487e2477c",
+      "manifest_match": true
+    },
+    "docs/support-matrix.md": {
+      "base_sha256": "a35e6dd159688d2311c60daed4c788be3f1f24a364e481b0f00499d784511d58",
+      "current_sha256": "e5d68b8ba8bec15d2d85e75308181d37d6b40c1c89d61ff81c8c7db92cc1a7c8",
+      "manifest_match": true
+    },
+    "docs/testing.md": {
+      "base_sha256": "60af24c026cff4d9867e18bb7da4b5eae37896a2e291d1a8d4bab18146e96844",
+      "current_sha256": "948bf73166cd223cf16652d15f09cc0b7e36d23690679e37452e5bc295662880",
+      "manifest_match": true
+    },
+    "tasks/cross-cli-hardening-20261105/docs/delivery-scope.md": {
+      "base_sha256": "efd12c8584a021c0a59041a1553991ee1725f64fbd236349d9bf6ab2a0c09ad1",
+      "current_sha256": "e923b00f281593e0b6f082d7befa3a5d7252d59424690c78233478813c5ded5b",
+      "manifest_match": true
+    },
+    "tasks/cross-cli-hardening-20261105/TASKS.json": {
+      "base_sha256": "6a85a68cd4a43968d12f89273c95b2620daa69a43210b961d6ffa778d45443eb",
+      "current_sha256": "fc1cd4286e345ec12d396aabc95c49a3de3ee998171c5c119e7dd3baf59a1045",
+      "matches_main_commit": true,
+      "json_parse": "PASS"
+    },
+    "tasks/cross-cli-hardening-20261105/reviews/T12-live-review.md": {
+      "base_sha256": null,
+      "current_sha256": "b16abbb9990245897e1b018bf4f38de1afd852d641bbb2a51496ea589f97ba0b",
+      "matches_main_commit": true
+    },
+    "tasks/cross-cli-hardening-20261105/data/public-evidence/T12-live-root.json": {
+      "base_sha256": null,
+      "current_sha256": "114d99c603663baa70f78dee62623f0f65aff6fe3b3ad0a7caa150d0d6a6e61d",
+      "matches_main_commit": true,
+      "json_parse": "PASS"
+    }
+  },
+  "state_checks": {
+    "t12_status": "blocked",
+    "t12_review_status": "PASS_truthful_failure_cleanup_only",
+    "t12_owner_acceptance": "BLOCKED",
+    "t13_product_signoff": "BLOCKED",
+    "final_core_status": "BLOCKED",
+    "final_native_push_status": "BLOCKED",
+    "live_original_failure_rework_status": "NOT_EXERCISED",
+    "compact_reference_status": "offline_pending",
+    "claims_dot4_or_new_live_pass": false
+  },
+  "link_checks": {
+    "added_markdown_links_checked": 18,
+    "missing_targets": 0,
+    "missing_anchors": 0,
+    "task_t12_review_target_exists": true,
+    "task_t12_public_evidence_target_exists": true
+  },
+  "constraints": {
+    "read_session_key_auth": false,
+    "cli_model_or_http_called": false,
+    "live_or_paid_trial_rerun": false,
+    "reviewed_snapshot_modified": false
+  }
+}

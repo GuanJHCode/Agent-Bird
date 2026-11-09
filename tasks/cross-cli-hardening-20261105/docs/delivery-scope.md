@@ -1,24 +1,26 @@
 # 2026-11-05 私有候选范围与使用合同
 
-状态：本轮私有候选（待最终包验收）。本文说明源码合同与待交付入口，不是已安装、真实模型或 native 回调通过声明。公开 `v0.1.0-preview.1` 不含本轮能力。历史试验保持原日期、版本及失败记录，不自动继承到本轮。
+状态：私有候选 `.3` 已完成包身份冻结与 PKG-01～04 安装验收，并通过独立审查；公开下载仍为 `v0.1.0-preview.1`，没有 release 或全局安装替换。包安装通过不等于核心真实双向 live 通过：Codex→Claude 与 Claude→Codex 两次试验均未完成核心闭环，T12 核心门槛当前 BLOCKED，最终集成签收待执行。`.3` 是已实测包身份，不代表后续离线修复或最终候选；本任务状态及交接门禁见[TASKS.json](../TASKS.json)。本文说明源码合同与验收边界，不表示 native 回调通过。历史试验保持原日期、版本及失败记录，不自动继承到本轮。完整冻结身份见[T11 包证据](../data/public-evidence/T11-package-root.json)和[独立包审查](../reviews/T11-package-review.md)。
 
 ## 交付身份与验收边界
 
-最终包须在全部纳包材料冻结后生成唯一版本，并在最终报告逐项绑定 source commit/tree、binary、manifest、package SHA256、安装 receipt、绝对 wrapper 与解释器。当前这些最终身份尚未产生；不填写占位 SHA 或把旧包当新包。生产材料变化后需重新冻结、构建并复验受影响项。
+当前私有包身份为 `0.1.24-hardening.20261105.3`，source commit `d700356c9ee497952b22ec9220d1fde111f71848`、tree `5b04a4d7fb49c47a5f16ebe26a04ddc3a1ee509a`；archive SHA-256 `dfbbf79b29471a9ec81b92598b74b03ba02af96ad4eac7f4b0e4ca53ee6529f8`、binary SHA-256 `f5c54bde90a72e2e95e130989a53cfc595b33dcb0a86b607832dd3f926ba5c4c`、package manifest SHA-256 `26f2a2b22eeaa74d4246b797ff251a58667b5b041ab3165a4f63f6fa10979bcc`。PKG-01～04 已由 root 验收并通过独立审查，完整 receipt、wrapper、解释器和安装核验见[T11 包证据](../data/public-evidence/T11-package-root.json)及[独立审查](../reviews/T11-package-review.md)。该身份只适用于 `.3`，后续源码或包变化须重新冻结、构建和验收。公开下载仍为 `v0.1.0-preview.1`，未发布或替换全局安装。
 
 本轮新安装写 installed `manifest.json` schema2，以 `installed_root` 和原 receipt 的完整 manifest SHA256 绑定规范绝对版本目录。整个 destination 同文件系统 rename 也需重装，doctor、pin、Go/Python native bridge 与入口计划均拒绝位置不匹配。历史 schema1 保留无位置绑定的原合同；portable `package-manifest.json`、`runtime-manifest.json` 和 SQLite schema 不因此升级。卸载 quarantine 恢复仍绑定原逻辑 `versions/<version>`，并在删除前核验原 receipt 和 manifest 快照；不会把任意移动后的目录当作合法恢复。
 
-T01/T02/T03/T04/T05/T06A/T06B/T07/T10 的功能证据见本任务 `reviews/` 和 `data/public-evidence/`，各自只证明记录的源码快照及证据层次。MCP T08 r4 冻结源码已通过独立审查；集成 normal/race 各 1,598 pass、0 fail、8 个既有 skip，vet/build 均通过。最终包复验另行记录，不能从源码回归外推。PKG-01～04、T12 同包双向真实闭环、最终集成签收尚未完成；不能将单项 PASS 聚合为产品 PASS。T09 native 总体 BLOCKED，本轮沿用保守关闭及 wait/collect，不新增 native 实现。
+T01/T02/T03/T04/T05/T06A/T06B/T07/T10 的功能证据见本任务 `reviews/` 和 `data/public-evidence/`，各自只证明记录的源码快照及证据层次。`.3` 纳包后 Go normal/race 各 1,628 pass（649 top-level、979 subtests）、0 fail、8 个明确 opt-in skip；vet/build 通过。实际安装 Go 的 Python 回归 301 pass、7 个 native opt-in skip。PKG-01～04 独立审查 PASS；这些结果不替代真实双向 live。T09 native 总体 BLOCKED，本轮沿用保守关闭及 wait/collect，不新增 native 实现。
 
 | parent → provider | version / artifact | scope、read/write | fresh/resume、delivery | 平台与证据、未覆盖 |
 | --- | --- | --- | --- | --- |
-| managed Codex → Claude | Claude 写 exact 2.1.267 / 2.1.316 + SHA lock；读窗口见 provider-runtime | managed_process；reviewer read-only；implementer 仅声明的 managed candidate | fresh invocation；无 typed resume；collect/wait | macOS；功能 fixture、OS sandbox/loopback 有证据；本轮同包 LIVE-01 NOT_RUN |
-| managed Claude → Codex | Codex 写 exact 0.166.0 + SHA pin、receipt、full-native runtime；读窗口仍须 exact admission | managed_process；read-only 或限定 candidate write | fresh invocation；无 typed resume；collect/wait | macOS；功能 fixture/OS-native-local；本轮同包 LIVE-02 NOT_RUN |
+| managed Codex → Claude | Claude 写 exact 2.1.267 / 2.1.316 + SHA lock；读窗口见 provider-runtime | managed_process；reviewer read-only；implementer 仅声明的 managed candidate | fresh invocation；无 typed resume；collect/wait | macOS；本轮真实 dispatch 与首次 inspect 成功，后续 opaque ref 被改写，stop 后 worker 已退出；核心 LIVE 未通过 |
+| managed Claude → Codex | Codex 写 exact 0.166.0 + SHA pin、receipt、full-native runtime；读窗口仍须 exact admission | managed_process；read-only 或限定 candidate write | fresh invocation；无 typed resume；collect/wait | macOS；真实父 CLI 10 次 HTTP 401，watchdog stop；未 dispatch、未创建 worker，核心 LIVE 未通过 |
 | managed Codex/Claude/Grok/AGY → AGY/Grok | 冻结已发布版本目录 + binary lock；Grok 另需显式 session-write 授权 | 进程作用域；仅 reviewer/read-only；coding 未开放 | fresh；无 typed resume；collect/wait | macOS；旧 live 只限旧版本/原范围；本轮无新真实闭环 |
-| MCP parent → 上述 provider | 官方 Go SDK 1.8.0，8 ordinary tools；provider 门禁不变 | namespace + logical controller + 原 owner/control；不是 chat 绑定 | collect/wait；无 Tasks / native push | stdio；工具加载/协议 fixture 不证明模型续审；最终包待验 |
+| MCP parent → 上述 provider | 官方 Go SDK 1.8.0，8 ordinary tools；provider 门禁不变 | namespace + logical controller + 原 owner/control；不是 chat 绑定 | collect/wait；无 Tasks / native push | 私有 `.3` 安装包的 8-tools metadata 验证通过；不证明模型续审或核心双向 live |
 | legacy controlled native 通道 | 独立精确 pin、attached connection/lease/thread/epoch、history proof | 不接管任意已有 TUI；不从 managed grant 推导 | 仅原合同；本轮不提升能力 | 当前 pin 下 idle/busy 原线程真实父模型续审缺证据，BLOCKED |
 
-所有行的本轮最终 source/binary/package/receipt 绑定均待最终报告补齐，不能引用旧 preview 的身份替代。本轮真实模型计划使用本机 metadata 可见的 Codex `gpt-6-luna` / `low` 最低档；第三方 Claude 使用 `cli-default`，不改用户默认模型。这是待执行计划，不是模型已运行或该账户实时可用的证据。
+## 真实双向 live 结果
+
+两方向具体状态、账本与限制按本轮独立审查结果摘要如下。Codex→Claude 使用 `gpt-6-luna/low` 父模型与 Claude CLI `cli-default` worker，成功 dispatch 和首 inspect 后因父模型改写引用而 BLOCKED；已确认 worker interrupted/exited、active/unknown/reserved 均为 0，消耗 1 attempt、53,160ms。Claude→Codex 父模型沿用户默认 `deepseek-v4.1-flash-1017`，10 次 HTTP 401 后 watchdog stop；没有 dispatch/task/worker，账本均为 0。`unrecognized_model` 仅为 warning，不是 404 证据。两方向均无 accept/ACK/FF，不追加模型试验；失败原因不推断为 key 失效或模型不存在。包安装验证通过不等于核心真实双向通过。
 
 ## owner、父进程退出与认证
 
@@ -59,7 +61,7 @@ schema 当前为 v11（v10 预算政策、v11 refs 对象与 pin）。迁移不�
 }
 ```
 
-通过最终安装的绝对 wrapper 生成配置（本轮尚未安装；路径以最终 receipt 为准）：
+通过本轮已验收安装包的绝对 wrapper 生成配置（具体路径以[T11 包证据](../data/public-evidence/T11-package-root.json)中的安装记录为准）：
 
 ```sh
 "/absolute/installed/plugin/scripts/invoke.sh" mcp configure --request /private/task/configure-request.json

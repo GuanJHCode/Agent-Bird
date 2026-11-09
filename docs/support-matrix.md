@@ -1,6 +1,6 @@
 # 支持矩阵
 
-**2026-11-05 本轮私有候选（待最终包验收）：** 当前范围、parent/provider/version/artifact、进程 scope、read/write、fresh/resume、delivery、平台与证据逐项见[本轮矩阵](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#交付身份与验收边界)。下文带日期/版本的结果均为历史证据，不是本轮同包 PASS。managed_process 不证明 native chat，native_push=false；T09 native 总体 BLOCKED。最终包身份、PKG-01～04 与 T12 双向 live 尚待验收；AGY/Grok coding 和 typed resume 未开放。
+**2026-11-05 本轮私有候选：** 当前范围、parent/provider/version/artifact、进程 scope、read/write、fresh/resume、delivery、平台与证据逐项见[本轮矩阵](../tasks/cross-cli-hardening-20261105/docs/delivery-scope.md#交付身份与验收边界)。私有 `.3` 包 PKG-01～04 已通过独立审查；Codex→Claude 首次 dispatch/inspect 后引用被改写，Claude→Codex 在 dispatch 前遭遇 10 次 HTTP 401，双向核心 live 均未通过，最终集成签收仍待完成。下文带日期/版本的结果均为历史证据，不是本轮同包 PASS。managed_process 不证明 native chat，native_push=false；T09 native 总体 BLOCKED。AGY/Grok coding 和 typed resume 未开放。
 
 **多 Provider 本机增量（2026-09-17）：** `0.1.0-multi-provider.1` 增加 AGY/Grok 选择入口。AGY 1.2.5 在当前 Codex owner 下经正式安装、高层 task run、随机文件读取、哈希校验、ACK/accept 后 completed；仅支持只读分析。Grok 1.0.30 已登录，隔离下创建会话因 FS_PERMISSION_DENIED 失败，typed 执行继续拒绝；旧未登录记录已不是当前状态。公开 preview.1 尚不包含增量，见[本轮交付](../tasks/mvp-multi-provider-entry/docs/delivery.md)。
 
