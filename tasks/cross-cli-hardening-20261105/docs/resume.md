@@ -15,3 +15,6 @@
 最新CC配置验证：用户随后已完成CC Switch Claude配置，root确认生效settings与当前provider一致，使用新AUTH_TOKEN/原默认模型调用一次，CLI返回HTTP403、usage0、无模型回答/残留/密钥落盘。见[当前CC验证](cc-claude-connectivity-20261109.md)。这次不是旧会话Key/API，也不再以“未找到配置”描述当前状态；先前401记录仅为历史。未自动修改接口/模型/权限，`.4`双向仍NOT_RUN。
 
 最新网关对齐验证：用户替换CC地址为ZCode实际第三方网关后，Key/实际模型保持一致，单次真实Claude调用成功（2.332s，input69/output24，nonce完全匹配）。见[成功记录](cc-gateway-connectivity-20261109.md)。这解除独立连通性阻塞，旧401/403仍为历史；产品worker另发现cli-default丢来源model env缺口，需先修复并生成新包，当前产品双向LIVE仍NOT_RUN/coreBLOCKED，不用显式换模型绕过。
+
+
+最新代码进展（2026-11-09）：Claude 网关 `cli-default` 来源模型丢失已修复，独立源码审查/root验收PASS；normal/race各1659pass、8skip，vet/build0。见[修复证据](../data/public-evidence/T08-Claude-source-default-model-root.json)及[审查](../reviews/T08-Claude-source-default-model-review.md)。当前列出的 `.4` 为旧冻结包；新生产变化需要唯一 `.5`，尚未构建。新双向LIVE仍NOT_RUN/coreBLOCKED，不复用旧试验预算或将连通性PASS当产品验收。

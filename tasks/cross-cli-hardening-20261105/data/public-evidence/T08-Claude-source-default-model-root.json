@@ -1,0 +1,257 @@
+{
+  "status": "PASS_FOR_FROZEN_SOURCE",
+  "date": "2026-11-09T06:38:17.939254+00:00",
+  "implementation_owner": "/root",
+  "independent_reviewer": "/root/review_claude_source_model",
+  "review": "reviews/T08-Claude-source-default-model-review.md",
+  "integration_base": "e431fd1aad0b19b52f33b326ffec5fd30163ba99",
+  "source_hashes": {
+    "tools/orchestrator/internal/host/claude.go": "d138af3ac2492130c5484aba85d7fee8c45c279709c676d471c8d2f1cf616209",
+    "tools/orchestrator/internal/host/claude_model_environment_test.go": "1e334f0f922c7a7260fe52eff7d3660a252b869b37e7d4474627fe05565d9d5d",
+    "tools/orchestrator/internal/host/claude_native_test.go": "81f49d6d947b22bcc6fe27364b97a3af816fbfd81c1364f33e20ccf175cc3d9f"
+  },
+  "plan_sha256": "727b6df40a4c70cd85cc26ebd1b9699a8bd3e09de6a37473b35ae3f4a50e686e",
+  "full_validation": [
+    {
+      "name": "focused-agy-r2",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "test",
+        "-count=5",
+        "-json",
+        "./cmd/orchestrator",
+        "-run",
+        "^TestTaskRunAGYReachesCapabilityCheck$"
+      ],
+      "exit_code": 0,
+      "seconds": 5.924,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/focused-agy-r2.jsonl",
+      "sha256": "f300e6449e6f2f3774d7cac4a0ac37a957086bfcb1a2a506645015009ac8805c",
+      "tests": {
+        "pass": 5
+      },
+      "top_level": {
+        "pass": 5
+      },
+      "failures": [],
+      "skipped": []
+    },
+    {
+      "name": "full-normal-r2",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "test",
+        "-count=1",
+        "-json",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 352.828,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/full-normal-r2.jsonl",
+      "sha256": "0c18363d6167eed12ec31fb74cf9f0247ca56d554204240e5b9520bc7723dcf0",
+      "tests": {
+        "pass": 1659,
+        "skip": 8
+      },
+      "top_level": {
+        "pass": 659,
+        "skip": 8
+      },
+      "failures": [],
+      "skipped": [
+        "codex-cli-orchestration-design/tools/orchestrator/internal/adapter:TestProbeCauseDecompositionObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayReadOnlyTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayManagedWriteTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestS4StageTimingObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeManagedCandidate",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeReviewerProfile",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixRead",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixInvocationStages"
+      ]
+    },
+    {
+      "name": "full-race-r2",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "test",
+        "-race",
+        "-count=1",
+        "-json",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 514.316,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/full-race-r2.jsonl",
+      "sha256": "90ff1cbb80700db225d00636be43b945c71fd98248f653b2f7655bc64d65f04e",
+      "tests": {
+        "pass": 1659,
+        "skip": 8
+      },
+      "top_level": {
+        "pass": 659,
+        "skip": 8
+      },
+      "failures": [],
+      "skipped": [
+        "codex-cli-orchestration-design/tools/orchestrator/internal/adapter:TestProbeCauseDecompositionObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayReadOnlyTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayManagedWriteTransport",
+        "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestS4StageTimingObservation",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeManagedCandidate",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeReviewerProfile",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixRead",
+        "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixInvocationStages"
+      ]
+    },
+    {
+      "name": "vet-r2",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "vet",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 3.506,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/vet-r2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build-r2",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "build",
+        "./..."
+      ],
+      "exit_code": 0,
+      "seconds": 0.837,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/build-r2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "native_loopback": [
+    {
+      "name": "native-api-key",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestNativeClaudeGateway"
+      ],
+      "exit_code": 0,
+      "seconds": 14.726,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/native-api-key.jsonl",
+      "sha256": "139b03912198894d301c68100af02d3313d8943421f178483a694f2eae4ad063",
+      "tests": {
+        "pass": 6
+      },
+      "top_level": {
+        "pass": 2
+      },
+      "failures": [],
+      "skipped": []
+    },
+    {
+      "name": "native-token",
+      "argv": [
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestNativeClaudeGateway"
+      ],
+      "exit_code": 0,
+      "seconds": 13.325,
+      "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/native-token.jsonl",
+      "sha256": "41bf8b81c1cf83a19a2717d613706f9be327ece09293f3cfa68e8a68ea454c2e",
+      "tests": {
+        "pass": 6
+      },
+      "top_level": {
+        "pass": 2
+      },
+      "failures": [],
+      "skipped": []
+    }
+  ],
+  "focused": {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/green1.jsonl",
+    "sha256": "7c8ca2eef8cea7341078c090bf5c5e4bc165129857ed45af49adec144621d3be",
+    "tests": {
+      "pass": 22
+    },
+    "top_level": {
+      "pass": 8
+    },
+    "failures": []
+  },
+  "tdd_red": {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/red1.jsonl",
+    "sha256": "bc4c7553c21e0c8ba4ff26b45e2f3cf66880c1266d4dafe5114f382080ca1014",
+    "tests": {
+      "fail": 3,
+      "pass": 2
+    },
+    "top_level": {
+      "fail": 2,
+      "pass": 1
+    },
+    "failures": [
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestClaudeGatewayCLIDefaultPreservesSourceModelSelection",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestClaudeGatewaySourceModelDefaultsRetainAbsenceAndEmptyValues/explicit-empty",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestClaudeGatewaySourceModelDefaultsRetainAbsenceAndEmptyValues",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host:<package>"
+    ]
+  },
+  "initial_full_normal_failure": {
+    "name": "full-normal",
+    "argv": [
+      "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/toolchain-restore/go1.26.10/go/bin/go",
+      "test",
+      "-count=1",
+      "-json",
+      "./..."
+    ],
+    "exit_code": 1,
+    "seconds": 378.549,
+    "log": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t08-claude-source-model-evidence/data/full-normal.jsonl",
+    "sha256": "61a46c985a9346552796e075178930bef36a058307030b70c38c1c1df9bb54cd",
+    "tests": {
+      "pass": 1658,
+      "skip": 8,
+      "fail": 1
+    },
+    "top_level": {
+      "pass": 658,
+      "skip": 8,
+      "fail": 1
+    },
+    "failures": [
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestTaskRunAGYReachesCapabilityCheck",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:<package>"
+    ],
+    "skipped": [
+      "codex-cli-orchestration-design/tools/orchestrator/internal/adapter:TestProbeCauseDecompositionObservation",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayReadOnlyTransport",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestNativeClaudeGatewayManagedWriteTransport",
+      "codex-cli-orchestration-design/tools/orchestrator/internal/host:TestS4StageTimingObservation",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeManagedCandidate",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealClaudeReviewerProfile",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixRead",
+      "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator:TestRealVersionMatrixInvocationStages"
+    ]
+  },
+  "source_unchanged": true,
+  "integrated_source_exact_match": true,
+  "real_model_calls_for_this_fix": 0,
+  "credential_access_for_this_fix": false,
+  "current_product_live": "NOT_RUN",
+  "new_unique_package_required": "0.1.24-hardening.20261105.5",
+  "root_acceptance": "PASS",
+  "metadata_final_review": "PASS",
+  "final_review_snapshot_sha256": "dedf3a68c853f8b7491d4739d504c4b93e100ab9995b091317bb8119efc4d2af"
+}

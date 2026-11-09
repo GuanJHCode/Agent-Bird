@@ -50,3 +50,6 @@ T09 native原线程idle/busy续审仍BLOCKED，typed resume、AGY/Grok coding不
 用户之后配置好CC中的Claude，root确认`~/.claude/settings.json`与当前provider一致。按新AUTH_TOKEN/Bearer及原默认模型进行一次最小CLI调用，报告HTTP403、usage0、无模型回答；详见[当前CC验证](cc-claude-connectivity-20261109.md)。配置确已读取，具体403原因仍不确定；旧聊天Key/API的401是前一次历史，不代表这次配置。没有再次自动试错或切换Key/账户/模型/地址，core及新`.4`真实双向门禁保持不变。
 
 最新网关对齐验证：用户替换CC地址为ZCode实际第三方网关后，Key/实际模型保持一致，单次真实Claude调用成功（2.332s，input69/output24，nonce完全匹配）。见[成功记录](cc-gateway-connectivity-20261109.md)。这解除独立连通性阻塞，旧401/403仍为历史；产品worker另发现cli-default丢来源model env缺口，需先修复并生成新包，当前产品双向LIVE仍NOT_RUN/coreBLOCKED，不用显式换模型绕过。
+
+
+最新代码进展（2026-11-09）：Claude 网关 `cli-default` 来源模型丢失已修复，独立源码审查/root验收PASS；normal/race各1659pass、8skip，vet/build0。见[修复证据](../data/public-evidence/T08-Claude-source-default-model-root.json)及[审查](../reviews/T08-Claude-source-default-model-review.md)。当前列出的 `.4` 为旧冻结包；新生产变化需要唯一 `.5`，尚未构建。新双向LIVE仍NOT_RUN/coreBLOCKED，不复用旧试验预算或将连通性PASS当产品验收。

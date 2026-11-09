@@ -245,6 +245,15 @@ func prepareClaudeGateway(ctx context.Context, cmd process.Command, profile *ada
 		for _, name := range []string{"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL"} {
 			child[name] = string(profile.Model)
 		}
+	} else {
+		// An isolated HOME cannot supply the caller's configured CLI defaults.
+		// Preserve only model selectors, not headers, credentials or other CLI
+		// policy. Explicit profile models retain the original override above.
+		for _, name := range []string{"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_FABLE_MODEL", "ANTHROPIC_SMALL_FAST_MODEL"} {
+			if value, present := source.env[name]; present {
+				child[name] = value
+			}
+		}
 	}
 	for name, directory := range map[string]string{"XDG_CONFIG_HOME": ".config", "XDG_CACHE_HOME": ".cache", "XDG_DATA_HOME": ".local/share", "XDG_STATE_HOME": ".local/state"} {
 		child[name] = filepath.Join(home, directory)

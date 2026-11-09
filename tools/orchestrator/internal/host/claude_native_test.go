@@ -22,13 +22,29 @@ import (
 // TestNativeClaudeGatewayReadOnlyTransport launches a fixed CLI against an owned
 // loopback SSE fixture; it uses no real credential and spends no model credits.
 // This is transport/tool evidence, not a real-model acceptance result.
-func TestNativeClaudeGatewayReadOnlyTransport(t *testing.T) { nativeClaudeGatewayTransport(t, false) }
-
-func TestNativeClaudeGatewayManagedWriteTransport(t *testing.T) {
-	nativeClaudeGatewayTransport(t, true)
+func TestNativeClaudeGatewayReadOnlyTransport(t *testing.T) {
+	nativeClaudeGatewayModelTransports(t, false)
 }
 
-func nativeClaudeGatewayTransport(t *testing.T, managed bool) {
+func TestNativeClaudeGatewayManagedWriteTransport(t *testing.T) {
+	nativeClaudeGatewayModelTransports(t, true)
+}
+
+func nativeClaudeGatewayModelTransports(t *testing.T, managed bool) {
+	if os.Getenv("ORCHESTRATOR_CLAUDE_NATIVE_BINARY") == "" {
+		t.Skip("requires explicit fixed native/Node CLI path; no model or real credential")
+	}
+	for _, test := range []struct {
+		name       string
+		cliDefault bool
+	}{{"explicit-model", false}, {"source-cli-default", true}} {
+		t.Run(test.name, func(t *testing.T) {
+			nativeClaudeGatewayTransport(t, managed, test.cliDefault)
+		})
+	}
+}
+
+func nativeClaudeGatewayTransport(t *testing.T, managed, cliDefault bool) {
 	binary := os.Getenv("ORCHESTRATOR_CLAUDE_NATIVE_BINARY")
 	if binary == "" {
 		t.Skip("requires explicit fixed native/Node CLI path; no model or real credential")
@@ -75,6 +91,7 @@ func nativeClaudeGatewayTransport(t *testing.T, managed bool) {
 		delete(source.env, "ANTHROPIC_AUTH_TOKEN")
 	}
 	credential := source.env["ANTHROPIC_AUTH_TOKEN"] + source.env["ANTHROPIC_API_KEY"]
+	const wireModel = "deepseek-v4.1-flash-1017"
 	var requests, reads atomic.Int32
 	{
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +117,7 @@ func nativeClaudeGatewayTransport(t *testing.T, managed bool) {
 					Content json.RawMessage `json:"content"`
 				} `json:"messages"`
 			}
-			if err != nil || json.Unmarshal(body, &request) != nil || request.Model != string(profile.Model) {
+			if err != nil || json.Unmarshal(body, &request) != nil || request.Model != wireModel {
 				t.Error("invalid synthetic model request")
 				http.Error(w, "invalid request", 400)
 				return
@@ -192,7 +209,14 @@ func nativeClaudeGatewayTransport(t *testing.T, managed bool) {
 		}))
 		defer server.Close()
 		source.env["ANTHROPIC_BASE_URL"] = server.URL
-		profile.Model = "deepseek-v4.1-flash-1017"
+		if cliDefault {
+			profile.CLIModelDefault = true
+			for _, name := range []string{"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL"} {
+				source.env[name] = wireModel + "[1M]"
+			}
+		} else {
+			profile.Model = wireModel
+		}
 		lock, err := adapter.Probe(context.Background(), adapter.ProviderClaude, binary)
 		if err != nil {
 			t.Fatal(err)
@@ -205,6 +229,9 @@ func nativeClaudeGatewayTransport(t *testing.T, managed bool) {
 		cmd.Stdin = inv.Stdin()
 		if managed {
 			t.Setenv("ANTHROPIC_BASE_URL", source.env["ANTHROPIC_BASE_URL"])
+			for _, name := range []string{"ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_FABLE_MODEL", "ANTHROPIC_SMALL_FAST_MODEL"} {
+				t.Setenv(name, source.env[name])
+			}
 			t.Setenv("ANTHROPIC_API_KEY", "")
 			t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
 			if apiKey {

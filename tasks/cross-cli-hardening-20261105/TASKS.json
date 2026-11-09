@@ -917,7 +917,14 @@
         "Historical initial T08 r3/r4 auth-review subset raw outputs were not retained as files; source review report states this; root fresh full-module reports retained.",
         "Compact refs offline PASS; unique .4 package independently/root PKG PASS. Actual .4 model transmission/live NOT_RUN; original .3 trial failures and budgets retained. Old binaries cannot parse new compact refs."
       ],
-      "updated_at": "2026-11-09T02:46:34.780833+00:00"
+      "updated_at": "2026-11-09T02:46:34.780833+00:00",
+      "source_default_model_followup": {
+        "status": "done",
+        "review": "reviews/T08-Claude-source-default-model-review.md",
+        "root_evidence": "data/public-evidence/T08-Claude-source-default-model-root.json",
+        "scope": "cli-default source model selectors; code/native loopback only, no real model",
+        "production_package_required": "0.1.24-hardening.20261105.5"
+      }
     },
     {
       "id": "T09",
@@ -1049,7 +1056,7 @@
         "T08",
         "T10"
       ],
-      "status": "done",
+      "status": "in_progress",
       "completion_basis": "implemented",
       "baseline_commit": null,
       "implementation_agent": "/root + /root/prepare_package_r4",
@@ -1118,6 +1125,11 @@
         "status": "PASS",
         "report": "reviews/T13-final-review.md",
         "snapshot_r2_sha256": "7a432f16e56b8510be19cbade9af3a5147f1c2a4533850f24c9fcbaa3fcb7952"
+      },
+      "current_candidate": {
+        "version": "0.1.24-hardening.20261105.5",
+        "status": "NOT_BUILT",
+        "reason": "new production source model preservation fix; old .4 remains frozen/historical"
       }
     },
     {
@@ -1371,7 +1383,15 @@
       "evidence": "data/public-evidence/T13-handoff-root.json",
       "scope": "PREPARED only; product root acceptance remains BLOCKED"
     },
-    "latest_authentication_probe": "data/public-evidence/T12-cc-gateway-check-20261109.json"
+    "latest_authentication_probe": "data/public-evidence/T12-cc-gateway-check-20261109.json",
+    "current_followup": {
+      "source_model_fix": "PASS",
+      "evidence": "data/public-evidence/T08-Claude-source-default-model-root.json",
+      "package_version_required": "0.1.24-hardening.20261105.5",
+      "package_status": "NOT_BUILT",
+      "live_status": "NOT_RUN",
+      "note": "final_delivery .4 hashes identify prior frozen artifact; new production bytes require .5 before LIVE"
+    }
   },
   "handoff_statuses": [
     "NOT_RUN",
