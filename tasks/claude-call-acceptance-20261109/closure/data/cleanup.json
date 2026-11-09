@@ -1,0 +1,8 @@
+{
+  "removed_owned_bytecode": [
+    "tasks/claude-call-acceptance-20261109/revisions/r3/scripts/__pycache__/live_sequence.cpython-314.pyc",
+    "tasks/cross-cli-subagent/scripts/__pycache__/managed-coding-trial.cpython-314.pyc"
+  ],
+  "kept": "source, tests, private packages, failed trials and verification evidence; no unknown or original files removed",
+  "ownership_evidence": "absent in initial git status; generated during this turn full Go run at 16:54:49"
+}

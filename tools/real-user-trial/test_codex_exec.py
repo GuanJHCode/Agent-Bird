@@ -189,6 +189,74 @@ def test_native_bundle_rejects_missing_or_changed_trusted_component(tmp_path,mon
         with pytest.raises(AuthGuardBlocked):codex_exec.verify_binary(str(binary),'0.154.0',main_sha)
 
 
+@pytest.mark.parametrize('fault', [
+    'none', 'private_modes', 'root_write', 'bin_write', 'resources_write', 'path_write',
+    'manifest_write', 'manifest_symlink', 'manifest_duplicate', 'manifest_extra',
+    'manifest_version', 'manifest_target', 'manifest_entrypoint', 'manifest_layout',
+    'companion_missing', 'companion_changed', 'companion_symlink', 'companion_write',
+    'binary_changed', 'missing_path_dir',
+    'server_missing', 'server_changed', 'server_symlink', 'server_write',
+    'rg_missing', 'rg_changed', 'rg_symlink', 'rg_write',
+])
+def test_standard_native_bundle_166_preserves_trust_checks(tmp_path, monkeypatch, fault):
+    root = tmp_path / 'standalone'
+    root.mkdir(mode=0o755)
+    for name in ('bin', 'codex-resources', 'codex-path'):
+        (root / name).mkdir(mode=0o755)
+    binary = root / 'bin/codex'
+    binary.write_bytes(b'PUBLIC_NATIVE_166'); binary.chmod(0o755)
+    companion = root / 'bin/codex-code-mode-host'
+    companion.write_bytes(b'PUBLIC_COMPANION_166'); companion.chmod(0o755)
+    data = {'layoutVersion': 1, 'version': '0.166.0', 'target': 'aarch64-apple-darwin',
+            'variant': 'codex', 'entrypoint': 'bin/codex', 'execServer': 'bin/codex-exec-server',
+            'resourcesDir': 'codex-resources', 'pathDir': 'codex-path'}
+    manifest = root / 'codex-package.json'
+    manifest.write_text(json.dumps(data)); manifest.chmod(0o644)
+    digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+    monkeypatch.setitem(codex_exec.NATIVE_ADMISSIONS, '0.166.0', digest)
+    monkeypatch.setitem(codex_exec.NATIVE_COMPANIONS, '0.166.0', hashlib.sha256(companion.read_bytes()).hexdigest())
+    helpers = {'server': root/'bin/codex-exec-server', 'rg': root/'codex-path/rg'}
+    helper_pins = {}
+    for name, path in helpers.items():
+        path.write_bytes(('PUBLIC_' + name).encode()); path.chmod(0o755)
+        helper_pins[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+    monkeypatch.setitem(codex_exec.NATIVE_STANDARD_TOOLS, '0.166.0', helper_pins)
+    if fault == 'private_modes':
+        for path in (root, root/'bin', root/'codex-resources', root/'codex-path'):
+            path.chmod(0o700)
+        manifest.chmod(0o600)
+    for kind, path in [('root', root), ('bin', root/'bin'), ('resources', root/'codex-resources'), ('path', root/'codex-path')]:
+        if fault == kind + '_write': path.chmod(0o775)
+    if fault == 'manifest_write': manifest.chmod(0o664)
+    if fault == 'manifest_symlink':
+        target = root / 'other.json'; manifest.rename(target); manifest.symlink_to(target)
+    if fault == 'manifest_duplicate': manifest.write_text(json.dumps(data)[:-1] + ',"version":"0.166.0"}')
+    changes = {'manifest_extra': ('extra', True), 'manifest_version': ('version', '0.165.0'),
+               'manifest_target': ('target', 'x86_64-apple-darwin'),
+               'manifest_entrypoint': ('entrypoint', '../codex'), 'manifest_layout': ('layoutVersion', True)}
+    if fault in changes:
+        key, value = changes[fault]; data[key] = value; manifest.write_text(json.dumps(data))
+    if fault == 'companion_missing': companion.unlink()
+    if fault == 'companion_changed': companion.write_bytes(b'CHANGED')
+    if fault == 'companion_symlink':
+        target = root / 'other'; companion.rename(target); companion.symlink_to(target)
+    if fault == 'companion_write': companion.chmod(0o775)
+    if fault == 'binary_changed': binary.write_bytes(b'CHANGED')
+    if fault == 'missing_path_dir':
+        helpers['rg'].unlink(); (root/'codex-path').rmdir()
+    for name, path in helpers.items():
+        if fault == name + '_missing': path.unlink()
+        if fault == name + '_changed': path.write_bytes(b'CHANGED')
+        if fault == name + '_write': path.chmod(0o775)
+        if fault == name + '_symlink':
+            target = root / (name + '-replacement'); path.rename(target); path.symlink_to(target)
+    if fault in ('none', 'private_modes'):
+        codex_exec.verify_binary(str(binary), '0.166.0', digest)
+    else:
+        with pytest.raises(AuthGuardBlocked):
+            codex_exec.verify_binary(str(binary), '0.166.0', digest)
+
+
 def test_named_policy_rejects_missing_or_foreign_host_paths(tmp_path):
     scratch,policy=host_policy(tmp_path)
     codex_exec.validate_host_policy(policy,scratch)

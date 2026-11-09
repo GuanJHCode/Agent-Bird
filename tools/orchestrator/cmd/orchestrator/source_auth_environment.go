@@ -32,6 +32,11 @@ func sourceAuthEnvironmentName(name string) bool {
 		// MCP subprocesses after the controller captures its source environment.
 		// Owner authority and workspace routing use their existing separate guards.
 		return false
+	case "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN":
+		// Claude creates these local IPC capabilities during startup, before
+		// spawning MCP servers. They do not select provider credentials or routes.
+		// Keep this exact-name exclusion narrow; the token is still sensitive.
+		return false
 	case "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "HOME", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS":
 		return true
 	}

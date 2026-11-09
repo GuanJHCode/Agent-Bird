@@ -1,0 +1,57 @@
+{
+  "status": "BLOCKED_ACK_ARGUMENTS",
+  "root": "/private/tmp/ab5-1109-r2",
+  "wall_seconds": 111.6934052919969,
+  "worker_used_ms": 29753,
+  "parent_accept": true,
+  "transport_ack": false,
+  "remaining_owned_pids": [],
+  "unverified_owned_pids": [],
+  "ledger": {
+    "tasks": [
+      [
+        "completed",
+        1
+      ]
+    ],
+    "segments": [
+      [
+        "exited",
+        1
+      ]
+    ],
+    "budgets": [
+      [
+        "settled",
+        29753
+      ]
+    ],
+    "review": [
+      [
+        "accept",
+        1
+      ]
+    ],
+    "ack_count": 0
+  },
+  "root_cause": "ACK included a diagnostic progress event; collection receipt binds only non-progress events with nonempty action_slot. Second request also invented a progress action_slot. No product guard defect.",
+  "second_direction": "NOT_RUN",
+  "evidence": [
+    {
+      "path": "/private/tmp/ab5-1109-r2/codex-to-claude/live-run/scenario-result.json",
+      "sha256": "bc9bfbd7037b0c550b552ee2795e1af134536559d4ab81aa273bea706334a89e"
+    },
+    {
+      "path": "/private/tmp/ab5-1109-r2/codex-to-claude/live-run/parent.stdout",
+      "sha256": "ced9a5545ad4dcaba75f2114366c7a8cbb013680be349a358ae13b71c2d33b3f"
+    },
+    {
+      "path": "/private/tmp/ab5-1109-r2/codex-to-claude/live-started.json",
+      "sha256": "70ceb36f74e8fbff1f1f10433ebd16de8d0f2087e4197f632068075ff8891879"
+    },
+    {
+      "path": "/private/tmp/ab5-1109-r2/codex-to-claude/live-completed.json",
+      "sha256": "90753c673050555f277cf681c9564f3d1e81f36b299c1874af998452b1b0677c"
+    }
+  ]
+}

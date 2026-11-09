@@ -1,0 +1,21 @@
+{
+  "status": "READY_FOR_LIVE_NOT_YET_ACCEPTED",
+  "root": "/private/tmp/ab5-1109-r3",
+  "pins_verified": 51,
+  "python_tests": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "276",
+    "time": "103.669",
+    "timestamp": "2026-11-09T16:23:02.978515+08:00",
+    "hostname": "guanjunhuideMacBook-Pro.local"
+  },
+  "go_ack_contract_tests": 2,
+  "review": "PASS_FOR_BOUNDED_LIVE_ENTRY",
+  "previous_round": "r2 BLOCKED_ACK_ARGUMENTS retained; old models/hosts exited",
+  "budget": "per direction wall<=180s including cleanup; worker per segment<=60s,total<=90s,max_attempts2; new user authorized repair/retest",
+  "model_change": false,
+  "criteria_change": false
+}

@@ -1,0 +1,126 @@
+{
+  "status": "BLOCKED_BEFORE_MODEL_CALL",
+  "checked_utc": "2026-11-09T07:41:34.701690+00:00",
+  "scope": "single authorized .5 codex-to-claude attempt; no second direction after first failure",
+  "user_scope": "continue private .5 Claude invocation acceptance; <=6min combined, <=180s per direction including cleanup; first failure stops; no additional probes/model upgrades",
+  "package_version": "0.1.24-hardening.20261105.5",
+  "package_source": "7eb8c8d434a584fd109d9bed96d8c3a82f3fea98",
+  "documentation_base": "ed3c8060e0276d69a4e88e54694a6b735b056d2d",
+  "package_archive_sha256": "5ad3caec4f13aaf457df27422998a12a60d6c63460ea305da27cb004a1da5db1",
+  "installed_binary_sha256": "6b1d91d56d3189b04662fb56e4b6b733712fec10fb720f05c840e33becdd345b",
+  "prelaunch_setup_pins": 51,
+  "prelaunch_pin_mismatches": [],
+  "trial_root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109",
+  "launcher_exit_code": 1,
+  "scenario_wrapper_exit_code": 0,
+  "actual_controller_exit_code": 2,
+  "scenario_wall_seconds": 5.155622582999058,
+  "scenario_status": "BLOCKED",
+  "timed_out": false,
+  "error": "coordinator_start_timeout",
+  "root_cause": {
+    "kind": "macos_unix_socket_path_too_long",
+    "socket_path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/state/coordinator.sock",
+    "path_bytes": 119,
+    "darwin_raw_path_capacity": 104,
+    "maximum_nonempty_name_bytes": 103,
+    "coordinator_log": "{\"error\":\"listen unix /Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/state/coordinator.sock: bind: invalid argument\",\"status\":\"error\",\"version\":1}",
+    "go_evidence": [
+      "Go1.26.10 src/syscall/syscall_bsd.go:188-192",
+      "Go1.26.10 src/syscall/ztypes_darwin_arm64.go:173-176"
+    ]
+  },
+  "recorded_owned_identities": [
+    {
+      "pid": 95889,
+      "ppid": 95881,
+      "pgid": 95889,
+      "birth": [
+        1794209919,
+        569442
+      ],
+      "executable": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed/versions/0.1.24-hardening.20261105.5/bin/codex-orchestrator",
+      "status": 2,
+      "executable_history": [
+        "/bin/sh",
+        "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t11-package-r5/artifacts/installed/versions/0.1.24-hardening.20261105.5/bin/codex-orchestrator"
+      ]
+    }
+  ],
+  "remaining_owned_pids": [],
+  "unverified_owned_pids": [],
+  "discovery_errors": [],
+  "output_channels_closed": true,
+  "matching_detached_processes": [],
+  "readonly_ledger_counts": {
+    "runs": 0,
+    "tasks": 0,
+    "attempts": 0,
+    "segments": 0,
+    "budget_reservations": 0,
+    "host_instances": 0,
+    "host_launches": 0,
+    "runtime_hosts": 0,
+    "owner_grants": 0
+  },
+  "observed_parent_cli_processes": 0,
+  "observed_claude_worker_processes": 0,
+  "worker_active_ms": 0,
+  "model_answer_received": false,
+  "model_turn_observed": false,
+  "billing": "NOT_VERIFIED; no model processes observed",
+  "parent_accept": false,
+  "transport_ack": false,
+  "integrated": false,
+  "second_direction": {
+    "status": "NOT_RUN_FIRST_DIRECTION_FAILED",
+    "markers": {
+      "live-started.json": false,
+      "live-completed.json": false,
+      "live-run": false,
+      "auth-preflight.json": false
+    }
+  },
+  "credential_scan": {
+    "files_scanned": 52,
+    "current_credential_value_or_encoding_hits": [],
+    "secrets_saved_by_report": false
+  },
+  "original_evidence": [
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/live-started.json",
+      "sha256": "f4d62ade985e7765616dfc66568ca25106ff69d4654bb3465668eb11e60ba984"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/live-completed.json",
+      "sha256": "3f7cc91e61cf38d746549ff5bc847010c73ec7cfc93935bd3ab0c264d675e822"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/live-run/scenario-result.json",
+      "sha256": "3e1b5805ff25ff9ea4f8d79a7a9cb6d0e809b0a881c078bc7377e2d4544236dc"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/live-run/launch.json",
+      "sha256": "8badec730c90fe9032a0c02ed30b77ecb923726d381e75cabcffcdfa5bb0cb32"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/live-run/parent.stderr",
+      "sha256": "8102c87e921cb6412643a4f6dac8fee717ce3a0c4854bc0097ecc1574fc7e32a"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-live-r5-20261109/codex-to-claude/state/coordinator.log",
+      "sha256": "0af36988887b701f0c34e4488b755e892b6e653c6c2716db85b2ff4b2794f1d6"
+    }
+  ],
+  "source_or_package_modified": false,
+  "live_retry_count": 0,
+  "additional_real_probes": 0,
+  "independent_review": {
+    "status": "PASS_FOR_EVIDENCE_ONLY",
+    "reviewer": "/root/review_claude_r5_acceptance",
+    "report": "../docs/independent-review.md",
+    "non_blocking_wording_corrected": true,
+    "product_live_status_unchanged": true
+  },
+  "next_requirement": "short canonical owner-only runtime path plus prelaunch socket-length gate; preserve this failed trial and consumed markers; any later real trial requires new explicit scope/budget, no automatic retry"
+}

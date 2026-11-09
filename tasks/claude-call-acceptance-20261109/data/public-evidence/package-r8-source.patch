@@ -1,0 +1,259 @@
+diff --git a/plugins/codex-orchestrator/lib/trial/codex_exec.py b/plugins/codex-orchestrator/lib/trial/codex_exec.py
+index c8fa6179..8cea8fe3 100644
+--- a/plugins/codex-orchestrator/lib/trial/codex_exec.py
++++ b/plugins/codex-orchestrator/lib/trial/codex_exec.py
+@@ -34,7 +34,7 @@ def blocked(code: str):
+     raise AuthGuardBlocked(code)
+ 
+ 
+-def read_stable(path: Path, *, executable=False) -> tuple[bytes, tuple]:
++def read_stable(path: Path, *, executable=False, public_metadata=False) -> tuple[bytes, tuple]:
+     try:
+         if not path.is_absolute() or path.resolve(strict=True) != path:
+             blocked('auth_source_untrusted' if not executable else 'native_path_untrusted')
+@@ -43,7 +43,8 @@ def read_stable(path: Path, *, executable=False) -> tuple[bytes, tuple]:
+             before = os.fstat(fd)
+             if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid()
+                     or before.st_nlink != 1 or before.st_mode & 0o022
+-                    or (not executable and stat.S_IMODE(before.st_mode) != 0o600)
++                    or (not executable and stat.S_IMODE(before.st_mode) not in
++                        ((0o600, 0o644) if public_metadata else (0o600,)))
+                     or (executable and not before.st_mode & 0o111)):
+                 blocked('auth_source_untrusted' if not executable else 'native_path_untrusted')
+             maximum = 512*1024*1024 if executable else 1024*1024
+@@ -159,6 +160,13 @@ NATIVE_COMPANIONS = {
+     '0.166.0': 'fd37051bfdce0b65cf22a7077e265720a7bd6709d5e400dcbc26197f3041400a',
+ }
+ 
++NATIVE_STANDARD_TOOLS = {
++    '0.166.0': {
++        'bin/codex-exec-server': 'b3073157bdbb5cc598b10c8bbf8785f2ba052f65f3893f9cbeb9432e4c027c08',
++        'codex-path/rg': 'db94328a1765b7d5fd4ee6a94442ebf24a78d1fce246fe3219b578561ab3dfc1',
++    },
++}
++
+ def verify_binary(binary: str, version: str, digest: str):
+     if version not in NATIVE_ADMISSIONS: blocked('native_version_mismatch')
+     if digest != NATIVE_ADMISSIONS[version]: blocked('native_sha256_mismatch')
+@@ -171,14 +179,38 @@ def verify_bundle(path, version):
+     if path.name != 'codex' or path.parent.name != 'bin': blocked('native_bundle_untrusted')
+     root=path.parent.parent
+     try:
+-        for directory in (root,path.parent,root/'codex-resources'):
++        manifest = root / 'codex-package.json'
++        # Public install metadata is not the owner-only ChatGPT auth file.
++        # Admit only the measured standalone layout; never follow manifest paths.
++        body, _ = read_stable(manifest, public_metadata=(version == '0.166.0'))
++        data = unique_json(body)
++        standard = (version == '0.166.0' and isinstance(data, dict)
++            and type(data.get('layoutVersion')) is int and data == {
++                'layoutVersion': 1, 'version': version, 'target': 'aarch64-apple-darwin',
++                'variant': 'codex', 'entrypoint': 'bin/codex',
++                'execServer': 'bin/codex-exec-server', 'resourcesDir': 'codex-resources',
++                'pathDir': 'codex-path'})
++        directories = (root, path.parent, root / 'codex-resources')
++        if standard:
++            directories += (root / 'codex-path',)
++            modes = (0o700, 0o755)
++            companion = root / 'bin/codex-code-mode-host'
++        elif data == {'version': version}:
++            # Retain the exact original private-bundle contract.
++            if read_stable(manifest)[0] != body: blocked('auth_source_changed')
++            modes = (0o700,)
++            companion = root / 'codex-resources/codex-code-mode-host'
++        else:
++            blocked('native_bundle_untrusted')
++        for directory in directories:
+             info=directory.lstat()
+             if (directory.resolve(strict=True)!=directory or not stat.S_ISDIR(info.st_mode)
+-                    or info.st_uid!=os.getuid() or stat.S_IMODE(info.st_mode)!=0o700):
++                    or info.st_uid!=os.getuid() or stat.S_IMODE(info.st_mode) not in modes):
+                 blocked('native_bundle_untrusted')
+-        body,_=read_stable(root/'codex-package.json')
+-        if unique_json(body)!={'version':version}: blocked('native_bundle_untrusted')
+-        verify_executable(root/'codex-resources/codex-code-mode-host',NATIVE_COMPANIONS[version])
++        verify_executable(companion,NATIVE_COMPANIONS[version])
++        if standard:
++            for relative, digest in NATIVE_STANDARD_TOOLS[version].items():
++                verify_executable(root / relative, digest)
+     except AuthGuardBlocked:raise
+     except Exception:blocked('native_bundle_untrusted')
+ 
+diff --git a/tools/orchestrator/cmd/orchestrator/source_auth_environment.go b/tools/orchestrator/cmd/orchestrator/source_auth_environment.go
+index f8b19e5f..f63d378a 100644
+--- a/tools/orchestrator/cmd/orchestrator/source_auth_environment.go
++++ b/tools/orchestrator/cmd/orchestrator/source_auth_environment.go
+@@ -32,6 +32,11 @@ func sourceAuthEnvironmentName(name string) bool {
+ 		// MCP subprocesses after the controller captures its source environment.
+ 		// Owner authority and workspace routing use their existing separate guards.
+ 		return false
++	case "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN":
++		// Claude creates these local IPC capabilities during startup, before
++		// spawning MCP servers. They do not select provider credentials or routes.
++		// Keep this exact-name exclusion narrow; the token is still sensitive.
++		return false
+ 	case "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME", "HOME", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "all_proxy", "no_proxy", "SSL_CERT_FILE", "SSL_CERT_DIR", "NODE_EXTRA_CA_CERTS":
+ 		return true
+ 	}
+diff --git a/tools/orchestrator/cmd/orchestrator/source_auth_environment_test.go b/tools/orchestrator/cmd/orchestrator/source_auth_environment_test.go
+index 35a0be57..44c6b15f 100644
+--- a/tools/orchestrator/cmd/orchestrator/source_auth_environment_test.go
++++ b/tools/orchestrator/cmd/orchestrator/source_auth_environment_test.go
+@@ -32,6 +32,10 @@ func TestSourceAuthEnvironmentProjection(t *testing.T) {
+ 		{"order_and_last_wins", append([]string{"HOME=obsolete"}, base...), ""},
+ 		{"non_auth_context", append(append([]string{}, base...), "CODEX_THREAD_ID=public-thread", "UNRELATED=public"), ""},
+ 		{"claude_stdio_context", append(append([]string{}, base...), "CLAUDE_CODE_SESSION_ID=public-session", "CLAUDE_PROJECT_DIR=/public/project"), ""},
++		{"claude_messaging_context", append(append([]string{}, base...), "CLAUDE_CODE_MESSAGING_SOCKET=/public/messaging.sock", "CLAUDE_CODE_MESSAGING_TOKEN=public-ipc-token"), ""},
++		{"claude_messaging_context_auth_changed", append(append([]string{}, base...), "CLAUDE_CODE_MESSAGING_SOCKET=/public/messaging.sock", "CLAUDE_CODE_MESSAGING_TOKEN=public-ipc-token", "ANTHROPIC_AUTH_TOKEN=public-changed"), "mcp_source_environment_changed"},
++		{"claude_future_messaging_auth", append(append([]string{}, base...), "CLAUDE_CODE_MESSAGING_FUTURE_TOKEN=public"), "mcp_source_environment_changed"},
++		{"claude_messaging_token_suffix", append(append([]string{}, base...), "CLAUDE_CODE_MESSAGING_TOKEN_FUTURE_AUTH=public"), "mcp_source_environment_changed"},
+ 		{"claude_future_session_auth", append(append([]string{}, base...), "CLAUDE_CODE_SESSION_ID_FUTURE_AUTH=public"), "mcp_source_environment_changed"},
+ 		{"claude_future_project_auth", append(append([]string{}, base...), "CLAUDE_PROJECT_DIR_FUTURE_AUTH=public"), "mcp_source_environment_changed"},
+ 		{"missing", base[1:], "mcp_source_environment_changed"},
+@@ -127,6 +131,12 @@ if mode == "empty_unset": env.pop("ANTHROPIC_FUTURE_AUTH", None)
+ if mode == "claude_stdio_context":
+     env["CLAUDE_CODE_SESSION_ID"] = "public-session"
+     env["CLAUDE_PROJECT_DIR"] = os.getcwd()
++if mode.startswith("claude_messaging"):
++    env["CLAUDE_CODE_MESSAGING_SOCKET"] = "/public/messaging.sock"
++    env["CLAUDE_CODE_MESSAGING_TOKEN"] = "public-ipc-token"
++if mode == "claude_messaging_auth_changed": env["ANTHROPIC_AUTH_TOKEN"] = "public-changed"
++if mode == "claude_messaging_route_changed": env["ANTHROPIC_BASE_URL"] = "https://other.public.invalid"
++if mode == "claude_messaging_unknown": env["CLAUDE_CODE_MESSAGING_FUTURE_TOKEN"] = "public-new"
+ if mode in ("missing_proof", "unknown_version", "unknown_algorithm", "bad_digest", "legacy_cli"):
+     if mode in ("missing_proof", "legacy_cli"): proof.pop("source_auth_env")
+     if mode == "unknown_version": proof["source_auth_env"]["version"] = 2
+@@ -156,6 +166,10 @@ assert p.wait(timeout=10) == 0
+ 	}
+ 	cases := []struct{ name, want string }{
+ 		{"claude_stdio_context", "mcp_provider_not_configured"},
++		{"claude_messaging", "mcp_provider_not_configured"},
++		{"claude_messaging_auth_changed", "mcp_source_environment_changed"},
++		{"claude_messaging_route_changed", "mcp_source_environment_changed"},
++		{"claude_messaging_unknown", "mcp_source_environment_changed"},
+ 		{"complete", "mcp_provider_not_configured"}, {"missing", "mcp_source_environment_changed"}, {"changed", "mcp_source_environment_changed"}, {"unknown", "mcp_source_environment_changed"}, {"empty_unset", "mcp_source_environment_changed"}, {"missing_proof", "mcp_source_environment_unverified"}, {"unknown_version", "mcp_source_environment_unverified"}, {"unknown_algorithm", "mcp_source_environment_unverified"}, {"bad_digest", "mcp_source_environment_unverified"}, {"legacy_cli", "legacy_cli_accepted"},
+ 	}
+ 	for _, name := range sourceAuthRouteFixtureNames {
+diff --git a/tools/orchestrator/internal/host/claude_test.go b/tools/orchestrator/internal/host/claude_test.go
+index 2a59fbe0..68934c56 100644
+--- a/tools/orchestrator/internal/host/claude_test.go
++++ b/tools/orchestrator/internal/host/claude_test.go
+@@ -80,6 +80,8 @@ func claudeGatewayFixture(t *testing.T) (process.Command, *adapter.ExecutionProf
+ 
+ func TestClaudeGatewayUsesExactPrivateEnvironmentWithoutCopyingAuth(t *testing.T) {
+ 	cmd, profile, scratch, source := claudeGatewayFixture(t)
++	source.env["CLAUDE_CODE_MESSAGING_SOCKET"] = "/public/messaging.sock"
++	source.env["CLAUDE_CODE_MESSAGING_TOKEN"] = "public-ipc-token"
+ 	cmd.Env = []string{"ORCHESTRATOR_REPORT_EXECUTABLE=/private/report-helper"}
+ 	prepared, err := prepareClaudeGateway(context.Background(), cmd, profile, scratch, source)
+ 	if err != nil {
+@@ -92,7 +94,7 @@ func TestClaudeGatewayUsesExactPrivateEnvironmentWithoutCopyingAuth(t *testing.T
+ 	if !strings.Contains(joined, "ORCHESTRATOR_REPORT_EXECUTABLE=/private/report-helper") {
+ 		t.Fatal("report executable lost at gateway boundary")
+ 	}
+-	for _, bad := range []string{"NODE_OPTIONS=", "HTTPS_PROXY=", "DYLD_INSERT_LIBRARIES=", "CLAUDE_CODE_OAUTH_TOKEN="} {
++	for _, bad := range []string{"NODE_OPTIONS=", "HTTPS_PROXY=", "DYLD_INSERT_LIBRARIES=", "CLAUDE_CODE_OAUTH_TOKEN=", "CLAUDE_CODE_MESSAGING_SOCKET=", "CLAUDE_CODE_MESSAGING_TOKEN="} {
+ 		if strings.Contains(joined, bad) {
+ 			t.Fatalf("inherited environment %s", bad)
+ 		}
+diff --git a/tools/orchestrator/internal/host/managed_policy_test.go b/tools/orchestrator/internal/host/managed_policy_test.go
+index 8720077f..367af8a4 100644
+--- a/tools/orchestrator/internal/host/managed_policy_test.go
++++ b/tools/orchestrator/internal/host/managed_policy_test.go
+@@ -96,6 +96,8 @@ func TestCodexHelperExactEnvironmentRejectsAmbientAuthAndLoader(t *testing.T) {
+ 	t.Setenv("HOME", t.TempDir())
+ 	t.Setenv("PYTHONPATH", "untrusted")
+ 	t.Setenv("DYLD_INSERT_LIBRARIES", "untrusted")
++	t.Setenv("CLAUDE_CODE_MESSAGING_SOCKET", "/public/messaging.sock")
++	t.Setenv("CLAUDE_CODE_MESSAGING_TOKEN", "public-ipc-token")
+ 	for _, entry := range os.Environ() {
+ 		name, _, _ := strings.Cut(entry, "=")
+ 		if strings.HasPrefix(name, "OPENAI_") || strings.HasPrefix(name, "CODEX_") {
+@@ -108,7 +110,7 @@ func TestCodexHelperExactEnvironmentRejectsAmbientAuthAndLoader(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	joined := strings.Join(env, "\n")
+-	if strings.Contains(joined, "PYTHONPATH=") || strings.Contains(joined, "DYLD_") || !strings.Contains(joined, "TMPDIR=/private/owned") {
++	if strings.Contains(joined, "PYTHONPATH=") || strings.Contains(joined, "DYLD_") || strings.Contains(joined, "CLAUDE_CODE_MESSAGING_") || !strings.Contains(joined, "TMPDIR=/private/owned") {
+ 		t.Fatalf("env=%v", env)
+ 	}
+ 	t.Setenv("CODEX_REFRESH_TOKEN_URL_OVERRIDE", "")
+diff --git a/tools/real-user-trial/test_codex_exec.py b/tools/real-user-trial/test_codex_exec.py
+index a2c9fbb9..00850298 100644
+--- a/tools/real-user-trial/test_codex_exec.py
++++ b/tools/real-user-trial/test_codex_exec.py
+@@ -189,6 +189,74 @@ def test_native_bundle_rejects_missing_or_changed_trusted_component(tmp_path,mon
+         with pytest.raises(AuthGuardBlocked):codex_exec.verify_binary(str(binary),'0.154.0',main_sha)
+ 
+ 
++@pytest.mark.parametrize('fault', [
++    'none', 'private_modes', 'root_write', 'bin_write', 'resources_write', 'path_write',
++    'manifest_write', 'manifest_symlink', 'manifest_duplicate', 'manifest_extra',
++    'manifest_version', 'manifest_target', 'manifest_entrypoint', 'manifest_layout',
++    'companion_missing', 'companion_changed', 'companion_symlink', 'companion_write',
++    'binary_changed', 'missing_path_dir',
++    'server_missing', 'server_changed', 'server_symlink', 'server_write',
++    'rg_missing', 'rg_changed', 'rg_symlink', 'rg_write',
++])
++def test_standard_native_bundle_166_preserves_trust_checks(tmp_path, monkeypatch, fault):
++    root = tmp_path / 'standalone'
++    root.mkdir(mode=0o755)
++    for name in ('bin', 'codex-resources', 'codex-path'):
++        (root / name).mkdir(mode=0o755)
++    binary = root / 'bin/codex'
++    binary.write_bytes(b'PUBLIC_NATIVE_166'); binary.chmod(0o755)
++    companion = root / 'bin/codex-code-mode-host'
++    companion.write_bytes(b'PUBLIC_COMPANION_166'); companion.chmod(0o755)
++    data = {'layoutVersion': 1, 'version': '0.166.0', 'target': 'aarch64-apple-darwin',
++            'variant': 'codex', 'entrypoint': 'bin/codex', 'execServer': 'bin/codex-exec-server',
++            'resourcesDir': 'codex-resources', 'pathDir': 'codex-path'}
++    manifest = root / 'codex-package.json'
++    manifest.write_text(json.dumps(data)); manifest.chmod(0o644)
++    digest = hashlib.sha256(binary.read_bytes()).hexdigest()
++    monkeypatch.setitem(codex_exec.NATIVE_ADMISSIONS, '0.166.0', digest)
++    monkeypatch.setitem(codex_exec.NATIVE_COMPANIONS, '0.166.0', hashlib.sha256(companion.read_bytes()).hexdigest())
++    helpers = {'server': root/'bin/codex-exec-server', 'rg': root/'codex-path/rg'}
++    helper_pins = {}
++    for name, path in helpers.items():
++        path.write_bytes(('PUBLIC_' + name).encode()); path.chmod(0o755)
++        helper_pins[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
++    monkeypatch.setitem(codex_exec.NATIVE_STANDARD_TOOLS, '0.166.0', helper_pins)
++    if fault == 'private_modes':
++        for path in (root, root/'bin', root/'codex-resources', root/'codex-path'):
++            path.chmod(0o700)
++        manifest.chmod(0o600)
++    for kind, path in [('root', root), ('bin', root/'bin'), ('resources', root/'codex-resources'), ('path', root/'codex-path')]:
++        if fault == kind + '_write': path.chmod(0o775)
++    if fault == 'manifest_write': manifest.chmod(0o664)
++    if fault == 'manifest_symlink':
++        target = root / 'other.json'; manifest.rename(target); manifest.symlink_to(target)
++    if fault == 'manifest_duplicate': manifest.write_text(json.dumps(data)[:-1] + ',"version":"0.166.0"}')
++    changes = {'manifest_extra': ('extra', True), 'manifest_version': ('version', '0.165.0'),
++               'manifest_target': ('target', 'x86_64-apple-darwin'),
++               'manifest_entrypoint': ('entrypoint', '../codex'), 'manifest_layout': ('layoutVersion', True)}
++    if fault in changes:
++        key, value = changes[fault]; data[key] = value; manifest.write_text(json.dumps(data))
++    if fault == 'companion_missing': companion.unlink()
++    if fault == 'companion_changed': companion.write_bytes(b'CHANGED')
++    if fault == 'companion_symlink':
++        target = root / 'other'; companion.rename(target); companion.symlink_to(target)
++    if fault == 'companion_write': companion.chmod(0o775)
++    if fault == 'binary_changed': binary.write_bytes(b'CHANGED')
++    if fault == 'missing_path_dir':
++        helpers['rg'].unlink(); (root/'codex-path').rmdir()
++    for name, path in helpers.items():
++        if fault == name + '_missing': path.unlink()
++        if fault == name + '_changed': path.write_bytes(b'CHANGED')
++        if fault == name + '_write': path.chmod(0o775)
++        if fault == name + '_symlink':
++            target = root / (name + '-replacement'); path.rename(target); path.symlink_to(target)
++    if fault in ('none', 'private_modes'):
++        codex_exec.verify_binary(str(binary), '0.166.0', digest)
++    else:
++        with pytest.raises(AuthGuardBlocked):
++            codex_exec.verify_binary(str(binary), '0.166.0', digest)
++
++
+ def test_named_policy_rejects_missing_or_foreign_host_paths(tmp_path):
+     scratch,policy=host_policy(tmp_path)
+     codex_exec.validate_host_policy(policy,scratch)

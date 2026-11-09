@@ -32,6 +32,10 @@ func TestSourceAuthEnvironmentProjection(t *testing.T) {
 		{"order_and_last_wins", append([]string{"HOME=obsolete"}, base...), ""},
 		{"non_auth_context", append(append([]string{}, base...), "CODEX_THREAD_ID=public-thread", "UNRELATED=public"), ""},
 		{"claude_stdio_context", append(append([]string{}, base...), "CLAUDE_CODE_SESSION_ID=public-session", "CLAUDE_PROJECT_DIR=/public/project"), ""},
+		{"claude_messaging_context", append(append([]string{}, base...), "CLAUDE_CODE_MESSAGING_SOCKET=/public/messaging.sock", "CLAUDE_CODE_MESSAGING_TOKEN=public-ipc-token"), ""},
+		{"claude_messaging_context_auth_changed", append(append([]string{}, base...), "CLAUDE_CODE_MESSAGING_SOCKET=/public/messaging.sock", "CLAUDE_CODE_MESSAGING_TOKEN=public-ipc-token", "ANTHROPIC_AUTH_TOKEN=public-changed"), "mcp_source_environment_changed"},
+		{"claude_future_messaging_auth", append(append([]string{}, base...), "CLAUDE_CODE_MESSAGING_FUTURE_TOKEN=public"), "mcp_source_environment_changed"},
+		{"claude_messaging_token_suffix", append(append([]string{}, base...), "CLAUDE_CODE_MESSAGING_TOKEN_FUTURE_AUTH=public"), "mcp_source_environment_changed"},
 		{"claude_future_session_auth", append(append([]string{}, base...), "CLAUDE_CODE_SESSION_ID_FUTURE_AUTH=public"), "mcp_source_environment_changed"},
 		{"claude_future_project_auth", append(append([]string{}, base...), "CLAUDE_PROJECT_DIR_FUTURE_AUTH=public"), "mcp_source_environment_changed"},
 		{"missing", base[1:], "mcp_source_environment_changed"},
@@ -127,6 +131,12 @@ if mode == "empty_unset": env.pop("ANTHROPIC_FUTURE_AUTH", None)
 if mode == "claude_stdio_context":
     env["CLAUDE_CODE_SESSION_ID"] = "public-session"
     env["CLAUDE_PROJECT_DIR"] = os.getcwd()
+if mode.startswith("claude_messaging"):
+    env["CLAUDE_CODE_MESSAGING_SOCKET"] = "/public/messaging.sock"
+    env["CLAUDE_CODE_MESSAGING_TOKEN"] = "public-ipc-token"
+if mode == "claude_messaging_auth_changed": env["ANTHROPIC_AUTH_TOKEN"] = "public-changed"
+if mode == "claude_messaging_route_changed": env["ANTHROPIC_BASE_URL"] = "https://other.public.invalid"
+if mode == "claude_messaging_unknown": env["CLAUDE_CODE_MESSAGING_FUTURE_TOKEN"] = "public-new"
 if mode in ("missing_proof", "unknown_version", "unknown_algorithm", "bad_digest", "legacy_cli"):
     if mode in ("missing_proof", "legacy_cli"): proof.pop("source_auth_env")
     if mode == "unknown_version": proof["source_auth_env"]["version"] = 2
@@ -156,6 +166,10 @@ assert p.wait(timeout=10) == 0
 	}
 	cases := []struct{ name, want string }{
 		{"claude_stdio_context", "mcp_provider_not_configured"},
+		{"claude_messaging", "mcp_provider_not_configured"},
+		{"claude_messaging_auth_changed", "mcp_source_environment_changed"},
+		{"claude_messaging_route_changed", "mcp_source_environment_changed"},
+		{"claude_messaging_unknown", "mcp_source_environment_changed"},
 		{"complete", "mcp_provider_not_configured"}, {"missing", "mcp_source_environment_changed"}, {"changed", "mcp_source_environment_changed"}, {"unknown", "mcp_source_environment_changed"}, {"empty_unset", "mcp_source_environment_changed"}, {"missing_proof", "mcp_source_environment_unverified"}, {"unknown_version", "mcp_source_environment_unverified"}, {"unknown_algorithm", "mcp_source_environment_unverified"}, {"bad_digest", "mcp_source_environment_unverified"}, {"legacy_cli", "legacy_cli_accepted"},
 	}
 	for _, name := range sourceAuthRouteFixtureNames {

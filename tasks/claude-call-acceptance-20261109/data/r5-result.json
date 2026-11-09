@@ -1,0 +1,48 @@
+[
+  {
+    "direction": "codex-to-claude",
+    "path": "/private/tmp/ab6-1109-r5/codex-to-claude/live-run/scenario-result.json",
+    "sha256": "8c9c6c4f8d487373dc686a072608671b4facf88b8a3e11e2b5e7fdfb3e33e6a0",
+    "status": "SCENARIO_PASS",
+    "exit_code": 0,
+    "wall_seconds": 104.683888083091,
+    "timed_out": false,
+    "remaining_owned_pids": [],
+    "unverified_owned_pids": [],
+    "discovery_errors": [],
+    "output_channels_closed": true,
+    "postflight": {
+      "status": "POSTFLIGHT_PASS",
+      "cli_handle": "/private/tmp/ab6-1109-r5/codex-to-claude/state/dispatch/c34d1e1c27b9b8a85fa8f939/4d5c54c31c997d104fe6d1ab/handle.json",
+      "run_id": "bird-547aeae58a53b1e29dcd83e9",
+      "task_id": "bird-547aeae58a53b1e29dcd83e9-work",
+      "candidate_oid": "a389f5db9cc63bc7c84ab883ed4933b5ae433b0a",
+      "tree_oid": "43f3d3888698be624dde75d463f1dcebb9223725",
+      "parent_accept": true,
+      "transport_ack": true,
+      "active": 0,
+      "unknown": 0,
+      "reserved_ms": 0,
+      "used_ms": 23019,
+      "attempts": 1,
+      "actionable_pending": 0,
+      "validation_evidence_sha256": "50befb4c3adda4889e0c9f378b4c531db2fa42777585ac389d9bb169479492ff",
+      "integrated": false,
+      "natural_rework": "NOT_EXERCISED"
+    }
+  },
+  {
+    "direction": "claude-to-codex",
+    "path": "/private/tmp/ab6-1109-r5/claude-to-codex/live-run/scenario-result.json",
+    "sha256": "f2a9cb1a59f8f3ee8ee54a10a23a520447a9f9612ab14c6d21528504629f4522",
+    "status": "BLOCKED",
+    "exit_code": 0,
+    "wall_seconds": 26.022627166006714,
+    "timed_out": false,
+    "remaining_owned_pids": [],
+    "unverified_owned_pids": [],
+    "discovery_errors": [],
+    "output_channels_closed": true,
+    "postflight": null
+  }
+]

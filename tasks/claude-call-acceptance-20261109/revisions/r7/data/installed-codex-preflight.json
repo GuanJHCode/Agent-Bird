@@ -1,0 +1,8 @@
+{
+  "root": "/private/tmp/ab7prep-ntwqiohx",
+  "real_model_calls": 0,
+  "installed_version": "0.1.24-hardening.20261105.8",
+  "scope": "production prepare_launch only; native login status is network-denied; no execve of model argv",
+  "status": "PASS",
+  "auth_projection_removed": true
+}

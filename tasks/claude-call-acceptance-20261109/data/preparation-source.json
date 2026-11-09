@@ -1,0 +1,30 @@
+[
+  {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-r5-live-prep/scripts/t12_harness.py",
+    "sha256": "daceb63d793f41e64fcd9bedc3ebec06b5cc8237223c6a661db9f4d27f322274"
+  },
+  {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-r5-live-prep/scripts/live_sequence.py",
+    "sha256": "0057dce31ef2d52bafa88a25a0e34731249bb76e646df9281c7a7d1949b6bb7b"
+  },
+  {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-r5-live-prep/scripts/current_source.py",
+    "sha256": "109d7039cda2905eb394f55888ee1b403105d8c8d43a0fc258978ed42e017048"
+  },
+  {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-r5-live-prep/scripts/final_trial.py",
+    "sha256": "8619976512cedb9021fc7535a335023679c3da8ea2345cb3a81cea9fdce503f2"
+  },
+  {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-r5-live-prep/scripts/managed_sources.py",
+    "sha256": "8f2ee869889586e7fdaf28d0ed07f889bc8adb29927068830e2528513af56430"
+  },
+  {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-r5-live-prep/scripts/scenario.py",
+    "sha256": "9a42d17f8ffbda3791a600e7c9842e65e87d97bf93e8c1e083fef7814f7308f6"
+  },
+  {
+    "path": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-r5-live-prep/scripts/r5_policy.py",
+    "sha256": "7ff5d7c4c37a533f505b545fb6587ce238d51e557320c43315c8bb78994a8222"
+  }
+]

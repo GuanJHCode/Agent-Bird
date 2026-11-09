@@ -1,0 +1,52 @@
+{
+  "scope": "publication of reviewed private .8 source and selected evidence; no new model calls",
+  "base_commit": "ed3c8060e0276d69a4e88e54694a6b735b056d2d",
+  "package_version": "0.1.24-hardening.20261105.8",
+  "source_materials_verified": 344,
+  "source_materials_mismatches": [],
+  "changed_product_files": {
+    "plugins/codex-orchestrator/lib/trial/codex_exec.py": "0230ecf20d21d708f7048ccc7db9d11a317a620df481222d1fe520255f3a5014",
+    "tools/orchestrator/cmd/orchestrator/source_auth_environment.go": "698af0b0a0de933fdd924aebff61576117806a0a222fef051db439137440fddf",
+    "tools/orchestrator/cmd/orchestrator/source_auth_environment_test.go": "4b5f8b54956fe9cf8dbefa911c4339e0a95d7d5218503666df333d3bc3aff479",
+    "tools/orchestrator/internal/host/claude_test.go": "cf6faaab4f5a9cfb6e437310fd007a1d77386ace89b7ed416d0a5864b7fff320",
+    "tools/orchestrator/internal/host/managed_policy_test.go": "03e64a21348de1b5af0ffaf30d3ddc9fa94e8e1035a21c5e5530dbcaa36502cc",
+    "tools/real-user-trial/test_codex_exec.py": "dc88cce87977b7e8c5ee8e9c42e359678560feb1a77ec2bb290abc6c1438c739"
+  },
+  "go_latest_unique": {
+    "pass": 1667,
+    "fail": 0,
+    "skip": 8
+  },
+  "go_original_logs_hashes_verified": true,
+  "python_reports": {
+    "revisions/r7/data/python-final.xml": {
+      "sha256": "867012265176bd8b9eea7a29fd4b935514978e8d12defe70da5d84967bd76a49",
+      "tests": 385,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 8
+    },
+    "revisions/r7/data/bundle-green.xml": {
+      "sha256": "58cd6745778accddcbfac087b29f34787c393c26af7c31ac2dd5a1aa063bafee",
+      "tests": 66,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "revisions/r8/data/regression.xml": {
+      "sha256": "1c1a2e1e5b5184860014e321fd415f4fc5c939d9cfd1b08a12932457d8965e2b",
+      "tests": 277,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "closure/data/regression.xml": {
+      "sha256": "45314fc1a20164d1d7bffc3f0a4d63adbdeb2a5161147810d72eb9c863c1c702",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "final_result_sha256": "43e142885445adc454793b4ada3bcffa9c9e0c6b9bf905a36f02159cc123b7bd"
+}

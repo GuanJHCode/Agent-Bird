@@ -1,0 +1,34 @@
+{
+  "version": "0.1.24-hardening.20261105.8",
+  "source_base_commit": "ed3c8060e0276d69a4e88e54694a6b735b056d2d",
+  "source_dirty": true,
+  "source_materials": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tasks/claude-call-acceptance-20261109/revisions/r7/tmp/package-r8/data/source-materials.json",
+  "source_materials_sha256": "dc81286d53a3004af0a18c17bbacca5ed7a8bbfd1fd411730cd33cf2951a60ff",
+  "source_patch_sha256": "02dc3a37aef4ccc0d0188c145f7253a1ae700217b515c721eb7851b8b6ebdfd5",
+  "binary_sha256": "cb5a1a05fd53e6673d345f0884e6ee4f022156a7328463034c8c240906cfded8",
+  "archive": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tasks/claude-call-acceptance-20261109/revisions/r7/tmp/package-r8/artifacts/agent-bird-0.1.24-hardening.20261105.8-full-native.tar.gz",
+  "archive_sha256": "090a9e2e09f3637101cc634062b792813d286a2091419470a3396a3b8de7bc58",
+  "package_manifest_sha256": "cec3f14f3f149977b422d36d59c39391d78a224e2117e99cd7b6280a9889b931",
+  "package_files": 24,
+  "installs": {
+    "installed": {
+      "destination": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tasks/claude-call-acceptance-20261109/revisions/r7/tmp/package-r8/artifacts/installed",
+      "root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tasks/claude-call-acceptance-20261109/revisions/r7/tmp/package-r8/artifacts/installed/versions/0.1.24-hardening.20261105.8",
+      "wrapper": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tasks/claude-call-acceptance-20261109/revisions/r7/tmp/package-r8/artifacts/installed/versions/0.1.24-hardening.20261105.8/scripts/invoke.sh",
+      "manifest_sha256": "e1b5c376c6a06d7d2d2cbf9134fc43344c510d8a5b74821036dca16afc17a24b",
+      "receipt_sha256": "ec18756d025cb1c684f92b433f5015bd710e00bad6eb5a97ef7e9b00275302c7",
+      "wrapper_sha256": "4f70ef56a1a40f8bd592f69fd11e8a6b63c3259ca9f53c11b2b07cd0ad0591ea",
+      "binary_sha256": "cb5a1a05fd53e6673d345f0884e6ee4f022156a7328463034c8c240906cfded8"
+    },
+    "installed with spaces": {
+      "destination": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tasks/claude-call-acceptance-20261109/revisions/r7/tmp/package-r8/artifacts/installed with spaces",
+      "root": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tasks/claude-call-acceptance-20261109/revisions/r7/tmp/package-r8/artifacts/installed with spaces/versions/0.1.24-hardening.20261105.8",
+      "wrapper": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/integration/tasks/claude-call-acceptance-20261109/revisions/r7/tmp/package-r8/artifacts/installed with spaces/versions/0.1.24-hardening.20261105.8/scripts/invoke.sh",
+      "manifest_sha256": "e61c28c2d7ea104d95391dd0212868c1778649db77df4936f8f78cc69f04d8bf",
+      "receipt_sha256": "d2555ee4a0ec1d580dcae71d8cd95acb3864383fc2b3fe7b4727d74433f2d5c3",
+      "wrapper_sha256": "4f70ef56a1a40f8bd592f69fd11e8a6b63c3259ca9f53c11b2b07cd0ad0591ea",
+      "binary_sha256": "cb5a1a05fd53e6673d345f0884e6ee4f022156a7328463034c8c240906cfded8"
+    }
+  },
+  "global_install": false
+}

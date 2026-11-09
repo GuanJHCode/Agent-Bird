@@ -1,8 +1,12 @@
 # 当前交接
 
-当前唯一私有候选为 `.5`；源码修复、PKG、同包回归与无模型bootstrap均独立/root PASS，当前文档独审/root资料签收PASS，handoff为PREPARED。**产品 core/T12/T13 product=BLOCKED，native push=BLOCKED；`.5` 产品真实双向 LIVE=NOT_RUN。** 交接资料通过不等于产品通过。
+**用户本轮请求的私有 Claude 调用修复与双向真实 CLI 验收已完成。当前验收通过的私有修订为 `0.1.24-hardening.20261105.8`。** Codex→Claude 与 Claude→Codex 均完成真实候选验证、父accept/ACK、root私有fixture FF、预算结算与清理；最终两方向场景wall合计196.739秒，worker分别19.375/81.961秒，均1attempt。
 
-## 冻结源码与包
+详见[最终验收](../../claude-call-acceptance-20261109/docs/final-acceptance.md)及[原始结果](../../claude-call-acceptance-20261109/closure/data/final-result.json)。原`.5/.6/.7`、失败轮及永久消费标记完整保留，未覆盖历史；“.5独审/离线通过”本身曾不代表真实CLI通过，现结论基于新的`.8`实测。最终独立证据签收PASS，见[最终审查](../../claude-call-acceptance-20261109/docs/final-review.md)。
+
+`.8`构建时源码为integration worktree的`ed3c8060`加dirty patch；identity与source-materials保留该真实来源。本提交收录已验收的对应修复及资料，用户随后明确授权推送`feat/cross-cli-hardening-20261105`，详见[交付说明](../../claude-call-acceptance-20261109/docs/publication.md)。未发布release或替换全局`.bird1/1.0.0-rc.4`。本轮PASS仅覆盖私有双向CLI，T09原线程idle/busy、native push等未验收能力仍保持原BLOCKED范围。
+
+## 历史 .5 源码与包（保留证据）
 
 分支 `feat/cross-cli-hardening-20261105`；包源 `7eb8c8d434a584fd109d9bed96d8c3a82f3fea98`、tree `2f90c500965cfe9098a9ff203078e5dfd896be36`，已推送。后续文档提交不改变包源；当前文档HEAD用git rev-parse HEAD核对。原工作区及用户未跟踪文件保留。
 
@@ -18,7 +22,7 @@
 
 仅本机macOS arm64私有验收，固定Python绝对路径/hash；公开下载仍为v0.1.0-preview.1。没有release、签名/公证、正式分支合并或全局安装替换。
 
-## 已完成及证据
+## 历史 .5 已完成及证据
 
 - T00～T08/T10的实现及单项独审见[TASKS](../TASKS.json)。最新修复保留Claude cli-default来源六字段模型选择、缺失/空值区别；显式Model原合同和认证/私有HOME/ExactEnv边界不变。源码独审与root验收通过并推送，见[修复](../data/public-evidence/T08-Claude-source-default-model-root.json)。短引用route79/review47、完整HMAC/owner/完整tuple校验、8普通MCP工具/noTasks保持。
 - T11 PKG-01～04独立/root PASS：一次成功build/一次package、0失败；180项index，37archive members/25files，两安装各24文件、4entries、MCP8/noTasks；5负例均拒绝，同FS整目录move保留inode仍拒绝；2ownedruntime idle/exited、SQLite11。实际installed Go smoke7pass及guard8pass，0fail/skip。见[PKG](../data/public-evidence/T11-package-r5-root.json)及[审查](../reviews/T11-package-r5-review.md)。
@@ -26,11 +30,11 @@
 - REG-02 同installed .5 binary的Python301pass、7明确native opt-in skip、0fail/error；保留真实JUnit及既有SyntaxWarning。实际Codex0.166.0/Claude2.1.316 metadata各8tools、完整source projection相等、OS拒网络、0model turn、owned groups无残留。Claude不暴露Tasks capability，由同包PKG initialize补noTasks证据。见[REG](../data/public-evidence/T12-regression-r5-root.json)及[独审](../reviews/T12-regression-r5-review.md)。
 - 无模型bootstrap已独立/root PASS：固定.5 identity、51pins、全7scripts、两锁/合同/config/argv、权限/来源proof一致；无live-run、started/completed、auth-preflight、controller/worker。密钥仅root内存/精确子进程ENV，owned文件扫描无明文或编码命中。见[bootstrap](../data/public-evidence/T12-bootstrap-r5-root.json)及[安全审查](../reviews/T12-live-preparation-r5-review.md)。严格串行root lock/永久消费marker已通过110项PUBLIC fixtures，不重置方向或旧预算。
 
-## 未完成及下一步
+## 当前完成边界
 
-`.5` 真实父模型短引用传递、worker候选、父审查、真实accept/ACK与root私有FF均NOT_RUN。旧`.3`两次有界试验已结束，不能借新ID重置；需在本材料签收后确认本轮新的具体额度，再由root单次执行。拟两方向严格串行，每方向最多180秒wall含cleanup，worker每段60秒/总90秒/最多2attempt（仅自然必要返工）。合计最多6分钟scenario wall，不代表token/费用上限。Codex gpt-6-luna/low；Claude保留当前CC token/Bearer和来源默认Deepseek，不换key/账号/模型；不加付费探针，第一方向失败则不启动第二方向。
+私有`.8`双向CLI已通过；Claude仍当前默认DeepSeek，Codex仍gpt-6-luna/low。单段可使用同组90秒总额度，每方向180秒、串行360秒上限不变；这是对旧60秒内部切分的调整，没有增加worker累计上限。自然缺陷返工未触发，LIVE-03为NOT_EXERCISED；不制造缺陷补覆盖。
 
-T09原线程idle/busy真实父续审仍BLOCKED，typed resume、AGY/Grok coding未开放。LIVE-03自然缺陷返工未触发，NOT_EXERCISED，不制造缺陷冒充覆盖。尚未执行.5卸载、非macOS arm64、公开发行。最终产品状态仍由必需LIVE与最终集成签收决定。
+当前没有待执行的本轮真实调用，不重置任何旧marker。用户已授权提交并推送本次修复与验收记录；替换全局插件、native TUI/T09或公开发行仍属于后续范围。当前代码与私有包验证和历史限制统一见最终验收报告。
 
 ## 保留历史与现场
 

@@ -80,6 +80,8 @@ func claudeGatewayFixture(t *testing.T) (process.Command, *adapter.ExecutionProf
 
 func TestClaudeGatewayUsesExactPrivateEnvironmentWithoutCopyingAuth(t *testing.T) {
 	cmd, profile, scratch, source := claudeGatewayFixture(t)
+	source.env["CLAUDE_CODE_MESSAGING_SOCKET"] = "/public/messaging.sock"
+	source.env["CLAUDE_CODE_MESSAGING_TOKEN"] = "public-ipc-token"
 	cmd.Env = []string{"ORCHESTRATOR_REPORT_EXECUTABLE=/private/report-helper"}
 	prepared, err := prepareClaudeGateway(context.Background(), cmd, profile, scratch, source)
 	if err != nil {
@@ -92,7 +94,7 @@ func TestClaudeGatewayUsesExactPrivateEnvironmentWithoutCopyingAuth(t *testing.T
 	if !strings.Contains(joined, "ORCHESTRATOR_REPORT_EXECUTABLE=/private/report-helper") {
 		t.Fatal("report executable lost at gateway boundary")
 	}
-	for _, bad := range []string{"NODE_OPTIONS=", "HTTPS_PROXY=", "DYLD_INSERT_LIBRARIES=", "CLAUDE_CODE_OAUTH_TOKEN="} {
+	for _, bad := range []string{"NODE_OPTIONS=", "HTTPS_PROXY=", "DYLD_INSERT_LIBRARIES=", "CLAUDE_CODE_OAUTH_TOKEN=", "CLAUDE_CODE_MESSAGING_SOCKET=", "CLAUDE_CODE_MESSAGING_TOKEN="} {
 		if strings.Contains(joined, bad) {
 			t.Fatalf("inherited environment %s", bad)
 		}

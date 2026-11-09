@@ -1,0 +1,14 @@
+{
+  "status": "BLOCKED",
+  "exit_code": 0,
+  "wall_seconds": 66.00522970804013,
+  "timed_out": false,
+  "remaining_owned_pids": [],
+  "unverified_owned_pids": [],
+  "discovery_errors": [],
+  "output_channels_closed": true,
+  "result_path": "/private/tmp/ab6-1109-r4/codex-to-claude/live-run/scenario-result.json",
+  "result_sha256": "b06ee6c9566e5ffda2f7c52aad3b6833a00e055e5ac17a028b5f8c0927ca276c",
+  "cause": "parent_retyped_optional_task_id_one_hex_character_wrong",
+  "second_direction": "NOT_RUN"
+}

@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "reviewer": "/root/review_claude_r5_acceptance",
+  "result_sha256": "43e142885445adc454793b4ada3bcffa9c9e0c6b9bf905a36f02159cc123b7bd",
+  "review_path": "tasks/claude-call-acceptance-20261109/docs/final-review.md",
+  "scope": "private .8 bidirectional real CLI, parent accept/ACK, private fixture FF, budgets and cleanup"
+}

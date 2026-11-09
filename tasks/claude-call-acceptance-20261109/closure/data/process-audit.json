@@ -1,0 +1,8 @@
+{
+  "root": "/private/tmp/ab8-1109-r8",
+  "coordinator_pidfiles": {
+    "codex-to-claude": false,
+    "claude-to-codex": false
+  },
+  "matching_runtime_processes": []
+}

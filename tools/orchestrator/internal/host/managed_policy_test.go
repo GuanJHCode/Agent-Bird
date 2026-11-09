@@ -96,6 +96,8 @@ func TestCodexHelperExactEnvironmentRejectsAmbientAuthAndLoader(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("PYTHONPATH", "untrusted")
 	t.Setenv("DYLD_INSERT_LIBRARIES", "untrusted")
+	t.Setenv("CLAUDE_CODE_MESSAGING_SOCKET", "/public/messaging.sock")
+	t.Setenv("CLAUDE_CODE_MESSAGING_TOKEN", "public-ipc-token")
 	for _, entry := range os.Environ() {
 		name, _, _ := strings.Cut(entry, "=")
 		if strings.HasPrefix(name, "OPENAI_") || strings.HasPrefix(name, "CODEX_") {
@@ -108,7 +110,7 @@ func TestCodexHelperExactEnvironmentRejectsAmbientAuthAndLoader(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join(env, "\n")
-	if strings.Contains(joined, "PYTHONPATH=") || strings.Contains(joined, "DYLD_") || !strings.Contains(joined, "TMPDIR=/private/owned") {
+	if strings.Contains(joined, "PYTHONPATH=") || strings.Contains(joined, "DYLD_") || strings.Contains(joined, "CLAUDE_CODE_MESSAGING_") || !strings.Contains(joined, "TMPDIR=/private/owned") {
 		t.Fatalf("env=%v", env)
 	}
 	t.Setenv("CODEX_REFRESH_TOKEN_URL_OVERRIDE", "")

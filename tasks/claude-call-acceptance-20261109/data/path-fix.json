@@ -1,0 +1,26 @@
+{
+  "status": "OFFLINE_PATH_FIX_PASS",
+  "production_package_changed": false,
+  "old_scripts_unchanged": 7,
+  "old_setup_pins_unchanged": 51,
+  "old_failure_evidence_unchanged": 6,
+  "changed_preparation_files": [
+    "final_trial.py"
+  ],
+  "tests": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "74",
+    "time": "0.654",
+    "timestamp": "2026-11-09T16:05:17.702083+08:00",
+    "hostname": "guanjunhuideMacBook-Pro.local"
+  },
+  "new_live_setup_created": false,
+  "real_model_calls": 0,
+  "new_launcher_sha256": "27c899d80c2d58b6fbcc337007f31f3580659a82c2acdba50f9c72c0f598bb7e",
+  "review": "PASS",
+  "review_report": "../docs/path-fix-review.md",
+  "final_test_report": "paths-reviewed-final.xml"
+}

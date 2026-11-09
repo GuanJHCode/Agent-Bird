@@ -1,0 +1,58 @@
+{
+  "go_commands": {
+    "go-full": {
+      "counts": {
+        "pass": 1564,
+        "fail": 93,
+        "skip": 8
+      },
+      "sha256": "a21d97b0a6734c78c9decb05f001120f7c5300ce034d4c1374ac9d00c2a5c459"
+    },
+    "go-store-canonical": {
+      "counts": {
+        "pass": 405,
+        "fail": 0,
+        "skip": 0
+      },
+      "sha256": "56bfa6026949deeb3e62b14d952fa7e4b94b40378449c195bf0edf460b48ef86"
+    },
+    "go-cmd-canonical": {
+      "counts": {
+        "pass": 19,
+        "fail": 0,
+        "skip": 0
+      },
+      "sha256": "0cc2aacddcefcf31255521743d7fc162bc2fe6ac93e78ee60619f8a0cbc3fb8f"
+    },
+    "go-race-focused": {
+      "counts": {
+        "pass": 146,
+        "fail": 0,
+        "skip": 0
+      },
+      "sha256": "ad3edfcaf45ddf4c099c0753440a6db7ec58fa9db8a9d6124b8044d8369b72fd"
+    }
+  },
+  "go_latest_unique": {
+    "pass": 1667,
+    "fail": 0,
+    "skip": 8
+  },
+  "python": {
+    "tests": 276,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "prior_trial_pins": [
+    {
+      "root": "/private/tmp/ab5-1109-r2",
+      "pins_verified": 51
+    },
+    {
+      "root": "/private/tmp/ab5-1109-r3",
+      "pins_verified": 51
+    }
+  ],
+  "vet_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

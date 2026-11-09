@@ -1,0 +1,48 @@
+[
+  {
+    "direction": "codex-to-claude",
+    "path": "/private/tmp/ab8-1109-r7/codex-to-claude/live-run/scenario-result.json",
+    "sha256": "b2f571d7b1f74987a14ac51307dd1834de97b1075a6d16e05bfde200f7423f30",
+    "status": "SCENARIO_PASS",
+    "exit_code": 0,
+    "wall_seconds": 87.15600229101256,
+    "timed_out": false,
+    "remaining_owned_pids": [],
+    "unverified_owned_pids": [],
+    "discovery_errors": [],
+    "output_channels_closed": true,
+    "postflight": {
+      "status": "POSTFLIGHT_PASS",
+      "cli_handle": "/private/tmp/ab8-1109-r7/codex-to-claude/state/dispatch/c9993e098c4ea288686bcba7/4d5c54c31c997d104fe6d1ab/handle.json",
+      "run_id": "bird-1851ad76b67ec8c1ba7ed793",
+      "task_id": "bird-1851ad76b67ec8c1ba7ed793-work",
+      "candidate_oid": "64bf5778fd854e772f4f6f9db7de0a002568ab51",
+      "tree_oid": "820ca31eb97c8408b6d5789059c7eeca8579f292",
+      "parent_accept": true,
+      "transport_ack": true,
+      "active": 0,
+      "unknown": 0,
+      "reserved_ms": 0,
+      "used_ms": 17650,
+      "attempts": 1,
+      "actionable_pending": 0,
+      "validation_evidence_sha256": "e1c3b3d87df2f285324ad6bcef45f956c6f53b877b338dd10e9b0b58463b911b",
+      "integrated": false,
+      "natural_rework": "NOT_EXERCISED"
+    }
+  },
+  {
+    "direction": "claude-to-codex",
+    "path": "/private/tmp/ab8-1109-r7/claude-to-codex/live-run/scenario-result.json",
+    "sha256": "38b63c8685983b6b916aa0a560c9a19df8f11a46406199af0c2446f05e2066cc",
+    "status": "BLOCKED",
+    "exit_code": 0,
+    "wall_seconds": 116.56967270898167,
+    "timed_out": false,
+    "remaining_owned_pids": [],
+    "unverified_owned_pids": [],
+    "discovery_errors": [],
+    "output_channels_closed": true,
+    "postflight": null
+  }
+]

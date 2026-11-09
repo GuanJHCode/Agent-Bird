@@ -1,0 +1,123 @@
+{
+  "status": "BIDIRECTIONAL_LIVE_AND_PRIVATE_FF_PASS",
+  "version": "0.1.24-hardening.20261105.8",
+  "root": "/private/tmp/ab8-1109-r8",
+  "identity_sha256": "a815a42f5db5dd2f71b9c720cabe027aaaddf6ff14f82cf63075f425cda2434e",
+  "pins_verified": 51,
+  "source_credentials_persisted_by_closure": false,
+  "total_scenario_wall_seconds": 196.73891850106884,
+  "directions": [
+    {
+      "direction": "codex-to-claude",
+      "wall_seconds": 87.39478258404415,
+      "scenario_result_sha256": "e0bed07f5b767f043831c3aac0537dd7965051d8768f9b1aa125e9e8e4bad546",
+      "validation_evidence": "/private/tmp/ab8-1109-r8/codex-to-claude/scratch/validation-422823e26a0e9c08a3603df7638787dbc37f525a0cf45e2d63f08a7d9391f62a.json",
+      "postflight": {
+        "status": "POSTFLIGHT_PASS",
+        "cli_handle": "/private/tmp/ab8-1109-r8/codex-to-claude/state/dispatch/6b2aa42ba4f830e7214f8b6c/4d5c54c31c997d104fe6d1ab/handle.json",
+        "run_id": "bird-c28368dff7e44dfe63992e1c",
+        "task_id": "bird-c28368dff7e44dfe63992e1c-work",
+        "candidate_oid": "7e3978c6055a5dc70c6732ac4aa55d1189a37807",
+        "tree_oid": "e1366a665e3d5804d52f0b7d94d467646b867c36",
+        "parent_accept": true,
+        "transport_ack": true,
+        "active": 0,
+        "unknown": 0,
+        "reserved_ms": 0,
+        "used_ms": 19375,
+        "attempts": 1,
+        "actionable_pending": 0,
+        "validation_evidence_sha256": "4213352cd9cbf301e80bb6bbd4a23c9b7c8540fde973c7f146ca213aa7efe729",
+        "integrated": true,
+        "natural_rework": "NOT_EXERCISED"
+      },
+      "tasks": [
+        [
+          "completed",
+          1
+        ]
+      ],
+      "segments": [
+        [
+          "exited",
+          1
+        ]
+      ],
+      "hosts": [
+        [
+          "offline",
+          1
+        ]
+      ],
+      "budgets": [
+        [
+          90000,
+          19375,
+          "settled"
+        ]
+      ],
+      "owned_cleanup": {
+        "remaining_owned_pids": [],
+        "unverified_owned_pids": [],
+        "discovery_errors": [],
+        "output_channels_closed": true
+      }
+    },
+    {
+      "direction": "claude-to-codex",
+      "wall_seconds": 109.34413591702469,
+      "scenario_result_sha256": "d0350c7d09ae20f4798fde2857fabc6737bdac3fb2f203077729bec51a70a61a",
+      "validation_evidence": "/private/tmp/ab8-1109-r8/claude-to-codex/scratch/validation-06b9017e225498708f9457ca175cd060e4774bb0cc0a966f2789b68debbeb155.json",
+      "postflight": {
+        "status": "POSTFLIGHT_PASS",
+        "cli_handle": "/private/tmp/ab8-1109-r8/claude-to-codex/state/dispatch/114e8f0823d67e946faab29b/abe82f201519eeff87eb3ea3/handle.json",
+        "run_id": "bird-d3f462f662e0561c3d1c41c2",
+        "task_id": "bird-d3f462f662e0561c3d1c41c2-work",
+        "candidate_oid": "39bef5c79f708712a99da97cc712f83632ddd1ed",
+        "tree_oid": "42565268c9a2d2c4f079b541329311539426e5a0",
+        "parent_accept": true,
+        "transport_ack": true,
+        "active": 0,
+        "unknown": 0,
+        "reserved_ms": 0,
+        "used_ms": 81961,
+        "attempts": 1,
+        "actionable_pending": 0,
+        "validation_evidence_sha256": "3a6d46500129cd069ed137389319239f4f45aa0e1aead3cbd915b84b3be4e7a3",
+        "integrated": true,
+        "natural_rework": "NOT_EXERCISED"
+      },
+      "tasks": [
+        [
+          "completed",
+          1
+        ]
+      ],
+      "segments": [
+        [
+          "exited",
+          1
+        ]
+      ],
+      "hosts": [
+        [
+          "offline",
+          1
+        ]
+      ],
+      "budgets": [
+        [
+          90000,
+          81961,
+          "settled"
+        ]
+      ],
+      "owned_cleanup": {
+        "remaining_owned_pids": [],
+        "unverified_owned_pids": [],
+        "discovery_errors": [],
+        "output_channels_closed": true
+      }
+    }
+  ]
+}

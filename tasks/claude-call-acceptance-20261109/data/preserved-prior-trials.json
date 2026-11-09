@@ -1,0 +1,24 @@
+[
+  {
+    "root": "/private/tmp/ab5-1109-r2",
+    "pins_verified": 51,
+    "evidence": {
+      "codex-to-claude/live-run/scenario-result.json": "bc9bfbd7037b0c550b552ee2795e1af134536559d4ab81aa273bea706334a89e"
+    }
+  },
+  {
+    "root": "/private/tmp/ab5-1109-r3",
+    "pins_verified": 51,
+    "evidence": {
+      "codex-to-claude/live-run/scenario-result.json": "f8ddc2e373954d87518a85e28200e39ea2ae1f10e7b9704515c5bc39e33b1e90",
+      "claude-to-codex/live-run/scenario-result.json": "722ddaef5f777a431269f000a64c7ffb88b889d841725070a8071807c75b009a"
+    }
+  },
+  {
+    "root": "/private/tmp/ab6-1109-r4",
+    "pins_verified": 53,
+    "evidence": {
+      "codex-to-claude/live-run/scenario-result.json": "b06ee6c9566e5ffda2f7c52aad3b6833a00e055e5ac17a028b5f8c0927ca276c"
+    }
+  }
+]

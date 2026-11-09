@@ -34,7 +34,7 @@ def blocked(code: str):
     raise AuthGuardBlocked(code)
 
 
-def read_stable(path: Path, *, executable=False) -> tuple[bytes, tuple]:
+def read_stable(path: Path, *, executable=False, public_metadata=False) -> tuple[bytes, tuple]:
     try:
         if not path.is_absolute() or path.resolve(strict=True) != path:
             blocked('auth_source_untrusted' if not executable else 'native_path_untrusted')
@@ -43,7 +43,8 @@ def read_stable(path: Path, *, executable=False) -> tuple[bytes, tuple]:
             before = os.fstat(fd)
             if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid()
                     or before.st_nlink != 1 or before.st_mode & 0o022
-                    or (not executable and stat.S_IMODE(before.st_mode) != 0o600)
+                    or (not executable and stat.S_IMODE(before.st_mode) not in
+                        ((0o600, 0o644) if public_metadata else (0o600,)))
                     or (executable and not before.st_mode & 0o111)):
                 blocked('auth_source_untrusted' if not executable else 'native_path_untrusted')
             maximum = 512*1024*1024 if executable else 1024*1024
@@ -159,6 +160,13 @@ NATIVE_COMPANIONS = {
     '0.166.0': 'fd37051bfdce0b65cf22a7077e265720a7bd6709d5e400dcbc26197f3041400a',
 }
 
+NATIVE_STANDARD_TOOLS = {
+    '0.166.0': {
+        'bin/codex-exec-server': 'b3073157bdbb5cc598b10c8bbf8785f2ba052f65f3893f9cbeb9432e4c027c08',
+        'codex-path/rg': 'db94328a1765b7d5fd4ee6a94442ebf24a78d1fce246fe3219b578561ab3dfc1',
+    },
+}
+
 def verify_binary(binary: str, version: str, digest: str):
     if version not in NATIVE_ADMISSIONS: blocked('native_version_mismatch')
     if digest != NATIVE_ADMISSIONS[version]: blocked('native_sha256_mismatch')
@@ -171,14 +179,38 @@ def verify_bundle(path, version):
     if path.name != 'codex' or path.parent.name != 'bin': blocked('native_bundle_untrusted')
     root=path.parent.parent
     try:
-        for directory in (root,path.parent,root/'codex-resources'):
+        manifest = root / 'codex-package.json'
+        # Public install metadata is not the owner-only ChatGPT auth file.
+        # Admit only the measured standalone layout; never follow manifest paths.
+        body, _ = read_stable(manifest, public_metadata=(version == '0.166.0'))
+        data = unique_json(body)
+        standard = (version == '0.166.0' and isinstance(data, dict)
+            and type(data.get('layoutVersion')) is int and data == {
+                'layoutVersion': 1, 'version': version, 'target': 'aarch64-apple-darwin',
+                'variant': 'codex', 'entrypoint': 'bin/codex',
+                'execServer': 'bin/codex-exec-server', 'resourcesDir': 'codex-resources',
+                'pathDir': 'codex-path'})
+        directories = (root, path.parent, root / 'codex-resources')
+        if standard:
+            directories += (root / 'codex-path',)
+            modes = (0o700, 0o755)
+            companion = root / 'bin/codex-code-mode-host'
+        elif data == {'version': version}:
+            # Retain the exact original private-bundle contract.
+            if read_stable(manifest)[0] != body: blocked('auth_source_changed')
+            modes = (0o700,)
+            companion = root / 'codex-resources/codex-code-mode-host'
+        else:
+            blocked('native_bundle_untrusted')
+        for directory in directories:
             info=directory.lstat()
             if (directory.resolve(strict=True)!=directory or not stat.S_ISDIR(info.st_mode)
-                    or info.st_uid!=os.getuid() or stat.S_IMODE(info.st_mode)!=0o700):
+                    or info.st_uid!=os.getuid() or stat.S_IMODE(info.st_mode) not in modes):
                 blocked('native_bundle_untrusted')
-        body,_=read_stable(root/'codex-package.json')
-        if unique_json(body)!={'version':version}: blocked('native_bundle_untrusted')
-        verify_executable(root/'codex-resources/codex-code-mode-host',NATIVE_COMPANIONS[version])
+        verify_executable(companion,NATIVE_COMPANIONS[version])
+        if standard:
+            for relative, digest in NATIVE_STANDARD_TOOLS[version].items():
+                verify_executable(root / relative, digest)
     except AuthGuardBlocked:raise
     except Exception:blocked('native_bundle_untrusted')
 
