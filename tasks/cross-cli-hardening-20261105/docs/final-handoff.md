@@ -44,3 +44,7 @@ T09 native原线程idle/busy续审仍BLOCKED，typed resume、AGY/Grok coding不
 ## 交接后的用户授权连通性复测
 
 用户随后明确允许使用Claude现有Key/API尝试。使用此前会话提供的同一配置，未换账号或默认模型：首次结果采集异常/API结果未知，补测返回HTTP401、CLI token统计0，已停止重试。详情见[复测记录](claude-connectivity-20261109.md)。这不是同包`.4`双向模型验收；core/T12/T13产品仍BLOCKED。若用户另有已配置路由，待其提供路径或管理工具信息，不要求密钥。旧交接root报告的no_new_paid_cli_trials仅对应402af7cc当时的离线阶段，不扩展到这次新授权的复测。
+
+## 后续CC Switch新配置验证
+
+用户之后配置好CC中的Claude，root确认`~/.claude/settings.json`与当前provider一致。按新AUTH_TOKEN/Bearer及原默认模型进行一次最小CLI调用，报告HTTP403、usage0、无模型回答；详见[当前CC验证](cc-claude-connectivity-20261109.md)。配置确已读取，具体403原因仍不确定；旧聊天Key/API的401是前一次历史，不代表这次配置。没有再次自动试错或切换Key/账户/模型/地址，core及新`.4`真实双向门禁保持不变。

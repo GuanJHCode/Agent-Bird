@@ -1,0 +1,54 @@
+{
+  "response_is_json": true,
+  "exact_nonce_response": false,
+  "http_error_codes": [
+    403
+  ],
+  "usage": {
+    "input_tokens": 0,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "output_tokens": 0
+  },
+  "raw_output_saved": false,
+  "cli_argument_error": false,
+  "login_required": false,
+  "api_error_observed": true,
+  "stdout_bytes": 1233,
+  "stderr_bytes": 95,
+  "status": "BLOCKED",
+  "scope": "standalone actual Claude model connectivity; not .4 bidirectional acceptance",
+  "model_answer_received": false,
+  "cli_exit_code": 1,
+  "seconds": 0.41,
+  "timed_out": false,
+  "cleanup_errors": [],
+  "cli_invocations": 1,
+  "settings_match_current_cc_switch": true,
+  "auth_mode": "ANTHROPIC_AUTH_TOKEN/Bearer",
+  "route_origin": "https://dashscope.aliyuncs.com",
+  "route_path": "/apps/anthropic",
+  "default_model_unchanged": true,
+  "ordinary_retries": 0,
+  "max_turns": 1,
+  "max_output_tokens": 128,
+  "global_configuration_modified": false,
+  "billing": "NOT_VERIFIED; usage is CLI-reported",
+  "product_bidirectional_live": "NOT_RUN_ON_4",
+  "credential_file_hits": [],
+  "credential_scan_passed": true,
+  "owned_probe_processes_remaining": [],
+  "auth_source": "effective ~/.claude/settings.json equals current CC Switch Claude provider; not the earlier chat credential",
+  "external_evidence_index": "/Users/guanjunhui/code/ai/agent-bird-hardening-20261105/tmp/t12-cc-claude-check-20261109/docs/evidence-index.json",
+  "external_evidence_index_sha256": "e25f72fac09b1be5586b554347415e809be066e139add862501451fd56d286a6",
+  "diagnostic_sources": [
+    "https://help.aliyun.com/en/model-studio/claude-code",
+    "https://help.aliyun.com/zh/model-studio/error-code"
+  ],
+  "diagnosis": "HTTP403 alone does not identify a specific account/model/space/key-plan issue; no global config, endpoint or model changed",
+  "independent_review": {
+    "status": "PASS",
+    "report": "reviews/T12-cc-claude-check-review.md",
+    "scope": "accurate BLOCKED probe record; not model connectivity success"
+  }
+}

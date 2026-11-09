@@ -11,3 +11,5 @@
 本轮Go1.26.10与pytest运行时已恢复到任务专用稳定目录，准确路径和provenance见T08 root证据。保留全部私有包/失败现场/authority与0700/0600权限，勿运行reset/clean/gc/prune或全局清理。[历史恢复记录](resume-history-20261105-20261109.md)仅作过程证据，不用其中旧“当前”覆盖本文件。
 
 最新后续：用户在402af7cc交接后授权Claude既有Key/API最小连通性尝试。此前会话同配置补测HTTP401，CLI token0；首次采集异常/API结果UNKNOWN。共两次CLI启动，已收尾且不再自动重试。见[复测记录](claude-connectivity-20261109.md)，独立审查/root已通过准确的受阻记录，认证本身未通过。若另有已配置路由，只需路径/管理工具信息，不提供密钥；新.4真实双向仍NOT_RUN。
+
+最新CC配置验证：用户随后已完成CC Switch Claude配置，root确认生效settings与当前provider一致，使用新AUTH_TOKEN/原默认模型调用一次，CLI返回HTTP403、usage0、无模型回答/残留/密钥落盘。见[当前CC验证](cc-claude-connectivity-20261109.md)。这次不是旧会话Key/API，也不再以“未找到配置”描述当前状态；先前401记录仅为历史。未自动修改接口/模型/权限，`.4`双向仍NOT_RUN。

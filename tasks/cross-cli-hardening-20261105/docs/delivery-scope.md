@@ -146,3 +146,5 @@ ACK 必须从 collect 页复制实际字段；每项 `decision` 仅 `handled/wai
 ## 后续授权的独立连通性检查
 
 402af7cc交接后用户另授权尝试Claude既有Key/API。[本次最小复测](claude-connectivity-20261109.md)的已观测补测返回HTTP401（原来源API-key模式、默认模型保留）；首次采集异常结果UNKNOWN。两次均已收尾，无进一步自动重试。该检查未使用`.4`产品派发闭环，不改变本页PKG/REG或历史`.3`身份，也不将`.4`LIVE从NOT_RUN提升。
+
+用户随后已配置生效CC Switch Claude路由；[新配置验证](cc-claude-connectivity-20261109.md)使用AUTH_TOKEN/Bearer和原默认模型，单次CLI返回HTTP403、无模型回答，具体权限/接入原因未确定。这与旧聊天Key/API的401分开记录，不改变产品`.4`LIVE=NOT_RUN。
